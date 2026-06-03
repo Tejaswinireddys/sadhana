@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { todayISO } from "@/lib/sadhana";
 import { BreathingVisualizer, type BreathConfig } from "@/components/BreathingVisualizer";
+import { VoicePlayer } from "@/components/VoicePlayer";
 import { BREATHING, breathOfTheDay, type BreathTechnique } from "@/data/content";
 import { Sparkles, ShieldAlert, Wind } from "lucide-react";
 
@@ -136,6 +137,13 @@ export default function Breathing() {
               data-testid="slider-rounds"
             />
           </div>
+
+          {/* Guided audio for this technique */}
+          <VoicePlayer
+            src={`/voice/breath-${active.slug}.mp3`}
+            slug={active.slug}
+            label={`Guided audio — ${active.name}`}
+          />
 
           {/* Visualizer (key forces a clean reset when technique/rounds change) */}
           <BreathingVisualizer

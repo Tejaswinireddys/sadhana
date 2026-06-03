@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "./Logo";
 import { useTheme } from "./ThemeProvider";
 import { MotionToggle } from "./MotionToggle";
+import { VoiceToggle } from "./VoiceToggle";
 import {
   Home,
   LayoutGrid,
@@ -27,6 +28,8 @@ import {
   NotebookPen,
   Moon,
   Sun,
+  Compass,
+  Smile,
 } from "lucide-react";
 
 const NAV = [
@@ -37,6 +40,8 @@ const NAV = [
   { href: "/breathing", label: "Breathing", icon: Wind },
   { href: "/affirmations", label: "Affirmations", icon: Sparkles },
   { href: "/journal", label: "Journal", icon: NotebookPen },
+  { href: "/profiles", label: "Profiles", icon: Compass },
+  { href: "/kids", label: "Kids", icon: Smile },
 ];
 
 function NavMenu() {
@@ -91,6 +96,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {theme === "dark" ? "Light mode" : "Dark mode"}
           </Button>
           <MotionToggle />
+          <VoiceToggle />
           <p className="px-2 pt-2 text-xs text-muted-foreground">
             Sādhanā — a daily, dedicated practice.
           </p>

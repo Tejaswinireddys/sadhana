@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { PracticeProvider } from "@/context/PracticeContext";
+import { KidsGateProvider } from "@/context/KidsGateContext";
 import { AppLayout } from "@/components/AppLayout";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
@@ -17,6 +18,9 @@ import Practice from "@/pages/Practice";
 import Breathing from "@/pages/Breathing";
 import Affirmations from "@/pages/Affirmations";
 import Journal from "@/pages/Journal";
+import Profiles from "@/pages/Profiles";
+import Kids from "@/pages/Kids";
+import KidsPose from "@/pages/KidsPose";
 
 function AppRouter() {
   return (
@@ -30,6 +34,9 @@ function AppRouter() {
       <Route path="/breathing" component={Breathing} />
       <Route path="/affirmations" component={Affirmations} />
       <Route path="/journal" component={Journal} />
+      <Route path="/profiles" component={Profiles} />
+      <Route path="/kids" component={Kids} />
+      <Route path="/kids/:slug" component={KidsPose} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -41,12 +48,14 @@ function App() {
       <ThemeProvider>
         <TooltipProvider>
           <PracticeProvider>
-            <Toaster />
-            <Router hook={useHashLocation}>
-              <AppLayout>
-                <AppRouter />
-              </AppLayout>
-            </Router>
+            <KidsGateProvider>
+              <Toaster />
+              <Router hook={useHashLocation}>
+                <AppLayout>
+                  <AppRouter />
+                </AppLayout>
+              </Router>
+            </KidsGateProvider>
           </PracticeProvider>
         </TooltipProvider>
       </ThemeProvider>

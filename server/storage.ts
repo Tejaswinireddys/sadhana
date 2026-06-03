@@ -4,6 +4,8 @@ import {
   favoriteAffirmations,
   journalEntries,
   preferences,
+  userProfiles,
+  kidsStickers,
 } from "@shared/schema";
 import type {
   Session,
@@ -16,6 +18,9 @@ import type {
   InsertJournal,
   Preferences,
   InsertPreferences,
+  UserProfile,
+  Sticker,
+  InsertSticker,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -55,7 +60,19 @@ sqlite.exec(`
   );
   CREATE TABLE IF NOT EXISTS preferences (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    motion_enabled INTEGER NOT NULL DEFAULT 1
+    motion_enabled INTEGER NOT NULL DEFAULT 1,
+    voice_enabled INTEGER NOT NULL DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS user_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    profile_id TEXT NOT NULL,
+    activated_at TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1
+  );
+  CREATE TABLE IF NOT EXISTS kids_stickers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pose_slug TEXT NOT NULL,
+    earned_at TEXT NOT NULL
   );
 `);
 
@@ -64,6 +81,16 @@ try {
   const cols = sqlite.prepare(`PRAGMA table_info(sessions)`).all() as { name: string }[];
   if (!cols.some((c) => c.name === "kind")) {
     sqlite.exec(`ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'asana'`);
+  }
+} catch {
+  /* ignore */
+}
+
+// --- Lightweight migration: add preferences.voice_enabled if missing ---
+try {
+  const cols = sqlite.prepare(`PRAGMA table_info(preferences)`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === "voice_enabled")) {
+    sqlite.exec(`ALTER TABLE preferences ADD COLUMN voice_enabled INTEGER NOT NULL DEFAULT 1`);
   }
 } catch {
   /* ignore */
@@ -101,6 +128,13 @@ export interface IStorage {
   // preferences
   getPreferences(): Promise<Preferences>;
   updatePreferences(data: Partial<InsertPreferences>): Promise<Preferences>;
+  // profiles
+  getActiveProfile(): Promise<UserProfile | undefined>;
+  activateProfile(profileId: string): Promise<UserProfile>;
+  deactivateProfile(): Promise<void>;
+  // kids stickers
+  getStickers(): Promise<Sticker[]>;
+  createSticker(data: InsertSticker): Promise<Sticker>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -147,7 +181,7 @@ export class DatabaseStorage implements IStorage {
   async getPreferences(): Promise<Preferences> {
     let row = db.select().from(preferences).limit(1).get();
     if (!row) {
-      row = db.insert(preferences).values({ motionEnabled: 1 }).returning().get();
+      row = db.insert(preferences).values({ motionEnabled: 1, voiceEnabled: 1 }).returning().get();
     }
     return row;
   }
@@ -159,6 +193,35 @@ export class DatabaseStorage implements IStorage {
       .where(eq(preferences.id, current.id))
       .returning()
       .get();
+  }
+
+  async getActiveProfile(): Promise<UserProfile | undefined> {
+    return db
+      .select()
+      .from(userProfiles)
+      .where(eq(userProfiles.active, true))
+      .orderBy(desc(userProfiles.id))
+      .limit(1)
+      .get();
+  }
+  async activateProfile(profileId: string): Promise<UserProfile> {
+    // Deactivate all existing active profiles, then insert a new active row
+    db.update(userProfiles).set({ active: false }).where(eq(userProfiles.active, true)).run();
+    return db
+      .insert(userProfiles)
+      .values({ profileId, activatedAt: new Date().toISOString(), active: true })
+      .returning()
+      .get();
+  }
+  async deactivateProfile(): Promise<void> {
+    db.update(userProfiles).set({ active: false }).where(eq(userProfiles.active, true)).run();
+  }
+
+  async getStickers(): Promise<Sticker[]> {
+    return db.select().from(kidsStickers).orderBy(desc(kidsStickers.earnedAt)).all();
+  }
+  async createSticker(data: InsertSticker): Promise<Sticker> {
+    return db.insert(kidsStickers).values(data).returning().get();
   }
 }
 

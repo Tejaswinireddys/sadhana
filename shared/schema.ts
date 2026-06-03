@@ -21,6 +21,7 @@ export type Session = typeof sessions.$inferSelect;
 export const preferences = sqliteTable("preferences", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   motionEnabled: integer("motion_enabled").notNull().default(1), // 1 = animations on
+  voiceEnabled: integer("voice_enabled").notNull().default(1), // 1 = voice narration on
 });
 
 export const insertPreferencesSchema = createInsertSchema(preferences).omit({ id: true });
@@ -63,3 +64,26 @@ export const journalEntries = sqliteTable("journal_entries", {
 export const insertJournalSchema = createInsertSchema(journalEntries).omit({ id: true });
 export type InsertJournal = z.infer<typeof insertJournalSchema>;
 export type Journal = typeof journalEntries.$inferSelect;
+
+// Active personalization profile (single active row, but history retained)
+export const userProfiles = sqliteTable("user_profiles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  profileId: text("profile_id").notNull(), // FK to static profile id
+  activatedAt: text("activated_at").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+});
+
+export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({ id: true });
+export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
+export type UserProfile = typeof userProfiles.$inferSelect;
+
+// Kids stickers earned by completing a kids pose
+export const kidsStickers = sqliteTable("kids_stickers", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  poseSlug: text("pose_slug").notNull(),
+  earnedAt: text("earned_at").notNull(),
+});
+
+export const insertStickerSchema = createInsertSchema(kidsStickers).omit({ id: true });
+export type InsertSticker = z.infer<typeof insertStickerSchema>;
+export type Sticker = typeof kidsStickers.$inferSelect;

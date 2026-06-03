@@ -2,14 +2,28 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Heatmap } from "@/components/Heatmap";
 import { PoseSvg } from "@/components/PoseSvg";
-import { EmptyState } from "@/components/EmptyState";
 import { usePractice } from "@/context/PracticeContext";
-import { dailyAffirmation, breathOfTheDay } from "@/data/content";
+import { asanaBySlug, breathBySlug, dailyAffirmation, breathOfTheDay } from "@/data/content";
+import { profileById } from "@/data/profiles";
+import { resolveIcon } from "@/lib/icons";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
-import { Flame, Trophy, CalendarCheck, Clock, Play, Volume2, X, Wind, ArrowRight } from "lucide-react";
+import type { UserProfile } from "@shared/schema";
+import {
+  Flame,
+  Trophy,
+  CalendarCheck,
+  Clock,
+  Play,
+  Volume2,
+  X,
+  Wind,
+  ArrowRight,
+  Compass,
+} from "lucide-react";
 
 function StatCard({
   icon: Icon,
@@ -41,10 +55,21 @@ function StatCard({
 
 export default function Home() {
   const [, navigate] = useLocation();
-  const { todays, remove } = usePractice();
+  const { todays, remove, clear, add } = usePractice();
   const { data: stats, isLoading } = useQuery<Stats>({ queryKey: ["/api/sessions/stats"] });
+  const { data: activeProfileRow } = useQuery<UserProfile | null>({
+    queryKey: ["/api/profile/active"],
+  });
   const affirmation = dailyAffirmation();
   const breath = breathOfTheDay();
+
+  const profile = profileById(activeProfileRow?.profileId);
+  const recommendedAsanas = profile
+    ? profile.recommendedAsanas.map((s) => asanaBySlug(s)).filter(Boolean)
+    : [];
+  const recommendedBreath = profile
+    ? profile.recommendedBreathing.map((s) => breathBySlug(s)).filter(Boolean)
+    : [];
 
   const readAloud = () => {
     if ("speechSynthesis" in window) {
@@ -55,7 +80,17 @@ export default function Home() {
     }
   };
 
+  // Load the active profile's recommended asanas into today's practice and go.
+  const startProfileSession = () => {
+    clear();
+    for (const a of recommendedAsanas) {
+      if (a) add(a);
+    }
+    navigate("/practice");
+  };
+
   const hasPracticed = stats && stats.totalSessions > 0;
+  const ProfileIcon = profile ? resolveIcon(profile.icon) : Compass;
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -63,8 +98,34 @@ export default function Home() {
         <p className="text-sm text-muted-foreground" data-testid="text-today-date">
           {formatDate(todayISO())}
         </p>
-        <h1 className="font-serif text-3xl font-semibold tracking-tight">Welcome to your practice</h1>
+        <h1 className="font-serif text-3xl font-semibold tracking-tight" data-testid="text-welcome">
+          {profile ? `Welcome back to your ${profile.name} practice` : "Welcome to your practice"}
+        </h1>
       </header>
+
+      {/* No-profile prompt banner */}
+      {!profile && (
+        <Card className="border-primary/40 bg-accent/40 shadow-soft" data-testid="banner-pick-path">
+          <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <Compass className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-serif text-lg leading-tight">Pick a path that fits your life</p>
+                <p className="text-sm text-muted-foreground">
+                  Busy mom, better sleep, splits, desk relief and more — tailor your practice in one tap.
+                </p>
+              </div>
+            </div>
+            <Button asChild data-testid="button-go-profiles">
+              <Link href="/profiles">
+                Choose a path <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       {isLoading ? (
@@ -82,19 +143,92 @@ export default function Home() {
         </div>
       )}
 
-      {!isLoading && !hasPracticed && (
-        <Card className="border-primary/30 bg-accent/40 shadow-soft">
-          <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
-            <PoseSvg pose="seated" size={84} className="text-primary" />
-            <h2 className="font-serif text-xl">Begin your practice</h2>
-            <p className="max-w-sm text-sm text-muted-foreground">
-              Your journey starts with a single breath. Add a few asanas and start your first session.
-            </p>
-            <Button asChild data-testid="button-browse-asanas">
-              <Link href="/asanas">Browse the Asana Library</Link>
+      {/* Profile-aware today's practice */}
+      {profile ? (
+        <Card className="border-primary/30 shadow-soft" data-testid="card-profile-session">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 font-serif text-lg">
+                <ProfileIcon className="h-5 w-5 text-primary" /> Your {profile.name} session today
+              </CardTitle>
+              <div className="flex gap-1.5">
+                <Badge variant="outline" className="tabular-nums">
+                  {profile.minutesPerSession} min
+                </Badge>
+                <Badge variant="outline">
+                  {profile.daysPerWeek === 7 ? "daily" : `${profile.daysPerWeek}x / wk`}
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{profile.tagline}</p>
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="list-profile-asanas">
+              {recommendedAsanas.map(
+                (a) =>
+                  a && (
+                    <li key={a.slug}>
+                      <Link href={`/asanas/${a.slug}`}>
+                        <div
+                          className="flex items-center gap-2 rounded-lg border border-border bg-background p-2 transition-shadow hover:shadow-soft hover-elevate"
+                          data-testid={`profile-asana-${a.slug}`}
+                        >
+                          <img
+                            src={`/poses/${a.slug}.png`}
+                            alt=""
+                            className="h-12 w-12 shrink-0 rounded-md object-cover"
+                            draggable={false}
+                          />
+                          <span className="text-xs leading-tight">{a.english}</span>
+                        </div>
+                      </Link>
+                    </li>
+                  ),
+              )}
+            </ul>
+            {recommendedBreath.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Breath
+                </span>
+                {recommendedBreath.map(
+                  (b) =>
+                    b && (
+                      <Link key={b.slug} href="/breathing">
+                        <Badge variant="outline" className="cursor-pointer gap-1 hover-elevate">
+                          <Wind className="h-3 w-3 text-secondary" /> {b.name}
+                        </Badge>
+                      </Link>
+                    ),
+                )}
+              </div>
+            )}
+            <Button
+              className="w-full"
+              onClick={startProfileSession}
+              disabled={recommendedAsanas.length === 0}
+              data-testid="button-start-today-session"
+            >
+              <Play className="mr-1.5 h-4 w-4" /> Start today's session
             </Button>
           </CardContent>
         </Card>
+      ) : (
+        !isLoading &&
+        !hasPracticed && (
+          <Card className="border-primary/30 bg-accent/40 shadow-soft">
+            <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
+              <PoseSvg pose="seated" size={84} className="text-primary" />
+              <h2 className="font-serif text-xl">Begin your practice</h2>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                Your journey starts with a single breath. Add a few asanas and start your first session.
+              </p>
+              <Button asChild data-testid="button-browse-asanas">
+                <Link href="/asanas">Browse the Asana Library</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -118,7 +252,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* Today's practice / quick start */}
+        {/* Today's hand-picked practice (manual additions) */}
         <Card className="shadow-soft">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Today's practice</CardTitle>

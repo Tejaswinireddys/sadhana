@@ -179,5 +179,38 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // ---- Personalization profiles ----
+  app.get("/api/profile/active", async (_req, res) => {
+    const profile = await storage.getActiveProfile();
+    res.json(profile ?? null);
+  });
+  app.post("/api/profile/activate", async (req, res) => {
+    try {
+      const { profileId } = z.object({ profileId: z.string().min(1) }).parse(req.body);
+      res.status(201).json(await storage.activateProfile(profileId));
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+  app.post("/api/profile/deactivate", async (_req, res) => {
+    await storage.deactivateProfile();
+    res.status(204).end();
+  });
+
+  // ---- Kids stickers ----
+  app.get("/api/kids/stickers", async (_req, res) => {
+    res.json(await storage.getStickers());
+  });
+  app.post("/api/kids/stickers", async (req, res) => {
+    try {
+      const { poseSlug } = z.object({ poseSlug: z.string().min(1) }).parse(req.body);
+      res
+        .status(201)
+        .json(await storage.createSticker({ poseSlug, earnedAt: new Date().toISOString() }));
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+
   return httpServer;
 }
