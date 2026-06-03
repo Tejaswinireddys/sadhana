@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
 import type { Preferences } from "@shared/schema";
 import { Volume2, Pause } from "lucide-react";
 
@@ -33,7 +34,10 @@ export function VoicePlayer({
   label?: string;
 }) {
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
-  const voiceEnabled = prefs ? prefs.voiceEnabled === 1 : true;
+  // Treat undefined/loading prefs as voice-enabled (default true) so a click is
+  // never ignored while the preferences query is still in flight.
+  const voiceEnabled = prefs ? prefs.voiceEnabled !== 0 : true;
+  const { toast } = useToast();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -64,9 +68,23 @@ export function VoicePlayer({
       setPlaying(false);
     } else {
       a.playbackRate = rate;
-      a.play()
-        .then(() => setPlaying(true))
-        .catch(() => setPlaying(false));
+      const p = a.play();
+      // play() returns a promise that can reject (autoplay policy, 404, decode).
+      // Surface the failure so it doesn't fail silently.
+      if (p && typeof p.then === "function") {
+        p.then(() => setPlaying(true)).catch((err) => {
+          setPlaying(false);
+          toast({
+            title: "Couldn't play audio",
+            description:
+              err?.message ||
+              "The narration couldn't start. Please try again.",
+            variant: "destructive",
+          });
+        });
+      } else {
+        setPlaying(true);
+      }
     }
   };
 
@@ -148,12 +166,21 @@ export function VoicePlayer({
       <audio
         ref={audioRef}
         src={src}
-        preload="metadata"
+        preload="auto"
+        data-testid={`audio-el-${slug}`}
         onLoadedMetadata={(e) => setDuration((e.target as HTMLAudioElement).duration)}
         onTimeUpdate={(e) => setCurrent((e.target as HTMLAudioElement).currentTime)}
         onEnded={() => {
           setPlaying(false);
           setCurrent(0);
+        }}
+        onError={() => {
+          setPlaying(false);
+          toast({
+            title: "Audio unavailable",
+            description: `Couldn't load narration (${src}).`,
+            variant: "destructive",
+          });
         }}
       />
     </div>

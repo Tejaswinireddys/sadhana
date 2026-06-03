@@ -485,14 +485,23 @@ html.motion-off .animate-breathe {
 
 @keyframes photo-breath {
   0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.012); }
+  50%      { transform: scale(1.018); }
 }
-.photo-breath { animation: photo-breath 4s ease-in-out infinite; }
+.photo-breath { animation: photo-breath 5s ease-in-out infinite; }
+
+/* Stronger "guided demo" breath — more visible than the ambient breath. */
+@keyframes photo-breath-demo {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.025); }
+}
+.photo-breath-demo { animation: photo-breath-demo 5s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .photo-breath { animation: none !important; }
+  .photo-breath,
+  .photo-breath-demo { animation: none !important; }
 }
-html.motion-off .photo-breath { animation: none !important; }
+html.motion-off .photo-breath,
+html.motion-off .photo-breath-demo { animation: none !important; }
 
 /* =====================================================================
    v3 — Kids section: warmer palette + cheerful celebration

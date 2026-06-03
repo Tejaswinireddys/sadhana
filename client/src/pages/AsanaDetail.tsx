@@ -7,8 +7,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { type Level } from "@/components/AnimatedAsana";
 import { StepMotion } from "@/components/StepMotion";
-import { PoseImage } from "@/components/PoseImage";
 import { VoicePlayer } from "@/components/VoicePlayer";
+import { DemoMode } from "@/components/DemoMode";
 import { asanaBySlug, type Severity } from "@/data/content";
 import { usePractice } from "@/context/PracticeContext";
 import { EmptyState } from "@/components/EmptyState";
@@ -83,15 +83,10 @@ export default function AsanaDetail() {
         <ArrowLeft className="h-4 w-4" /> Library
       </button>
 
-      <header className="grid gap-6 md:grid-cols-[300px_1fr] md:items-start">
-        <div className="space-y-3" data-testid="img-asana-hero">
-          <PoseImage slug={asana.slug} alt={`${asana.english} (${asana.sanskrit}) illustration`} />
-          <VoicePlayer
-            src={`/voice/pose-${asana.slug}.mp3`}
-            slug={asana.slug}
-            label={`Guided audio — Listen as ${asana.english}`}
-          />
-        </div>
+      {/* Instructor-led guided demo — the prominent hero experience */}
+      <DemoMode slug={asana.slug} />
+
+      <header className="space-y-4">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{asana.category}</Badge>
@@ -109,6 +104,12 @@ export default function AsanaDetail() {
             {inToday ? "In today's practice" : "Add to today's practice"}
           </Button>
         </div>
+        {/* Quick "listen again" affordance below the headline */}
+        <VoicePlayer
+          src={`/voice/pose-${asana.slug}.mp3`}
+          slug={asana.slug}
+          label="Listen again — guided audio"
+        />
       </header>
 
       {/* Difficulty paths */}

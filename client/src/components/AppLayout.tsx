@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -14,10 +15,12 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Logo } from "./Logo";
 import { useTheme } from "./ThemeProvider";
 import { MotionToggle } from "./MotionToggle";
 import { VoiceToggle } from "./VoiceToggle";
+import { useRecentSearches } from "@/context/RecentSearchesContext";
 import {
   Home,
   LayoutGrid,
@@ -30,6 +33,7 @@ import {
   Sun,
   Compass,
   Smile,
+  Search,
 } from "lucide-react";
 
 const NAV = [
@@ -43,6 +47,87 @@ const NAV = [
   { href: "/profiles", label: "Profiles", icon: Compass },
   { href: "/kids", label: "Kids", icon: Smile },
 ];
+
+function SidebarSearch() {
+  const [, navigate] = useLocation();
+  const { recents, addRecent } = useRecentSearches();
+  const [value, setValue] = useState("");
+  const [focused, setFocused] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const go = (q: string) => {
+    const trimmed = q.trim();
+    navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+  };
+
+  // Debounced live navigation as the user types (200ms).
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!value.trim()) return;
+    debounceRef.current = setTimeout(() => {
+      go(value);
+    }, 200);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  const submit = () => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    addRecent(trimmed);
+    go(trimmed);
+  };
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setTimeout(() => setFocused(false), 150)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+          placeholder="Search poses, breathing, affirmations…"
+          className="pl-9"
+          aria-label="Search Sadhana"
+          data-testid="input-sidebar-search"
+        />
+      </div>
+      {focused && recents.length > 0 && (
+        <div
+          className="absolute left-0 right-0 top-full z-20 mt-1 rounded-lg border border-border bg-popover p-1 shadow-soft-lg"
+          data-testid="recent-searches"
+        >
+          <p className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Recent
+          </p>
+          {recents.map((r) => (
+            <button
+              key={r}
+              type="button"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setValue(r);
+                addRecent(r);
+                go(r);
+              }}
+              data-testid={`recent-search-${r.slice(0, 12)}`}
+            >
+              <Search className="h-3.5 w-3.5 text-muted-foreground" />
+              {r}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function NavMenu() {
   const [location] = useLocation();
@@ -78,6 +163,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Link>
         </SidebarHeader>
         <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent className="px-2 pb-2">
+              <SidebarSearch />
+            </SidebarGroupContent>
+          </SidebarGroup>
           <SidebarGroup>
             <SidebarGroupContent>
               <NavMenu />
