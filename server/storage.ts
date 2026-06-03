@@ -3,6 +3,7 @@ import {
   pathwayEnrollments,
   favoriteAffirmations,
   journalEntries,
+  preferences,
 } from "@shared/schema";
 import type {
   Session,
@@ -13,6 +14,8 @@ import type {
   InsertFavorite,
   Journal,
   InsertJournal,
+  Preferences,
+  InsertPreferences,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -50,7 +53,31 @@ sqlite.exec(`
     mood TEXT,
     tags TEXT NOT NULL DEFAULT '[]'
   );
+  CREATE TABLE IF NOT EXISTS preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    motion_enabled INTEGER NOT NULL DEFAULT 1
+  );
 `);
+
+// --- Lightweight migration: add sessions.kind if it doesn't already exist ---
+try {
+  const cols = sqlite.prepare(`PRAGMA table_info(sessions)`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === "kind")) {
+    sqlite.exec(`ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'asana'`);
+  }
+} catch {
+  /* ignore */
+}
+
+// Ensure a single preferences row exists
+try {
+  const row = sqlite.prepare(`SELECT COUNT(*) AS n FROM preferences`).get() as { n: number };
+  if (!row || row.n === 0) {
+    sqlite.exec(`INSERT INTO preferences (motion_enabled) VALUES (1)`);
+  }
+} catch {
+  /* ignore */
+}
 
 export const db = drizzle(sqlite);
 
@@ -71,6 +98,9 @@ export interface IStorage {
   createJournal(data: InsertJournal): Promise<Journal>;
   updateJournal(id: number, data: Partial<InsertJournal>): Promise<Journal | undefined>;
   deleteJournal(id: number): Promise<void>;
+  // preferences
+  getPreferences(): Promise<Preferences>;
+  updatePreferences(data: Partial<InsertPreferences>): Promise<Preferences>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -112,6 +142,23 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteJournal(id: number): Promise<void> {
     db.delete(journalEntries).where(eq(journalEntries.id, id)).run();
+  }
+
+  async getPreferences(): Promise<Preferences> {
+    let row = db.select().from(preferences).limit(1).get();
+    if (!row) {
+      row = db.insert(preferences).values({ motionEnabled: 1 }).returning().get();
+    }
+    return row;
+  }
+  async updatePreferences(data: Partial<InsertPreferences>): Promise<Preferences> {
+    const current = await this.getPreferences();
+    return db
+      .update(preferences)
+      .set(data)
+      .where(eq(preferences.id, current.id))
+      .returning()
+      .get();
   }
 }
 

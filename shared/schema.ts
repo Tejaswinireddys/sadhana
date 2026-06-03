@@ -10,11 +10,22 @@ export const sessions = sqliteTable("sessions", {
   asanas: text("asanas").notNull().default("[]"), // JSON array of asana slugs/names
   pathwaySlug: text("pathway_slug"),
   notes: text("notes"),
+  kind: text("kind").notNull().default("asana"), // 'asana' | 'breathing'
 });
 
 export const insertSessionSchema = createInsertSchema(sessions).omit({ id: true });
 export type InsertSession = z.infer<typeof insertSessionSchema>;
 export type Session = typeof sessions.$inferSelect;
+
+// User preferences (single-row settings store)
+export const preferences = sqliteTable("preferences", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  motionEnabled: integer("motion_enabled").notNull().default(1), // 1 = animations on
+});
+
+export const insertPreferencesSchema = createInsertSchema(preferences).omit({ id: true });
+export type InsertPreferences = z.infer<typeof insertPreferencesSchema>;
+export type Preferences = typeof preferences.$inferSelect;
 
 // Pathway enrollments
 export const pathwayEnrollments = sqliteTable("pathway_enrollments", {

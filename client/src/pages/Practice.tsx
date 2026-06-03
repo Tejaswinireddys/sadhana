@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { PoseSvg } from "@/components/PoseSvg";
+import { AnimatedPose } from "@/components/AnimatedAsana";
 import { EmptyState } from "@/components/EmptyState";
 import { usePractice } from "@/context/PracticeContext";
 import { useToast } from "@/hooks/use-toast";
@@ -61,6 +61,7 @@ export default function Practice() {
         asanas: JSON.stringify(todays.map((a) => a.english)),
         pathwaySlug: null,
         notes: null,
+        kind: "asana",
       })
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
@@ -168,7 +169,7 @@ export default function Practice() {
   if (finished) {
     return (
       <div className="animate-fade-in flex min-h-[60vh] flex-col items-center justify-center gap-5 text-center">
-        <PoseSvg pose="savasana" size={120} className="text-primary" />
+        <AnimatedPose pose="savasana" size={120} className="text-primary" />
         <h1 className="font-serif text-3xl">Namaste 🙏</h1>
         <p className="text-muted-foreground">
           You practiced {Math.max(1, Math.round(elapsedTotal / 60))} minutes. Session logged.
@@ -198,7 +199,7 @@ export default function Practice() {
             {todays.map((a, i) => (
               <div key={a.slug} className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm" data-testid={`queue-item-${a.slug}`}>
                 <span className="flex items-center gap-2">
-                  <span className="text-primary"><PoseSvg pose={a.pose} size={32} /></span>
+                  <span className="text-primary"><AnimatedPose pose={a.pose} size={32} /></span>
                   {i + 1}. {a.english}
                 </span>
                 <span className="text-xs text-muted-foreground">{a.holdSeconds}s</span>
@@ -229,8 +230,8 @@ export default function Practice() {
       <p className="mb-1 text-sm uppercase tracking-widest text-muted-foreground">
         Pose {index + 1} of {todays.length}
       </p>
-      <div className="text-primary animate-breathe">
-        <PoseSvg pose={current?.pose || "mountain"} size={180} />
+      <div className="text-primary">
+        <AnimatedPose pose={current?.pose || "mountain"} size={180} />
       </div>
       <h1 className="mt-2 font-serif text-3xl" data-testid="text-current-pose">{current?.english}</h1>
       <p className="text-muted-foreground">{current?.sanskrit}</p>

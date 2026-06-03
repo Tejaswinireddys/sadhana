@@ -3,6 +3,8 @@ export type Stats = {
   longestStreak: number;
   totalSessions: number;
   totalMinutes: number;
+  asanaSessions: number;
+  breathingSessions: number;
   daysPracticed: number;
   heatmap: { date: string; minutes: number }[];
 };

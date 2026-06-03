@@ -1,4 +1,5 @@
 // Static content for Sadhana. Asanas, pathways, and affirmations live here (not in DB).
+import { EXTRAS } from "./variations";
 
 export type Difficulty = "Beginner" | "Intermediate" | "Advanced";
 export type Category =
@@ -20,9 +21,40 @@ export const CATEGORIES: Category[] = [
   "Restorative",
 ];
 
+export type StepMotionKey =
+  | "limb-rotate"
+  | "torso-fold"
+  | "hip-shift"
+  | "arm-extend"
+  | "leg-extend"
+  | "inhale"
+  | "exhale"
+  | "lift"
+  | "twist"
+  | "ground"
+  | "balance"
+  | "settle";
+
 export type Step = {
   text: string;
   pose?: string; // optional per-step SVG key
+  stepMotion?: StepMotionKey; // animated mini-clip primitive
+};
+
+export type Severity = "avoid" | "modify" | "caution";
+export type AvoidRow = { condition: string; severity: Severity };
+
+export type Variation = {
+  description: string;
+  props: string[];
+  cues: string[];
+  holdSeconds: number;
+};
+
+export type Variations = {
+  beginner: Variation;
+  intermediate: Variation;
+  advanced: Variation;
 };
 
 export type Asana = {
@@ -37,12 +69,18 @@ export type Asana = {
   summary: string;
   breathing: string;
   benefits: string[];
-  contraindications: string[];
+  contraindications: string[]; // legacy flat list (kept for back-compat)
+  avoidIf: AvoidRow[]; // structured "who should avoid"
   modifications: string;
   steps: Step[];
+  variations: Variations;
 };
 
-export const ASANAS: Asana[] = [
+// Raw asana literals (without the merged extras). The fully-typed ASANAS
+// array below is produced by merging EXTRAS into these at module load.
+type RawAsana = Omit<Asana, "avoidIf" | "variations">;
+
+const RAW_ASANAS: RawAsana[] = [
   {
     slug: "tadasana",
     sanskrit: "Tadasana",
@@ -656,6 +694,26 @@ export const ASANAS: Asana[] = [
   },
 ];
 
+// Merge per-asana extras (variations, structured contraindications, step
+// motions) from variations.ts into the fully-typed ASANAS array.
+export const ASANAS: Asana[] = RAW_ASANAS.map((raw) => {
+  const extra = EXTRAS[raw.slug];
+  const steps: Step[] = raw.steps.map((step, i) => ({
+    ...step,
+    stepMotion: step.stepMotion ?? extra?.stepMotions[i],
+  }));
+  return {
+    ...raw,
+    steps,
+    avoidIf: extra?.avoidIf ?? [],
+    variations: extra?.variations ?? {
+      beginner: { description: raw.modifications, props: [], cues: [], holdSeconds: raw.holdSeconds },
+      intermediate: { description: raw.summary, props: [], cues: [], holdSeconds: raw.holdSeconds },
+      advanced: { description: raw.summary, props: [], cues: [], holdSeconds: raw.holdSeconds },
+    },
+  };
+});
+
 // ---- Warm-up routine (shown above pathways) ----
 export const WARMUP = {
   title: "Always warm up first — 5 min",
@@ -961,4 +1019,164 @@ export function dailyAffirmation(date = new Date()): string {
   const epochDay = Math.floor(date.getTime() / 86400000) - date.getTimezoneOffset() / 1440;
   const idx = Math.abs(Math.floor(epochDay)) % AFFIRMATIONS.length;
   return AFFIRMATIONS[idx];
+}
+
+
+// ---- Pranayama (breathing techniques) ----
+
+export type BreathTechnique = {
+  slug: string;
+  name: string;
+  sanskrit?: string;
+  tagline: string;
+  description: string;
+  // phase pattern, e.g. [{label:"Inhale", seconds:4}, ...]
+  phases: { label: string; seconds: number }[];
+  defaultRounds: number;
+  alternateNostril?: boolean;
+  rapid?: boolean;
+  pattern: string; // human-readable rhythm label, e.g. "4-4-4-4"
+  benefits: string[]; // exactly 3
+  avoid: string; // "who should avoid"
+};
+
+export const BREATHING: BreathTechnique[] = [
+  {
+    slug: "box-breathing",
+    name: "Box Breathing",
+    sanskrit: "Sama Vritti",
+    tagline: "Equal four-count breath to steady the nervous system.",
+    description:
+      "A balanced, square rhythm \u2014 inhale, hold, exhale, hold, each for the same count. Used widely to calm the mind and sharpen focus before a demanding task.",
+    phases: [
+      { label: "Inhale", seconds: 4 },
+      { label: "Hold", seconds: 4 },
+      { label: "Exhale", seconds: 4 },
+      { label: "Hold", seconds: 4 },
+    ],
+    defaultRounds: 5,
+    pattern: "4-4-4-4",
+    benefits: [
+      "Calms the nervous system and lowers stress",
+      "Improves focus and mental clarity",
+      "Easy to learn and practice anywhere",
+    ],
+    avoid: "Generally safe for everyone. If holding the breath causes anxiety, shorten the holds or skip them.",
+  },
+  {
+    slug: "four-seven-eight",
+    name: "4-7-8 Breath",
+    sanskrit: "Relaxing Breath",
+    tagline: "A long exhale that invites the body toward rest.",
+    description:
+      "Inhale for four, hold for seven, and exhale slowly for eight. The extended exhale activates the parasympathetic system, making it a favorite for winding down before sleep.",
+    phases: [
+      { label: "Inhale", seconds: 4 },
+      { label: "Hold", seconds: 7 },
+      { label: "Exhale", seconds: 8 },
+    ],
+    defaultRounds: 4,
+    pattern: "4-7-8",
+    benefits: [
+      "Eases the body toward sleep",
+      "Reduces anxiety and racing thoughts",
+      "Slows the heart rate",
+    ],
+    avoid: "Start with fewer rounds if you feel lightheaded. Those with low blood pressure should rise slowly afterward.",
+  },
+  {
+    slug: "ujjayi",
+    name: "Ujjayi",
+    sanskrit: "Victorious Breath",
+    tagline: "A soft ocean-sound breath that anchors a flow.",
+    description:
+      "A gentle constriction at the back of the throat creates a soft, audible ocean sound on an even five-count inhale and exhale. Often paired with movement to keep the mind absorbed.",
+    phases: [
+      { label: "Inhale", seconds: 5 },
+      { label: "Exhale", seconds: 5 },
+    ],
+    defaultRounds: 8,
+    pattern: "5-5",
+    benefits: [
+      "Builds focus and internal heat",
+      "Steadies and lengthens the breath",
+      "Soothes the mind during practice",
+    ],
+    avoid: "Ease off the throat constriction if it strains the voice. Skip if you have a throat infection.",
+  },
+  {
+    slug: "nadi-shodhana",
+    name: "Nadi Shodhana",
+    sanskrit: "Alternate Nostril",
+    tagline: "Balancing breath alternating between the nostrils.",
+    description:
+      "Breathe through one nostril at a time, switching sides each round, to balance the left and right energy channels. The visualizer indicates which nostril is active each round.",
+    phases: [
+      { label: "Inhale", seconds: 4 },
+      { label: "Hold", seconds: 4 },
+      { label: "Exhale", seconds: 4 },
+      { label: "Hold", seconds: 4 },
+    ],
+    defaultRounds: 6,
+    alternateNostril: true,
+    pattern: "4-4-4-4 \u00b7 alternating sides",
+    benefits: [
+      "Balances the left and right hemispheres",
+      "Calms the mind and reduces stress",
+      "Improves respiratory function",
+    ],
+    avoid: "Skip the nostril blocking if you have a cold or blocked sinuses; breathe evenly through both instead.",
+  },
+  {
+    slug: "bhramari",
+    name: "Bhramari",
+    sanskrit: "Humming Bee Breath",
+    tagline: "A humming exhale that quiets a busy mind.",
+    description:
+      "Inhale gently, then hum softly like a bee on a long exhale, feeling the vibration in the head and chest. The sound and vibration are deeply soothing to the nervous system.",
+    phases: [
+      { label: "Inhale", seconds: 4 },
+      { label: "Exhale (hum)", seconds: 8 },
+    ],
+    defaultRounds: 6,
+    pattern: "4-8 \u00b7 humming",
+    benefits: [
+      "Relieves stress, anger, and anxiety",
+      "Soothes the nervous system through vibration",
+      "Helps quiet mental chatter",
+    ],
+    avoid: "Avoid forcing the hum. Skip if you have an active ear infection.",
+  },
+  {
+    slug: "kapalabhati",
+    name: "Kapalabhati",
+    sanskrit: "Skull-Shining Breath",
+    tagline: "Rapid, energizing breath of fire.",
+    description:
+      "Short, forceful exhales through the nose with passive inhales, performed in rapid bursts followed by a rest. Energizing and cleansing \u2014 practice on an empty stomach.",
+    phases: [
+      { label: "Rapid breaths", seconds: 15 },
+      { label: "Rest", seconds: 10 },
+    ],
+    defaultRounds: 3,
+    rapid: true,
+    pattern: "rapid pumping \u00b7 rest",
+    benefits: [
+      "Energizes the body and mind",
+      "Strengthens the diaphragm and core",
+      "Clears and invigorates the lungs",
+    ],
+    avoid: "Avoid during pregnancy, with high blood pressure, heart conditions, hernia, or on a full stomach.",
+  },
+];
+
+export function breathBySlug(slug: string) {
+  return BREATHING.find((b) => b.slug === slug);
+}
+
+// Deterministic "breath of the day" based on date.
+export function breathOfTheDay(date = new Date()): BreathTechnique {
+  const epochDay = Math.floor(date.getTime() / 86400000) - date.getTimezoneOffset() / 1440;
+  const idx = Math.abs(Math.floor(epochDay)) % BREATHING.length;
+  return BREATHING[idx];
 }

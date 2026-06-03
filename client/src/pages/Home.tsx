@@ -7,9 +7,9 @@ import { Heatmap } from "@/components/Heatmap";
 import { PoseSvg } from "@/components/PoseSvg";
 import { EmptyState } from "@/components/EmptyState";
 import { usePractice } from "@/context/PracticeContext";
-import { dailyAffirmation } from "@/data/content";
+import { dailyAffirmation, breathOfTheDay } from "@/data/content";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
-import { Flame, Trophy, CalendarCheck, Clock, Play, Volume2, X } from "lucide-react";
+import { Flame, Trophy, CalendarCheck, Clock, Play, Volume2, X, Wind, ArrowRight } from "lucide-react";
 
 function StatCard({
   icon: Icon,
@@ -44,6 +44,7 @@ export default function Home() {
   const { todays, remove } = usePractice();
   const { data: stats, isLoading } = useQuery<Stats>({ queryKey: ["/api/sessions/stats"] });
   const affirmation = dailyAffirmation();
+  const breath = breathOfTheDay();
 
   const readAloud = () => {
     if ("speechSynthesis" in window) {
@@ -164,6 +165,34 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Breath of the day */}
+      <Card className="shadow-soft" data-testid="card-breath-of-the-day">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">Breath of the day</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Link href="/breathing">
+            <div className="flex items-center justify-between gap-4 rounded-lg bg-accent/40 p-4 transition-shadow hover:shadow-soft hover-elevate">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-secondary">
+                  <Wind className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-serif text-lg leading-tight" data-testid="text-breath-of-the-day">
+                    {breath.name}
+                    <span className="ml-2 align-middle text-xs font-normal text-muted-foreground">
+                      {breath.pattern}
+                    </span>
+                  </p>
+                  <p className="text-sm text-muted-foreground">{breath.tagline}</p>
+                </div>
+              </div>
+              <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+            </div>
+          </Link>
+        </CardContent>
+      </Card>
 
       {/* Heatmap */}
       <Card className="shadow-soft">

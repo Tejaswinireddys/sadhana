@@ -314,3 +314,162 @@
     inset: -1px;
   }
 }
+
+/* =====================================================================
+   Animated pose graphics (inline SVG + CSS keyframes).
+   Each motion class targets a <g> inside an SVG; transform-box ensures
+   transforms originate from the group's own bounding box.
+   ===================================================================== */
+.anim-svg g[class^="anim-"],
+.anim-svg g[class*=" anim-"] {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+@keyframes pose-breath {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(1.025); }
+}
+.anim-breath { animation: pose-breath 4s ease-in-out infinite; }
+
+@keyframes pose-rise {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(-2deg); }
+}
+.anim-rise { animation: pose-rise 5s ease-in-out infinite; transform-origin: bottom center; }
+
+@keyframes pose-rock {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-1.5px, -2px); }
+}
+.anim-rock { animation: pose-rock 5s ease-in-out infinite; }
+
+@keyframes pose-sway {
+  0%, 100% { transform: rotate(-1.2deg); }
+  50% { transform: rotate(1.2deg); }
+}
+.anim-sway { animation: pose-sway 6s ease-in-out infinite; transform-origin: bottom center; }
+
+@keyframes pose-lift {
+  0%, 100% { transform: translateY(0.5px); }
+  50% { transform: translateY(-2.5px); }
+}
+.anim-lift { animation: pose-lift 5s ease-in-out infinite; }
+
+@keyframes pose-extend {
+  0%, 100% { transform: scaleX(0.98); }
+  50% { transform: scaleX(1.02); }
+}
+.anim-extend { animation: pose-extend 5s ease-in-out infinite; transform-origin: center; }
+
+@keyframes pose-fold {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(3deg); }
+}
+.anim-fold { animation: pose-fold 5.5s ease-in-out infinite; transform-origin: top center; }
+
+@keyframes pose-widen {
+  0% { transform: scaleX(0.92) scaleY(1.04); }
+  60%, 100% { transform: scaleX(1) scaleY(1); }
+}
+.anim-widen { animation: pose-widen 6s ease-in-out infinite; transform-origin: center; }
+
+/* =====================================================================
+   Step-motion mini-clip primitives (60-100px illustrations)
+   ===================================================================== */
+.step-svg g[class^="step-"],
+.step-svg g[class*=" step-"] {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes step-limb-rotate {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+}
+.step-limb-rotate { animation: step-limb-rotate 2.4s ease-in-out infinite; }
+
+@keyframes step-torso-fold {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(10deg); }
+}
+.step-torso-fold { animation: step-torso-fold 2.6s ease-in-out infinite; transform-origin: top center; }
+
+@keyframes step-hip-shift {
+  0%, 100% { transform: translateX(-2px); }
+  50% { transform: translateX(2px); }
+}
+.step-hip-shift { animation: step-hip-shift 2.4s ease-in-out infinite; }
+
+@keyframes step-arm-extend {
+  0%, 100% { transform: scaleX(0.9); }
+  50% { transform: scaleX(1.06); }
+}
+.step-arm-extend { animation: step-arm-extend 2.2s ease-in-out infinite; transform-origin: center; }
+
+@keyframes step-leg-extend {
+  0% { transform: scaleX(0.85); }
+  60%, 100% { transform: scaleX(1.05); }
+}
+.step-leg-extend { animation: step-leg-extend 2.8s ease-in-out infinite; transform-origin: center; }
+
+@keyframes step-lift {
+  0%, 100% { transform: translateY(2px); }
+  50% { transform: translateY(-3px); }
+}
+.step-lift { animation: step-lift 2.4s ease-in-out infinite; }
+
+@keyframes step-twist {
+  0%, 100% { transform: rotate(-10deg); }
+  50% { transform: rotate(10deg); }
+}
+.step-twist { animation: step-twist 2.8s ease-in-out infinite; }
+
+@keyframes step-inhale {
+  0% { transform: scale(0.5); opacity: 0.5; }
+  100% { transform: scale(1.15); opacity: 1; }
+}
+.step-inhale { animation: step-inhale 2.6s ease-in-out infinite alternate; transform-origin: center; }
+
+@keyframes step-exhale {
+  0% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.5); opacity: 0.5; }
+}
+.step-exhale { animation: step-exhale 2.6s ease-in-out infinite alternate; transform-origin: center; }
+
+@keyframes step-nudge {
+  0%, 100% { transform: translate(0, 0); opacity: 0.4; }
+  50% { transform: translate(3px, -3px); opacity: 1; }
+}
+.step-nudge { animation: step-nudge 1.8s ease-in-out infinite; }
+
+@keyframes step-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+.step-pulse { animation: step-pulse 2.2s ease-in-out infinite; transform-origin: center; }
+
+/* =====================================================================
+   Disable ALL pose/breath/step animations when reduced-motion is
+   preferred OR when the user toggles motion off (html.motion-off).
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .anim-svg g[class^="anim-"],
+  .anim-svg g[class*=" anim-"],
+  .step-svg g[class^="step-"],
+  .step-svg g[class*=" step-"],
+  .breath-circle,
+  .animate-breathe {
+    animation: none !important;
+  }
+}
+
+html.motion-off .anim-svg g[class^="anim-"],
+html.motion-off .anim-svg g[class*=" anim-"],
+html.motion-off .step-svg g[class^="step-"],
+html.motion-off .step-svg g[class*=" step-"],
+html.motion-off .breath-circle,
+html.motion-off .animate-breathe {
+  animation: none !important;
+}

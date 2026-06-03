@@ -7,6 +7,7 @@ import {
   insertEnrollmentSchema,
   insertFavoriteSchema,
   insertJournalSchema,
+  insertPreferencesSchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -15,7 +16,7 @@ function dayKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
-function computeStats(sessions: { date: string; durationMinutes: number }[]) {
+function computeStats(sessions: { date: string; durationMinutes: number; kind?: string }[]) {
   // Aggregate minutes per day
   const minutesByDay = new Map<string, number>();
   for (const s of sessions) {
@@ -25,6 +26,8 @@ function computeStats(sessions: { date: string; durationMinutes: number }[]) {
 
   const totalSessions = sessions.length;
   const totalMinutes = sessions.reduce((a, s) => a + s.durationMinutes, 0);
+  const asanaSessions = sessions.filter((s) => (s.kind ?? "asana") === "asana").length;
+  const breathingSessions = sessions.filter((s) => s.kind === "breathing").length;
 
   // Build last 84 days array (oldest -> newest)
   const today = new Date();
@@ -77,6 +80,8 @@ function computeStats(sessions: { date: string; durationMinutes: number }[]) {
     longestStreak,
     totalSessions,
     totalMinutes,
+    asanaSessions,
+    breathingSessions,
     daysPracticed: practicedDays.size,
     heatmap,
   };
@@ -159,6 +164,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.delete("/api/journal/:id", async (req, res) => {
     await storage.deleteJournal(Number(req.params.id));
     res.status(204).end();
+  });
+
+  // ---- Preferences ----
+  app.get("/api/preferences", async (_req, res) => {
+    res.json(await storage.getPreferences());
+  });
+  app.patch("/api/preferences", async (req, res) => {
+    try {
+      const data = insertPreferencesSchema.partial().parse(req.body);
+      res.json(await storage.updatePreferences(data));
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
   });
 
   return httpServer;

@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PoseSvg } from "@/components/PoseSvg";
+import { AnimatedAsana } from "@/components/AnimatedAsana";
 import { ASANAS, CATEGORIES, type Category } from "@/data/content";
 
 const diffColor: Record<string, string> = {
@@ -47,7 +47,7 @@ export default function Asanas() {
               data-testid={`card-asana-${a.slug}`}
             >
               <div className="flex items-center justify-center bg-accent/40 py-6 text-foreground/80 transition-transform group-hover:scale-105">
-                <PoseSvg pose={a.pose} size={96} />
+                <AnimatedAsana slug={a.slug} size={96} />
               </div>
               <CardContent className="space-y-2 p-4">
                 <div className="flex items-start justify-between gap-2">

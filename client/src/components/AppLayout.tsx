@@ -16,11 +16,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Logo } from "./Logo";
 import { useTheme } from "./ThemeProvider";
+import { MotionToggle } from "./MotionToggle";
 import {
   Home,
   LayoutGrid,
   Route as RouteIcon,
   Timer,
+  Wind,
   Sparkles,
   NotebookPen,
   Moon,
@@ -32,6 +34,7 @@ const NAV = [
   { href: "/asanas", label: "Asana Library", icon: LayoutGrid },
   { href: "/pathways", label: "Pathways", icon: RouteIcon },
   { href: "/practice", label: "Practice", icon: Timer },
+  { href: "/breathing", label: "Breathing", icon: Wind },
   { href: "/affirmations", label: "Affirmations", icon: Sparkles },
   { href: "/journal", label: "Journal", icon: NotebookPen },
 ];
@@ -87,6 +90,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             {theme === "dark" ? "Light mode" : "Dark mode"}
           </Button>
+          <MotionToggle />
           <p className="px-2 pt-2 text-xs text-muted-foreground">
             Sādhanā — a daily, dedicated practice.
           </p>

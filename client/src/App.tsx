@@ -14,6 +14,7 @@ import AsanaDetail from "@/pages/AsanaDetail";
 import Pathways from "@/pages/Pathways";
 import PathwayDetail from "@/pages/PathwayDetail";
 import Practice from "@/pages/Practice";
+import Breathing from "@/pages/Breathing";
 import Affirmations from "@/pages/Affirmations";
 import Journal from "@/pages/Journal";
 
@@ -26,6 +27,7 @@ function AppRouter() {
       <Route path="/pathways" component={Pathways} />
       <Route path="/pathways/:slug" component={PathwayDetail} />
       <Route path="/practice" component={Practice} />
+      <Route path="/breathing" component={Breathing} />
       <Route path="/affirmations" component={Affirmations} />
       <Route path="/journal" component={Journal} />
       <Route component={NotFound} />
