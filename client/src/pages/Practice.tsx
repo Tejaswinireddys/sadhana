@@ -4,10 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AnimatedPose } from "@/components/AnimatedAsana";
 import { EmptyState } from "@/components/EmptyState";
+import { MoodCheckIn } from "@/components/MoodCheckIn";
+import { Confetti } from "@/components/Confetti";
 import { usePractice } from "@/context/PracticeContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { todayISO } from "@/lib/sadhana";
+import { detectMilestones } from "@/lib/milestones";
+import { breathBySlug, type Mood } from "@/data/content";
+import type { Stats } from "@/lib/sadhana";
+import type { Milestone } from "@shared/schema";
 import { Link } from "wouter";
 import { Play, Pause, SkipForward, X, Check } from "lucide-react";
 
@@ -37,7 +43,7 @@ function playChime() {
 }
 
 export default function Practice() {
-  const { todays, clear } = usePractice();
+  const { todays, meta, clear } = usePractice();
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -49,60 +55,113 @@ export default function Practice() {
   const [elapsedTotal, setElapsedTotal] = useState(0);
   const sessionLogged = useRef(false);
 
+  // Mood check-in state (v3.4)
+  const [showPreMood, setShowPreMood] = useState(false);
+  const [showPostMood, setShowPostMood] = useState(false);
+  const [preMood, setPreMood] = useState<Mood | null>(null);
+  const [postMood, setPostMood] = useState<Mood | null>(null);
+  const [confetti, setConfetti] = useState(false);
+  const finishedMinutes = useRef(1);
+
   const current = todays[index];
 
-  const logSession = useCallback(
-    (minutes: number) => {
+  // Persist the session + auto-journal + milestone celebration. Runs once the
+  // post-mood check-in resolves (picked or skipped).
+  const finalizeSession = useCallback(
+    async (resolvedPost: Mood | null) => {
       if (sessionLogged.current) return;
       sessionLogged.current = true;
-      apiRequest("POST", "/api/sessions", {
-        date: todayISO(),
-        durationMinutes: Math.max(1, minutes),
-        asanas: JSON.stringify(todays.map((a) => a.english)),
-        pathwaySlug: null,
-        notes: null,
-        kind: "asana",
-      })
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
-        })
-        .catch(() => {});
+      const minutes = finishedMinutes.current;
+      const poseNames = todays.map((a) => a.english);
+      const sessionLabel = meta.label ?? "Practice session";
+
+      try {
+        await apiRequest("POST", "/api/sessions", {
+          date: todayISO(),
+          durationMinutes: Math.max(1, minutes),
+          asanas: JSON.stringify(poseNames),
+          pathwaySlug: meta.pathwaySlug ?? null,
+          notes: null,
+          kind: "asana",
+          preMood: preMood ?? null,
+          postMood: resolvedPost ?? null,
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
+      } catch {
+        /* ignore */
+      }
+
+      // Auto-create a journal entry capturing the session + moods.
+      try {
+        const moodLine =
+          preMood && resolvedPost
+            ? `Mood: ${preMood} → ${resolvedPost}.`
+            : preMood
+              ? `Mood before: ${preMood}.`
+              : resolvedPost
+                ? `Mood after: ${resolvedPost}.`
+                : "";
+        const body = `${sessionLabel} — practiced ${poseNames.join(", ")}. ${minutes} min. ${moodLine}`.trim();
+        await apiRequest("POST", "/api/journal", {
+          date: todayISO(),
+          title: sessionLabel,
+          body,
+          mood: resolvedPost ?? preMood ?? null,
+          tags: JSON.stringify([sessionLabel]),
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
+      } catch {
+        /* ignore */
+      }
+
+      // Milestone detection — fetch fresh stats + already-celebrated kinds.
+      try {
+        const [statsRes, msRes] = await Promise.all([
+          apiRequest("GET", "/api/sessions/stats"),
+          apiRequest("GET", "/api/milestones"),
+        ]);
+        const stats = (await statsRes.json()) as Stats;
+        const celebratedRows = (await msRes.json()) as Milestone[];
+        const celebrated = new Set(celebratedRows.map((m) => m.kind));
+        const hits = detectMilestones(stats.currentStreak, stats.totalSessions, celebrated);
+        if (hits.length > 0) {
+          // Celebrate the most significant single milestone (last in list).
+          const hit = hits[hits.length - 1];
+          for (const h of hits) {
+            await apiRequest("POST", "/api/milestones", { kind: h.kind }).catch(() => {});
+          }
+          queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
+          setConfetti(true);
+          setTimeout(() => setConfetti(false), 2600);
+          playChime();
+          toast({ title: hit.title, description: hit.message });
+        }
+      } catch {
+        /* ignore */
+      }
     },
-    [todays],
+    [todays, meta, preMood, toast],
   );
 
   const finish = useCallback(() => {
     setStarted(false);
     setFinished(true);
     const minutes = Math.max(1, Math.round(elapsedTotal / 60));
-    logSession(minutes);
+    finishedMinutes.current = minutes;
     playChime();
-    const poseList = todays.map((a) => a.english).join(", ");
-    toast({
-      title: "Practice complete 🌿",
-      description: "Add a quick reflection to your journal?",
-      action: (
-        <Button
-          size="sm"
-          onClick={() =>
-            navigate(
-              `/journal?new=1&title=${encodeURIComponent("Practice reflection")}&body=${encodeURIComponent(
-                `Today I practiced: ${poseList}. ${minutes} min.`,
-              )}`,
-            )
-          }
-          data-testid="button-journal-prompt"
-        >
-          Reflect
-        </Button>
-      ),
-    });
-  }, [elapsedTotal, logSession, navigate, todays, toast]);
+    // Prompt for post-practice mood before persisting.
+    setShowPostMood(true);
+  }, [elapsedTotal]);
 
-  // Start the timer
-  const begin = () => {
+  // Step 1 of begin: show the pre-mood prompt (optional).
+  const requestBegin = () => {
     if (todays.length === 0) return;
+    setShowPreMood(true);
+  };
+
+  // Step 2 of begin: actually start the timer.
+  const startTimer = () => {
     setStarted(true);
     setFinished(false);
     setIndex(0);
@@ -110,12 +169,13 @@ export default function Practice() {
     setElapsedTotal(0);
     setPaused(false);
     sessionLogged.current = false;
+    setPostMood(null);
   };
 
   const nextPose = useCallback(() => {
     setIndex((i) => {
       if (i + 1 >= todays.length) {
-        return i; // handled by effect below
+        return i;
       }
       setRemaining(todays[i + 1].holdSeconds);
       playChime();
@@ -130,7 +190,6 @@ export default function Practice() {
       setElapsedTotal((e) => e + 1);
       setRemaining((r) => {
         if (r <= 1) {
-          // move to next pose or finish
           if (index + 1 >= todays.length) {
             clearInterval(t);
             finish();
@@ -148,6 +207,8 @@ export default function Practice() {
   }, [started, paused, index, todays, finish]);
 
   const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+  const suggestedBreath = meta.breathSlug ? breathBySlug(meta.breathSlug) : null;
 
   // Empty state
   if (todays.length === 0 && !finished) {
@@ -167,50 +228,125 @@ export default function Practice() {
 
   // Finished screen
   if (finished) {
+    const reflection =
+      preMood && postMood
+        ? `You moved from ${preMood} → ${postMood}. Beautiful.`
+        : null;
     return (
-      <div className="animate-fade-in flex min-h-[60vh] flex-col items-center justify-center gap-5 text-center">
-        <AnimatedPose pose="savasana" size={120} className="text-primary" />
-        <h1 className="font-serif text-3xl">Namaste 🙏</h1>
-        <p className="text-muted-foreground">
-          You practiced {Math.max(1, Math.round(elapsedTotal / 60))} minutes. Session logged.
-        </p>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => { clear(); navigate("/"); }} data-testid="button-finish-home">
-            Back to dashboard
-          </Button>
-          <Button onClick={() => { setFinished(false); }} data-testid="button-practice-again">
-            Practice again
-          </Button>
+      <>
+        <Confetti active={confetti} />
+        <MoodCheckIn
+          open={showPostMood}
+          title="How do you feel now?"
+          description="Optional — notice the shift in your body and mind."
+          confirmLabel="Skip"
+          testIdPrefix="postmood"
+          onPick={(m) => {
+            setPostMood(m);
+            setShowPostMood(false);
+            finalizeSession(m);
+          }}
+          onSkip={() => {
+            setShowPostMood(false);
+            finalizeSession(null);
+          }}
+        />
+        <div className="animate-fade-in flex min-h-[60vh] flex-col items-center justify-center gap-5 text-center">
+          <AnimatedPose pose="savasana" size={120} className="text-primary" />
+          <h1 className="font-serif text-3xl">Namaste 🙏</h1>
+          <p className="text-muted-foreground">
+            You practiced {finishedMinutes.current} minutes. Session logged.
+          </p>
+          {reflection && (
+            <p className="font-serif text-lg text-primary" data-testid="text-mood-reflection">
+              {reflection}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                clear();
+                navigate("/");
+              }}
+              data-testid="button-finish-home"
+            >
+              Back to dashboard
+            </Button>
+            <Button
+              onClick={() => {
+                navigate(
+                  `/journal?new=1&title=${encodeURIComponent(meta.label ?? "Practice reflection")}`,
+                );
+              }}
+              data-testid="button-journal-prompt"
+            >
+              Reflect in journal
+            </Button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   // Pre-start preview
   if (!started) {
     return (
-      <div className="animate-fade-in space-y-6">
-        <header className="space-y-1">
-          <h1 className="font-serif text-3xl font-semibold tracking-tight">Today's practice</h1>
-          <p className="text-muted-foreground">{todays.length} poses queued. Press start when you're ready.</p>
-        </header>
-        <Card className="shadow-soft">
-          <CardContent className="space-y-2 p-5">
-            {todays.map((a, i) => (
-              <div key={a.slug} className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm" data-testid={`queue-item-${a.slug}`}>
-                <span className="flex items-center gap-2">
-                  <span className="text-primary"><AnimatedPose pose={a.pose} size={32} /></span>
-                  {i + 1}. {a.english}
-                </span>
-                <span className="text-xs text-muted-foreground">{a.holdSeconds}s</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-        <Button size="lg" className="w-full" onClick={begin} data-testid="button-begin-session">
-          <Play className="mr-2 h-5 w-5" /> Begin session
-        </Button>
-      </div>
+      <>
+        <MoodCheckIn
+          open={showPreMood}
+          title="How are you feeling?"
+          description="Optional — a quick check-in before you begin."
+          confirmLabel="Skip"
+          testIdPrefix="premood"
+          onPick={(m) => {
+            setPreMood(m);
+            setShowPreMood(false);
+            startTimer();
+          }}
+          onSkip={() => {
+            setPreMood(null);
+            setShowPreMood(false);
+            startTimer();
+          }}
+        />
+        <div className="animate-fade-in space-y-6">
+          <header className="space-y-1">
+            <h1 className="font-serif text-3xl font-semibold tracking-tight">Today's practice</h1>
+            <p className="text-muted-foreground">
+              {meta.label ? `${meta.label} · ` : ""}
+              {todays.length} poses queued. Press start when you're ready.
+            </p>
+          </header>
+          <Card className="shadow-soft">
+            <CardContent className="space-y-2 p-5">
+              {todays.map((a, i) => (
+                <div
+                  key={a.slug}
+                  className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  data-testid={`queue-item-${a.slug}`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-primary">
+                      <AnimatedPose pose={a.pose} size={32} />
+                    </span>
+                    {i + 1}. {a.english}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{a.holdSeconds}s</span>
+                </div>
+              ))}
+              {suggestedBreath && (
+                <p className="pt-1 text-xs text-muted-foreground">
+                  Suggested breath afterward: {suggestedBreath.name}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          <Button size="lg" className="w-full" onClick={requestBegin} data-testid="button-begin-session">
+            <Play className="mr-2 h-5 w-5" /> Begin session
+          </Button>
+        </div>
+      </>
     );
   }
 
@@ -219,7 +355,9 @@ export default function Practice() {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background px-6 text-center">
       <button
-        onClick={() => { setStarted(false); }}
+        onClick={() => {
+          setStarted(false);
+        }}
         className="absolute right-5 top-5 text-muted-foreground hover:text-foreground"
         data-testid="button-exit-timer"
         aria-label="Exit timer"

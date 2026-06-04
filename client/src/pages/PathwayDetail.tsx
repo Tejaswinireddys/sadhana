@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { PoseSvg } from "@/components/PoseSvg";
+import { PoseImage } from "@/components/PoseImage";
 import { WarmupCard } from "@/components/WarmupCard";
 import { EmptyState } from "@/components/EmptyState";
 import { useToast } from "@/hooks/use-toast";
@@ -27,7 +27,7 @@ export default function PathwayDetail() {
   const pathway = pathwayBySlug(slug || "");
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const { clear, add } = usePractice();
+  const { loadSession } = usePractice();
   const { data: enrollments = [] } = useQuery<Enrollment[]>({ queryKey: ["/api/enrollments"] });
 
   const enrollment = enrollments.find((e) => e.pathwaySlug === slug && e.active);
@@ -71,11 +71,16 @@ export default function PathwayDetail() {
   // Load a week's poses into the practice timer and jump to the timer screen.
   // We override each asana's holdSeconds with the week-specific target.
   const startWeek = (week: PathwayWeek) => {
-    clear();
-    for (const p of week.poses) {
-      const asana = asanaBySlug(p.asanaSlug);
-      if (asana) add({ ...asana, holdSeconds: p.holdSeconds });
-    }
+    const poses = week.poses
+      .map((p) => {
+        const asana = asanaBySlug(p.asanaSlug);
+        return asana ? { asana, holdSeconds: p.holdSeconds } : null;
+      })
+      .filter((x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } => x != null);
+    loadSession(poses, {
+      label: `${pathway.name} — Week ${week.weekNumber}`,
+      pathwaySlug: pathway.slug,
+    });
     toast({
       title: `Week ${week.weekNumber} loaded`,
       description: `${week.theme} — ${week.poses.length} poses queued.`,
@@ -97,9 +102,13 @@ export default function PathwayDetail() {
       </Link>
 
       <header className="grid gap-6 md:grid-cols-[200px_1fr] md:items-center">
-        <div className="flex items-center justify-center rounded-xl bg-accent/40 py-6 text-foreground/85">
-          <PoseSvg pose={pathway.targetPose} size={150} />
-        </div>
+        <PoseImage
+          slug={pathway.targetImgSlug}
+          alt={pathway.target}
+          rounded="rounded-xl"
+          aspect="aspect-[4/3]"
+          testId={`pathway-detail-hero-${pathway.slug}`}
+        />
         <div className="space-y-3">
           <h1 className="font-serif text-3xl font-semibold tracking-tight">{pathway.name}</h1>
           <p className="text-muted-foreground">{pathway.tagline ?? pathway.summary}</p>

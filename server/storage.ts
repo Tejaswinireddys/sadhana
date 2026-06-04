@@ -6,6 +6,9 @@ import {
   preferences,
   userProfiles,
   kidsStickers,
+  favoriteAsanas,
+  milestones,
+  poseNotes,
 } from "@shared/schema";
 import type {
   Session,
@@ -21,6 +24,10 @@ import type {
   UserProfile,
   Sticker,
   InsertSticker,
+  FavoriteAsana,
+  Milestone,
+  InsertMilestone,
+  PoseNote,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -74,7 +81,36 @@ sqlite.exec(`
     pose_slug TEXT NOT NULL,
     earned_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS favorite_asanas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS milestones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    reached_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pose_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    body TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);
+
+// --- Lightweight migration: add sessions.pre_mood / post_mood if missing ---
+try {
+  const cols = sqlite.prepare(`PRAGMA table_info(sessions)`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === "pre_mood")) {
+    sqlite.exec(`ALTER TABLE sessions ADD COLUMN pre_mood TEXT`);
+  }
+  if (!cols.some((c) => c.name === "post_mood")) {
+    sqlite.exec(`ALTER TABLE sessions ADD COLUMN post_mood TEXT`);
+  }
+} catch {
+  /* ignore */
+}
 
 // --- Lightweight migration: add sessions.kind if it doesn't already exist ---
 try {
@@ -135,6 +171,16 @@ export interface IStorage {
   // kids stickers
   getStickers(): Promise<Sticker[]>;
   createSticker(data: InsertSticker): Promise<Sticker>;
+  // favorite asanas (v3.4)
+  getFavoriteAsanas(): Promise<FavoriteAsana[]>;
+  addFavoriteAsana(slug: string): Promise<FavoriteAsana>;
+  removeFavoriteAsana(slug: string): Promise<void>;
+  // milestones (v3.4)
+  getMilestones(): Promise<Milestone[]>;
+  createMilestone(data: InsertMilestone): Promise<Milestone>;
+  // pose notes (v3.4)
+  getPoseNote(slug: string): Promise<PoseNote | undefined>;
+  upsertPoseNote(slug: string, body: string): Promise<PoseNote>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -222,6 +268,48 @@ export class DatabaseStorage implements IStorage {
   }
   async createSticker(data: InsertSticker): Promise<Sticker> {
     return db.insert(kidsStickers).values(data).returning().get();
+  }
+
+  async getFavoriteAsanas(): Promise<FavoriteAsana[]> {
+    return db.select().from(favoriteAsanas).orderBy(desc(favoriteAsanas.createdAt)).all();
+  }
+  async addFavoriteAsana(slug: string): Promise<FavoriteAsana> {
+    const existing = db.select().from(favoriteAsanas).where(eq(favoriteAsanas.slug, slug)).get();
+    if (existing) return existing;
+    return db
+      .insert(favoriteAsanas)
+      .values({ slug, createdAt: new Date().toISOString() })
+      .returning()
+      .get();
+  }
+  async removeFavoriteAsana(slug: string): Promise<void> {
+    db.delete(favoriteAsanas).where(eq(favoriteAsanas.slug, slug)).run();
+  }
+
+  async getMilestones(): Promise<Milestone[]> {
+    return db.select().from(milestones).orderBy(desc(milestones.reachedAt)).all();
+  }
+  async createMilestone(data: InsertMilestone): Promise<Milestone> {
+    const existing = db.select().from(milestones).where(eq(milestones.kind, data.kind)).get();
+    if (existing) return existing;
+    return db.insert(milestones).values(data).returning().get();
+  }
+
+  async getPoseNote(slug: string): Promise<PoseNote | undefined> {
+    return db.select().from(poseNotes).where(eq(poseNotes.slug, slug)).get();
+  }
+  async upsertPoseNote(slug: string, body: string): Promise<PoseNote> {
+    const now = new Date().toISOString();
+    const existing = db.select().from(poseNotes).where(eq(poseNotes.slug, slug)).get();
+    if (existing) {
+      return db
+        .update(poseNotes)
+        .set({ body, updatedAt: now })
+        .where(eq(poseNotes.slug, slug))
+        .returning()
+        .get();
+    }
+    return db.insert(poseNotes).values({ slug, body, updatedAt: now }).returning().get();
   }
 }
 

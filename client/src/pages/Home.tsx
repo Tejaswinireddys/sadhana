@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +24,84 @@ import {
   Wind,
   ArrowRight,
   Compass,
+  Sparkles,
+  Wind as WindIcon,
+  Sunrise,
+  HeartPulse,
+  Moon,
 } from "lucide-react";
+
+// Quick Start mood-based sessions (v3.4). Each is a ready-to-go sequence with
+// per-pose hold overrides, loaded into the Practice timer on "Begin".
+type QuickSession = {
+  id: string;
+  icon: any;
+  label: string;
+  time: string;
+  intent: string;
+  poses: Array<{ slug: string; holdSeconds: number }>;
+  breathSlug?: string;
+};
+
+const QUICK_SESSIONS: QuickSession[] = [
+  {
+    id: "tense",
+    icon: HeartPulse,
+    label: "I'm tense",
+    time: "5 min",
+    intent: "Release",
+    poses: [
+      { slug: "balasana", holdSeconds: 60 },
+      { slug: "paschimottanasana", holdSeconds: 60 },
+      { slug: "viparita-karani", holdSeconds: 180 },
+      { slug: "savasana", holdSeconds: 60 },
+    ],
+  },
+  {
+    id: "tired",
+    icon: Moon,
+    label: "I'm tired",
+    time: "5 min",
+    intent: "Restore",
+    poses: [
+      { slug: "setu-bandhasana", holdSeconds: 45 },
+      { slug: "viparita-karani", holdSeconds: 180 },
+      { slug: "balasana", holdSeconds: 60 },
+      { slug: "savasana", holdSeconds: 75 },
+    ],
+  },
+  {
+    id: "low-energy",
+    icon: Sunrise,
+    label: "I'm low energy",
+    time: "10 min",
+    intent: "Energize",
+    poses: [
+      { slug: "tadasana", holdSeconds: 30 },
+      { slug: "virabhadrasana-ii", holdSeconds: 45 },
+      { slug: "virabhadrasana-i", holdSeconds: 45 },
+      { slug: "utkatasana", holdSeconds: 45 },
+      { slug: "anjaneyasana", holdSeconds: 60 },
+      { slug: "balasana", holdSeconds: 60 },
+      { slug: "adho-mukha-svanasana", holdSeconds: 60 },
+      { slug: "savasana", holdSeconds: 75 },
+    ],
+  },
+  {
+    id: "anxious",
+    icon: WindIcon,
+    label: "I'm anxious",
+    time: "10 min",
+    intent: "Calm",
+    poses: [
+      { slug: "balasana", holdSeconds: 90 },
+      { slug: "sukhasana", holdSeconds: 120 },
+      { slug: "viparita-karani", holdSeconds: 240 },
+      { slug: "savasana", holdSeconds: 150 },
+    ],
+    breathSlug: "nadi-shodhana",
+  },
+];
 
 function StatCard({
   icon: Icon,
@@ -55,7 +133,8 @@ function StatCard({
 
 export default function Home() {
   const [, navigate] = useLocation();
-  const { todays, remove, clear, add } = usePractice();
+  const { todays, remove, loadSession } = usePractice();
+  const [reminderDismissed, setReminderDismissed] = useState(false);
   const { data: stats, isLoading } = useQuery<Stats>({ queryKey: ["/api/sessions/stats"] });
   const { data: activeProfileRow } = useQuery<UserProfile | null>({
     queryKey: ["/api/profile/active"],
@@ -82,15 +161,40 @@ export default function Home() {
 
   // Load the active profile's recommended asanas into today's practice and go.
   const startProfileSession = () => {
-    clear();
-    for (const a of recommendedAsanas) {
-      if (a) add(a);
-    }
+    loadSession(
+      recommendedAsanas.filter(Boolean).map((a) => ({ asana: a! })),
+      { label: profile ? `${profile.name} session` : "Profile session" },
+    );
     navigate("/practice");
+  };
+
+  // Launch a Quick Start mood-based session into the Practice timer.
+  const startQuickSession = (q: (typeof QUICK_SESSIONS)[number]) => {
+    const poses = q.poses
+      .map((p) => {
+        const asana = asanaBySlug(p.slug);
+        return asana ? { asana, holdSeconds: p.holdSeconds } : null;
+      })
+      .filter((x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } => x != null);
+    loadSession(poses, { label: `${q.time} · ${q.label}`, breathSlug: q.breathSlug ?? null });
+    navigate("/practice");
+  };
+
+  const scrollToQuickStart = () => {
+    document.getElementById("quick-start")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const hasPracticed = stats && stats.totalSessions > 0;
   const ProfileIcon = profile ? resolveIcon(profile.icon) : Compass;
+
+  // Daily reminder banner: show if not practiced today AND it's past 6 PM local.
+  const practicedToday = (() => {
+    const today = todayISO();
+    const todayEntry = stats?.heatmap?.find((h) => h.date === today);
+    return !!todayEntry && todayEntry.minutes > 0;
+  })();
+  const pastEvening = new Date().getHours() >= 18;
+  const showReminder = !reminderDismissed && !practicedToday && pastEvening && !isLoading;
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -102,6 +206,43 @@ export default function Home() {
           {profile ? `Welcome back to your ${profile.name} practice` : "Welcome to your practice"}
         </h1>
       </header>
+
+      {/* Daily reminder banner (v3.4) — evening nudge, dismissable for the session */}
+      {showReminder && (
+        <Card
+          className="border-secondary/40 bg-secondary/10 shadow-soft"
+          data-testid="banner-reminder"
+        >
+          <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/25 text-secondary">
+                <Moon className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-serif text-lg leading-tight">
+                  Five minutes of practice before sleep?
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Even just Child's Pose counts. Your body will thank you.
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button onClick={scrollToQuickStart} data-testid="button-reminder-begin">
+                Begin a quick session
+              </Button>
+              <button
+                onClick={() => setReminderDismissed(true)}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Dismiss reminder"
+                data-testid="button-dismiss-reminder"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* No-profile prompt banner */}
       {!profile && (
@@ -142,6 +283,47 @@ export default function Home() {
           <StatCard icon={Clock} label="Minutes practiced" value={stats?.totalMinutes ?? 0} testId="stat-total-minutes" />
         </div>
       )}
+
+      {/* Quick Start — mood-based sessions (v3.4) */}
+      <section id="quick-start" className="space-y-3" data-testid="section-quick-start">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-primary" />
+          <h2 className="font-serif text-xl">Quick start</h2>
+          <span className="text-sm text-muted-foreground">— tied to how you feel right now</span>
+        </div>
+        <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+          {QUICK_SESSIONS.map((q) => {
+            const QIcon = q.icon;
+            return (
+              <Card
+                key={q.id}
+                className="flex w-56 shrink-0 flex-col border-border shadow-soft"
+                data-testid={`quick-session-${q.id}`}
+              >
+                <CardContent className="flex flex-1 flex-col gap-3 p-4">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                    <QIcon className="h-5 w-5" />
+                  </span>
+                  <div className="space-y-0.5">
+                    <p className="font-serif text-lg leading-tight">{q.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {q.time} · {q.intent}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="mt-auto w-full"
+                    onClick={() => startQuickSession(q)}
+                    data-testid={`button-begin-quick-${q.id}`}
+                  >
+                    <Play className="mr-1.5 h-4 w-4" /> Begin
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </section>
 
       {/* Profile-aware today's practice */}
       {profile ? (

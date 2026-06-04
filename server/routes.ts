@@ -197,6 +197,52 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.status(204).end();
   });
 
+  // ---- Favorite asanas (v3.4) ----
+  app.get("/api/favorites/asanas", async (_req, res) => {
+    res.json(await storage.getFavoriteAsanas());
+  });
+  app.post("/api/favorites/asanas", async (req, res) => {
+    try {
+      const { slug } = z.object({ slug: z.string().min(1) }).parse(req.body);
+      res.status(201).json(await storage.addFavoriteAsana(slug));
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+  app.delete("/api/favorites/asanas/:slug", async (req, res) => {
+    await storage.removeFavoriteAsana(req.params.slug);
+    res.status(204).end();
+  });
+
+  // ---- Milestones (v3.4) ----
+  app.get("/api/milestones", async (_req, res) => {
+    res.json(await storage.getMilestones());
+  });
+  app.post("/api/milestones", async (req, res) => {
+    try {
+      const { kind } = z.object({ kind: z.string().min(1) }).parse(req.body);
+      res
+        .status(201)
+        .json(await storage.createMilestone({ kind, reachedAt: new Date().toISOString() }));
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+
+  // ---- Pose notes (v3.4) ----
+  app.get("/api/notes/:slug", async (req, res) => {
+    const note = await storage.getPoseNote(req.params.slug);
+    res.json(note ?? null);
+  });
+  app.put("/api/notes/:slug", async (req, res) => {
+    try {
+      const { body } = z.object({ body: z.string() }).parse(req.body);
+      res.json(await storage.upsertPoseNote(req.params.slug, body));
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+
   // ---- Kids stickers ----
   app.get("/api/kids/stickers", async (_req, res) => {
     res.json(await storage.getStickers());

@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PoseSvg } from "@/components/PoseSvg";
+import { PoseImage } from "@/components/PoseImage";
 import { WarmupCard } from "@/components/WarmupCard";
 import { PATHWAYS } from "@/data/content";
 import type { Pathway } from "@/data/content";
@@ -50,10 +50,17 @@ export default function Pathways() {
                 className="group flex h-full cursor-pointer flex-col shadow-soft transition-shadow hover:shadow-soft-lg hover-elevate"
                 data-testid={`card-pathway-${p.slug}`}
               >
-                <div className="relative flex items-center justify-center bg-accent/40 py-6 text-foreground/80 transition-transform group-hover:scale-105">
-                  <PoseSvg pose={p.targetPose} size={110} />
+                <div className="relative transition-transform group-hover:scale-[1.02]">
+                  <PoseImage
+                    slug={p.targetImgSlug}
+                    alt={p.target}
+                    rounded="rounded-xl"
+                    aspect="aspect-[4/3]"
+                    shadow={false}
+                    testId={`pathway-hero-${p.slug}`}
+                  />
                   {enrolled && (
-                    <Badge className="absolute right-3 top-3" data-testid={`badge-enrolled-${p.slug}`}>
+                    <Badge className="absolute right-3 top-3 z-10" data-testid={`badge-enrolled-${p.slug}`}>
                       Enrolled
                     </Badge>
                   )}

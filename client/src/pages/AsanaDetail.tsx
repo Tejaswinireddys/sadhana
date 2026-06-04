@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { type Level } from "@/components/AnimatedAsana";
@@ -24,8 +27,83 @@ import {
   Info,
   AlertCircle,
   Activity,
+  NotebookPen,
+  Check as CheckIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { PoseNote } from "@shared/schema";
+
+// Personal notes section with debounced (800ms) auto-save. Persisted per pose
+// via the backend pose_notes table (v3.4).
+function PersonalNotes({ slug }: { slug: string }) {
+  const { data: note, isLoading } = useQuery<PoseNote | null>({
+    queryKey: ["/api/notes", slug],
+  });
+  const [value, setValue] = useState("");
+  const [saved, setSaved] = useState(false);
+  const hydrated = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Hydrate the textarea once when the note loads.
+  useEffect(() => {
+    if (!isLoading && !hydrated.current) {
+      setValue(note?.body ?? "");
+      hydrated.current = true;
+    }
+  }, [isLoading, note]);
+
+  const onChange = (next: string) => {
+    setValue(next);
+    setSaved(false);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      apiRequest("PUT", `/api/notes/${slug}`, { body: next })
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/notes", slug] });
+          setSaved(true);
+          if (savedTimer.current) clearTimeout(savedTimer.current);
+          savedTimer.current = setTimeout(() => setSaved(false), 2000);
+        })
+        .catch(() => {});
+    }, 800);
+  };
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+    },
+    [],
+  );
+
+  return (
+    <Card className="shadow-soft" data-testid="card-pose-notes">
+      <CardContent className="space-y-3 p-5">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="flex items-center gap-2 font-serif text-lg">
+            <NotebookPen className="h-5 w-5 text-secondary" /> My notes
+          </h3>
+          {saved && (
+            <span
+              className="flex items-center gap-1 text-xs text-muted-foreground"
+              data-testid="text-notes-saved"
+            >
+              <CheckIcon className="h-3.5 w-3.5 text-secondary" /> Saved
+            </span>
+          )}
+        </div>
+        <Textarea
+          placeholder="What works for me / what hurts / props I like…"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          rows={4}
+          data-testid="input-pose-notes"
+        />
+      </CardContent>
+    </Card>
+  );
+}
 
 // Intensity → number of filled dots for the "You'll feel this in..." card.
 const INTENSITY_DOTS: Record<"low" | "medium" | "strong", number> = {
@@ -347,6 +425,9 @@ export default function AsanaDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Personal notes (v3.4) */}
+      <PersonalNotes slug={asana.slug} />
     </article>
   );
 }

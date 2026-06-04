@@ -740,10 +740,10 @@ export const WARMUP = {
   title: "Always warm up first — 5 min",
   description: "A short cat/cow and sun-salutation sequence to wake up the spine and joints before any pathway.",
   steps: [
-    { name: "Cat / Cow", pose: "cat", detail: "8–10 rounds, syncing spine movement with breath" },
-    { name: "Sun Salutation A", pose: "forward-fold", detail: "3–5 slow rounds to build gentle heat" },
-    { name: "Low Lunge", pose: "low-lunge", detail: "30 sec each side to open the hip flexors" },
-    { name: "Forward Fold", pose: "forward-fold", detail: "30 sec to lengthen the hamstrings" },
+    { name: "Cat / Cow", pose: "cat", imgSlug: "bhujangasana", detail: "8–10 rounds, syncing spine movement with breath" },
+    { name: "Sun Salutation A", pose: "forward-fold", imgSlug: "tadasana", detail: "3–5 slow rounds to build gentle heat" },
+    { name: "Low Lunge", pose: "low-lunge", imgSlug: "anjaneyasana", detail: "30 sec each side to open the hip flexors" },
+    { name: "Forward Fold", pose: "forward-fold", imgSlug: "uttanasana", detail: "30 sec to lengthen the hamstrings" },
   ],
 };
 
@@ -771,6 +771,7 @@ export type Pathway = {
   tagline?: string; // short "what this is" line for cards
   target: string; // target pose english name
   targetPose: string; // PoseSvg key
+  targetImgSlug: string; // illustrated PNG slug for the target pose (v3.4)
   weeks: number; // total number of weeks (kept as a number for back-compat)
   sessionsPerWeek: number;
   timePerSession: string;
@@ -786,6 +787,7 @@ export const PATHWAYS: Pathway[] = [
     tagline: "Open the hips and hamstrings, step by step, toward the full front split.",
     target: "Hanumanasana",
     targetPose: "full-split",
+    targetImgSlug: "hanumanasana",
     weeks: 8,
     sessionsPerWeek: 4,
     timePerSession: "15 min, 4x/week",
@@ -962,6 +964,7 @@ export const PATHWAYS: Pathway[] = [
     tagline: "Build spine mobility and chest opening to safely reach full Wheel.",
     target: "Urdhva Dhanurasana",
     targetPose: "wheel",
+    targetImgSlug: "urdhva-dhanurasana",
     weeks: 6,
     sessionsPerWeek: 3,
     timePerSession: "18 min, 3x/week",
@@ -1092,6 +1095,7 @@ export const PATHWAYS: Pathway[] = [
     tagline: "Release tight hamstrings and lower back for a deep, easy fold.",
     target: "Uttanasana / Paschimottanasana",
     targetPose: "forward-fold",
+    targetImgSlug: "paschimottanasana",
     weeks: 4,
     sessionsPerWeek: 5,
     timePerSession: "12 min, 5x/week",

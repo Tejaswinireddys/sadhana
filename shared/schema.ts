@@ -11,6 +11,8 @@ export const sessions = sqliteTable("sessions", {
   pathwaySlug: text("pathway_slug"),
   notes: text("notes"),
   kind: text("kind").notNull().default("asana"), // 'asana' | 'breathing'
+  preMood: text("pre_mood"), // mood chip recorded before practice
+  postMood: text("post_mood"), // mood chip recorded after practice
 });
 
 export const insertSessionSchema = createInsertSchema(sessions).omit({ id: true });
@@ -87,3 +89,37 @@ export const kidsStickers = sqliteTable("kids_stickers", {
 export const insertStickerSchema = createInsertSchema(kidsStickers).omit({ id: true });
 export type InsertSticker = z.infer<typeof insertStickerSchema>;
 export type Sticker = typeof kidsStickers.$inferSelect;
+
+// Favorited library poses (v3.4)
+export const favoriteAsanas = sqliteTable("favorite_asanas", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  slug: text("slug").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+export const insertFavoriteAsanaSchema = createInsertSchema(favoriteAsanas).omit({ id: true });
+export type InsertFavoriteAsana = z.infer<typeof insertFavoriteAsanaSchema>;
+export type FavoriteAsana = typeof favoriteAsanas.$inferSelect;
+
+// Celebrated milestones — recorded once so each is celebrated only a single time (v3.4)
+export const milestones = sqliteTable("milestones", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  kind: text("kind").notNull(), // 'streak_7', 'total_50', etc.
+  reachedAt: text("reached_at").notNull(),
+});
+
+export const insertMilestoneSchema = createInsertSchema(milestones).omit({ id: true });
+export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
+export type Milestone = typeof milestones.$inferSelect;
+
+// Personal notes per pose (v3.4) — one row per slug (upsert)
+export const poseNotes = sqliteTable("pose_notes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  slug: text("slug").notNull().unique(),
+  body: text("body").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const insertPoseNoteSchema = createInsertSchema(poseNotes).omit({ id: true });
+export type InsertPoseNote = z.infer<typeof insertPoseNoteSchema>;
+export type PoseNote = typeof poseNotes.$inferSelect;

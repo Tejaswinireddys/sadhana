@@ -28,17 +28,10 @@ import { EmptyState } from "@/components/EmptyState";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { MOODS, type Mood } from "@/data/content";
+import { MOOD_ICONS } from "@/lib/moods";
 import type { Journal as JournalEntry } from "@shared/schema";
 import { todayISO, formatShortDate } from "@/lib/sadhana";
-import { Plus, Search, Trash2, Smile, Mountain, Zap, Moon, CloudRain } from "lucide-react";
-
-const MOOD_ICONS: Record<Mood, any> = {
-  Calm: Smile,
-  Grounded: Mountain,
-  Energized: Zap,
-  Tired: Moon,
-  Stressed: CloudRain,
-};
+import { Plus, Search, Trash2 } from "lucide-react";
 
 type Draft = {
   id?: number;
