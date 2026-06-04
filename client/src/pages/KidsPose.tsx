@@ -70,7 +70,7 @@ export default function KidsPose() {
           <div className="grid items-center gap-6 md:grid-cols-2">
             <div className="flex items-center justify-center rounded-2xl bg-[hsl(41_80%_88%)] p-6 dark:bg-white/5">
               <img
-                src={`/kids/${pose.image}.png`}
+                src={`${import.meta.env.BASE_URL}kids/${pose.image}.png`}
                 alt={pose.poseName}
                 className="kids-bob h-64 w-64 object-contain"
                 draggable={false}
@@ -93,7 +93,7 @@ export default function KidsPose() {
           </div>
 
           {/* Story time audio */}
-          <VoicePlayer src={`/voice/kids-${pose.slug}.mp3`} slug={pose.slug} label="Story time" />
+          <VoicePlayer src={`${import.meta.env.BASE_URL}voice/kids-${pose.slug}.mp3`} slug={pose.slug} label="Story time" />
 
           {/* I did it! */}
           <div className="flex flex-col items-center gap-4 pt-2">

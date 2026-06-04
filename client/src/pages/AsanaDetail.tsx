@@ -23,7 +23,16 @@ import {
   AlertTriangle,
   Info,
   AlertCircle,
+  Activity,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// Intensity → number of filled dots for the "You'll feel this in..." card.
+const INTENSITY_DOTS: Record<"low" | "medium" | "strong", number> = {
+  low: 1,
+  medium: 2,
+  strong: 3,
+};
 
 const SEVERITY_META: Record<
   Severity,
@@ -106,11 +115,71 @@ export default function AsanaDetail() {
         </div>
         {/* Quick "listen again" affordance below the headline */}
         <VoicePlayer
-          src={`/voice/pose-${asana.slug}.mp3`}
+          src={`${import.meta.env.BASE_URL}voice/pose-${asana.slug}.mp3`}
           slug={asana.slug}
           label="Listen again — guided audio"
         />
       </header>
+
+      {/* "You'll feel this in..." — body regions this pose stretches. */}
+      {asana.stretchZones.length > 0 && (
+        <Card className="border-secondary/30 shadow-soft" data-testid="card-stretch-zones">
+          <CardContent className="space-y-4 p-5">
+            <h2 className="flex items-center gap-2 font-serif text-lg">
+              <Activity className="h-5 w-5 text-secondary" />
+              You'll feel this in…
+            </h2>
+            <ul className="divide-y divide-border/60">
+              {asana.stretchZones.map((z, i) => {
+                const filled = INTENSITY_DOTS[z.intensity];
+                const dotColor = z.primary ? "bg-primary" : "bg-secondary";
+                return (
+                  <li
+                    key={i}
+                    className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                    data-testid={`stretch-zone-${i}`}
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <span
+                        className={cn(
+                          "mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full",
+                          z.primary ? "bg-primary" : "bg-secondary",
+                        )}
+                        aria-hidden
+                      />
+                      <div className="min-w-0">
+                        <p className="font-medium leading-snug" data-testid={`stretch-zone-region-${i}`}>
+                          {z.region}
+                          <span className="ml-2 align-middle text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
+                            {z.primary ? "Primary" : "Secondary"}
+                          </span>
+                        </p>
+                        <p className="text-sm text-muted-foreground">{z.sensation}</p>
+                      </div>
+                    </div>
+                    {/* Intensity dots: 3 dots, filled by intensity. */}
+                    <div
+                      className="mt-1 flex shrink-0 items-center gap-1"
+                      title={`Intensity: ${z.intensity}`}
+                      aria-label={`Intensity: ${z.intensity}`}
+                    >
+                      {[0, 1, 2].map((d) => (
+                        <span
+                          key={d}
+                          className={cn(
+                            "h-2 w-2 rounded-full",
+                            d < filled ? dotColor : "bg-muted",
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Difficulty paths */}
       <section className="space-y-4">

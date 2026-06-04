@@ -174,7 +174,7 @@ export default function Home() {
                           data-testid={`profile-asana-${a.slug}`}
                         >
                           <img
-                            src={`/poses/${a.slug}.png`}
+                            src={`${import.meta.env.BASE_URL}poses/${a.slug}.png`}
                             alt=""
                             className="h-12 w-12 shrink-0 rounded-md object-cover"
                             draggable={false}
@@ -255,12 +255,12 @@ export default function Home() {
         {/* Today's hand-picked practice (manual additions) */}
         <Card className="shadow-soft">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Today's practice</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Your custom practice</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {todays.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No asanas selected yet. Add poses from the library to build today's session.
+                Build your own session — add any poses from the library to practice them in any order.
               </p>
             ) : (
               <ul className="space-y-2" data-testid="list-todays-practice">

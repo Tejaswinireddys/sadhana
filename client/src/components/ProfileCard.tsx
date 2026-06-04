@@ -48,7 +48,7 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
     >
       <div className="relative flex items-center gap-4 bg-accent/30 p-4">
         <img
-          src={`/poses/${thumbSlug}.png`}
+          src={`${import.meta.env.BASE_URL}poses/${thumbSlug}.png`}
           alt=""
           className="h-20 w-20 shrink-0 rounded-xl object-cover shadow-soft"
           draggable={false}

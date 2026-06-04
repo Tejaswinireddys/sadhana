@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { asanaBySlug } from "@/data/content";
+import { asanaBySlug, DEFAULT_FOCUS_ZONE } from "@/data/content";
 import { cn } from "@/lib/utils";
 import { Play, Pause, Check, Sparkles } from "lucide-react";
 
@@ -19,6 +19,8 @@ export function DemoMode({ slug }: { slug: string }) {
   const { toast } = useToast();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const imgWrapRef = useRef<HTMLDivElement | null>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -28,6 +30,23 @@ export function DemoMode({ slug }: { slug: string }) {
 
   const steps = asana?.steps ?? [];
   const stepCount = steps.length || 1;
+
+  // Focus zone for the currently active step (falls back to whole-body).
+  // Coordinates are normalized 0-1; we scale by 100 onto a 0..100 viewBox.
+  const activeZone =
+    (started && steps[stepIndex]?.focusZone) || DEFAULT_FOCUS_ZONE;
+
+  // Measure the rendered image box so the focus halo stays a true circle
+  // regardless of the pose image's aspect ratio.
+  useEffect(() => {
+    const el = imgWrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const update = () => setBox({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Reset everything when navigating to a different pose.
   useEffect(() => {
@@ -45,7 +64,7 @@ export function DemoMode({ slug }: { slug: string }) {
 
   if (!asana) return null;
 
-  const src = `/voice/pose-${asana.slug}.mp3`;
+  const src = `${import.meta.env.BASE_URL}voice/pose-${asana.slug}.mp3`;
   const progress = duration > 0 ? Math.min(100, (current / duration) * 100) : 0;
 
   const start = () => {
@@ -124,18 +143,85 @@ export function DemoMode({ slug }: { slug: string }) {
           <p className="text-sm text-muted-foreground">{asana.sanskrit}</p>
         </div>
 
-        {/* Hero image — full width, breathes harder while playing */}
-        <div className="relative w-full overflow-hidden rounded-2xl bg-accent/30">
+        {/* Hero image — full width, breathes harder while playing, with an
+            animated SVG "focus halo" overlay that moves to the body region the
+            current step targets. */}
+        <div ref={imgWrapRef} className="relative w-full overflow-hidden rounded-2xl bg-accent/30">
           <img
-            src={`/poses/${asana.slug}.png`}
+            src={`${import.meta.env.BASE_URL}poses/${asana.slug}.png`}
             alt={`${asana.english} (${asana.sanskrit}) illustration`}
             draggable={false}
             className={cn(
               "block w-full select-none rounded-2xl object-cover shadow-soft-lg",
-              playing ? "photo-breath-demo" : "photo-breath",
+              playing ? "photo-breath-demo photo-brightness-pulse" : "photo-breath",
             )}
             data-testid={`demo-hero-${asana.slug}`}
           />
+
+          {/* Focus overlay — only while the demo is running. The circle cx/cy/r
+              are CSS-transitioned (300ms) so the halo glides between steps. */}
+          {started && !completed && (
+            (() => {
+              // Pixel coords from normalized zone. Radius scales with the
+              // smaller dimension so the halo is a true circle.
+              const cx = activeZone.cx * box.w;
+              const cy = activeZone.cy * box.h;
+              const r = activeZone.r * Math.min(box.w || 1, box.h || 1);
+              const tween = "cx 300ms ease, cy 300ms ease, r 300ms ease";
+              return (
+                <svg
+                  viewBox={`0 0 ${box.w || 1} ${box.h || 1}`}
+                  preserveAspectRatio="none"
+                  className="pointer-events-none absolute inset-0 h-full w-full"
+                  aria-hidden
+                  data-testid={`demo-focus-overlay-${asana.slug}`}
+                >
+                  {/* Pulsing terracotta halo over the active region */}
+                  <circle
+                    className="focus-halo-breath"
+                    cx={cx}
+                    cy={cy}
+                    r={r}
+                    fill="hsl(var(--primary))"
+                    style={{ transition: tween }}
+                    data-testid={`demo-focus-halo-${asana.slug}`}
+                  />
+                  {/* Crisper ring outline for an unmistakable target */}
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={r}
+                    fill="none"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={Math.max(2, (box.w || 0) * 0.008)}
+                    strokeOpacity={0.85}
+                    style={{ transition: tween }}
+                  />
+                  {/* Small indicator arrow bobbing in from above the region. */}
+                  <g
+                    style={{
+                      transition: "transform 300ms ease",
+                      transform: `translate(${cx}px, ${cy - r - 10}px)`,
+                    }}
+                  >
+                    <g className="focus-arrow-bob">
+                      <path d="M0 9 L-7 0 L7 0 Z" fill="hsl(var(--primary))" />
+                    </g>
+                  </g>
+                </svg>
+              );
+            })()
+          )}
+
+          {/* Caption naming the focused region, for clarity + accessibility */}
+          {started && !completed && (
+            <span
+              className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background/85 px-3 py-1 text-xs font-medium text-primary shadow-soft backdrop-blur-sm"
+              data-testid={`demo-focus-label-${asana.slug}`}
+            >
+              {activeZone.label}
+            </span>
+          )}
         </div>
 
         {/* CTA / playback controls */}

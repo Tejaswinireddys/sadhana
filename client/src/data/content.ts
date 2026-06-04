@@ -1,5 +1,8 @@
 // Static content for Sadhana. Asanas, pathways, and affirmations live here (not in DB).
 import { EXTRAS } from "./variations";
+import { FOCUS_ZONES, STRETCH_ZONES, DEFAULT_FOCUS_ZONE } from "./zones";
+
+export { DEFAULT_FOCUS_ZONE };
 
 export type Difficulty = "Beginner" | "Intermediate" | "Advanced";
 export type Category =
@@ -39,6 +42,9 @@ export type Step = {
   text: string;
   pose?: string; // optional per-step SVG key
   stepMotion?: StepMotionKey; // animated mini-clip primitive
+  // Normalized (0-1) coordinates marking the body region this step targets,
+  // used by DemoMode to draw an animated "focus halo" over the pose image.
+  focusZone?: { cx: number; cy: number; r: number; label: string };
 };
 
 export type Severity = "avoid" | "modify" | "caution";
@@ -74,11 +80,21 @@ export type Asana = {
   modifications: string;
   steps: Step[];
   variations: Variations;
+  // Body regions the pose stretches — surfaced in the "You'll feel this in..."
+  // card on the detail page.
+  stretchZones: StretchZone[];
+};
+
+export type StretchZone = {
+  region: string; // e.g. "Hamstrings"
+  sensation: string; // 1-line description of the sensation
+  intensity: "low" | "medium" | "strong";
+  primary: boolean; // primary vs secondary stretch
 };
 
 // Raw asana literals (without the merged extras). The fully-typed ASANAS
 // array below is produced by merging EXTRAS into these at module load.
-type RawAsana = Omit<Asana, "avoidIf" | "variations">;
+type RawAsana = Omit<Asana, "avoidIf" | "variations" | "stretchZones">;
 
 const RAW_ASANAS: RawAsana[] = [
   {
@@ -695,17 +711,22 @@ const RAW_ASANAS: RawAsana[] = [
 ];
 
 // Merge per-asana extras (variations, structured contraindications, step
-// motions) from variations.ts into the fully-typed ASANAS array.
+// motions, focus zones, stretch zones) into the fully-typed ASANAS array.
 export const ASANAS: Asana[] = RAW_ASANAS.map((raw) => {
   const extra = EXTRAS[raw.slug];
+  const zones = FOCUS_ZONES[raw.slug];
   const steps: Step[] = raw.steps.map((step, i) => ({
     ...step,
     stepMotion: step.stepMotion ?? extra?.stepMotions[i],
+    focusZone: step.focusZone ?? zones?.[i],
   }));
   return {
     ...raw,
     steps,
     avoidIf: extra?.avoidIf ?? [],
+    stretchZones: STRETCH_ZONES[raw.slug] ?? [
+      { region: "Full body", sensation: "A balanced, whole-body engagement", intensity: "medium", primary: true },
+    ],
     variations: extra?.variations ?? {
       beginner: { description: raw.modifications, props: [], cues: [], holdSeconds: raw.holdSeconds },
       intermediate: { description: raw.summary, props: [], cues: [], holdSeconds: raw.holdSeconds },

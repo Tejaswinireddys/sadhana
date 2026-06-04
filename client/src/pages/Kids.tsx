@@ -41,7 +41,7 @@ export default function Kids() {
               </Button>
             </div>
             <img
-              src="/kids/_hero.png"
+              src={`${import.meta.env.BASE_URL}kids/_hero.png`}
               alt="A cheerful child practicing yoga"
               className="kids-bob mx-auto w-full max-w-sm rounded-2xl object-contain"
               draggable={false}
@@ -64,7 +64,7 @@ export default function Kids() {
                 >
                   <div className="flex items-center justify-center bg-[hsl(41_80%_88%)] p-4 dark:bg-white/5">
                     <img
-                      src={`/kids/${p.image}.png`}
+                      src={`${import.meta.env.BASE_URL}kids/${p.image}.png`}
                       alt={p.poseName}
                       className="h-40 w-40 object-contain"
                       draggable={false}

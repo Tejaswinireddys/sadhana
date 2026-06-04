@@ -503,6 +503,36 @@ html.motion-off .animate-breathe {
 html.motion-off .photo-breath,
 html.motion-off .photo-breath-demo { animation: none !important; }
 
+/* Demo "alive" brightness pulse on the pose image while the voice plays. */
+@keyframes photo-brightness-pulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.05); }
+}
+.photo-brightness-pulse { animation: photo-brightness-pulse 4s ease-in-out infinite; }
+
+/* Gently breathing focus halo drawn over the active body region in DemoMode. */
+@keyframes focus-halo-breath {
+  0%, 100% { opacity: 0.30; transform: scale(1); }
+  50%      { opacity: 0.16; transform: scale(1.12); }
+}
+.focus-halo-breath { animation: focus-halo-breath 2.6s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+
+/* Small indicator arrow bobbing toward the focus region. */
+@keyframes focus-arrow-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+.focus-arrow-bob { animation: focus-arrow-bob 1.8s ease-in-out infinite; transform-box: fill-box; }
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-brightness-pulse,
+  .focus-halo-breath,
+  .focus-arrow-bob { animation: none !important; }
+}
+html.motion-off .photo-brightness-pulse,
+html.motion-off .focus-halo-breath,
+html.motion-off .focus-arrow-bob { animation: none !important; }
+
 /* =====================================================================
    v3 — Kids section: warmer palette + cheerful celebration
    Scoped under .kids-zone so the rest of the calm adult app is untouched.

@@ -33,7 +33,7 @@ export function PoseImage({
       {!loaded && !errored && <Skeleton className="aspect-square w-full rounded-2xl" />}
       {!errored && (
         <img
-          src={`/poses/${slug}.png`}
+          src={`${import.meta.env.BASE_URL}poses/${slug}.png`}
           alt={alt}
           onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}

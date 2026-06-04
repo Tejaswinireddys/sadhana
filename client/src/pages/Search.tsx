@@ -26,6 +26,34 @@ function readQuery(): string {
   return "";
 }
 
+// Returns true if `squashedQuery` can be formed by concatenating prefixes of
+// the words in `name`, taken in order (words may be skipped). This makes
+// abbreviated, space-less queries like "downdog" match "Downward-Facing Dog"
+// (down + dog) or "warr2" match "Warrior 2".
+function matchesWordPrefixes(squashedQuery: string, name: string): boolean {
+  if (!squashedQuery) return false;
+  const words = name.toLowerCase().split(/[\s-]+/).filter(Boolean);
+  // Recursive consume: from word index w, try to match the rest of the query.
+  const consume = (qi: number, w: number): boolean => {
+    if (qi >= squashedQuery.length) return true;
+    for (let i = w; i < words.length; i++) {
+      const word = words[i];
+      // Match the longest possible shared prefix between the remaining query
+      // and this word, then recurse onto the next word.
+      let k = 0;
+      while (k < word.length && qi + k < squashedQuery.length && word[k] === squashedQuery[qi + k]) {
+        k++;
+      }
+      // Require at least one character matched and try every prefix length.
+      for (let len = k; len >= 1; len--) {
+        if (consume(qi + len, i + 1)) return true;
+      }
+    }
+    return false;
+  };
+  return consume(0, 0);
+}
+
 export default function Search() {
   const [query, setQuery] = useState(readQuery());
 
@@ -42,11 +70,17 @@ export default function Search() {
   }, []);
 
   const q = query.trim().toLowerCase();
+  // A more forgiving, "squashed" form of the query with spaces and hyphens
+  // removed, so "downdog" matches "Downward-Facing Dog" / "Adho Mukha Svanasana".
+  const squash = (s: string) => s.toLowerCase().replace(/[\s-]+/g, "");
+  const qSquashed = squash(q);
 
   const results = useMemo(() => {
     if (!q) return { poses: [], breathing: [], pathways: [], affirmations: [] };
 
     const poses = ASANAS.filter((a) => {
+      // Primary substring match across sanskrit, english, category, summary,
+      // benefits, and step text (all case-insensitive).
       const hay = [
         a.sanskrit,
         a.english,
@@ -57,7 +91,18 @@ export default function Search() {
       ]
         .join(" ")
         .toLowerCase();
-      return hay.includes(q);
+      if (hay.includes(q)) return true;
+      // Forgiving fallback: strip spaces/hyphens from both query and the
+      // pose names so e.g. "forwardfold" matches "Standing Forward Fold".
+      if (qSquashed.length >= 3) {
+        if (squash(a.sanskrit).includes(qSquashed)) return true;
+        if (squash(a.english).includes(qSquashed)) return true;
+        // Word-prefix concatenation: lets "downdog" match
+        // "Downward-Facing Dog" by consuming a prefix from consecutive words.
+        if (matchesWordPrefixes(qSquashed, a.english)) return true;
+        if (matchesWordPrefixes(qSquashed, a.sanskrit)) return true;
+      }
+      return false;
     });
 
     const pathways = PATHWAYS.filter((p) => {
@@ -73,7 +118,7 @@ export default function Search() {
     const affirmations = AFFIRMATIONS.filter((t) => t.toLowerCase().includes(q));
 
     return { poses, breathing, pathways, affirmations };
-  }, [q]);
+  }, [q, qSquashed]);
 
   const total =
     results.poses.length +
@@ -126,7 +171,7 @@ export default function Search() {
                     >
                       <CardContent className="flex items-center gap-3 p-3">
                         <img
-                          src={`/poses/${a.slug}.png`}
+                          src={`${import.meta.env.BASE_URL}poses/${a.slug}.png`}
                           alt={a.english}
                           className="h-14 w-14 shrink-0 rounded-lg bg-accent/40 object-cover"
                           draggable={false}
@@ -135,8 +180,12 @@ export default function Search() {
                           }}
                         />
                         <div className="min-w-0">
-                          <p className="truncate font-serif text-base">{a.sanskrit}</p>
-                          <p className="truncate text-sm text-muted-foreground">{a.english}</p>
+                          <p className="truncate font-serif text-base" data-testid={`search-pose-english-${a.slug}`}>
+                            {a.english}
+                          </p>
+                          <p className="truncate text-sm italic text-muted-foreground" data-testid={`search-pose-sanskrit-${a.slug}`}>
+                            {a.sanskrit}
+                          </p>
                         </div>
                       </CardContent>
                     </Card>
