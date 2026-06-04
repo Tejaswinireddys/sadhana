@@ -1,29 +1,33 @@
-import { Link, useParams } from "wouter";
+import { Link, useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { PoseSvg } from "@/components/PoseSvg";
 import { WarmupCard } from "@/components/WarmupCard";
 import { EmptyState } from "@/components/EmptyState";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { pathwayBySlug } from "@/data/content";
+import { pathwayBySlug, asanaBySlug } from "@/data/content";
+import type { PathwayWeek } from "@/data/content";
+import { usePractice } from "@/context/PracticeContext";
 import type { Enrollment } from "@shared/schema";
 import { todayISO, daysSince } from "@/lib/sadhana";
 import { ArrowLeft, CalendarDays, Repeat, Clock, Play, X } from "lucide-react";
+
+function formatSeconds(total: number): string {
+  if (total < 60) return `${total}s`;
+  const m = Math.round(total / 60);
+  return `≈ ${m} minute${m === 1 ? "" : "s"}`;
+}
 
 export default function PathwayDetail() {
   const { slug } = useParams();
   const pathway = pathwayBySlug(slug || "");
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const { clear, add } = usePractice();
   const { data: enrollments = [] } = useQuery<Enrollment[]>({ queryKey: ["/api/enrollments"] });
 
   const enrollment = enrollments.find((e) => e.pathwaySlug === slug && e.active);
@@ -64,6 +68,26 @@ export default function PathwayDetail() {
   const pct = enrollment ? Math.round((elapsed / totalDays) * 100) : 0;
   const currentWeek = enrollment ? Math.min(Math.ceil(elapsed / 7), pathway.weeks) : 0;
 
+  // Load a week's poses into the practice timer and jump to the timer screen.
+  // We override each asana's holdSeconds with the week-specific target.
+  const startWeek = (week: PathwayWeek) => {
+    clear();
+    for (const p of week.poses) {
+      const asana = asanaBySlug(p.asanaSlug);
+      if (asana) add({ ...asana, holdSeconds: p.holdSeconds });
+    }
+    toast({
+      title: `Week ${week.weekNumber} loaded`,
+      description: `${week.theme} — ${week.poses.length} poses queued.`,
+    });
+    navigate("/practice");
+  };
+
+  const startWeekOne = () => {
+    const wk = pathway.weekPlan[0];
+    if (wk) startWeek(wk);
+  };
+
   return (
     <article className="animate-fade-in space-y-8">
       <Link href="/pathways">
@@ -78,12 +102,13 @@ export default function PathwayDetail() {
         </div>
         <div className="space-y-3">
           <h1 className="font-serif text-3xl font-semibold tracking-tight">{pathway.name}</h1>
-          <p className="text-muted-foreground">{pathway.summary}</p>
+          <p className="text-muted-foreground">{pathway.tagline ?? pathway.summary}</p>
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             <Badge variant="outline" className="gap-1"><CalendarDays className="h-3 w-3" /> {pathway.weeks} weeks</Badge>
             <Badge variant="outline" className="gap-1"><Repeat className="h-3 w-3" /> {pathway.sessionsPerWeek}x / week</Badge>
             <Badge variant="outline" className="gap-1"><Clock className="h-3 w-3" /> {pathway.timePerSession}</Badge>
           </div>
+
           {enrollment ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
@@ -98,55 +123,103 @@ export default function PathwayDetail() {
                 </Button>
               </div>
               <Progress value={pct} data-testid="progress-pathway" />
+              <Button onClick={startWeekOne} className="w-full sm:w-auto" data-testid="button-start-week-1">
+                <Play className="mr-1.5 h-4 w-4" /> Start week 1
+              </Button>
             </div>
           ) : (
-            <Button onClick={() => enroll.mutate()} disabled={enroll.isPending} data-testid="button-start-pathway">
-              <Play className="mr-1.5 h-4 w-4" /> Start pathway
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => enroll.mutate()} disabled={enroll.isPending} data-testid="button-start-pathway">
+                <CalendarDays className="mr-1.5 h-4 w-4" /> Track this pathway
+              </Button>
+              <Button variant="secondary" onClick={startWeekOne} data-testid="button-start-week-1">
+                <Play className="mr-1.5 h-4 w-4" /> Start week 1
+              </Button>
+            </div>
           )}
         </div>
       </header>
 
       <WarmupCard />
 
-      <section className="space-y-3">
+      <section className="space-y-4">
         <h2 className="font-serif text-xl">Week-by-week plan</h2>
-        <Accordion type="single" collapsible className="space-y-2" defaultValue={enrollment ? `week-${currentWeek}` : undefined}>
-          {pathway.schedule.map((wk) => (
-            <AccordionItem
-              key={wk.week}
-              value={`week-${wk.week}`}
-              className="rounded-lg border border-border bg-card px-4"
-              data-testid={`week-${wk.week}`}
-            >
-              <AccordionTrigger className="hover:no-underline">
-                <div className="flex items-center gap-3 text-left">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary font-serif text-sm text-primary-foreground">
-                    {wk.week}
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium">Week {wk.week}</p>
-                    <p className="text-xs text-muted-foreground">{wk.focus}</p>
-                  </div>
-                  {currentWeek === wk.week && <Badge className="ml-2">Current</Badge>}
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="space-y-3 pb-4">
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Warm-up: </span>{wk.warmup}
-                </p>
-                <ul className="space-y-1.5">
-                  {wk.asanas.map((a, i) => (
-                    <li key={i} className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm">
-                      <span>{a.name}</span>
-                      <span className="text-xs text-muted-foreground">{a.hold}</span>
-                    </li>
-                  ))}
-                </ul>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+
+        <ol className="relative space-y-4 border-l border-border pl-6">
+          {pathway.weekPlan.map((week) => {
+            const isCurrent = enrollment != null && currentWeek === week.weekNumber;
+            const totalHold = week.poses.reduce((sum, p) => sum + p.holdSeconds, 0);
+            const sessionsPerWeek = week.sessionsPerWeek ?? pathway.sessionsPerWeek;
+            return (
+              <li key={week.weekNumber} className="relative" data-testid={`week-${week.weekNumber}`}>
+                <span
+                  className={`absolute -left-[31px] flex h-8 w-8 items-center justify-center rounded-full font-serif text-sm ${
+                    isCurrent
+                      ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
+                      : "bg-accent text-foreground/80"
+                  }`}
+                >
+                  {week.weekNumber}
+                </span>
+                <Card className={`shadow-soft ${isCurrent ? "border-primary/50" : ""}`}>
+                  <CardContent className="space-y-4 p-5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-serif text-lg">
+                        Week {week.weekNumber} · {week.theme}
+                      </h3>
+                      {isCurrent && (
+                        <Badge data-testid={`badge-current-week-${week.weekNumber}`}>← You are here</Badge>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {week.poses.map((p, i) => {
+                        const asana = asanaBySlug(p.asanaSlug);
+                        return (
+                          <div
+                            key={`${p.asanaSlug}-${i}`}
+                            className="flex flex-col items-center gap-1.5 rounded-md border border-border bg-background p-2 text-center"
+                          >
+                            <span className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md bg-accent/30">
+                              <img
+                                src={`${import.meta.env.BASE_URL}poses/${p.asanaSlug}.png`}
+                                alt={asana?.english ?? p.asanaSlug}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            </span>
+                            <p className="text-xs font-medium leading-tight">{asana?.english ?? p.asanaSlug}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {p.holdSeconds}s{p.note ? ` · ${p.note}` : ""}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+                      <div className="space-y-0.5 text-xs text-muted-foreground">
+                        <p className="flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5" /> {formatSeconds(totalHold)} per session
+                        </p>
+                        <p className="flex items-center gap-1.5">
+                          <Repeat className="h-3.5 w-3.5" /> {sessionsPerWeek}x this week
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => startWeek(week)}
+                        size="sm"
+                        data-testid={`button-start-week-${week.weekNumber}`}
+                      >
+                        <Play className="mr-1.5 h-4 w-4" /> Start week {week.weekNumber} session
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </li>
+            );
+          })}
+        </ol>
       </section>
     </article>
   );

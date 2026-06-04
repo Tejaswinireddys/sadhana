@@ -22,6 +22,7 @@ import Journal from "@/pages/Journal";
 import Profiles from "@/pages/Profiles";
 import Kids from "@/pages/Kids";
 import KidsPose from "@/pages/KidsPose";
+import KidsBreath from "@/pages/KidsBreath";
 import Search from "@/pages/Search";
 
 function AppRouter() {
@@ -38,6 +39,7 @@ function AppRouter() {
       <Route path="/journal" component={Journal} />
       <Route path="/profiles" component={Profiles} />
       <Route path="/kids" component={Kids} />
+      <Route path="/kids/breath/:slug" component={KidsBreath} />
       <Route path="/kids/:slug" component={KidsPose} />
       <Route path="/search" component={Search} />
       <Route component={NotFound} />

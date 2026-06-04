@@ -747,29 +747,43 @@ export const WARMUP = {
   ],
 };
 
-export type PathwayWeek = {
+// Legacy week shape — kept for the existing (collapsed) schedule field so any
+// older references keep compiling. The v3.3 timeline uses PathwayWeek below.
+export type PathwayWeekLegacy = {
   week: number;
   focus: string;
   warmup: string;
   asanas: { name: string; hold: string }[];
 };
 
+// v3.3 — a fully populated week with real asana slugs + hold times so the
+// detail page can render pose thumbnails and feed the practice timer.
+export type PathwayWeek = {
+  weekNumber: number;
+  theme: string;
+  poses: Array<{ asanaSlug: string; holdSeconds: number; note?: string }>;
+  sessionsPerWeek?: number; // optional per-week override
+};
+
 export type Pathway = {
   slug: string;
   name: string;
+  tagline?: string; // short "what this is" line for cards
   target: string; // target pose english name
   targetPose: string; // PoseSvg key
-  weeks: number;
+  weeks: number; // total number of weeks (kept as a number for back-compat)
   sessionsPerWeek: number;
   timePerSession: string;
   summary: string;
-  schedule: PathwayWeek[];
+  schedule: PathwayWeekLegacy[]; // legacy collapsed breakdown (still present)
+  weekPlan: PathwayWeek[]; // v3.3 fully-populated week-by-week plan
 };
 
 export const PATHWAYS: Pathway[] = [
   {
     slug: "front-splits",
     name: "Front Splits",
+    tagline: "Open the hips and hamstrings, step by step, toward the full front split.",
     target: "Hanumanasana",
     targetPose: "full-split",
     weeks: 8,
@@ -859,10 +873,93 @@ export const PATHWAYS: Pathway[] = [
         ],
       },
     ],
+    weekPlan: [
+      {
+        weekNumber: 1,
+        theme: "Foundation",
+        poses: [
+          { asanaSlug: "tadasana", holdSeconds: 30 },
+          { asanaSlug: "anjaneyasana", holdSeconds: 60, note: "each side" },
+          { asanaSlug: "baddha-konasana", holdSeconds: 90 },
+          { asanaSlug: "balasana", holdSeconds: 60 },
+        ],
+      },
+      {
+        weekNumber: 2,
+        theme: "Hip Awakening",
+        poses: [
+          { asanaSlug: "anjaneyasana", holdSeconds: 90, note: "each side" },
+          { asanaSlug: "eka-pada-rajakapotasana", holdSeconds: 60, note: "each side" },
+          { asanaSlug: "baddha-konasana", holdSeconds: 90 },
+          { asanaSlug: "paschimottanasana", holdSeconds: 60 },
+        ],
+      },
+      {
+        weekNumber: 3,
+        theme: "Deepening",
+        poses: [
+          { asanaSlug: "anjaneyasana", holdSeconds: 90, note: "each side" },
+          { asanaSlug: "utthan-pristhasana", holdSeconds: 60, note: "each side" },
+          { asanaSlug: "eka-pada-rajakapotasana", holdSeconds: 90, note: "each side" },
+          { asanaSlug: "ardha-hanumanasana", holdSeconds: 60, note: "hands on blocks" },
+        ],
+      },
+      {
+        weekNumber: 4,
+        theme: "Hamstring Focus",
+        poses: [
+          { asanaSlug: "anjaneyasana", holdSeconds: 60, note: "each side" },
+          { asanaSlug: "ardha-hanumanasana", holdSeconds: 75, note: "each side" },
+          { asanaSlug: "parsvottanasana", holdSeconds: 60, note: "each side" },
+          { asanaSlug: "paschimottanasana", holdSeconds: 90 },
+        ],
+      },
+      {
+        weekNumber: 5,
+        theme: "Active Flexibility",
+        poses: [
+          { asanaSlug: "virabhadrasana-i", holdSeconds: 60, note: "each side" },
+          { asanaSlug: "anjaneyasana", holdSeconds: 75, note: "each side" },
+          { asanaSlug: "parsvottanasana", holdSeconds: 60, note: "each side" },
+          { asanaSlug: "ardha-hanumanasana", holdSeconds: 90, note: "each side" },
+        ],
+      },
+      {
+        weekNumber: 6,
+        theme: "Approaching the Split",
+        poses: [
+          { asanaSlug: "anjaneyasana", holdSeconds: 90, note: "each side" },
+          { asanaSlug: "ardha-hanumanasana", holdSeconds: 90, note: "each side" },
+          { asanaSlug: "utthan-pristhasana", holdSeconds: 75, note: "each side" },
+          { asanaSlug: "hanumanasana", holdSeconds: 30, note: "blocks under hip" },
+        ],
+      },
+      {
+        weekNumber: 7,
+        theme: "Building Depth",
+        poses: [
+          { asanaSlug: "ardha-hanumanasana", holdSeconds: 90, note: "each side" },
+          { asanaSlug: "utthan-pristhasana", holdSeconds: 90, note: "each side" },
+          { asanaSlug: "hanumanasana", holdSeconds: 45, note: "props" },
+          { asanaSlug: "paschimottanasana", holdSeconds: 90 },
+        ],
+      },
+      {
+        weekNumber: 8,
+        theme: "Full Pose",
+        poses: [
+          { asanaSlug: "anjaneyasana", holdSeconds: 60, note: "each side" },
+          { asanaSlug: "ardha-hanumanasana", holdSeconds: 60, note: "each side" },
+          { asanaSlug: "hanumanasana", holdSeconds: 60, note: "each side" },
+          { asanaSlug: "savasana", holdSeconds: 180 },
+        ],
+      },
+    ],
   },
   {
     slug: "wheel-backbend",
     name: "Backbend / Wheel Pose",
+    tagline: "Build spine mobility and chest opening to safely reach full Wheel.",
     target: "Urdhva Dhanurasana",
     targetPose: "wheel",
     weeks: 6,
@@ -932,10 +1029,67 @@ export const PATHWAYS: Pathway[] = [
         ],
       },
     ],
+    weekPlan: [
+      {
+        weekNumber: 1,
+        theme: "Awaken the Spine",
+        poses: [
+          { asanaSlug: "bhujangasana", holdSeconds: 30 },
+          { asanaSlug: "setu-bandhasana", holdSeconds: 60 },
+          { asanaSlug: "balasana", holdSeconds: 60 },
+        ],
+      },
+      {
+        weekNumber: 2,
+        theme: "Chest Opening",
+        poses: [
+          { asanaSlug: "bhujangasana", holdSeconds: 45 },
+          { asanaSlug: "ustrasana", holdSeconds: 30 },
+          { asanaSlug: "setu-bandhasana", holdSeconds: 75 },
+        ],
+      },
+      {
+        weekNumber: 3,
+        theme: "Deeper Bends",
+        poses: [
+          { asanaSlug: "bhujangasana", holdSeconds: 60 },
+          { asanaSlug: "ustrasana", holdSeconds: 45 },
+          { asanaSlug: "anjaneyasana", holdSeconds: 60, note: "each side" },
+        ],
+      },
+      {
+        weekNumber: 4,
+        theme: "Building Strength",
+        poses: [
+          { asanaSlug: "ustrasana", holdSeconds: 60 },
+          { asanaSlug: "setu-bandhasana", holdSeconds: 90 },
+          { asanaSlug: "bhujangasana", holdSeconds: 60 },
+        ],
+      },
+      {
+        weekNumber: 5,
+        theme: "Approach the Wheel",
+        poses: [
+          { asanaSlug: "setu-bandhasana", holdSeconds: 90 },
+          { asanaSlug: "ustrasana", holdSeconds: 60 },
+          { asanaSlug: "urdhva-dhanurasana", holdSeconds: 15 },
+        ],
+      },
+      {
+        weekNumber: 6,
+        theme: "Full Wheel",
+        poses: [
+          { asanaSlug: "ustrasana", holdSeconds: 60 },
+          { asanaSlug: "urdhva-dhanurasana", holdSeconds: 30, note: "3 reps" },
+          { asanaSlug: "balasana", holdSeconds: 90 },
+        ],
+      },
+    ],
   },
   {
     slug: "forward-fold",
     name: "Full Forward Fold",
+    tagline: "Release tight hamstrings and lower back for a deep, easy fold.",
     target: "Uttanasana / Paschimottanasana",
     targetPose: "forward-fold",
     weeks: 4,
@@ -982,6 +1136,44 @@ export const PATHWAYS: Pathway[] = [
           { name: "Standing Forward Fold (hands flat)", hold: "2 min" },
           { name: "Seated Forward Bend (chest to thighs)", hold: "2 min" },
           { name: "Pyramid Pose", hold: "60 sec each side" },
+        ],
+      },
+    ],
+    weekPlan: [
+      {
+        weekNumber: 1,
+        theme: "Gentle Start",
+        poses: [
+          { asanaSlug: "balasana", holdSeconds: 90 },
+          { asanaSlug: "uttanasana", holdSeconds: 60 },
+          { asanaSlug: "paschimottanasana", holdSeconds: 60 },
+        ],
+      },
+      {
+        weekNumber: 2,
+        theme: "Hamstring Opening",
+        poses: [
+          { asanaSlug: "uttanasana", holdSeconds: 75 },
+          { asanaSlug: "parsvottanasana", holdSeconds: 60, note: "each side" },
+          { asanaSlug: "paschimottanasana", holdSeconds: 75 },
+        ],
+      },
+      {
+        weekNumber: 3,
+        theme: "Deeper Fold",
+        poses: [
+          { asanaSlug: "parsvottanasana", holdSeconds: 75, note: "each side" },
+          { asanaSlug: "paschimottanasana", holdSeconds: 90 },
+          { asanaSlug: "ardha-hanumanasana", holdSeconds: 60, note: "each side" },
+        ],
+      },
+      {
+        weekNumber: 4,
+        theme: "Full Fold",
+        poses: [
+          { asanaSlug: "uttanasana", holdSeconds: 90 },
+          { asanaSlug: "paschimottanasana", holdSeconds: 120 },
+          { asanaSlug: "balasana", holdSeconds: 60 },
         ],
       },
     ],

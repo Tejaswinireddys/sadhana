@@ -81,7 +81,14 @@ export default function KidsPose() {
               <h1 className="kids-title text-4xl font-bold leading-tight" data-testid="text-kids-story-title">
                 {pose.title}
               </h1>
-              <p className="text-lg font-semibold text-[hsl(16_72%_48%)]">{pose.poseName}</p>
+              <p className="text-lg font-semibold text-[hsl(16_72%_48%)]">
+                {pose.poseName}
+                {pose.sanskrit && (
+                  <span className="ml-2 align-middle text-sm font-normal italic text-foreground/55">
+                    {pose.sanskrit}
+                  </span>
+                )}
+              </p>
               <div className="space-y-2 text-foreground/80">
                 {pose.story.map((line, i) => (
                   <p key={i} className="text-base leading-relaxed">
@@ -100,7 +107,9 @@ export default function KidsPose() {
             {done ? (
               <div className="flex flex-col items-center gap-2" data-testid="kids-celebration">
                 <Star className="star-pop h-20 w-20 fill-[hsl(38_92%_60%)] text-[hsl(38_92%_50%)]" />
-                <p className="kids-title text-2xl font-bold">You earned a star! Hooray!</p>
+                <p className="kids-title text-2xl font-bold">
+                  {pose.sticker ? `You earned the “${pose.sticker}” sticker! Hooray!` : "You earned a star! Hooray!"}
+                </p>
                 <Button
                   size="lg"
                   className="rounded-full bg-[hsl(92_35%_45%)] hover:bg-[hsl(92_35%_38%)]"
