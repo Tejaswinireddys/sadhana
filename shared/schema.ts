@@ -138,3 +138,18 @@ export const mobilityCheckIns = sqliteTable("mobility_check_ins", {
 export const insertMobilityCheckInSchema = createInsertSchema(mobilityCheckIns).omit({ id: true });
 export type InsertMobilityCheckIn = z.infer<typeof insertMobilityCheckInSchema>;
 export type MobilityCheckIn = typeof mobilityCheckIns.$inferSelect;
+
+// AI Yoga Coach memory (v4) — every check-in + composed session is logged so the
+// coach can "remember" the student and vary future sequences.
+export const coachSessions = sqliteTable("coach_sessions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  checkIn: text("check_in").notNull(), // JSON string of the 4 answers
+  composed: text("composed").notNull(), // JSON string of the composed session
+  outcome: text("outcome"), // "completed" | "skipped" | null
+  postMood: text("post_mood"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const insertCoachSessionSchema = createInsertSchema(coachSessions).omit({ id: true });
+export type InsertCoachSession = z.infer<typeof insertCoachSessionSchema>;
+export type CoachSession = typeof coachSessions.$inferSelect;

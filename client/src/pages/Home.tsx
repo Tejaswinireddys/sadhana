@@ -251,6 +251,38 @@ export default function Home() {
         </h1>
       </header>
 
+      {/* Coach hero (v4) — flagship CTA for non-enrolled users */}
+      {!splitsEnrollment && (
+        <Card
+          className="overflow-hidden border-primary/40 bg-gradient-to-br from-primary/10 via-accent/40 to-secondary/10 shadow-soft"
+          data-testid="card-coach-hero"
+        >
+          <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <Sparkles className="h-6 w-6" />
+              </span>
+              <div className="space-y-1">
+                <h2 className="font-serif text-2xl leading-tight tracking-tight">
+                  Your yoga, tailored to today
+                </h2>
+                <p className="max-w-md text-sm text-muted-foreground">
+                  Tell me how you feel, and I'll compose a practice just for right now.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="lg"
+              className="w-full shrink-0 bg-primary text-primary-foreground sm:w-auto"
+              onClick={() => navigate("/coach")}
+              data-testid="button-talk-to-coach"
+            >
+              Talk to your coach <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Daily reminder banner (v3.4) — evening nudge, dismissable for the session */}
       {showReminder && (
         <Card
@@ -450,6 +482,20 @@ export default function Home() {
                 <Link href={`/pathways/${SPLITS_SLUG}`}>View journey</Link>
               </Button>
             </div>
+            {/* Coach secondary CTA for enrolled users (v4) */}
+            <button
+              onClick={() => navigate("/coach")}
+              className="flex w-full items-center gap-3 rounded-xl border border-border bg-muted/30 p-3 text-left transition-colors hover:border-primary/40 hover-elevate"
+              data-testid="button-coach-restday"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <span className="text-sm text-muted-foreground">
+                Feeling different today? Ask your coach for a rest-day sequence.
+              </span>
+              <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
           </CardContent>
         </Card>
       ) : /* Profile-aware today's practice */

@@ -258,6 +258,20 @@ export default function GuidedSession() {
         /* ignore */
       }
 
+      // Coach memory (v4): mark the originating coach session completed and copy
+      // over the post-practice mood so the coach "remembers" how it left you.
+      if (meta.coachSessionId != null) {
+        try {
+          await apiRequest("PATCH", `/api/coach/sessions/${meta.coachSessionId}`, {
+            outcome: "completed",
+            postMood: resolvedPost ?? null,
+          });
+          queryClient.invalidateQueries({ queryKey: ["/api/coach/sessions"] });
+        } catch {
+          /* ignore */
+        }
+      }
+
       try {
         const [statsRes, msRes] = await Promise.all([
           apiRequest("GET", "/api/sessions/stats"),
