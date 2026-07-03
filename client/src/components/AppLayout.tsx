@@ -21,8 +21,6 @@ import { useTheme } from "./ThemeProvider";
 import { MotionToggle } from "./MotionToggle";
 import { VoiceToggle } from "./VoiceToggle";
 import { useRecentSearches } from "@/context/RecentSearchesContext";
-import { useCoachBadge } from "@/context/CoachBadgeContext";
-import { Badge } from "@/components/ui/badge";
 import {
   Home,
   LayoutGrid,
@@ -40,7 +38,6 @@ import {
 
 const NAV = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/coach", label: "Coach", icon: Sparkles, isNew: true },
   { href: "/asanas", label: "Asana Library", icon: LayoutGrid },
   { href: "/pathways", label: "Pathways", icon: RouteIcon },
   { href: "/practice", label: "Practice", icon: Timer },
@@ -134,7 +131,6 @@ function SidebarSearch() {
 
 function NavMenu() {
   const [location] = useLocation();
-  const { showNew } = useCoachBadge();
   return (
     <SidebarMenu>
       {NAV.map((item) => {
@@ -147,14 +143,6 @@ function NavMenu() {
               <Link href={item.href}>
                 <Icon className="h-4 w-4" />
                 <span>{item.label}</span>
-                {item.isNew && showNew && (
-                  <Badge
-                    className="ml-auto h-5 border-transparent bg-primary/15 px-1.5 text-[10px] font-semibold text-primary"
-                    data-testid="badge-coach-new"
-                  >
-                    New
-                  </Badge>
-                )}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

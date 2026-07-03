@@ -14,9 +14,6 @@ export type SessionMeta = {
   label: string | null; // e.g. "5 min · I'm tense", "Front Splits — Week 2", or null
   pathwaySlug: string | null;
   breathSlug?: string | null; // optional suggested breath technique
-  // When a session originates from the AI Coach, this links it back to the
-  // coach_sessions row so completion can be recorded as adaptive memory (v4).
-  coachSessionId?: number | null;
 };
 
 type PracticeContextType = {
@@ -37,7 +34,6 @@ const DEFAULT_META: SessionMeta = {
   label: null,
   pathwaySlug: null,
   breathSlug: null,
-  coachSessionId: null,
 };
 
 const PracticeContext = createContext<PracticeContextType | null>(null);

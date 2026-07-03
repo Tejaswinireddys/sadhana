@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { asanaBySlug, DEFAULT_FOCUS_ZONE } from "@/data/content";
+import { asanaBySlug } from "@/data/content";
 import { cn } from "@/lib/utils";
 import { Play, Pause, Check, Sparkles } from "lucide-react";
 
@@ -31,10 +31,11 @@ export function DemoMode({ slug }: { slug: string }) {
   const steps = asana?.steps ?? [];
   const stepCount = steps.length || 1;
 
-  // Focus zone for the currently active step (falls back to whole-body).
-  // Coordinates are normalized 0-1; we scale by 100 onto a 0..100 viewBox.
-  const activeZone =
-    (started && steps[stepIndex]?.focusZone) || DEFAULT_FOCUS_ZONE;
+  // Focus zone for the currently active step. Unlike earlier versions we no
+  // longer fall back to a default whole-body halo: if the active step has no
+  // focusZone we HIDE the halo entirely, so the caption text does the teaching
+  // and the halo only ever appears as a precise accent over a real target.
+  const activeZone = (started && steps[stepIndex]?.focusZone) || null;
 
   // Measure the rendered image box so the focus halo stays a true circle
   // regardless of the pose image's aspect ratio.
@@ -158,31 +159,37 @@ export function DemoMode({ slug }: { slug: string }) {
             data-testid={`demo-hero-${asana.slug}`}
           />
 
-          {/* Focus overlay — only while the demo is running. The circle cx/cy/r
-              are CSS-transitioned (300ms) so the halo glides between steps. */}
-          {started && !completed && (
+          {/* Focus overlay — only while the demo is running AND the current step
+              actually declares a focusZone. The circle cx/cy/r are
+              CSS-transitioned (300ms) so the halo glides between steps. */}
+          {started && !completed && activeZone && box.w > 0 && box.h > 0 && (
             (() => {
-              // Pixel coords from normalized zone. Radius scales with the
-              // smaller dimension so the halo is a true circle.
+              // The pose PNGs are ~1:2 portrait (887×1774). The figure often
+              // sits in the vertical middle, so we clamp cy to inside 20–80%
+              // of the measured image height — the halo can never fall off the
+              // top or bottom edge. We also shrink the radius (×0.7) so the
+              // halo is a precise accent, not a vague blob.
+              const clampedCy = Math.min(0.8, Math.max(0.2, activeZone.cy));
               const cx = activeZone.cx * box.w;
-              const cy = activeZone.cy * box.h;
-              const r = activeZone.r * Math.min(box.w || 1, box.h || 1);
+              const cy = clampedCy * box.h;
+              const r = activeZone.r * 0.7 * Math.min(box.w, box.h);
               const tween = "cx 300ms ease, cy 300ms ease, r 300ms ease";
               return (
                 <svg
-                  viewBox={`0 0 ${box.w || 1} ${box.h || 1}`}
+                  viewBox={`0 0 ${box.w} ${box.h}`}
                   preserveAspectRatio="none"
                   className="pointer-events-none absolute inset-0 h-full w-full"
                   aria-hidden
                   data-testid={`demo-focus-overlay-${asana.slug}`}
                 >
-                  {/* Pulsing terracotta halo over the active region */}
+                  {/* Soft pulsing terracotta halo over the active region */}
                   <circle
                     className="focus-halo-breath"
                     cx={cx}
                     cy={cy}
                     r={r}
                     fill="hsl(var(--primary))"
+                    fillOpacity={0.18}
                     style={{ transition: tween }}
                     data-testid={`demo-focus-halo-${asana.slug}`}
                   />
@@ -193,28 +200,28 @@ export function DemoMode({ slug }: { slug: string }) {
                     r={r}
                     fill="none"
                     stroke="hsl(var(--primary))"
-                    strokeWidth={Math.max(2, (box.w || 0) * 0.008)}
+                    strokeWidth={Math.max(2, box.w * 0.006)}
                     strokeOpacity={0.85}
                     style={{ transition: tween }}
                   />
-                  {/* Small indicator arrow bobbing in from above the region. */}
-                  <g
-                    style={{
-                      transition: "transform 300ms ease",
-                      transform: `translate(${cx}px, ${cy - r - 10}px)`,
-                    }}
-                  >
-                    <g className="focus-arrow-bob">
-                      <path d="M0 9 L-7 0 L7 0 Z" fill="hsl(var(--primary))" />
-                    </g>
-                  </g>
+                  {/* A small solid dot at the exact center so the target is
+                      always crystal-clear even when the halo reads as soft. */}
+                  <circle
+                    className="focus-dot-pulse"
+                    cx={cx}
+                    cy={cy}
+                    r={Math.max(3, box.w * 0.012)}
+                    fill="hsl(var(--primary))"
+                    style={{ transition: tween }}
+                    data-testid={`demo-focus-dot-${asana.slug}`}
+                  />
                 </svg>
               );
             })()
           )}
 
-          {/* Caption naming the focused region, for clarity + accessibility */}
-          {started && !completed && (
+          {/* Caption naming the focused region — only when a halo is shown */}
+          {started && !completed && activeZone && (
             <span
               className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background/85 px-3 py-1 text-xs font-medium text-primary shadow-soft backdrop-blur-sm"
               data-testid={`demo-focus-label-${asana.slug}`}

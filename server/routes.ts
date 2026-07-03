@@ -11,7 +11,6 @@ import {
   insertMobilityCheckInSchema,
 } from "@shared/schema";
 import { z } from "zod";
-import { compose, type CheckIn } from "./coach";
 
 // Normalize an ISO string / date string to YYYY-MM-DD
 function dayKey(iso: string): string {
@@ -265,69 +264,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.delete("/api/mobility/:id", async (req, res) => {
     await storage.deleteMobilityCheckIn(Number(req.params.id));
     res.status(204).end();
-  });
-
-  // ---- AI Yoga Coach (v4) ----
-  const checkInSchema = z.object({
-    body: z.array(z.string()).default([]),
-    soreParts: z.array(z.string()).default([]),
-    energy: z.string().default("Balanced"),
-    timeMinutes: z.number().int().min(3).max(90),
-    need: z.string().default("movement"),
-    recentSessions: z
-      .array(z.object({ asanas: z.string().optional(), date: z.string().optional(), label: z.string().optional() }))
-      .optional(),
-  });
-
-  app.post("/api/coach/compose", async (req, res) => {
-    try {
-      const checkIn = checkInSchema.parse(req.body) as CheckIn;
-      const composed = await compose(checkIn);
-      // Log the check-in + composition to coach memory.
-      let coachSessionId: number | null = null;
-      try {
-        const row = await storage.createCoachSession({
-          checkIn: JSON.stringify({
-            body: checkIn.body,
-            soreParts: checkIn.soreParts,
-            energy: checkIn.energy,
-            timeMinutes: checkIn.timeMinutes,
-            need: checkIn.need,
-          }),
-          composed: JSON.stringify(composed),
-          outcome: null,
-          postMood: null,
-          createdAt: new Date().toISOString(),
-        });
-        coachSessionId = row.id;
-      } catch {
-        /* memory logging is best-effort */
-      }
-      res.json({ ...composed, coachSessionId });
-    } catch (e) {
-      res.status(400).json({ error: (e as Error).message });
-    }
-  });
-
-  app.get("/api/coach/sessions", async (_req, res) => {
-    res.json(await storage.getCoachSessions(20));
-  });
-
-  app.patch("/api/coach/sessions/:id", async (req, res) => {
-    try {
-      const { outcome, postMood } = z
-        .object({ outcome: z.string(), postMood: z.string().nullable().optional() })
-        .parse(req.body);
-      const updated = await storage.updateCoachSessionOutcome(
-        Number(req.params.id),
-        outcome,
-        postMood ?? null,
-      );
-      if (!updated) return res.status(404).json({ error: "Not found" });
-      res.json(updated);
-    } catch (e) {
-      res.status(400).json({ error: (e as Error).message });
-    }
   });
 
   // ---- Kids stickers ----

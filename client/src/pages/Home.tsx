@@ -8,7 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Heatmap } from "@/components/Heatmap";
 import { PoseSvg } from "@/components/PoseSvg";
 import { usePractice } from "@/context/PracticeContext";
-import { asanaBySlug, breathBySlug, dailyAffirmation, breathOfTheDay, pathwayBySlug } from "@/data/content";
+import { asanaBySlug, breathBySlug, dailyAffirmation, breathOfTheDay, pathwayBySlug, PATHWAYS } from "@/data/content";
+import type { Pathway } from "@/data/content";
 import { profileById } from "@/data/profiles";
 import { resolveIcon } from "@/lib/icons";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
@@ -30,10 +31,15 @@ import {
   HeartPulse,
   Moon,
   CalendarDays,
+  Zap,
 } from "lucide-react";
 
 const MS_PER_DAY = 86400000;
 const SPLITS_SLUG = "sixty-day-splits";
+
+// Three quick flows featured on Home for users who haven't enrolled in a
+// program yet — a light, one-tap on-ramp mirroring the Quick Start row.
+const FEATURED_FLOW_SLUGS = ["morning-wake-up", "desk-break", "sleep-wind-down"];
 
 // Quick Start mood-based sessions (v3.4). Each is a ready-to-go sequence with
 // per-pose hold overrides, loaded into the Practice timer on "Begin".
@@ -228,6 +234,33 @@ export default function Home() {
     navigate("/guided");
   };
 
+  // Launch a quick flow straight into the guided session (no detail page).
+  // A "each side" note flags a bilateral hold so guided mode re-narrates side 2.
+  const startFlow = (p: Pathway) => {
+    const week = p.weekPlan[0];
+    if (!week) return;
+    const poses = week.poses
+      .map((pose) => {
+        const asana = asanaBySlug(pose.asanaSlug);
+        if (!asana) return null;
+        const sides: "once" | "each" = /each side/i.test(pose.note ?? "") ? "each" : "once";
+        return { asana, holdSeconds: pose.holdSeconds, sides };
+      })
+      .filter(
+        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
+          x != null,
+      );
+    if (!poses.length) return;
+    loadSession(poses, { label: p.name, pathwaySlug: p.slug });
+    navigate("/guided");
+  };
+
+  // Show the Quick Flows on-ramp only when the user has no active enrollment.
+  const hasAnyEnrollment = enrollments.some((e) => e.active);
+  const featuredFlows = FEATURED_FLOW_SLUGS.map((s) => PATHWAYS.find((p) => p.slug === s)).filter(
+    (p): p is Pathway => !!p,
+  );
+
   const hasPracticed = stats && stats.totalSessions > 0;
   const ProfileIcon = profile ? resolveIcon(profile.icon) : Compass;
 
@@ -250,38 +283,6 @@ export default function Home() {
           {profile ? `Welcome back to your ${profile.name} practice` : "Welcome to your practice"}
         </h1>
       </header>
-
-      {/* Coach hero (v4) — flagship CTA for non-enrolled users */}
-      {!splitsEnrollment && (
-        <Card
-          className="overflow-hidden border-primary/40 bg-gradient-to-br from-primary/10 via-accent/40 to-secondary/10 shadow-soft"
-          data-testid="card-coach-hero"
-        >
-          <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-4">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                <Sparkles className="h-6 w-6" />
-              </span>
-              <div className="space-y-1">
-                <h2 className="font-serif text-2xl leading-tight tracking-tight">
-                  Your yoga, tailored to today
-                </h2>
-                <p className="max-w-md text-sm text-muted-foreground">
-                  Tell me how you feel, and I'll compose a practice just for right now.
-                </p>
-              </div>
-            </div>
-            <Button
-              size="lg"
-              className="w-full shrink-0 bg-primary text-primary-foreground sm:w-auto"
-              onClick={() => navigate("/coach")}
-              data-testid="button-talk-to-coach"
-            >
-              Talk to your coach <ArrowRight className="ml-1.5 h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Daily reminder banner (v3.4) — evening nudge, dismissable for the session */}
       {showReminder && (
@@ -401,6 +402,53 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Quick Flows on-ramp (v5) — only for users not enrolled in any program */}
+      {!hasAnyEnrollment && featuredFlows.length > 0 && (
+        <section id="quick-flows" className="space-y-3" data-testid="section-quick-flows">
+          <div className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary" />
+            <h2 className="font-serif text-xl">Quick flows</h2>
+            <span className="text-sm text-muted-foreground">— short sequences for any moment</span>
+            <Link
+              href="/pathways"
+              className="ml-auto text-sm text-primary hover:underline"
+              data-testid="link-all-flows"
+            >
+              See all
+            </Link>
+          </div>
+          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+            {featuredFlows.map((p) => (
+              <Card
+                key={p.slug}
+                className="flex w-56 shrink-0 flex-col border-border shadow-soft"
+                data-testid={`quick-flow-${p.slug}`}
+              >
+                <CardContent className="flex flex-1 flex-col gap-3 p-4">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                    <Zap className="h-5 w-5" />
+                  </span>
+                  <div className="space-y-0.5">
+                    <p className="font-serif text-lg leading-tight">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.minutesPerSession ?? p.timePerSession} min · {p.weekPlan[0]?.poses.length ?? 0} poses
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="mt-auto w-full"
+                    onClick={() => startFlow(p)}
+                    data-testid={`button-start-flow-${p.slug}`}
+                  >
+                    <Play className="mr-1.5 h-4 w-4" /> Start
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* 60-Day Splits discovery banner (v3.5) — shown when NOT enrolled */}
       {!splitsEnrollment && !splitsBannerDismissed && (
         <Card
@@ -482,20 +530,6 @@ export default function Home() {
                 <Link href={`/pathways/${SPLITS_SLUG}`}>View journey</Link>
               </Button>
             </div>
-            {/* Coach secondary CTA for enrolled users (v4) */}
-            <button
-              onClick={() => navigate("/coach")}
-              className="flex w-full items-center gap-3 rounded-xl border border-border bg-muted/30 p-3 text-left transition-colors hover:border-primary/40 hover-elevate"
-              data-testid="button-coach-restday"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Sparkles className="h-4 w-4" />
-              </span>
-              <span className="text-sm text-muted-foreground">
-                Feeling different today? Ask your coach for a rest-day sequence.
-              </span>
-              <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
-            </button>
           </CardContent>
         </Card>
       ) : /* Profile-aware today's practice */

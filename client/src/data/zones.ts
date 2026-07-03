@@ -233,4 +233,81 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Outer hip & glute", sensation: "Stretch around the bent-knee hip", intensity: "medium", primary: true },
     { region: "Chest & shoulders", sensation: "Opening as you turn and gaze back", intensity: "low", primary: false },
   ],
+
+  // --- v5 additions ---
+  "virabhadrasana-iii": [
+    { region: "Standing leg & glute", sensation: "Strong stabilizing work to hold the balance", intensity: "strong", primary: true },
+    { region: "Back & core", sensation: "Engaging to keep the long horizontal line", intensity: "medium", primary: true },
+    { region: "Lifted-leg hamstring", sensation: "Active lengthening as the heel reaches back", intensity: "medium", primary: false },
+  ],
+  "utthita-parsvakonasana": [
+    { region: "Side body & waist", sensation: "Long line of length from hip to top fingertips", intensity: "strong", primary: true },
+    { region: "Front thigh & groin", sensation: "Deep opening as the knee bends over the ankle", intensity: "strong", primary: true },
+    { region: "Chest & shoulders", sensation: "Broadening as the chest turns skyward", intensity: "medium", primary: false },
+  ],
+  "urdhva-prasarita-eka-padasana": [
+    { region: "Standing-leg hamstring", sensation: "Intense lengthening down the back of the leg", intensity: "strong", primary: true },
+    { region: "Hips", sensation: "Opening as the top leg lifts high", intensity: "medium", primary: true },
+    { region: "Standing ankle & calf", sensation: "Balancing effort through the base", intensity: "medium", primary: false },
+  ],
+  garudasana: [
+    { region: "Upper back & shoulders", sensation: "Broad stretch across the wrapped shoulder blades", intensity: "strong", primary: true },
+    { region: "Outer hips", sensation: "Opening as the thighs wrap and squeeze", intensity: "medium", primary: true },
+    { region: "Ankles & thighs", sensation: "Strengthening as you balance in the squat", intensity: "medium", primary: false },
+  ],
+  gomukhasana: [
+    { region: "Shoulders & triceps", sensation: "Deep opening through the bound arms", intensity: "strong", primary: true },
+    { region: "Outer hips & thighs", sensation: "Stretch across the stacked knees", intensity: "strong", primary: true },
+    { region: "Chest", sensation: "Lifting and broadening the collarbones", intensity: "medium", primary: false },
+  ],
+  bharadvajasana: [
+    { region: "Spine", sensation: "Gentle, even rotation through the whole back", intensity: "medium", primary: true },
+    { region: "Outer hips", sensation: "Soft opening in the swept-leg hip", intensity: "low", primary: true },
+    { region: "Chest & shoulders", sensation: "Easy opening as you turn", intensity: "low", primary: false },
+  ],
+  "janu-sirsasana": [
+    { region: "Extended-leg hamstring", sensation: "Focused stretch over the straight leg", intensity: "strong", primary: true },
+    { region: "Spine & lower back", sensation: "Lengthening as you fold forward", intensity: "medium", primary: true },
+    { region: "Bent-leg outer hip", sensation: "Gentle opening in the folded hip", intensity: "low", primary: false },
+  ],
+  dhanurasana: [
+    { region: "Front body", sensation: "Strong opening across the belly and chest", intensity: "strong", primary: true },
+    { region: "Quadriceps", sensation: "Deep stretch down the front of the thighs", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "Opening as the arms draw the bowstring back", intensity: "medium", primary: false },
+  ],
+  salabhasana: [
+    { region: "Lower back & spine", sensation: "Strengthening engagement along the back", intensity: "strong", primary: true },
+    { region: "Glutes & hamstrings", sensation: "Working to lift and hold the legs", intensity: "medium", primary: true },
+    { region: "Chest", sensation: "Gentle opening as the collarbones broaden", intensity: "low", primary: false },
+  ],
+  matsyasana: [
+    { region: "Chest & throat", sensation: "Deep opening across the front of the chest and neck", intensity: "strong", primary: true },
+    { region: "Upper back", sensation: "Arching lift between the shoulder blades", intensity: "medium", primary: true },
+    { region: "Hip flexors", sensation: "Mild lengthening across the front of the hips", intensity: "low", primary: false },
+  ],
+  mandukasana: [
+    { region: "Inner thighs & adductors", sensation: "Deep, patient opening across the groin", intensity: "strong", primary: true },
+    { region: "Hips", sensation: "Broad external rotation of both hips", intensity: "strong", primary: true },
+    { region: "Lower back", sensation: "Gentle release as the hips ease back", intensity: "low", primary: false },
+  ],
+  "ananda-balasana": [
+    { region: "Inner thighs & groin", sensation: "Gentle opening as the knees draw down", intensity: "medium", primary: true },
+    { region: "Lower back & sacrum", sensation: "Soft release into the floor", intensity: "low", primary: true },
+    { region: "Hips", sensation: "Easy opening as you rock side to side", intensity: "low", primary: false },
+  ],
+  "prasarita-padottanasana": [
+    { region: "Hamstrings", sensation: "Long pull down the backs of the wide legs", intensity: "strong", primary: true },
+    { region: "Spine & back", sensation: "Lengthening as the crown releases down", intensity: "medium", primary: true },
+    { region: "Neck & shoulders", sensation: "Releasing as the head hangs free", intensity: "low", primary: false },
+  ],
+  kumbhakasana: [
+    { region: "Core & abdominals", sensation: "Strong bracing to hold the straight line", intensity: "strong", primary: true },
+    { region: "Shoulders & arms", sensation: "Supporting the body's weight", intensity: "strong", primary: true },
+    { region: "Wrists", sensation: "Loading through the hands — keep them grounded", intensity: "medium", primary: false },
+  ],
+  vasisthasana: [
+    { region: "Obliques & side core", sensation: "Intense engagement to hold the hips high", intensity: "strong", primary: true },
+    { region: "Supporting shoulder & wrist", sensation: "Bearing the body's weight on one arm", intensity: "strong", primary: true },
+    { region: "Chest", sensation: "Opening as the top arm reaches up", intensity: "medium", primary: false },
+  ],
 };

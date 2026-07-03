@@ -10,7 +10,6 @@ import {
   milestones,
   poseNotes,
   mobilityCheckIns,
-  coachSessions,
 } from "@shared/schema";
 import type {
   Session,
@@ -32,8 +31,6 @@ import type {
   PoseNote,
   MobilityCheckIn,
   InsertMobilityCheckIn,
-  CoachSession,
-  InsertCoachSession,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -110,14 +107,6 @@ sqlite.exec(`
     front_split_inches INTEGER NOT NULL,
     back_split_inches INTEGER,
     notes TEXT,
-    created_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS coach_sessions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    check_in TEXT NOT NULL,
-    composed TEXT NOT NULL,
-    outcome TEXT,
-    post_mood TEXT,
     created_at TEXT NOT NULL
   );
 `);
@@ -208,14 +197,6 @@ export interface IStorage {
   getMobilityCheckIns(pathwaySlug: string): Promise<MobilityCheckIn[]>;
   createMobilityCheckIn(data: InsertMobilityCheckIn): Promise<MobilityCheckIn>;
   deleteMobilityCheckIn(id: number): Promise<void>;
-  // coach sessions (v4)
-  getCoachSessions(limit?: number): Promise<CoachSession[]>;
-  createCoachSession(data: InsertCoachSession): Promise<CoachSession>;
-  updateCoachSessionOutcome(
-    id: number,
-    outcome: string,
-    postMood: string | null,
-  ): Promise<CoachSession | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -362,29 +343,6 @@ export class DatabaseStorage implements IStorage {
     db.delete(mobilityCheckIns).where(eq(mobilityCheckIns.id, id)).run();
   }
 
-  async getCoachSessions(limit = 20): Promise<CoachSession[]> {
-    return db
-      .select()
-      .from(coachSessions)
-      .orderBy(desc(coachSessions.createdAt))
-      .limit(limit)
-      .all();
-  }
-  async createCoachSession(data: InsertCoachSession): Promise<CoachSession> {
-    return db.insert(coachSessions).values(data).returning().get();
-  }
-  async updateCoachSessionOutcome(
-    id: number,
-    outcome: string,
-    postMood: string | null,
-  ): Promise<CoachSession | undefined> {
-    return db
-      .update(coachSessions)
-      .set({ outcome, postMood })
-      .where(eq(coachSessions.id, id))
-      .returning()
-      .get();
-  }
 }
 
 export const storage = new DatabaseStorage();

@@ -524,14 +524,23 @@ html.motion-off .photo-breath-demo { animation: none !important; }
 }
 .focus-arrow-bob { animation: focus-arrow-bob 1.8s ease-in-out infinite; transform-box: fill-box; }
 
+/* Crisp center dot that pulses so the exact target is always readable. */
+@keyframes focus-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.65; transform: scale(1.35); }
+}
+.focus-dot-pulse { animation: focus-dot-pulse 1.8s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+
 @media (prefers-reduced-motion: reduce) {
   .photo-brightness-pulse,
   .focus-halo-breath,
-  .focus-arrow-bob { animation: none !important; }
+  .focus-arrow-bob,
+  .focus-dot-pulse { animation: none !important; }
 }
 html.motion-off .photo-brightness-pulse,
 html.motion-off .focus-halo-breath,
-html.motion-off .focus-arrow-bob { animation: none !important; }
+html.motion-off .focus-arrow-bob,
+html.motion-off .focus-dot-pulse { animation: none !important; }
 
 /* =====================================================================
    v3 — Kids section: warmer palette + cheerful celebration

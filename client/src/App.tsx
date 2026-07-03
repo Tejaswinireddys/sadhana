@@ -8,11 +8,9 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { PracticeProvider } from "@/context/PracticeContext";
 import { KidsGateProvider } from "@/context/KidsGateContext";
 import { RecentSearchesProvider } from "@/context/RecentSearchesContext";
-import { CoachBadgeProvider } from "@/context/CoachBadgeContext";
 import { AppLayout } from "@/components/AppLayout";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
-import Coach from "@/pages/Coach";
 import Asanas from "@/pages/Asanas";
 import AsanaDetail from "@/pages/AsanaDetail";
 import Pathways from "@/pages/Pathways";
@@ -32,7 +30,6 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/coach" component={Coach} />
       <Route path="/asanas" component={Asanas} />
       <Route path="/asanas/:slug" component={AsanaDetail} />
       <Route path="/pathways" component={Pathways} />
@@ -60,14 +57,12 @@ function App() {
           <PracticeProvider>
             <KidsGateProvider>
               <RecentSearchesProvider>
-                <CoachBadgeProvider>
                 <Toaster />
                 <Router hook={useHashLocation}>
                   <AppLayout>
                     <AppRouter />
                   </AppLayout>
                 </Router>
-                </CoachBadgeProvider>
               </RecentSearchesProvider>
             </KidsGateProvider>
           </PracticeProvider>
