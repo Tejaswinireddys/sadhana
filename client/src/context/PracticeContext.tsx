@@ -1,6 +1,13 @@
 import { createContext, useContext, useState } from "react";
 import type { Asana } from "@/data/content";
 
+// A queued pose is an Asana plus optional per-session details that don't live
+// on the base Asana (e.g. whether the pose is held on each side). Guided mode
+// reads `sides` to decide whether to re-narrate for the second side.
+export type QueuedAsana = Asana & {
+  sides?: "once" | "each";
+};
+
 // Metadata describing the current queued session — used for journaling tags,
 // mood check-ins, and milestone attribution (v3.4).
 export type SessionMeta = {
@@ -10,15 +17,15 @@ export type SessionMeta = {
 };
 
 type PracticeContextType = {
-  todays: Asana[];
+  todays: QueuedAsana[];
   meta: SessionMeta;
   add: (a: Asana) => void;
   remove: (slug: string) => void;
   clear: () => void;
   setMeta: (m: Partial<SessionMeta>) => void;
-  /** Replace the whole queue at once, optionally with hold overrides + meta. */
+  /** Replace the whole queue at once, optionally with hold + sides overrides + meta. */
   loadSession: (
-    poses: Array<{ asana: Asana; holdSeconds?: number }>,
+    poses: Array<{ asana: Asana; holdSeconds?: number; sides?: "once" | "each" }>,
     meta?: Partial<SessionMeta>,
   ) => void;
 };
@@ -28,7 +35,7 @@ const DEFAULT_META: SessionMeta = { label: null, pathwaySlug: null, breathSlug: 
 const PracticeContext = createContext<PracticeContextType | null>(null);
 
 export function PracticeProvider({ children }: { children: React.ReactNode }) {
-  const [todays, setTodays] = useState<Asana[]>([]);
+  const [todays, setTodays] = useState<QueuedAsana[]>([]);
   const [meta, setMetaState] = useState<SessionMeta>(DEFAULT_META);
 
   const add = (a: Asana) =>
@@ -42,9 +49,11 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
 
   const loadSession: PracticeContextType["loadSession"] = (poses, m) => {
     setTodays(
-      poses.map(({ asana, holdSeconds }) =>
-        holdSeconds != null ? { ...asana, holdSeconds } : asana,
-      ),
+      poses.map(({ asana, holdSeconds, sides }) => ({
+        ...asana,
+        ...(holdSeconds != null ? { holdSeconds } : {}),
+        ...(sides ? { sides } : {}),
+      })),
     );
     setMetaState({ ...DEFAULT_META, ...(m ?? {}) });
   };

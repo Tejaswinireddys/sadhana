@@ -100,11 +100,11 @@ export function DailyProgram({
     const poses = d.poses
       .map((p) => {
         const asana = asanaBySlug(p.asanaSlug);
-        // Total hold per pose: for "each" we still queue a single timer entry with the per-side hold.
-        return asana ? { asana, holdSeconds: p.holdSeconds } : null;
+        // Guided mode re-narrates the second side when sides === "each".
+        return asana ? { asana, holdSeconds: p.holdSeconds, sides: p.sides } : null;
       })
       .filter(
-        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
+        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
           x != null,
       );
     loadSession(poses, {
@@ -112,7 +112,7 @@ export function DailyProgram({
       pathwaySlug: pathway.slug,
     });
     toast({ title: `Day ${d.day} loaded`, description: `${d.theme} — ${d.poses.length} poses queued.` });
-    navigate("/practice");
+    navigate("/guided");
   };
 
   const today = enrollment ? plan.find((d) => d.day === currentDay) : plan[0];

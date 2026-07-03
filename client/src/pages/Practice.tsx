@@ -311,12 +311,29 @@ export default function Practice() {
           }}
         />
         <div className="animate-fade-in space-y-6">
-          <header className="space-y-1">
+          <header className="space-y-3">
             <h1 className="font-serif text-3xl font-semibold tracking-tight">Today's practice</h1>
             <p className="text-muted-foreground">
               {meta.label ? `${meta.label} · ` : ""}
               {todays.length} poses queued. Press start when you're ready.
             </p>
+            {/* Guided ↔ Simple mode toggle */}
+            <div className="inline-flex rounded-full border border-border bg-card p-0.5 text-sm" data-testid="mode-toggle">
+              <button
+                onClick={() => navigate("/guided")}
+                className="rounded-full px-3 py-1 text-muted-foreground hover:text-foreground"
+                data-testid="toggle-guided"
+              >
+                Guided (with voice)
+              </button>
+              <button
+                className="rounded-full bg-primary px-3 py-1 font-medium text-primary-foreground"
+                data-testid="toggle-simple"
+                aria-pressed="true"
+              >
+                Simple (chime only)
+              </button>
+            </div>
           </header>
           <Card className="shadow-soft">
             <CardContent className="space-y-2 p-5">

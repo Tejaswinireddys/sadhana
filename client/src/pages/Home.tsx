@@ -171,7 +171,7 @@ export default function Home() {
       recommendedAsanas.filter(Boolean).map((a) => ({ asana: a! })),
       { label: profile ? `${profile.name} session` : "Profile session" },
     );
-    navigate("/practice");
+    navigate("/guided");
   };
 
   // Launch a Quick Start mood-based session into the Practice timer.
@@ -183,7 +183,7 @@ export default function Home() {
       })
       .filter((x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } => x != null);
     loadSession(poses, { label: `${q.time} · ${q.label}`, breathSlug: q.breathSlug ?? null });
-    navigate("/practice");
+    navigate("/guided");
   };
 
   const scrollToQuickStart = () => {
@@ -215,17 +215,17 @@ export default function Home() {
     const poses = splitsToday.poses
       .map((p) => {
         const asana = asanaBySlug(p.asanaSlug);
-        return asana ? { asana, holdSeconds: p.holdSeconds } : null;
+        return asana ? { asana, holdSeconds: p.holdSeconds, sides: p.sides } : null;
       })
       .filter(
-        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
+        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
           x != null,
       );
     loadSession(poses, {
       label: `${splitsPathway.name} — Day ${splitsToday.day}`,
       pathwaySlug: splitsPathway.slug,
     });
-    navigate("/practice");
+    navigate("/guided");
   };
 
   const hasPracticed = stats && stats.totalSessions > 0;
@@ -600,7 +600,7 @@ export default function Home() {
             <Button
               className="w-full"
               disabled={todays.length === 0}
-              onClick={() => navigate("/practice")}
+              onClick={() => navigate("/guided")}
               data-testid="button-start-practice"
             >
               <Play className="mr-1.5 h-4 w-4" /> Start practice

@@ -86,7 +86,7 @@ export default function PathwayDetail() {
       title: `Week ${week.weekNumber} loaded`,
       description: `${week.theme} — ${week.poses.length} poses queued.`,
     });
-    navigate("/practice");
+    navigate("/guided");
   };
 
   const startWeekOne = () => {
