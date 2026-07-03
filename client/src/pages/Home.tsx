@@ -8,11 +8,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Heatmap } from "@/components/Heatmap";
 import { PoseSvg } from "@/components/PoseSvg";
 import { usePractice } from "@/context/PracticeContext";
-import { asanaBySlug, breathBySlug, dailyAffirmation, breathOfTheDay } from "@/data/content";
+import { asanaBySlug, breathBySlug, dailyAffirmation, breathOfTheDay, pathwayBySlug } from "@/data/content";
 import { profileById } from "@/data/profiles";
 import { resolveIcon } from "@/lib/icons";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
-import type { UserProfile } from "@shared/schema";
+import type { UserProfile, Enrollment } from "@shared/schema";
 import {
   Flame,
   Trophy,
@@ -29,7 +29,11 @@ import {
   Sunrise,
   HeartPulse,
   Moon,
+  CalendarDays,
 } from "lucide-react";
+
+const MS_PER_DAY = 86400000;
+const SPLITS_SLUG = "sixty-day-splits";
 
 // Quick Start mood-based sessions (v3.4). Each is a ready-to-go sequence with
 // per-pose hold overrides, loaded into the Practice timer on "Begin".
@@ -135,10 +139,12 @@ export default function Home() {
   const [, navigate] = useLocation();
   const { todays, remove, loadSession } = usePractice();
   const [reminderDismissed, setReminderDismissed] = useState(false);
+  const [splitsBannerDismissed, setSplitsBannerDismissed] = useState(false);
   const { data: stats, isLoading } = useQuery<Stats>({ queryKey: ["/api/sessions/stats"] });
   const { data: activeProfileRow } = useQuery<UserProfile | null>({
     queryKey: ["/api/profile/active"],
   });
+  const { data: enrollments = [] } = useQuery<Enrollment[]>({ queryKey: ["/api/enrollments"] });
   const affirmation = dailyAffirmation();
   const breath = breathOfTheDay();
 
@@ -182,6 +188,44 @@ export default function Home() {
 
   const scrollToQuickStart = () => {
     document.getElementById("quick-start")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  // ---- 60-Day Full Splits Program awareness (v3.5) ----
+  const splitsEnrollment = enrollments.find(
+    (e) => e.pathwaySlug === SPLITS_SLUG && e.active,
+  );
+  const splitsPathway = pathwayBySlug(SPLITS_SLUG);
+  const splitsCurrentDay = splitsEnrollment
+    ? Math.min(
+        60,
+        Math.floor(
+          (Date.now() -
+            new Date(splitsEnrollment.startDate.slice(0, 10) + "T00:00:00").getTime()) /
+            MS_PER_DAY,
+        ) + 1,
+      )
+    : 0;
+  const splitsToday =
+    splitsEnrollment && splitsPathway?.dailyPlan
+      ? splitsPathway.dailyPlan.find((d) => d.day === splitsCurrentDay)
+      : undefined;
+
+  const startSplitsDay = () => {
+    if (!splitsToday || !splitsPathway) return;
+    const poses = splitsToday.poses
+      .map((p) => {
+        const asana = asanaBySlug(p.asanaSlug);
+        return asana ? { asana, holdSeconds: p.holdSeconds } : null;
+      })
+      .filter(
+        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
+          x != null,
+      );
+    loadSession(poses, {
+      label: `${splitsPathway.name} — Day ${splitsToday.day}`,
+      pathwaySlug: splitsPathway.slug,
+    });
+    navigate("/practice");
   };
 
   const hasPracticed = stats && stats.totalSessions > 0;
@@ -325,8 +369,91 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Profile-aware today's practice */}
-      {profile ? (
+      {/* 60-Day Splits discovery banner (v3.5) — shown when NOT enrolled */}
+      {!splitsEnrollment && !splitsBannerDismissed && (
+        <Card
+          className="border-primary/40 bg-primary/5 shadow-soft"
+          data-testid="banner-splits-discover"
+        >
+          <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <CalendarDays className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-serif text-lg leading-tight">
+                  Discover the 60-Day Splits Program
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  A gentle, day-by-day journey to your front splits — one short session at a time.
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button asChild data-testid="button-splits-start-journey">
+                <Link href={`/pathways/${SPLITS_SLUG}`}>
+                  Start the journey <ArrowRight className="ml-1.5 h-4 w-4" />
+                </Link>
+              </Button>
+              <button
+                onClick={() => setSplitsBannerDismissed(true)}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Dismiss"
+                data-testid="button-dismiss-splits-banner"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Enrolled in 60-Day Splits: Day N of 60 card replaces the profile session panel */}
+      {splitsEnrollment && splitsToday ? (
+        <Card className="border-primary/40 shadow-soft" data-testid="card-splits-today">
+          <CardHeader className="pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 font-serif text-lg">
+                <CalendarDays className="h-5 w-5 text-primary" /> Day {splitsCurrentDay} of 60 ·{" "}
+                {splitsToday.theme}
+              </CardTitle>
+              <div className="flex gap-1.5">
+                <Badge variant="outline" className="gap-1 tabular-nums">
+                  <Clock className="h-3 w-3" /> ~{splitsToday.totalMinutes} min
+                </Badge>
+                <Badge variant="outline">
+                  {splitsToday.restDay
+                    ? "Rest day"
+                    : splitsToday.focus === "both"
+                      ? "Splits + backbend"
+                      : "Front splits"}
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {splitsToday.restDay
+                ? "Rest day — let your body rebuild. An optional gentle recovery is available."
+                : `${splitsPathway?.name} · ${splitsToday.poses.length} poses queued for today.`}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                className="flex-1 sm:flex-none"
+                onClick={startSplitsDay}
+                data-testid="button-start-splits-today"
+              >
+                <Play className="mr-1.5 h-4 w-4" />{" "}
+                {splitsToday.restDay ? "Start optional recovery" : "Start today's session"}
+              </Button>
+              <Button variant="outline" asChild data-testid="link-splits-pathway">
+                <Link href={`/pathways/${SPLITS_SLUG}`}>View journey</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : /* Profile-aware today's practice */
+      profile ? (
         <Card className="border-primary/30 shadow-soft" data-testid="card-profile-session">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-3">

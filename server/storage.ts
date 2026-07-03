@@ -9,6 +9,7 @@ import {
   favoriteAsanas,
   milestones,
   poseNotes,
+  mobilityCheckIns,
 } from "@shared/schema";
 import type {
   Session,
@@ -28,6 +29,8 @@ import type {
   Milestone,
   InsertMilestone,
   PoseNote,
+  MobilityCheckIn,
+  InsertMobilityCheckIn,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -96,6 +99,15 @@ sqlite.exec(`
     slug TEXT NOT NULL UNIQUE,
     body TEXT NOT NULL,
     updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS mobility_check_ins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pathway_slug TEXT NOT NULL,
+    day INTEGER NOT NULL,
+    front_split_inches INTEGER NOT NULL,
+    back_split_inches INTEGER,
+    notes TEXT,
+    created_at TEXT NOT NULL
   );
 `);
 
@@ -181,6 +193,10 @@ export interface IStorage {
   // pose notes (v3.4)
   getPoseNote(slug: string): Promise<PoseNote | undefined>;
   upsertPoseNote(slug: string, body: string): Promise<PoseNote>;
+  // mobility check-ins (v3.5)
+  getMobilityCheckIns(pathwaySlug: string): Promise<MobilityCheckIn[]>;
+  createMobilityCheckIn(data: InsertMobilityCheckIn): Promise<MobilityCheckIn>;
+  deleteMobilityCheckIn(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -310,6 +326,21 @@ export class DatabaseStorage implements IStorage {
         .get();
     }
     return db.insert(poseNotes).values({ slug, body, updatedAt: now }).returning().get();
+  }
+
+  async getMobilityCheckIns(pathwaySlug: string): Promise<MobilityCheckIn[]> {
+    return db
+      .select()
+      .from(mobilityCheckIns)
+      .where(eq(mobilityCheckIns.pathwaySlug, pathwaySlug))
+      .orderBy(mobilityCheckIns.day)
+      .all();
+  }
+  async createMobilityCheckIn(data: InsertMobilityCheckIn): Promise<MobilityCheckIn> {
+    return db.insert(mobilityCheckIns).values(data).returning().get();
+  }
+  async deleteMobilityCheckIn(id: number): Promise<void> {
+    db.delete(mobilityCheckIns).where(eq(mobilityCheckIns.id, id)).run();
   }
 }
 

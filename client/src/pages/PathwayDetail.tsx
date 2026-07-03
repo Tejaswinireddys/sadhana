@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { PoseImage } from "@/components/PoseImage";
 import { WarmupCard } from "@/components/WarmupCard";
 import { EmptyState } from "@/components/EmptyState";
+import { DailyProgram } from "@/components/DailyProgram";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { pathwayBySlug, asanaBySlug } from "@/data/content";
@@ -92,6 +93,71 @@ export default function PathwayDetail() {
     const wk = pathway.weekPlan[0];
     if (wk) startWeek(wk);
   };
+
+  // ---- Daily program branch (v3.5) ----
+  if (pathway.kind === "daily") {
+    return (
+      <article className="animate-fade-in space-y-8">
+        <Link href="/pathways">
+          <span
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            data-testid="link-back-pathways"
+          >
+            <ArrowLeft className="h-4 w-4" /> Pathways
+          </span>
+        </Link>
+
+        <header className="grid gap-6 md:grid-cols-[200px_1fr] md:items-center">
+          <PoseImage
+            slug={pathway.targetImgSlug}
+            alt={pathway.target}
+            rounded="rounded-xl"
+            aspect="aspect-[4/3]"
+            testId={`pathway-detail-hero-${pathway.slug}`}
+          />
+          <div className="space-y-3">
+            <h1 className="font-serif text-3xl font-semibold tracking-tight">{pathway.name}</h1>
+            <p className="text-muted-foreground">{pathway.tagline ?? pathway.summary}</p>
+            {pathway.goalDescription && (
+              <p className="text-sm text-muted-foreground" data-testid="text-goal-description">
+                {pathway.goalDescription}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <Badge variant="outline" className="gap-1">
+                <CalendarDays className="h-3 w-3" /> 60 days
+              </Badge>
+              <Badge variant="outline" className="gap-1">
+                <Repeat className="h-3 w-3" /> {pathway.sessionsPerWeek}x / week
+              </Badge>
+              <Badge variant="outline" className="gap-1">
+                <Clock className="h-3 w-3" /> {pathway.timePerSession}
+              </Badge>
+            </div>
+            {enrollment && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => unenroll.mutate(enrollment.id)}
+                data-testid="button-end-pathway"
+              >
+                <X className="mr-1 h-4 w-4" /> End tracking
+              </Button>
+            )}
+          </div>
+        </header>
+
+        <WarmupCard />
+
+        <DailyProgram
+          pathway={pathway}
+          enrollment={enrollment}
+          onEnroll={() => enroll.mutate()}
+          enrolling={enroll.isPending}
+        />
+      </article>
+    );
+  }
 
   return (
     <article className="animate-fade-in space-y-8">

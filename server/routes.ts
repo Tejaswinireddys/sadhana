@@ -8,6 +8,7 @@ import {
   insertFavoriteSchema,
   insertJournalSchema,
   insertPreferencesSchema,
+  insertMobilityCheckInSchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -241,6 +242,28 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });
     }
+  });
+
+  // ---- Mobility check-ins (v3.5) ----
+  app.get("/api/mobility", async (req, res) => {
+    const pathwaySlug = String(req.query.pathwaySlug ?? "");
+    if (!pathwaySlug) return res.status(400).json({ error: "pathwaySlug is required" });
+    res.json(await storage.getMobilityCheckIns(pathwaySlug));
+  });
+  app.post("/api/mobility", async (req, res) => {
+    try {
+      const data = insertMobilityCheckInSchema.parse({
+        ...req.body,
+        createdAt: new Date().toISOString(),
+      });
+      res.status(201).json(await storage.createMobilityCheckIn(data));
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+  app.delete("/api/mobility/:id", async (req, res) => {
+    await storage.deleteMobilityCheckIn(Number(req.params.id));
+    res.status(204).end();
   });
 
   // ---- Kids stickers ----

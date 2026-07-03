@@ -123,3 +123,18 @@ export const poseNotes = sqliteTable("pose_notes", {
 export const insertPoseNoteSchema = createInsertSchema(poseNotes).omit({ id: true });
 export type InsertPoseNote = z.infer<typeof insertPoseNoteSchema>;
 export type PoseNote = typeof poseNotes.$inferSelect;
+
+// Mobility check-ins for the 60-day splits program (v3.5)
+export const mobilityCheckIns = sqliteTable("mobility_check_ins", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  pathwaySlug: text("pathway_slug").notNull(),
+  day: integer("day").notNull(), // 1..60
+  frontSplitInches: integer("front_split_inches").notNull(), // gap between hip and floor in the front split (inches)
+  backSplitInches: integer("back_split_inches"), // nullable — only if trying backbends
+  notes: text("notes"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const insertMobilityCheckInSchema = createInsertSchema(mobilityCheckIns).omit({ id: true });
+export type InsertMobilityCheckIn = z.infer<typeof insertMobilityCheckInSchema>;
+export type MobilityCheckIn = typeof mobilityCheckIns.$inferSelect;
