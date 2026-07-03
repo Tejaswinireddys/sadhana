@@ -21,6 +21,7 @@ import Breathing from "@/pages/Breathing";
 import Affirmations from "@/pages/Affirmations";
 import Journal from "@/pages/Journal";
 import Profiles from "@/pages/Profiles";
+import Builder from "@/pages/Builder";
 import Kids from "@/pages/Kids";
 import KidsPose from "@/pages/KidsPose";
 import KidsBreath from "@/pages/KidsBreath";
@@ -40,6 +41,7 @@ function AppRouter() {
       <Route path="/affirmations" component={Affirmations} />
       <Route path="/journal" component={Journal} />
       <Route path="/profiles" component={Profiles} />
+      <Route path="/builder" component={Builder} />
       <Route path="/kids" component={Kids} />
       <Route path="/kids/breath/:slug" component={KidsBreath} />
       <Route path="/kids/:slug" component={KidsPose} />

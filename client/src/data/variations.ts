@@ -1294,4 +1294,121 @@ export const EXTRAS: Record<string, AsanaExtras> = {
     stepMotions: ["ground", "hip-shift", "lift", "arm-extend", "balance"],
   },
 
+  // ---- v5.1 additions ----
+  "utkata-konasana": {
+    avoidIf: [
+      { condition: "Knee injury — narrow the stance", severity: "modify" },
+      { condition: "Late pregnancy — mind the balance", severity: "caution" },
+      { condition: "Hip injury", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "Take a narrower stance and stay higher, hands resting on the thighs.",
+        props: ["none"],
+        cues: ["Feet a little narrower for the knees", "Rise higher — don't sink to full depth", "Rest the hands on the thighs"],
+        holdSeconds: 30,
+      },
+      intermediate: {
+        description: "Wide stance, hips sinking toward knee height, cactus arms lifted.",
+        props: ["none"],
+        cues: ["Track the knees toward the little toes", "Sink the hips to knee height", "Cactus the arms, palms forward"],
+        holdSeconds: 45,
+      },
+      advanced: {
+        description: "Hold low with a subtle pulse or heels lifting, spine tall and steady.",
+        props: ["none"],
+        cues: ["Sink low and hold with a steady gaze", "Optionally pulse or lift the heels", "Keep the tailbone lengthening down"],
+        holdSeconds: 60,
+      },
+    },
+    stepMotions: ["ground", "hip-shift", "lift", "arm-extend"],
+  },
+
+  "viparita-virabhadrasana": {
+    avoidIf: [
+      { condition: "Hip or knee injury", severity: "modify" },
+      { condition: "Low back injury — keep the arc gentle", severity: "caution" },
+      { condition: "High blood pressure", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Rest the back hand on the rear thigh and keep the side-bend shallow.",
+        props: ["none"],
+        cues: ["Back hand light on the rear thigh", "Keep the arc small and easy", "Front knee stays bent over the ankle"],
+        holdSeconds: 20,
+      },
+      intermediate: {
+        description: "Full arc, top arm reaching overhead, back hand sliding down the rear leg.",
+        props: ["none"],
+        cues: ["Float the top arm overhead", "Arc the torso back and up", "Keep the front thigh working toward parallel"],
+        holdSeconds: 30,
+      },
+      advanced: {
+        description: "Deep front-knee bend with a full side-body arc and open chest, held with ease.",
+        props: ["none"],
+        cues: ["Sink the front thigh toward parallel", "Lengthen through both sides of the waist", "Open the chest toward the ceiling"],
+        holdSeconds: 40,
+      },
+    },
+    stepMotions: ["ground", "arm-extend", "twist", "balance"],
+  },
+
+  "chaturanga-dandasana": {
+    avoidIf: [
+      { condition: "Wrist injury", severity: "avoid" },
+      { condition: "Shoulder impingement", severity: "avoid" },
+      { condition: "Pregnancy (2nd trimester onward)", severity: "modify" },
+    ],
+    variations: {
+      beginner: {
+        description: "Lower the knees to the mat, then bend the elbows halfway, hugging them in.",
+        props: ["none"],
+        cues: ["Knees down for support", "Elbows hug the ribs", "Lower only halfway with control"],
+        holdSeconds: 5,
+      },
+      intermediate: {
+        description: "Full-body hover, shoulders in line with the elbows, held briefly.",
+        props: ["none"],
+        cues: ["Shift forward past the wrists first", "Lower to elbows at 90 degrees", "Keep the body in one firm line"],
+        holdSeconds: 8,
+      },
+      advanced: {
+        description: "Lower slowly with control from plank and hold the hover a few breaths.",
+        props: ["none"],
+        cues: ["Descend slowly under control", "Hold the hover, gaze slightly forward", "Press the floor away through the hands"],
+        holdSeconds: 12,
+      },
+    },
+    stepMotions: ["hip-shift", "ground", "exhale", "balance"],
+  },
+
+  "urdhva-mukha-svanasana": {
+    avoidIf: [
+      { condition: "Lower back injury", severity: "avoid" },
+      { condition: "Carpal tunnel syndrome", severity: "modify" },
+      { condition: "Pregnancy (2nd trimester onward)", severity: "modify" },
+    ],
+    variations: {
+      beginner: {
+        description: "Practice Cobra instead, keeping the thighs on the floor and the lift gentle.",
+        props: ["none"],
+        cues: ["Keep the thighs down (Cobra)", "Lift only as high as feels easy", "Soften the lower back"],
+        holdSeconds: 15,
+      },
+      intermediate: {
+        description: "Press up onto straight arms, thighs and hips lifting clear of the floor.",
+        props: ["none"],
+        cues: ["Straighten the arms fully", "Lift the thighs off the mat", "Roll the shoulders back and down"],
+        holdSeconds: 20,
+      },
+      advanced: {
+        description: "Full lift with a broad chest, drawing forward through the arms in a smooth flow.",
+        props: ["none"],
+        cues: ["Draw the chest forward through the arms", "Broaden across the collarbones", "Lengthen the tailbone to protect the low back"],
+        holdSeconds: 30,
+      },
+    },
+    stepMotions: ["ground", "lift", "inhale", "settle"],
+  },
+
 };

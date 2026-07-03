@@ -10,6 +10,7 @@ import {
   milestones,
   poseNotes,
   mobilityCheckIns,
+  customFlows,
 } from "@shared/schema";
 import type {
   Session,
@@ -31,6 +32,8 @@ import type {
   PoseNote,
   MobilityCheckIn,
   InsertMobilityCheckIn,
+  CustomFlow,
+  InsertCustomFlow,
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -108,6 +111,14 @@ sqlite.exec(`
     back_split_inches INTEGER,
     notes TEXT,
     created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS custom_flows (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    pose_sequence TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    last_used_at TEXT
   );
 `);
 
@@ -197,6 +208,12 @@ export interface IStorage {
   getMobilityCheckIns(pathwaySlug: string): Promise<MobilityCheckIn[]>;
   createMobilityCheckIn(data: InsertMobilityCheckIn): Promise<MobilityCheckIn>;
   deleteMobilityCheckIn(id: number): Promise<void>;
+  // custom flows (v5.1)
+  getCustomFlows(): Promise<CustomFlow[]>;
+  getCustomFlow(id: number): Promise<CustomFlow | undefined>;
+  createCustomFlow(data: InsertCustomFlow): Promise<CustomFlow>;
+  updateCustomFlow(id: number, data: Partial<InsertCustomFlow>): Promise<CustomFlow | undefined>;
+  deleteCustomFlow(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -338,6 +355,25 @@ export class DatabaseStorage implements IStorage {
   }
   async createMobilityCheckIn(data: InsertMobilityCheckIn): Promise<MobilityCheckIn> {
     return db.insert(mobilityCheckIns).values(data).returning().get();
+  }
+  async getCustomFlows(): Promise<CustomFlow[]> {
+    return db.select().from(customFlows).orderBy(desc(customFlows.id)).all();
+  }
+  async getCustomFlow(id: number): Promise<CustomFlow | undefined> {
+    return db.select().from(customFlows).where(eq(customFlows.id, id)).get();
+  }
+  async createCustomFlow(data: InsertCustomFlow): Promise<CustomFlow> {
+    return db.insert(customFlows).values(data).returning().get();
+  }
+  async updateCustomFlow(
+    id: number,
+    data: Partial<InsertCustomFlow>,
+  ): Promise<CustomFlow | undefined> {
+    db.update(customFlows).set(data).where(eq(customFlows.id, id)).run();
+    return db.select().from(customFlows).where(eq(customFlows.id, id)).get();
+  }
+  async deleteCustomFlow(id: number): Promise<void> {
+    db.delete(customFlows).where(eq(customFlows.id, id)).run();
   }
   async deleteMobilityCheckIn(id: number): Promise<void> {
     db.delete(mobilityCheckIns).where(eq(mobilityCheckIns.id, id)).run();

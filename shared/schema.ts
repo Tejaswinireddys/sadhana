@@ -138,3 +138,22 @@ export const mobilityCheckIns = sqliteTable("mobility_check_ins", {
 export const insertMobilityCheckInSchema = createInsertSchema(mobilityCheckIns).omit({ id: true });
 export type InsertMobilityCheckIn = z.infer<typeof insertMobilityCheckInSchema>;
 export type MobilityCheckIn = typeof mobilityCheckIns.$inferSelect;
+
+// Custom sequences built with the Sequence Builder (v5.1)
+export const customFlows = sqliteTable("custom_flows", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  description: text("description"),
+  poseSequence: text("pose_sequence").notNull().default("[]"), // JSON array of { slug, holdSeconds, sides? }
+  createdAt: text("created_at").notNull(),
+  lastUsedAt: text("last_used_at"),
+});
+
+export const insertCustomFlowSchema = createInsertSchema(customFlows)
+  .omit({ id: true })
+  .extend({
+    name: z.string().min(1, "Name is required"),
+    poseSequence: z.string(), // JSON-serialized array
+  });
+export type InsertCustomFlow = z.infer<typeof insertCustomFlowSchema>;
+export type CustomFlow = typeof customFlows.$inferSelect;

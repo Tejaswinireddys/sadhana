@@ -25,7 +25,26 @@ import type { Enrollment, Session } from "@shared/schema";
 import { Clock, Play, Moon, Ruler, Sparkles } from "lucide-react";
 
 const MS_PER_DAY = 86400000;
-const CHECKIN_DAYS = new Set([1, 15, 30, 45, 60]);
+
+// Check-in day anchors scale with the program length.
+function checkinDaysFor(totalDays: number): Set<number> {
+  if (totalDays <= 10) return new Set([1, Math.max(1, Math.round(totalDays / 2)), totalDays]);
+  return new Set([1, 15, 30, 45, 60].filter((d) => d <= totalDays).concat(totalDays));
+}
+
+const FOCUS_LABELS: Record<string, string> = {
+  "front-splits": "Front splits",
+  backbend: "Backbend",
+  both: "Splits + backbend",
+  hips: "Hip opening",
+  morning: "Morning ritual",
+  sleep: "Sleep wind-down",
+  general: "Full body",
+};
+
+function focusLabel(focus: string | undefined): string {
+  return (focus && FOCUS_LABELS[focus]) || "Full body";
+}
 
 function poseLabel(p: DailyPlan["poses"][number]): string {
   const secs = p.sides === "each" ? `${p.holdSeconds}s each` : `${p.holdSeconds}s`;
@@ -67,6 +86,8 @@ export function DailyProgram({
   const { toast } = useToast();
   const { loadSession } = usePractice();
   const plan = pathway.dailyPlan ?? [];
+  const totalDays = plan.length;
+  const CHECKIN_DAYS = useMemo(() => checkinDaysFor(totalDays), [totalDays]);
   const [modalDay, setModalDay] = useState<number | null>(null);
 
   const { data: sessions = [] } = useQuery<Session[]>({ queryKey: ["/api/sessions"] });
@@ -76,8 +97,8 @@ export function DailyProgram({
     if (!enrollment) return 0;
     const start = new Date(enrollment.startDate.slice(0, 10) + "T00:00:00").getTime();
     const now = Date.now();
-    return Math.min(60, Math.floor((now - start) / MS_PER_DAY) + 1);
-  }, [enrollment]);
+    return Math.min(totalDays, Math.floor((now - start) / MS_PER_DAY) + 1);
+  }, [enrollment, totalDays]);
 
   // Which day-numbers have a logged session (pathway match + timestamp >= start + N-1 days).
   const completedDays = useMemo(() => {
@@ -88,10 +109,10 @@ export function DailyProgram({
     for (const s of pathwaySessions) {
       const t = new Date(s.date.length <= 10 ? s.date + "T00:00:00" : s.date).getTime();
       const dayN = Math.floor((t - start) / MS_PER_DAY) + 1;
-      if (dayN >= 1 && dayN <= 60) done.add(dayN);
+      if (dayN >= 1 && dayN <= totalDays) done.add(dayN);
     }
     return done;
-  }, [sessions, enrollment, pathway.slug]);
+  }, [sessions, enrollment, pathway.slug, totalDays]);
 
   const lastCompleted = completedDays.size ? Math.max(...completedDays) : 0;
   const behind = enrollment && currentDay - 1 > lastCompleted ? currentDay - 1 - lastCompleted : 0;
@@ -160,7 +181,7 @@ export function DailyProgram({
                   </span>
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-secondary">
-                      {enrollment ? `Today · Day ${currentDay} of 60` : "Rest day"}
+                      {enrollment ? `Today · Day ${currentDay} of ${totalDays}` : "Rest day"}
                     </p>
                     <h2 className="font-serif text-2xl">Rest day · your body is rebuilding</h2>
                     <p className="mt-1 text-sm text-muted-foreground">{today.theme}</p>
@@ -182,7 +203,7 @@ export function DailyProgram({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-primary">
-                      {enrollment ? `Today · Day ${currentDay} of 60` : `Day 1 preview`}
+                      {enrollment ? `Today · Day ${currentDay} of ${totalDays}` : `Day 1 preview`}
                     </p>
                     <h2 className="font-serif text-2xl">{today.theme}</h2>
                   </div>
@@ -190,9 +211,7 @@ export function DailyProgram({
                     <Badge variant="outline" className="gap-1">
                       <Clock className="h-3 w-3" /> ~{today.totalMinutes} min
                     </Badge>
-                    <Badge variant="outline">
-                      {today.focus === "both" ? "Splits + backbend" : "Front splits"}
-                    </Badge>
+                    <Badge variant="outline">{focusLabel(today.focus)}</Badge>
                   </div>
                 </div>
 
@@ -216,14 +235,17 @@ export function DailyProgram({
         </section>
       )}
 
-      {/* ---- 60-day journey grid ---- */}
+      {/* ---- journey grid ---- */}
       <section className="space-y-4" data-testid="section-journey">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="font-serif text-xl">Your 60-day journey</h2>
+          <h2 className="font-serif text-xl">Your {totalDays}-day journey</h2>
         </div>
 
-        <div className="grid grid-cols-10 gap-1.5 sm:gap-2" data-testid="grid-journey">
+        <div
+          className={`grid gap-1.5 sm:gap-2 ${totalDays <= 7 ? "grid-cols-7" : totalDays <= 14 ? "grid-cols-7" : "grid-cols-10"}`}
+          data-testid="grid-journey"
+        >
           {plan.map((d) => {
             const isCompleted = completedDays.has(d.day);
             const isToday = enrollment != null && d.day === currentDay;

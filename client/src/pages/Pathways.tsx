@@ -9,7 +9,7 @@ import { PATHWAYS, asanaBySlug } from "@/data/content";
 import type { Pathway } from "@/data/content";
 import type { Enrollment } from "@shared/schema";
 import { usePractice } from "@/context/PracticeContext";
-import { CalendarDays, Repeat, Clock, Sparkles, Play, Zap } from "lucide-react";
+import { CalendarDays, Repeat, Clock, Sparkles, Play, Zap, Flower2, Trophy } from "lucide-react";
 
 // Build the ordered pose queue for a quick flow from its single week plan.
 // A "each side" note flags a bilateral hold so guided mode re-narrates side 2.
@@ -152,7 +152,8 @@ function PathwayCard({ p, enrolled }: { p: Pathway; enrolled: boolean }) {
 
           <div className="mt-auto space-y-1 text-xs text-muted-foreground">
             <p className="flex items-center gap-1.5">
-              <CalendarDays className="h-3.5 w-3.5" /> {isDaily ? "60 days" : `${p.weeks} weeks`}
+              <CalendarDays className="h-3.5 w-3.5" />{" "}
+              {isDaily ? `${p.dailyPlan?.length ?? 0} days` : `${p.weeks} weeks`}
             </p>
             <p className="flex items-center gap-1.5">
               <Repeat className="h-3.5 w-3.5" /> {p.sessionsPerWeek} sessions / week
@@ -180,8 +181,21 @@ export default function Pathways() {
     navigate("/guided");
   };
 
-  const flows = PATHWAYS.filter((p) => p.kind === "flow");
-  const programs = PATHWAYS.filter((p) => p.kind !== "flow");
+  // Four ordered sections (v5.1).
+  // Quick Flows: flows without the salutation/goddess section tag.
+  const quickFlows = PATHWAYS.filter(
+    (p) => p.kind === "flow" && p.section !== "salutation-goddess",
+  );
+  // Salutations & Goddess Flows: the new salutation + goddess flows.
+  const salutationGoddess = PATHWAYS.filter(
+    (p) => p.kind === "flow" && p.section === "salutation-goddess",
+  );
+  // 7-Day Challenges: daily programs tagged as seven-day.
+  const sevenDay = PATHWAYS.filter((p) => p.kind === "daily" && p.section === "seven-day");
+  // Multi-Week Programs: everything else (weekly programs + longer daily programs).
+  const programs = PATHWAYS.filter(
+    (p) => p.kind !== "flow" && p.section !== "seven-day",
+  );
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -194,31 +208,71 @@ export default function Pathways() {
 
       <WarmupCard />
 
-      {flows.length > 0 && (
-        <section className="space-y-3">
+      {/* ---- 1. Quick Flows ---- */}
+      {quickFlows.length > 0 && (
+        <section className="space-y-3" data-testid="section-quick-flows">
           <div className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary" />
             <h2 className="font-serif text-xl">Quick Flows</h2>
           </div>
           <p className="-mt-1 text-sm text-muted-foreground">
-            Ready-made sequences you can start in one tap — no enrollment needed.
+            Ready-to-go sessions for common needs
           </p>
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-            {flows.map((p) => (
+            {quickFlows.map((p) => (
               <FlowCard key={p.slug} p={p} onStart={startFlow} />
             ))}
           </div>
         </section>
       )}
 
-      {programs.length > 0 && (
-        <section className="space-y-3">
+      {/* ---- 2. Salutations & Goddess Flows ---- */}
+      {salutationGoddess.length > 0 && (
+        <section className="space-y-3" data-testid="section-salutation-goddess">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h2 className="font-serif text-xl">Programs</h2>
+            <Flower2 className="h-5 w-5 text-primary" />
+            <h2 className="font-serif text-xl">Salutations &amp; Goddess Flows</h2>
           </div>
           <p className="-mt-1 text-sm text-muted-foreground">
-            Multi-week goal pathways — like getting your first split.
+            Traditional sequences and empowering flows
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+            {salutationGoddess.map((p) => (
+              <FlowCard key={p.slug} p={p} onStart={startFlow} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ---- 3. 7-Day Challenges ---- */}
+      {sevenDay.length > 0 && (
+        <section className="space-y-3" data-testid="section-seven-day">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-primary" />
+            <h2 className="font-serif text-xl">7-Day Challenges</h2>
+          </div>
+          <p className="-mt-1 text-sm text-muted-foreground">Build a habit in a week</p>
+          <div className="grid gap-4 md:grid-cols-3">
+            {sevenDay.map((p) => (
+              <PathwayCard
+                key={p.slug}
+                p={p}
+                enrolled={!!enrollments.find((e) => e.pathwaySlug === p.slug && e.active)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ---- 4. Multi-Week Programs ---- */}
+      {programs.length > 0 && (
+        <section className="space-y-3" data-testid="section-programs">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h2 className="font-serif text-xl">Multi-Week Programs</h2>
+          </div>
+          <p className="-mt-1 text-sm text-muted-foreground">
+            Structured journeys toward a goal
           </p>
           <div className="grid gap-4 md:grid-cols-3">
             {programs.map((p) => (

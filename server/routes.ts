@@ -9,6 +9,7 @@ import {
   insertJournalSchema,
   insertPreferencesSchema,
   insertMobilityCheckInSchema,
+  insertCustomFlowSchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -279,6 +280,41 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });
     }
+  });
+
+  // ---- Custom flows (Sequence Builder, v5.1) ----
+  app.get("/api/custom-flows", async (_req, res) => {
+    res.json(await storage.getCustomFlows());
+  });
+  app.get("/api/custom-flows/:id", async (req, res) => {
+    const flow = await storage.getCustomFlow(Number(req.params.id));
+    if (!flow) return res.status(404).json({ error: "Flow not found" });
+    res.json(flow);
+  });
+  app.post("/api/custom-flows", async (req, res) => {
+    try {
+      const data = insertCustomFlowSchema.parse({
+        ...req.body,
+        createdAt: new Date().toISOString(),
+      });
+      res.status(201).json(await storage.createCustomFlow(data));
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+  app.put("/api/custom-flows/:id", async (req, res) => {
+    try {
+      const data = insertCustomFlowSchema.partial().parse(req.body);
+      const updated = await storage.updateCustomFlow(Number(req.params.id), data);
+      if (!updated) return res.status(404).json({ error: "Flow not found" });
+      res.json(updated);
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+  app.delete("/api/custom-flows/:id", async (req, res) => {
+    await storage.deleteCustomFlow(Number(req.params.id));
+    res.status(204).end();
   });
 
   return httpServer;

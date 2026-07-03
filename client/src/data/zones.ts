@@ -310,4 +310,25 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Supporting shoulder & wrist", sensation: "Bearing the body's weight on one arm", intensity: "strong", primary: true },
     { region: "Chest", sensation: "Opening as the top arm reaches up", intensity: "medium", primary: false },
   ],
+  // ---- v5.1 additions ----
+  "utkata-konasana": [
+    { region: "Inner thighs & groin", sensation: "Broad opening across the wide stance", intensity: "medium", primary: true },
+    { region: "Quads & glutes", sensation: "Building heat as the hips sink low", intensity: "strong", primary: true },
+    { region: "Pelvic floor & hips", sensation: "Grounded engagement and external rotation", intensity: "medium", primary: false },
+  ],
+  "viparita-virabhadrasana": [
+    { region: "Side body & waist", sensation: "Long stretch up the top side as you arc back", intensity: "strong", primary: true },
+    { region: "Front thigh", sensation: "Working to hold the deep front-knee bend", intensity: "medium", primary: true },
+    { region: "Chest & shoulders", sensation: "Opening as the top arm reaches overhead", intensity: "medium", primary: false },
+  ],
+  "chaturanga-dandasana": [
+    { region: "Shoulders & triceps", sensation: "Strong load holding the low hover", intensity: "strong", primary: true },
+    { region: "Core & abdominals", sensation: "Bracing to keep the body in one line", intensity: "strong", primary: true },
+    { region: "Wrists", sensation: "Loading through the hands — keep them grounded", intensity: "medium", primary: false },
+  ],
+  "urdhva-mukha-svanasana": [
+    { region: "Chest & abdomen", sensation: "Broad opening across the front body", intensity: "strong", primary: true },
+    { region: "Shoulders", sensation: "Rolling back and open as the chest lifts", intensity: "medium", primary: true },
+    { region: "Spine", sensation: "An energizing lengthening backbend", intensity: "medium", primary: false },
+  ],
 };

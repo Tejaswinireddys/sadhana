@@ -34,6 +34,7 @@ import {
   Compass,
   Smile,
   Search,
+  PlusCircle,
 } from "lucide-react";
 
 const NAV = [
@@ -45,6 +46,7 @@ const NAV = [
   { href: "/affirmations", label: "Affirmations", icon: Sparkles },
   { href: "/journal", label: "Journal", icon: NotebookPen },
   { href: "/profiles", label: "Profiles", icon: Compass },
+  { href: "/builder", label: "Builder", icon: PlusCircle },
   { href: "/kids", label: "Kids", icon: Smile },
 ];
 
