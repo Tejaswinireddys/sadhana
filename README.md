@@ -6,6 +6,9 @@ custom sequence builder.
 
 **Live app:** _link added after first deploy_
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Tejaswinireddys/sadhana)
+
+
 ![Sadhana screenshot](./docs/screenshot-home.png)
 
 ---
