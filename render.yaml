@@ -12,4 +12,4 @@ services:
         sync: false # set manually in Render dashboard (Neon connection string)
       - key: PORT
         value: 10000
-    healthCheckPath: /
+    healthCheckPath: /api/preferences

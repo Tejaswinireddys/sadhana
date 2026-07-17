@@ -11,9 +11,16 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  app.use(express.static(distPath, { index: "index.html" }));
 
-  // fall through to index.html if the file doesn't exist
+  // Explicit root handler — needed on some hosts (Render/Cloudflare) where
+  // express.static's default index doesn't get picked up for the bare '/'.
+  app.get("/", (_req, res) => {
+    res.sendFile(path.resolve(distPath, "index.html"));
+  });
+
+  // Fall through to index.html for any other unmatched route (SPA client-side
+  // routing via wouter hash router).
   app.use("/{*path}", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });
