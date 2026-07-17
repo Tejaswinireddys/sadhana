@@ -4,7 +4,7 @@ A free, open-source yoga practice app with illustrated poses, guided voice
 sessions, pathway programs, a kids section with story-based poses, and a
 custom sequence builder.
 
-**Live app:** _link added after first deploy_
+**Live app:** https://sadhana-ou9m.onrender.com
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Tejaswinireddys/sadhana)
 

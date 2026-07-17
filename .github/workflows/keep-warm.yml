@@ -1,0 +1,35 @@
+name: Keep app warm
+
+# Pings the deployed Sadhana app every 10 minutes to prevent Render's free
+# tier from spinning down after 15 minutes of inactivity.
+#
+# GitHub-hosted runners are free for public repos. This workflow runs a tiny
+# curl request that returns in under a second — well within GitHub's generous
+# free minute allowance (and public-repo minutes are effectively unlimited).
+
+on:
+  schedule:
+    # Every 10 minutes. GitHub sometimes delays scheduled jobs by up to 15
+    # minutes under load, so we set the interval slightly tighter than the
+    # 15-min Render sleep threshold as a safety margin.
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # allow manual trigger from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping app
+        run: |
+          set -e
+          URL="https://sadhana-ou9m.onrender.com/api/preferences"
+          # 60s timeout — cold starts on Render Free can take up to 30s
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$URL")
+          echo "Ping status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ App is awake and healthy"
+          else
+            echo "⚠️ Unexpected status $STATUS (may be a cold start still spinning up)"
+            # Not failing the workflow — a 502 during cold start isn't a real failure
+          fi
