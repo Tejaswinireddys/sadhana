@@ -4,6 +4,9 @@ import type { Request } from 'express';
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { pool } from "./storage";
 
 const app = express();
 const httpServer = createServer(app);
@@ -61,7 +64,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Auto-migration: create tables if they don't exist by running drizzle/schema.sql.
+// Idempotent (CREATE TABLE IF NOT EXISTS), so it is safe to run on every boot.
+async function ensureSchema() {
+  const schemaPath = resolve(process.cwd(), "drizzle", "schema.sql");
+  const sql = await readFile(schemaPath, "utf-8");
+  await pool.query(sql);
+  log("schema ensured");
+}
+
 (async () => {
+  await ensureSchema();
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

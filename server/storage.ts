@@ -35,137 +35,20 @@ import type {
   CustomFlow,
   InsertCustomFlow,
 } from "@shared/schema";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, desc } from "drizzle-orm";
 
-const sqlite = new Database("data.db");
-sqlite.pragma("journal_mode = WAL");
-
-// Ensure tables exist (no migration step needed for this template)
-sqlite.exec(`
-  CREATE TABLE IF NOT EXISTS sessions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL,
-    duration_minutes INTEGER NOT NULL,
-    asanas TEXT NOT NULL DEFAULT '[]',
-    pathway_slug TEXT,
-    notes TEXT
-  );
-  CREATE TABLE IF NOT EXISTS pathway_enrollments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    pathway_slug TEXT NOT NULL,
-    start_date TEXT NOT NULL,
-    active INTEGER NOT NULL DEFAULT 1
-  );
-  CREATE TABLE IF NOT EXISTS favorite_affirmations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    affirmation_text TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS journal_entries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL,
-    title TEXT,
-    body TEXT NOT NULL DEFAULT '',
-    mood TEXT,
-    tags TEXT NOT NULL DEFAULT '[]'
-  );
-  CREATE TABLE IF NOT EXISTS preferences (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    motion_enabled INTEGER NOT NULL DEFAULT 1,
-    voice_enabled INTEGER NOT NULL DEFAULT 1
-  );
-  CREATE TABLE IF NOT EXISTS user_profiles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    profile_id TEXT NOT NULL,
-    activated_at TEXT NOT NULL,
-    active INTEGER NOT NULL DEFAULT 1
-  );
-  CREATE TABLE IF NOT EXISTS kids_stickers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    pose_slug TEXT NOT NULL,
-    earned_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS favorite_asanas (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS milestones (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    kind TEXT NOT NULL,
-    reached_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS pose_notes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug TEXT NOT NULL UNIQUE,
-    body TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS mobility_check_ins (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    pathway_slug TEXT NOT NULL,
-    day INTEGER NOT NULL,
-    front_split_inches INTEGER NOT NULL,
-    back_split_inches INTEGER,
-    notes TEXT,
-    created_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS custom_flows (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    description TEXT,
-    pose_sequence TEXT NOT NULL DEFAULT '[]',
-    created_at TEXT NOT NULL,
-    last_used_at TEXT
-  );
-`);
-
-// --- Lightweight migration: add sessions.pre_mood / post_mood if missing ---
-try {
-  const cols = sqlite.prepare(`PRAGMA table_info(sessions)`).all() as { name: string }[];
-  if (!cols.some((c) => c.name === "pre_mood")) {
-    sqlite.exec(`ALTER TABLE sessions ADD COLUMN pre_mood TEXT`);
-  }
-  if (!cols.some((c) => c.name === "post_mood")) {
-    sqlite.exec(`ALTER TABLE sessions ADD COLUMN post_mood TEXT`);
-  }
-} catch {
-  /* ignore */
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL environment variable is required");
 }
 
-// --- Lightweight migration: add sessions.kind if it doesn't already exist ---
-try {
-  const cols = sqlite.prepare(`PRAGMA table_info(sessions)`).all() as { name: string }[];
-  if (!cols.some((c) => c.name === "kind")) {
-    sqlite.exec(`ALTER TABLE sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'asana'`);
-  }
-} catch {
-  /* ignore */
-}
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
 
-// --- Lightweight migration: add preferences.voice_enabled if missing ---
-try {
-  const cols = sqlite.prepare(`PRAGMA table_info(preferences)`).all() as { name: string }[];
-  if (!cols.some((c) => c.name === "voice_enabled")) {
-    sqlite.exec(`ALTER TABLE preferences ADD COLUMN voice_enabled INTEGER NOT NULL DEFAULT 1`);
-  }
-} catch {
-  /* ignore */
-}
-
-// Ensure a single preferences row exists
-try {
-  const row = sqlite.prepare(`SELECT COUNT(*) AS n FROM preferences`).get() as { n: number };
-  if (!row || row.n === 0) {
-    sqlite.exec(`INSERT INTO preferences (motion_enabled) VALUES (1)`);
-  }
-} catch {
-  /* ignore */
-}
-
-export const db = drizzle(sqlite);
+export const db = drizzle(pool);
 
 export interface IStorage {
   // sessions
@@ -218,131 +101,161 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getSessions(): Promise<Session[]> {
-    return db.select().from(sessions).orderBy(desc(sessions.date)).all();
+    return db.select().from(sessions).orderBy(desc(sessions.date));
   }
   async createSession(data: InsertSession): Promise<Session> {
-    return db.insert(sessions).values(data).returning().get();
+    const [row] = await db.insert(sessions).values(data).returning();
+    return row;
   }
 
   async getEnrollments(): Promise<Enrollment[]> {
-    return db.select().from(pathwayEnrollments).all();
+    return db.select().from(pathwayEnrollments);
   }
   async createEnrollment(data: InsertEnrollment): Promise<Enrollment> {
-    return db.insert(pathwayEnrollments).values(data).returning().get();
+    const [row] = await db.insert(pathwayEnrollments).values(data).returning();
+    return row;
   }
   async deleteEnrollment(id: number): Promise<void> {
-    db.delete(pathwayEnrollments).where(eq(pathwayEnrollments.id, id)).run();
+    await db.delete(pathwayEnrollments).where(eq(pathwayEnrollments.id, id));
   }
 
   async getFavorites(): Promise<Favorite[]> {
-    return db.select().from(favoriteAffirmations).orderBy(desc(favoriteAffirmations.createdAt)).all();
+    return db.select().from(favoriteAffirmations).orderBy(desc(favoriteAffirmations.createdAt));
   }
   async createFavorite(data: InsertFavorite): Promise<Favorite> {
-    return db.insert(favoriteAffirmations).values(data).returning().get();
+    const [row] = await db.insert(favoriteAffirmations).values(data).returning();
+    return row;
   }
   async deleteFavorite(id: number): Promise<void> {
-    db.delete(favoriteAffirmations).where(eq(favoriteAffirmations.id, id)).run();
+    await db.delete(favoriteAffirmations).where(eq(favoriteAffirmations.id, id));
   }
 
   async getJournal(): Promise<Journal[]> {
-    return db.select().from(journalEntries).orderBy(desc(journalEntries.date)).all();
+    return db.select().from(journalEntries).orderBy(desc(journalEntries.date));
   }
   async createJournal(data: InsertJournal): Promise<Journal> {
-    return db.insert(journalEntries).values(data).returning().get();
+    const [row] = await db.insert(journalEntries).values(data).returning();
+    return row;
   }
   async updateJournal(id: number, data: Partial<InsertJournal>): Promise<Journal | undefined> {
-    return db.update(journalEntries).set(data).where(eq(journalEntries.id, id)).returning().get();
+    const [row] = await db
+      .update(journalEntries)
+      .set(data)
+      .where(eq(journalEntries.id, id))
+      .returning();
+    return row;
   }
   async deleteJournal(id: number): Promise<void> {
-    db.delete(journalEntries).where(eq(journalEntries.id, id)).run();
+    await db.delete(journalEntries).where(eq(journalEntries.id, id));
   }
 
   async getPreferences(): Promise<Preferences> {
-    let row = db.select().from(preferences).limit(1).get();
-    if (!row) {
-      row = db.insert(preferences).values({ motionEnabled: 1, voiceEnabled: 1 }).returning().get();
-    }
-    return row;
+    const [existing] = await db.select().from(preferences).limit(1);
+    if (existing) return existing;
+    const [created] = await db
+      .insert(preferences)
+      .values({ motionEnabled: 1, voiceEnabled: 1 })
+      .returning();
+    return created;
   }
   async updatePreferences(data: Partial<InsertPreferences>): Promise<Preferences> {
     const current = await this.getPreferences();
-    return db
+    const [row] = await db
       .update(preferences)
       .set(data)
       .where(eq(preferences.id, current.id))
-      .returning()
-      .get();
+      .returning();
+    return row;
   }
 
   async getActiveProfile(): Promise<UserProfile | undefined> {
-    return db
+    const [row] = await db
       .select()
       .from(userProfiles)
       .where(eq(userProfiles.active, true))
       .orderBy(desc(userProfiles.id))
-      .limit(1)
-      .get();
+      .limit(1);
+    return row;
   }
   async activateProfile(profileId: string): Promise<UserProfile> {
     // Deactivate all existing active profiles, then insert a new active row
-    db.update(userProfiles).set({ active: false }).where(eq(userProfiles.active, true)).run();
-    return db
+    await db.update(userProfiles).set({ active: false }).where(eq(userProfiles.active, true));
+    const [row] = await db
       .insert(userProfiles)
       .values({ profileId, activatedAt: new Date().toISOString(), active: true })
-      .returning()
-      .get();
+      .returning();
+    return row;
   }
   async deactivateProfile(): Promise<void> {
-    db.update(userProfiles).set({ active: false }).where(eq(userProfiles.active, true)).run();
+    await db.update(userProfiles).set({ active: false }).where(eq(userProfiles.active, true));
   }
 
   async getStickers(): Promise<Sticker[]> {
-    return db.select().from(kidsStickers).orderBy(desc(kidsStickers.earnedAt)).all();
+    return db.select().from(kidsStickers).orderBy(desc(kidsStickers.earnedAt));
   }
   async createSticker(data: InsertSticker): Promise<Sticker> {
-    return db.insert(kidsStickers).values(data).returning().get();
+    const [row] = await db.insert(kidsStickers).values(data).returning();
+    return row;
   }
 
   async getFavoriteAsanas(): Promise<FavoriteAsana[]> {
-    return db.select().from(favoriteAsanas).orderBy(desc(favoriteAsanas.createdAt)).all();
+    return db.select().from(favoriteAsanas).orderBy(desc(favoriteAsanas.createdAt));
   }
   async addFavoriteAsana(slug: string): Promise<FavoriteAsana> {
-    const existing = db.select().from(favoriteAsanas).where(eq(favoriteAsanas.slug, slug)).get();
+    const [existing] = await db
+      .select()
+      .from(favoriteAsanas)
+      .where(eq(favoriteAsanas.slug, slug))
+      .limit(1);
     if (existing) return existing;
-    return db
+    const [row] = await db
       .insert(favoriteAsanas)
       .values({ slug, createdAt: new Date().toISOString() })
-      .returning()
-      .get();
+      .returning();
+    return row;
   }
   async removeFavoriteAsana(slug: string): Promise<void> {
-    db.delete(favoriteAsanas).where(eq(favoriteAsanas.slug, slug)).run();
+    await db.delete(favoriteAsanas).where(eq(favoriteAsanas.slug, slug));
   }
 
   async getMilestones(): Promise<Milestone[]> {
-    return db.select().from(milestones).orderBy(desc(milestones.reachedAt)).all();
+    return db.select().from(milestones).orderBy(desc(milestones.reachedAt));
   }
   async createMilestone(data: InsertMilestone): Promise<Milestone> {
-    const existing = db.select().from(milestones).where(eq(milestones.kind, data.kind)).get();
+    const [existing] = await db
+      .select()
+      .from(milestones)
+      .where(eq(milestones.kind, data.kind))
+      .limit(1);
     if (existing) return existing;
-    return db.insert(milestones).values(data).returning().get();
+    const [row] = await db.insert(milestones).values(data).returning();
+    return row;
   }
 
   async getPoseNote(slug: string): Promise<PoseNote | undefined> {
-    return db.select().from(poseNotes).where(eq(poseNotes.slug, slug)).get();
+    const [row] = await db.select().from(poseNotes).where(eq(poseNotes.slug, slug)).limit(1);
+    return row;
   }
   async upsertPoseNote(slug: string, body: string): Promise<PoseNote> {
     const now = new Date().toISOString();
-    const existing = db.select().from(poseNotes).where(eq(poseNotes.slug, slug)).get();
+    const [existing] = await db
+      .select()
+      .from(poseNotes)
+      .where(eq(poseNotes.slug, slug))
+      .limit(1);
     if (existing) {
-      return db
+      const [row] = await db
         .update(poseNotes)
         .set({ body, updatedAt: now })
         .where(eq(poseNotes.slug, slug))
-        .returning()
-        .get();
+        .returning();
+      return row;
     }
-    return db.insert(poseNotes).values({ slug, body, updatedAt: now }).returning().get();
+    const [row] = await db
+      .insert(poseNotes)
+      .values({ slug, body, updatedAt: now })
+      .returning();
+    return row;
   }
 
   async getMobilityCheckIns(pathwaySlug: string): Promise<MobilityCheckIn[]> {
@@ -350,35 +263,37 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(mobilityCheckIns)
       .where(eq(mobilityCheckIns.pathwaySlug, pathwaySlug))
-      .orderBy(mobilityCheckIns.day)
-      .all();
+      .orderBy(mobilityCheckIns.day);
   }
   async createMobilityCheckIn(data: InsertMobilityCheckIn): Promise<MobilityCheckIn> {
-    return db.insert(mobilityCheckIns).values(data).returning().get();
+    const [row] = await db.insert(mobilityCheckIns).values(data).returning();
+    return row;
   }
   async getCustomFlows(): Promise<CustomFlow[]> {
-    return db.select().from(customFlows).orderBy(desc(customFlows.id)).all();
+    return db.select().from(customFlows).orderBy(desc(customFlows.id));
   }
   async getCustomFlow(id: number): Promise<CustomFlow | undefined> {
-    return db.select().from(customFlows).where(eq(customFlows.id, id)).get();
+    const [row] = await db.select().from(customFlows).where(eq(customFlows.id, id)).limit(1);
+    return row;
   }
   async createCustomFlow(data: InsertCustomFlow): Promise<CustomFlow> {
-    return db.insert(customFlows).values(data).returning().get();
+    const [row] = await db.insert(customFlows).values(data).returning();
+    return row;
   }
   async updateCustomFlow(
     id: number,
     data: Partial<InsertCustomFlow>,
   ): Promise<CustomFlow | undefined> {
-    db.update(customFlows).set(data).where(eq(customFlows.id, id)).run();
-    return db.select().from(customFlows).where(eq(customFlows.id, id)).get();
+    await db.update(customFlows).set(data).where(eq(customFlows.id, id));
+    const [row] = await db.select().from(customFlows).where(eq(customFlows.id, id)).limit(1);
+    return row;
   }
   async deleteCustomFlow(id: number): Promise<void> {
-    db.delete(customFlows).where(eq(customFlows.id, id)).run();
+    await db.delete(customFlows).where(eq(customFlows.id, id));
   }
   async deleteMobilityCheckIn(id: number): Promise<void> {
-    db.delete(mobilityCheckIns).where(eq(mobilityCheckIns.id, id)).run();
+    await db.delete(mobilityCheckIns).where(eq(mobilityCheckIns.id, id));
   }
-
 }
 
 export const storage = new DatabaseStorage();

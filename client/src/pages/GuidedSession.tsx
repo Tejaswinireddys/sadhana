@@ -39,7 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { todayISO } from "@/lib/sadhana";
 import { detectMilestones } from "@/lib/milestones";
-import { DEFAULT_FOCUS_ZONE, type Mood } from "@/data/content";
+import { type Mood } from "@/data/content";
 import type { Stats } from "@/lib/sadhana";
 import type { Milestone, Preferences } from "@shared/schema";
 import { cn } from "@/lib/utils";
@@ -134,7 +134,7 @@ export default function GuidedSession() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const imgWrapRef = useRef<HTMLDivElement | null>(null);
-  const [box, setBox] = useState({ w: 0, h: 0 });
+  const [box, setBox] = useState({ w: 0, h: 0, offsetX: 0, offsetY: 0, wrapW: 0, wrapH: 0 });
   const [voiceDuration, setVoiceDuration] = useState(0);
 
   const current = todays[index];
@@ -148,15 +148,44 @@ export default function GuidedSession() {
     ? `${import.meta.env.BASE_URL}voice/pose-${current.slug}.mp3`
     : "";
 
-  // Active focus zone for the halo — follows the current narration step.
-  const activeZone =
-    (phase === "instruction" && steps[stepIndex]?.focusZone) || DEFAULT_FOCUS_ZONE;
+  // Active focus zone for the halo — only render halo when the current step has
+  // an explicit focusZone. If null/undefined we hide the overlay entirely.
+  const rawZone =
+    phase === "instruction" ? steps[stepIndex]?.focusZone : undefined;
+  const activeZone = rawZone
+    ? {
+        // clamp to inside the visible image so the halo never falls off
+        cx: Math.min(0.85, Math.max(0.15, rawZone.cx)),
+        cy: Math.min(0.85, Math.max(0.15, rawZone.cy)),
+        // cap radius so the halo can never blow up beyond a body-region hint
+        r: Math.min(0.15, Math.max(0.05, rawZone.r * 0.6)),
+        label: rawZone.label,
+      }
+    : null;
 
   // Measure the rendered image box so the halo stays a true circle.
+  // Pose PNGs are portrait 3:4 or taller and use object-contain, so the
+  // visible image is much narrower than the wrapper on desktop. We compute
+  // the letterboxed image rectangle inside the wrapper.
   useEffect(() => {
     const el = imgWrapRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    const update = () => setBox({ w: el.clientWidth, h: el.clientHeight });
+    const update = () => {
+      const wrapW = el.clientWidth;
+      const wrapH = el.clientHeight;
+      // Approximate pose image aspect ratio (portrait ~3:4).
+      const imgAspect = 3 / 4;
+      // Fit the image inside the wrapper preserving aspect ratio.
+      let w = wrapH * imgAspect;
+      let h = wrapH;
+      if (w > wrapW) {
+        w = wrapW;
+        h = wrapW / imgAspect;
+      }
+      const offsetX = (wrapW - w) / 2;
+      const offsetY = (wrapH - h) / 2;
+      setBox({ w, h, offsetX, offsetY, wrapW, wrapH });
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
@@ -789,16 +818,19 @@ export default function GuidedSession() {
               data-testid="guided-hero"
             />
 
-            {/* Focus halo overlay — during instruction, tracks the active step */}
-            {phase === "instruction" &&
+            {/* Focus halo overlay — only when the current step has an explicit
+                focusZone. Positioned inside the actual visible image bounds
+                (imgWrapRef measures the image container, which uses aspect-ratio). */}
+            {phase === "instruction" && activeZone && box.w > 0 &&
               (() => {
-                const cx = activeZone.cx * box.w;
-                const cy = activeZone.cy * box.h;
-                const r = activeZone.r * Math.min(box.w || 1, box.h || 1);
+                // Position halo relative to the visible image (letterboxed inside wrapper)
+                const cx = box.offsetX + activeZone.cx * box.w;
+                const cy = box.offsetY + activeZone.cy * box.h;
+                const r = activeZone.r * Math.min(box.w, box.h);
                 const tween = "cx 300ms ease, cy 300ms ease, r 300ms ease";
                 return (
                   <svg
-                    viewBox={`0 0 ${box.w || 1} ${box.h || 1}`}
+                    viewBox={`0 0 ${box.wrapW || 1} ${box.wrapH || 1}`}
                     preserveAspectRatio="none"
                     className="pointer-events-none absolute inset-0 h-full w-full"
                     aria-hidden
@@ -810,6 +842,7 @@ export default function GuidedSession() {
                       cy={cy}
                       r={r}
                       fill="hsl(var(--primary))"
+                      fillOpacity={0.18}
                       style={{ transition: tween }}
                       data-testid="guided-focus-halo"
                     />
@@ -819,8 +852,16 @@ export default function GuidedSession() {
                       r={r}
                       fill="none"
                       stroke="hsl(var(--primary))"
-                      strokeWidth={Math.max(2, (box.w || 0) * 0.008)}
-                      strokeOpacity={0.85}
+                      strokeWidth={Math.max(1.5, (box.w || 0) * 0.005)}
+                      strokeOpacity={0.6}
+                      style={{ transition: tween }}
+                    />
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={Math.max(3, r * 0.12)}
+                      fill="hsl(var(--primary))"
+                      fillOpacity={0.9}
                       style={{ transition: tween }}
                     />
                   </svg>

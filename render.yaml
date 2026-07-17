@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: sadhana
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/index.cjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # set manually in Render dashboard (Neon connection string)
+      - key: PORT
+        value: 10000
+    healthCheckPath: /
