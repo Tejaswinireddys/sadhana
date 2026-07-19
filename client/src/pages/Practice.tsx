@@ -118,7 +118,7 @@ export default function Practice() {
       // Milestone detection — fetch fresh stats + already-celebrated kinds.
       try {
         const [statsRes, msRes] = await Promise.all([
-          apiRequest("GET", "/api/sessions/stats"),
+          apiRequest("GET", `/api/sessions/stats/${todayISO()}`),
           apiRequest("GET", "/api/milestones"),
         ]);
         const stats = (await statsRes.json()) as Stats;

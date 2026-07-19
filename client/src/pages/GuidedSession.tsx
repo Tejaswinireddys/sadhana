@@ -110,7 +110,6 @@ export default function GuidedSession() {
   const [phase, setPhase] = useState<Phase>("transitionIn");
   const [side, setSide] = useState<1 | 2>(1); // which side we're on for "each" poses
   const [phaseRemaining, setPhaseRemaining] = useState(TRANSITION_SECONDS); // seconds
-  const [holdTarget, setHoldTarget] = useState(0); // seconds for the current hold phase
   const [stepIndex, setStepIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [elapsedTotal, setElapsedTotal] = useState(0);
@@ -131,6 +130,11 @@ export default function GuidedSession() {
   const finishedMinutes = useRef(1);
   const sessionLogged = useRef(false);
   const posesCompleted = useRef(0);
+  // Seconds already attributed to a logged session — lets "Do one more pose"
+  // log only the *additional* time instead of double-counting the whole run.
+  const loggedSeconds = useRef(0);
+  // +30s pressed outside the hold phase: bank it and apply when the hold starts.
+  const pendingExtension = useRef(0);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const imgWrapRef = useRef<HTMLDivElement | null>(null);
@@ -289,7 +293,7 @@ export default function GuidedSession() {
 
       try {
         const [statsRes, msRes] = await Promise.all([
-          apiRequest("GET", "/api/sessions/stats"),
+          apiRequest("GET", `/api/sessions/stats/${todayISO()}`),
           apiRequest("GET", "/api/milestones"),
         ]);
         const stats = (await statsRes.json()) as Stats;
@@ -325,7 +329,9 @@ export default function GuidedSession() {
     setPhase("complete");
     setFinished(true);
     posesCompleted.current = todays.length;
-    const minutes = Math.max(1, Math.round(elapsedTotal / 60));
+    const newSeconds = Math.max(0, elapsedTotal - loggedSeconds.current);
+    loggedSeconds.current = elapsedTotal;
+    const minutes = Math.max(1, Math.round(newSeconds / 60));
     finishedMinutes.current = minutes;
     setConfetti(true);
     setTimeout(() => setConfetti(false), 2800);
@@ -378,8 +384,8 @@ export default function GuidedSession() {
     if (a) a.pause();
     const hold = current?.holdSeconds ?? 30;
     const vd = voiceEnabled ? Math.round(voiceDuration) : 0;
-    const remaining = Math.max(3, hold - vd);
-    setHoldTarget(remaining);
+    const remaining = Math.max(3, hold - vd) + pendingExtension.current;
+    pendingExtension.current = 0;
     setPhaseRemaining(remaining);
     setStepIndex(Math.max(0, stepCount - 1));
     setCueIndex(0);
@@ -504,6 +510,8 @@ export default function GuidedSession() {
     setElapsedTotal(0);
     setPaused(false);
     sessionLogged.current = false;
+    loggedSeconds.current = 0;
+    pendingExtension.current = 0;
     setPostMood(null);
     enterTransition(0);
   };
@@ -517,8 +525,13 @@ export default function GuidedSession() {
     else goToPose(index - 1);
   };
   const handleAdd30 = () => {
-    setPhaseRemaining((r) => r + 30);
-    if (phase !== "hold") setHoldTarget((h) => h + 30);
+    if (phase === "hold" || phase === "transitionIn" || phase === "sideSwitch") {
+      setPhaseRemaining((r) => r + 30);
+    } else {
+      // During narration the countdown is audio-driven; bank the extension so
+      // the upcoming hold actually gets the extra time.
+      pendingExtension.current += 30;
+    }
     toast({ title: "+30 seconds", description: "Extended this hold." });
   };
 

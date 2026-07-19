@@ -1411,4 +1411,234 @@ export const EXTRAS: Record<string, AsanaExtras> = {
     stepMotions: ["ground", "lift", "inhale", "settle"],
   },
 
+
+  "marjaryasana-bitilasana": {
+    avoidIf: [
+      { condition: "Wrist pain - practice on fists or forearms", severity: "modify" },
+      { condition: "Recent spinal injury or disc issue", severity: "avoid" },
+      { condition: "Knee sensitivity - pad the knees", severity: "modify" },
+    ],
+    variations: {
+      beginner: {
+        description: "Small, slow movements with a blanket under the knees, pausing in neutral between rounds.",
+        props: ["blanket"],
+        cues: ["Move only as far as feels easy", "Pause in tabletop between rounds", "Let the breath set the pace"],
+        holdSeconds: 45,
+      },
+      intermediate: {
+        description: "Full-range flowing rounds, one breath per movement, eight to ten cycles.",
+        props: ["none"],
+        cues: ["Inhale Cow, exhale Cat - no holding", "Start the wave from the tailbone", "Spread the fingers and press the floor away"],
+        holdSeconds: 60,
+      },
+      advanced: {
+        description: "Add slow circles of the ribcage and hips, exploring the spine in every direction.",
+        props: ["none"],
+        cues: ["Circle the ribs over the wrists", "Find the stiff corners and breathe into them", "Keep the movement silky and unhurried"],
+        holdSeconds: 90,
+      },
+    },
+    stepMotions: ["ground", "inhale", "exhale", "settle", "settle"],
+  },
+
+  "supta-matsyendrasana": {
+    avoidIf: [
+      { condition: "Recent spinal or hip surgery", severity: "avoid" },
+      { condition: "Late pregnancy - twist gently from the upper back", severity: "modify" },
+      { condition: "Sacroiliac joint pain", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Knees drop onto a pillow, opposite shoulder anchored, head stays neutral.",
+        props: ["pillow"],
+        cues: ["Pillow under the knees for full support", "Keep both shoulders heavy", "Head center if the neck complains"],
+        holdSeconds: 45,
+      },
+      intermediate: {
+        description: "Knees stacked at hip height, gaze turned away, twist fully passive.",
+        props: ["none"],
+        cues: ["Stack the knees at hip height", "Turn the gaze away from the knees", "Exhale the knees heavier"],
+        holdSeconds: 60,
+      },
+      advanced: {
+        description: "Eagle-wrap the legs before dropping them for a deeper wring through the outer hip.",
+        props: ["none"],
+        cues: ["Wrap the top leg around the bottom", "Drop both legs together", "Keep the opposite shoulder glued down"],
+        holdSeconds: 90,
+      },
+    },
+    stepMotions: ["ground", "twist", "twist", "settle", "settle"],
+  },
+
+  "supta-kapotasana": {
+    avoidIf: [
+      { condition: "Recent knee ligament injury", severity: "avoid" },
+      { condition: "Hip replacement - consult your provider", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Ankle crossed over the thigh with the bottom foot staying on the floor.",
+        props: ["none"],
+        cues: ["Bottom foot stays grounded", "Flex the crossed foot to guard the knee", "Press the knee away gently"],
+        holdSeconds: 30,
+      },
+      intermediate: {
+        description: "Bottom leg lifted, hands clasped behind the thigh, head heavy on the mat.",
+        props: ["none", "strap"],
+        cues: ["Thread the hand through the gap", "Draw the thigh in on the exhale", "Keep head and shoulders down"],
+        holdSeconds: 45,
+      },
+      advanced: {
+        description: "Clasp the shin instead of the thigh, drawing the legs closer while the spine stays long.",
+        props: ["none"],
+        cues: ["Clasp the shin for a deeper draw", "Elbow presses the knee wide", "Tailbone stays heavy - no curling up"],
+        holdSeconds: 60,
+      },
+    },
+    stepMotions: ["ground", "limb-rotate", "leg-extend", "hip-shift", "settle"],
+  },
+
+  "parsva-balasana": {
+    avoidIf: [
+      { condition: "Neck injury - support the head on a block", severity: "modify" },
+      { condition: "Shoulder instability or recent dislocation", severity: "avoid" },
+      { condition: "Knee sensitivity - pad the knees", severity: "modify" },
+    ],
+    variations: {
+      beginner: {
+        description: "A shallow thread with the head on a block and the top hand pressing the floor for control.",
+        props: ["block", "blanket"],
+        cues: ["Head rests on a block", "Top hand stays planted", "Only thread as far as feels sweet"],
+        holdSeconds: 30,
+      },
+      intermediate: {
+        description: "Full thread with the shoulder and ear on the mat, hips stacked high over the knees.",
+        props: ["none"],
+        cues: ["Palm turns up as it threads", "Hips stay over the knees", "Soften between the shoulder blades"],
+        holdSeconds: 45,
+      },
+      advanced: {
+        description: "Reach the top arm overhead or wrap it behind the back for a deeper spiral.",
+        props: ["none"],
+        cues: ["Top arm reaches past the ear", "Or wrap it behind the waist", "Rotate the heart toward the sky"],
+        holdSeconds: 60,
+      },
+    },
+    stepMotions: ["ground", "arm-extend", "twist", "settle", "twist"],
+  },
+
+  "uttana-shishosana": {
+    avoidIf: [
+      { condition: "Shoulder injury", severity: "avoid" },
+      { condition: "Knee pain - pad the knees", severity: "modify" },
+      { condition: "Late pregnancy - keep the belly comfortable", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Forehead on a block, hips slightly back toward the heels, arms soft.",
+        props: ["block", "blanket"],
+        cues: ["Forehead supported on a block", "Hips drift back for ease", "Elbows can bend softly"],
+        holdSeconds: 30,
+      },
+      intermediate: {
+        description: "Hips stacked over the knees, chest melting, forehead on the mat.",
+        props: ["none"],
+        cues: ["Hips stay over the knees", "Press the palms and lift the forearms", "Melt the heart, not the ribs"],
+        holdSeconds: 45,
+      },
+      advanced: {
+        description: "Chin to the mat with gaze forward, arms fully active - a deeper shoulder and throat opening.",
+        props: ["none"],
+        cues: ["Chin rests where the forehead was", "Reach the hands further forward", "Keep the lower ribs gently knit"],
+        holdSeconds: 60,
+      },
+    },
+    stepMotions: ["ground", "torso-fold", "settle", "lift", "settle"],
+  },
+
+  malasana: {
+    avoidIf: [
+      { condition: "Knee injury - sit on a block instead", severity: "modify" },
+      { condition: "Achilles or ankle injury", severity: "avoid" },
+      { condition: "Recent hip surgery", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "Squat onto a block with a rolled blanket under the heels - fully supported.",
+        props: ["block", "blanket"],
+        cues: ["Sit the hips onto a block", "Blanket under lifted heels", "Spine long, chest bright"],
+        holdSeconds: 30,
+      },
+      intermediate: {
+        description: "Free squat, palms at heart, elbows pressing the knees wide.",
+        props: ["none"],
+        cues: ["Heels reach for the floor", "Elbows press knees apart", "Crown lifts as the hips sink"],
+        holdSeconds: 45,
+      },
+      advanced: {
+        description: "Heels grounded with a gentle forward fold or hands clasped behind the back.",
+        props: ["none"],
+        cues: ["Heels fully rooted", "Fold the chest between the knees", "Or clasp hands behind and lift them"],
+        holdSeconds: 60,
+      },
+    },
+    stepMotions: ["ground", "hip-shift", "settle", "lift", "ground"],
+  },
+
+  virasana: {
+    avoidIf: [
+      { condition: "Knee ligament injury - elevate the seat generously", severity: "modify" },
+      { condition: "Ankle injury", severity: "caution" },
+      { condition: "Legs going numb - come out and stretch", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Seated high on a block or two folded blankets, ankles padded.",
+        props: ["block", "blanket"],
+        cues: ["Height under the sitting bones", "Blanket under the ankles", "No pinching in the knees - ever"],
+        holdSeconds: 45,
+      },
+      intermediate: {
+        description: "Sitting between the heels on a thin support, spine tall and effortless.",
+        props: ["block", "none"],
+        cues: ["Thighs roll slightly inward", "Sitting bones root evenly", "Ribs float over the pelvis"],
+        holdSeconds: 60,
+      },
+      advanced: {
+        description: "Seat on the floor between the heels; explore reclining onto the forearms if the knees are happy.",
+        props: ["none"],
+        cues: ["Hips settle between the heels", "Knees stay together and content", "Recline only with zero knee protest"],
+        holdSeconds: 120,
+      },
+    },
+    stepMotions: ["ground", "hip-shift", "ground", "settle", "inhale"],
+  },
+
+  "supta-baddha-konasana": {
+    avoidIf: [
+      { condition: "Groin or knee strain - support the thighs well", severity: "modify" },
+      { condition: "Lower-back discomfort - elevate the torso", severity: "modify" },
+    ],
+    variations: {
+      beginner: {
+        description: "Generous support under both thighs and the head - zero stretch sensation, pure rest.",
+        props: ["pillow", "blanket", "block"],
+        cues: ["Thighs fully propped", "Small pillow under the head", "Nothing should feel like effort"],
+        holdSeconds: 90,
+      },
+      intermediate: {
+        description: "Lighter support, feet drawn a little closer to the hips, arms open.",
+        props: ["pillow", "none"],
+        cues: ["Heels a hand-span from the hips", "Arms open, palms up", "Ride the wave of the breath"],
+        holdSeconds: 120,
+      },
+      advanced: {
+        description: "No props, heels close in, with a long stay and full attention on the breath.",
+        props: ["none"],
+        cues: ["Let the knees hang freely", "Stay five minutes or more", "Watch the breath without steering it"],
+        holdSeconds: 180,
+      },
+    },
+    stepMotions: ["ground", "limb-rotate", "settle", "settle", "exhale"],
+  },
 };

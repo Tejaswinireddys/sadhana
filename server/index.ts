@@ -27,6 +27,11 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Cheap liveness probe for Render health checks. The previous health check
+// pointed at /api/preferences, which opens a DB round-trip (and lazily INSERTs
+// a row) on every probe — wasteful on free-tier Postgres.
+app.get("/healthz", (_req, res) => res.status(200).json({ ok: true }));
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",

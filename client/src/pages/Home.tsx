@@ -146,7 +146,7 @@ export default function Home() {
   const { todays, remove, loadSession } = usePractice();
   const [reminderDismissed, setReminderDismissed] = useState(false);
   const [splitsBannerDismissed, setSplitsBannerDismissed] = useState(false);
-  const { data: stats, isLoading } = useQuery<Stats>({ queryKey: ["/api/sessions/stats"] });
+  const { data: stats, isLoading } = useQuery<Stats>({ queryKey: ["/api/sessions/stats", todayISO()] });
   const { data: activeProfileRow } = useQuery<UserProfile | null>({
     queryKey: ["/api/profile/active"],
   });

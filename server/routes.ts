@@ -18,7 +18,17 @@ function dayKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
-function computeStats(sessions: { date: string; durationMinutes: number; kind?: string }[]) {
+// Pure YYYY-MM-DD arithmetic (UTC-based) so results never depend on the
+// server's local timezone.
+function addDays(iso: string, n: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d) + n * 86400000).toISOString().slice(0, 10);
+}
+
+export function computeStats(
+  sessions: { date: string; durationMinutes: number; kind?: string }[],
+  todayOverride?: string,
+) {
   // Aggregate minutes per day
   const minutesByDay = new Map<string, number>();
   for (const s of sessions) {
@@ -31,23 +41,22 @@ function computeStats(sessions: { date: string; durationMinutes: number; kind?: 
   const asanaSessions = sessions.filter((s) => (s.kind ?? "asana") === "asana").length;
   const breathingSessions = sessions.filter((s) => s.kind === "breathing").length;
 
-  // Build last 84 days array (oldest -> newest)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Build last 84 days array (oldest -> newest), anchored on the client's
+  // local calendar day when provided (server UTC day otherwise).
+  const todayKey =
+    todayOverride && /^\d{4}-\d{2}-\d{2}$/.test(todayOverride)
+      ? todayOverride
+      : new Date().toISOString().slice(0, 10);
   const heatmap: { date: string; minutes: number }[] = [];
   const practicedDays = new Set(minutesByDay.keys());
   for (let i = 83; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const k = d.toISOString().slice(0, 10);
+    const k = addDays(todayKey, -i);
     heatmap.push({ date: k, minutes: minutesByDay.get(k) || 0 });
   }
 
   // Current streak: consecutive days ending today or yesterday
   function isoDaysAgo(n: number): string {
-    const d = new Date(today);
-    d.setDate(today.getDate() - n);
-    return d.toISOString().slice(0, 10);
+    return addDays(todayKey, -n);
   }
   let currentStreak = 0;
   // Allow streak to count even if today not yet practiced (start from yesterday)
@@ -66,7 +75,7 @@ function computeStats(sessions: { date: string; durationMinutes: number; kind?: 
   let run = 0;
   let prev: Date | null = null;
   for (const k of sortedDays) {
-    const d = new Date(k + "T00:00:00");
+    const d = new Date(k + "T00:00:00Z");
     if (prev) {
       const diff = Math.round((d.getTime() - prev.getTime()) / 86400000);
       run = diff === 1 ? run + 1 : 1;
@@ -102,9 +111,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.status(400).json({ error: (e as Error).message });
     }
   });
-  app.get("/api/sessions/stats", async (_req, res) => {
+  // Optional trailing segment: the client's local calendar day (YYYY-MM-DD),
+  // so streaks/heatmaps line up with the user's timezone, not the server's.
+  app.get("/api/sessions/stats{/:today}", async (req, res) => {
     const sessions = await storage.getSessions();
-    res.json(computeStats(sessions));
+    res.json(computeStats(sessions, req.params.today));
   });
 
   // ---- Enrollments ----

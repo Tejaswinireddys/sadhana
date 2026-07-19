@@ -85,6 +85,63 @@ export const FOCUS_ZONES: Record<string, (FocusZone | undefined)[]> = {
   "ardha-hanumanasana": [undefined, undefined, undefined, { cx: 0.4, cy: 0.7, r: 0.2, label: "Front-leg hamstring" }],
   hanumanasana: [undefined, undefined, undefined, { cx: 0.42, cy: 0.7, r: 0.22, label: "Hamstring & hip flexor" }],
   "marichyasana-twist": [undefined, undefined, undefined, { cx: 0.5, cy: 0.42, r: 0.2, label: "Spine & twist" }],
+
+  "marjaryasana-bitilasana": [
+    { cx: 0.5, cy: 0.6, r: 0.24, label: "Tabletop base" },
+    { cx: 0.5, cy: 0.45, r: 0.22, label: "Belly drops, chest lifts" },
+    { cx: 0.5, cy: 0.35, r: 0.22, label: "Spine rounding" },
+    { cx: 0.5, cy: 0.45, r: 0.26, label: "Whole spine flowing" },
+    { cx: 0.5, cy: 0.5, r: 0.22, label: "Neutral spine" },
+  ],
+  "supta-matsyendrasana": [
+    { cx: 0.5, cy: 0.55, r: 0.2, label: "Knees to chest" },
+    { cx: 0.62, cy: 0.6, r: 0.2, label: "Knees dropping right" },
+    { cx: 0.35, cy: 0.3, r: 0.18, label: "Opposite shoulder" },
+    { cx: 0.5, cy: 0.5, r: 0.24, label: "Lower back releasing" },
+    { cx: 0.5, cy: 0.55, r: 0.2, label: "Back to center" },
+  ],
+  "supta-kapotasana": [
+    { cx: 0.5, cy: 0.65, r: 0.2, label: "Feet grounded" },
+    { cx: 0.55, cy: 0.55, r: 0.18, label: "Ankle over thigh" },
+    { cx: 0.5, cy: 0.5, r: 0.2, label: "Thigh drawing in" },
+    { cx: 0.6, cy: 0.55, r: 0.18, label: "Outer hip opening" },
+    { cx: 0.4, cy: 0.3, r: 0.18, label: "Shoulders heavy" },
+  ],
+  "parsva-balasana": [
+    { cx: 0.5, cy: 0.6, r: 0.22, label: "Tabletop base" },
+    { cx: 0.45, cy: 0.25, r: 0.18, label: "Arm reaching up" },
+    { cx: 0.4, cy: 0.45, r: 0.2, label: "Arm threading through" },
+    { cx: 0.55, cy: 0.4, r: 0.2, label: "Upper back softening" },
+    { cx: 0.5, cy: 0.45, r: 0.2, label: "Unwinding" },
+  ],
+  "uttana-shishosana": [
+    { cx: 0.6, cy: 0.6, r: 0.2, label: "Hips over knees" },
+    { cx: 0.35, cy: 0.55, r: 0.2, label: "Chest lowering" },
+    { cx: 0.3, cy: 0.6, r: 0.16, label: "Forehead resting" },
+    { cx: 0.45, cy: 0.4, r: 0.22, label: "Heart melting" },
+    { cx: 0.6, cy: 0.6, r: 0.2, label: "Sitting back" },
+  ],
+  malasana: [
+    { cx: 0.5, cy: 0.8, r: 0.18, label: "Feet & stance" },
+    { cx: 0.5, cy: 0.6, r: 0.22, label: "Hips sinking" },
+    { cx: 0.5, cy: 0.4, r: 0.18, label: "Palms at heart" },
+    { cx: 0.5, cy: 0.2, r: 0.16, label: "Crown lifting" },
+    { cx: 0.5, cy: 0.85, r: 0.16, label: "Heels grounding" },
+  ],
+  virasana: [
+    { cx: 0.5, cy: 0.7, r: 0.2, label: "Kneeling base" },
+    { cx: 0.5, cy: 0.6, r: 0.2, label: "Seat settling" },
+    { cx: 0.5, cy: 0.45, r: 0.2, label: "Spine lengthening" },
+    { cx: 0.5, cy: 0.3, r: 0.18, label: "Shoulders softening" },
+    { cx: 0.5, cy: 0.5, r: 0.24, label: "Steady seat" },
+  ],
+  "supta-baddha-konasana": [
+    { cx: 0.5, cy: 0.6, r: 0.2, label: "Lying back" },
+    { cx: 0.5, cy: 0.6, r: 0.24, label: "Knees falling open" },
+    { cx: 0.5, cy: 0.62, r: 0.22, label: "Thighs supported" },
+    { cx: 0.5, cy: 0.4, r: 0.18, label: "Heart & belly" },
+    { cx: 0.5, cy: 0.55, r: 0.22, label: "Complete rest" },
+  ],
 };
 
 // Per-asana stretch zones — powers the "You'll feel this in..." card.
@@ -330,5 +387,45 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Chest & abdomen", sensation: "Broad opening across the front body", intensity: "strong", primary: true },
     { region: "Shoulders", sensation: "Rolling back and open as the chest lifts", intensity: "medium", primary: true },
     { region: "Spine", sensation: "An energizing lengthening backbend", intensity: "medium", primary: false },
+  ],
+
+  "marjaryasana-bitilasana": [
+    { region: "Spine", sensation: "A wave of movement through every vertebra", intensity: "medium", primary: true },
+    { region: "Core & belly", sensation: "Alternating gentle stretch and engagement", intensity: "low", primary: false },
+    { region: "Neck", sensation: "A soft release as the head lifts and hangs", intensity: "low", primary: false },
+  ],
+  "supta-matsyendrasana": [
+    { region: "Lower back", sensation: "A satisfying wringing-out along the spine", intensity: "medium", primary: true },
+    { region: "Outer hip", sensation: "A slow melt in the hip of the top leg", intensity: "medium", primary: true },
+    { region: "Chest", sensation: "A light opening across the front shoulder", intensity: "low", primary: false },
+  ],
+  "supta-kapotasana": [
+    { region: "Outer hip & glute", sensation: "A deep, focused stretch in the crossed leg", intensity: "strong", primary: true },
+    { region: "Lower back", sensation: "Gentle traction as the thigh draws in", intensity: "low", primary: false },
+  ],
+  "parsva-balasana": [
+    { region: "Upper back", sensation: "A spreading release between the shoulder blades", intensity: "medium", primary: true },
+    { region: "Rear shoulder", sensation: "A deep stretch behind the threaded shoulder", intensity: "medium", primary: true },
+    { region: "Neck", sensation: "A gentle unwinding with the head at rest", intensity: "low", primary: false },
+  ],
+  "uttana-shishosana": [
+    { region: "Shoulders & armpits", sensation: "A long opening down the sides of the arms", intensity: "medium", primary: true },
+    { region: "Chest", sensation: "The heart melting toward the floor", intensity: "medium", primary: true },
+    { region: "Mid back", sensation: "A sweet lengthening through the thoracic spine", intensity: "low", primary: false },
+  ],
+  malasana: [
+    { region: "Hips & groin", sensation: "A wide, deep opening through the inner hips", intensity: "strong", primary: true },
+    { region: "Ankles", sensation: "A strong stretch as the heels root down", intensity: "medium", primary: true },
+    { region: "Lower back", sensation: "A pleasant decompression at the base of the spine", intensity: "low", primary: false },
+  ],
+  virasana: [
+    { region: "Front thighs", sensation: "A steady lengthening down the quadriceps", intensity: "medium", primary: true },
+    { region: "Ankles & feet", sensation: "A firm stretch across the tops of the feet", intensity: "medium", primary: false },
+    { region: "Knees", sensation: "A gentle, cared-for stretch - never pain", intensity: "low", primary: false },
+  ],
+  "supta-baddha-konasana": [
+    { region: "Inner thighs & groin", sensation: "A slow, passive opening with zero effort", intensity: "medium", primary: true },
+    { region: "Chest", sensation: "A soft widening with each breath", intensity: "low", primary: false },
+    { region: "Whole body", sensation: "Heaviness settling into the floor", intensity: "low", primary: false },
   ],
 };
