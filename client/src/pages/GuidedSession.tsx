@@ -53,6 +53,7 @@ import {
   Flame,
   Route as RouteIcon,
   LayoutGrid,
+  NotebookPen,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
@@ -771,7 +772,7 @@ export default function GuidedSession() {
               Retry save
             </Button>
           )}
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
             <Button
               size="lg"
               onClick={async () => {
@@ -787,11 +788,29 @@ export default function GuidedSession() {
               data-testid="button-log-continue"
               disabled={saving}
             >
-              Log &amp; continue
+              Done — back home
             </Button>
             <Button
               size="lg"
               variant="outline"
+              onClick={async () => {
+                if (!showPostMood && !sessionLogged.current) {
+                  await finalizeSession(postMood);
+                }
+                if (sessionLogged.current) {
+                  const title = meta.label ?? "Practice reflection";
+                  clear();
+                  navigate(`/journal?new=1&title=${encodeURIComponent(title)}`);
+                }
+              }}
+              data-testid="button-journal-prompt"
+              disabled={saving}
+            >
+              <NotebookPen className="mr-1.5 h-4 w-4" /> Reflect in journal
+            </Button>
+            <Button
+              size="lg"
+              variant="ghost"
               onClick={() => {
                 // "Do one more pose" — restart from the last pose for another round.
                 sessionLogged.current = false;

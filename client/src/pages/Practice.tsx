@@ -296,7 +296,7 @@ export default function Practice() {
               }}
               data-testid="button-finish-home"
             >
-              Back to dashboard
+              Back home
             </Button>
             <Button
               onClick={() => {

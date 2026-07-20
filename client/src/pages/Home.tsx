@@ -346,31 +346,23 @@ export default function Home() {
         </Card>
       )}
 
-      {/* Stats */}
-      {isLoading ? (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full" />
-          ))}
-        </div>
-      ) : statsError ? (
-        <Card className="border-destructive/40 bg-destructive/5 shadow-soft" data-testid="banner-stats-error">
+      {/* Soft acknowledgment when today's practice is already done */}
+      {practicedToday && !showReminder && (
+        <Card className="border-secondary/30 bg-secondary/10 shadow-soft" data-testid="banner-practiced-today">
           <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
-            <p className="text-sm text-muted-foreground">
-              Couldn't load your practice stats. Check your connection and try again.
-            </p>
-            <Button variant="outline" onClick={() => refetchStats()} data-testid="button-retry-stats">
-              Retry
+            <div>
+              <p className="font-serif text-lg leading-tight">You've practiced today</p>
+              <p className="text-sm text-muted-foreground">
+                Rest is part of the practice — or take a few quiet breaths if you like.
+              </p>
+            </div>
+            <Button asChild variant="outline" data-testid="button-practiced-breath">
+              <Link href="/breathing">
+                <Wind className="mr-1.5 h-4 w-4" /> Breath of the day
+              </Link>
             </Button>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard icon={Flame} label="Current streak (days)" value={stats?.currentStreak ?? 0} testId="stat-current-streak" />
-          <StatCard icon={Trophy} label="Longest streak (days)" value={stats?.longestStreak ?? 0} testId="stat-longest-streak" />
-          <StatCard icon={CalendarCheck} label="Total sessions" value={stats?.totalSessions ?? 0} testId="stat-total-sessions" />
-          <StatCard icon={Clock} label="Minutes practiced" value={stats?.totalMinutes ?? 0} testId="stat-total-minutes" />
-        </div>
       )}
 
       {/* Favorited poses — one-tap practice */}
@@ -429,6 +421,121 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      {/* Today's guided session from profile or enrolled splits program */}
+      {splitsEnrollment && splitsToday ? (
+        <Card className="border-primary/40 shadow-soft" data-testid="card-splits-today">
+          <CardHeader className="pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 font-serif text-lg">
+                <CalendarDays className="h-5 w-5 text-primary" /> Day {splitsCurrentDay} of 60 ·{" "}
+                {splitsToday.theme}
+              </CardTitle>
+              <div className="flex gap-1.5">
+                <Badge variant="outline" className="gap-1 tabular-nums">
+                  <Clock className="h-3 w-3" /> ~{splitsToday.totalMinutes} min
+                </Badge>
+                <Badge variant="outline">
+                  {splitsToday.restDay
+                    ? "Rest day"
+                    : splitsToday.focus === "both"
+                      ? "Splits + backbend"
+                      : "Front splits"}
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {splitsToday.restDay
+                ? "Rest day — let your body rebuild. An optional gentle recovery is available."
+                : `${splitsPathway?.name} · ${splitsToday.poses.length} poses queued for today.`}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                className="flex-1 sm:flex-none"
+                onClick={startSplitsDay}
+                data-testid="button-start-splits-today"
+              >
+                <Play className="mr-1.5 h-4 w-4" />{" "}
+                {splitsToday.restDay ? "Start optional recovery" : "Start today's session"}
+              </Button>
+              <Button variant="outline" asChild data-testid="link-splits-pathway">
+                <Link href={`/pathways/${SPLITS_SLUG}`}>View journey</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : profile ? (
+        <Card className="border-primary/30 shadow-soft" data-testid="card-profile-session">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 font-serif text-lg">
+                <ProfileIcon className="h-5 w-5 text-primary" /> Your {profile.name} session today
+              </CardTitle>
+              <div className="flex gap-1.5">
+                <Badge variant="outline" className="tabular-nums">
+                  {profile.minutesPerSession} min
+                </Badge>
+                <Badge variant="outline">
+                  {profile.daysPerWeek === 7 ? "daily" : `${profile.daysPerWeek}x / wk`}
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{profile.tagline}</p>
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="list-profile-asanas">
+              {recommendedAsanas.map(
+                (a) =>
+                  a && (
+                    <li key={a.slug}>
+                      <Link href={`/asanas/${a.slug}`}>
+                        <div
+                          className="flex items-center gap-2 rounded-lg border border-border bg-background p-2 transition-shadow hover:shadow-soft hover-elevate"
+                          data-testid={`profile-asana-${a.slug}`}
+                        >
+                          <img
+                            src={`${import.meta.env.BASE_URL}poses/${a.slug}.png`}
+                            alt=""
+                            className="h-12 w-12 shrink-0 rounded-md object-cover"
+                            draggable={false}
+                          />
+                          <span className="text-xs leading-tight">{a.english}</span>
+                        </div>
+                      </Link>
+                    </li>
+                  ),
+              )}
+            </ul>
+            {recommendedBreath.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Breath
+                </span>
+                {recommendedBreath.map(
+                  (b) =>
+                    b && (
+                      <Link key={b.slug} href="/breathing">
+                        <Badge variant="outline" className="cursor-pointer gap-1 hover-elevate">
+                          <Wind className="h-3 w-3 text-secondary" /> {b.name}
+                        </Badge>
+                      </Link>
+                    ),
+                )}
+              </div>
+            )}
+            <Button
+              className="w-full"
+              onClick={startProfileSession}
+              disabled={recommendedAsanas.length === 0}
+              data-testid="button-start-today-session"
+            >
+              <Play className="mr-1.5 h-4 w-4" /> Start today's session
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Quick Start — mood-based sessions (v3.4) */}
       <section id="quick-start" className="space-y-3" data-testid="section-quick-start">
@@ -518,6 +625,33 @@ export default function Home() {
         </section>
       )}
 
+      {/* Stats — after the practice loop so zeros don't bury the start CTA */}
+      {isLoading ? (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full" />
+          ))}
+        </div>
+      ) : statsError ? (
+        <Card className="border-destructive/40 bg-destructive/5 shadow-soft" data-testid="banner-stats-error">
+          <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
+            <p className="text-sm text-muted-foreground">
+              Couldn't load your practice stats. Check your connection and try again.
+            </p>
+            <Button variant="outline" onClick={() => refetchStats()} data-testid="button-retry-stats">
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard icon={Flame} label="Current streak (days)" value={stats?.currentStreak ?? 0} testId="stat-current-streak" />
+          <StatCard icon={Trophy} label="Longest streak (days)" value={stats?.longestStreak ?? 0} testId="stat-longest-streak" />
+          <StatCard icon={CalendarCheck} label="Total sessions" value={stats?.totalSessions ?? 0} testId="stat-total-sessions" />
+          <StatCard icon={Clock} label="Minutes practiced" value={stats?.totalMinutes ?? 0} testId="stat-total-minutes" />
+        </div>
+      )}
+
       {/* 60-Day Splits discovery banner (v3.5) — shown when NOT enrolled */}
       {!splitsEnrollment && !splitsBannerDismissed && (
         <Card
@@ -557,138 +691,6 @@ export default function Home() {
         </Card>
       )}
 
-      {/* Enrolled in 60-Day Splits: Day N of 60 card replaces the profile session panel */}
-      {splitsEnrollment && splitsToday ? (
-        <Card className="border-primary/40 shadow-soft" data-testid="card-splits-today">
-          <CardHeader className="pb-2">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <CardTitle className="flex items-center gap-2 font-serif text-lg">
-                <CalendarDays className="h-5 w-5 text-primary" /> Day {splitsCurrentDay} of 60 ·{" "}
-                {splitsToday.theme}
-              </CardTitle>
-              <div className="flex gap-1.5">
-                <Badge variant="outline" className="gap-1 tabular-nums">
-                  <Clock className="h-3 w-3" /> ~{splitsToday.totalMinutes} min
-                </Badge>
-                <Badge variant="outline">
-                  {splitsToday.restDay
-                    ? "Rest day"
-                    : splitsToday.focus === "both"
-                      ? "Splits + backbend"
-                      : "Front splits"}
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {splitsToday.restDay
-                ? "Rest day — let your body rebuild. An optional gentle recovery is available."
-                : `${splitsPathway?.name} · ${splitsToday.poses.length} poses queued for today.`}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                className="flex-1 sm:flex-none"
-                onClick={startSplitsDay}
-                data-testid="button-start-splits-today"
-              >
-                <Play className="mr-1.5 h-4 w-4" />{" "}
-                {splitsToday.restDay ? "Start optional recovery" : "Start today's session"}
-              </Button>
-              <Button variant="outline" asChild data-testid="link-splits-pathway">
-                <Link href={`/pathways/${SPLITS_SLUG}`}>View journey</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : /* Profile-aware today's practice */
-      profile ? (
-        <Card className="border-primary/30 shadow-soft" data-testid="card-profile-session">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between gap-3">
-              <CardTitle className="flex items-center gap-2 font-serif text-lg">
-                <ProfileIcon className="h-5 w-5 text-primary" /> Your {profile.name} session today
-              </CardTitle>
-              <div className="flex gap-1.5">
-                <Badge variant="outline" className="tabular-nums">
-                  {profile.minutesPerSession} min
-                </Badge>
-                <Badge variant="outline">
-                  {profile.daysPerWeek === 7 ? "daily" : `${profile.daysPerWeek}x / wk`}
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">{profile.tagline}</p>
-            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="list-profile-asanas">
-              {recommendedAsanas.map(
-                (a) =>
-                  a && (
-                    <li key={a.slug}>
-                      <Link href={`/asanas/${a.slug}`}>
-                        <div
-                          className="flex items-center gap-2 rounded-lg border border-border bg-background p-2 transition-shadow hover:shadow-soft hover-elevate"
-                          data-testid={`profile-asana-${a.slug}`}
-                        >
-                          <img
-                            src={`${import.meta.env.BASE_URL}poses/${a.slug}.png`}
-                            alt=""
-                            className="h-12 w-12 shrink-0 rounded-md object-cover"
-                            draggable={false}
-                          />
-                          <span className="text-xs leading-tight">{a.english}</span>
-                        </div>
-                      </Link>
-                    </li>
-                  ),
-              )}
-            </ul>
-            {recommendedBreath.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Breath
-                </span>
-                {recommendedBreath.map(
-                  (b) =>
-                    b && (
-                      <Link key={b.slug} href="/breathing">
-                        <Badge variant="outline" className="cursor-pointer gap-1 hover-elevate">
-                          <Wind className="h-3 w-3 text-secondary" /> {b.name}
-                        </Badge>
-                      </Link>
-                    ),
-                )}
-              </div>
-            )}
-            <Button
-              className="w-full"
-              onClick={startProfileSession}
-              disabled={recommendedAsanas.length === 0}
-              data-testid="button-start-today-session"
-            >
-              <Play className="mr-1.5 h-4 w-4" /> Start today's session
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        !isLoading &&
-        !hasPracticed && (
-          <Card className="border-primary/30 bg-accent/40 shadow-soft">
-            <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
-              <PoseSvg pose="seated" size={84} className="text-primary" />
-              <h2 className="font-serif text-xl">Begin your practice</h2>
-              <p className="max-w-sm text-sm text-muted-foreground">
-                Your journey starts with a single breath. Add a few asanas and start your first session.
-              </p>
-              <Button asChild data-testid="button-browse-asanas">
-                <Link href="/asanas">Browse the Asana Library</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )
-      )}
-
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Daily affirmation */}
         <Card className="shadow-soft">
@@ -725,43 +727,51 @@ export default function Home() {
           </CardHeader>
           <CardContent className="space-y-4">
             {todays.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Build your own session — add any poses from the library to practice them in any order.
-              </p>
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Build your own session — add any poses from the library to practice them in any order.
+                </p>
+                <Button asChild variant="outline" className="w-full" data-testid="button-add-custom-poses">
+                  <Link href="/asanas">
+                    Add poses from library <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </Link>
+                </Button>
+              </>
             ) : (
-              <ul className="space-y-2" data-testid="list-todays-practice">
-                {todays.map((a) => (
-                  <li
-                    key={a.slug}
-                    className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm"
-                    data-testid={`todays-item-${a.slug}`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="text-primary">
-                        <PoseSvg pose={a.pose} size={28} />
-                      </span>
-                      {a.english}
-                    </span>
-                    <button
-                      onClick={() => remove(a.slug)}
-                      className="text-muted-foreground hover:text-destructive"
-                      data-testid={`button-remove-${a.slug}`}
-                      aria-label={`Remove ${a.english}`}
+              <>
+                <ul className="space-y-2" data-testid="list-todays-practice">
+                  {todays.map((a) => (
+                    <li
+                      key={a.slug}
+                      className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm"
+                      data-testid={`todays-item-${a.slug}`}
                     >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                      <span className="flex items-center gap-2">
+                        <span className="text-primary">
+                          <PoseSvg pose={a.pose} size={28} />
+                        </span>
+                        {a.english}
+                      </span>
+                      <button
+                        onClick={() => remove(a.slug)}
+                        className="text-muted-foreground hover:text-destructive"
+                        data-testid={`button-remove-${a.slug}`}
+                        aria-label={`Remove ${a.english}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  className="w-full"
+                  onClick={() => navigate("/guided")}
+                  data-testid="button-start-practice"
+                >
+                  <Play className="mr-1.5 h-4 w-4" /> Start practice
+                </Button>
+              </>
             )}
-            <Button
-              className="w-full"
-              disabled={todays.length === 0}
-              onClick={() => navigate("/guided")}
-              data-testid="button-start-practice"
-            >
-              <Play className="mr-1.5 h-4 w-4" /> Start practice
-            </Button>
           </CardContent>
         </Card>
       </div>

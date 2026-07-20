@@ -34,6 +34,7 @@ export function Onboarding({
   onDone: () => void;
 }) {
   const [step, setStep] = useState(0);
+  const [pickedId, setPickedId] = useState<string | null>(null);
   const [, navigate] = useLocation();
   const { loadSession } = usePractice();
   const { data: active } = useQuery<{ profileId: string } | null>({
@@ -46,9 +47,12 @@ export function Onboarding({
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/profile/active"] }),
   });
 
-  const finish = () => {
+  const hasPath = !!(pickedId || active?.profileId);
+
+  const finish = (opts?: { goPractice?: boolean }) => {
     writeString(KEYS.onboardingDone, "1");
     onDone();
+    if (opts?.goPractice) navigate("/guided");
   };
 
   const startQuick = () => {
@@ -85,12 +89,15 @@ export function Onboarding({
           <div className="grid max-h-[50vh] gap-2 overflow-y-auto">
             {PROFILES.slice(0, 6).map((p) => {
               const Icon = resolveIcon(p.icon);
-              const selected = active?.profileId === p.id;
+              const selected = (pickedId ?? active?.profileId) === p.id;
               return (
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => activate.mutate(p.id)}
+                  onClick={() => {
+                    setPickedId(p.id);
+                    activate.mutate(p.id);
+                  }}
                   className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent/40 ${
                     selected ? "border-primary bg-accent/30" : "border-border"
                   }`}
@@ -109,11 +116,12 @@ export function Onboarding({
             <Button
               className="mt-2"
               onClick={() => setStep(1)}
+              disabled={!hasPath}
               data-testid="onboarding-next-1"
             >
               <Compass className="mr-1.5 h-4 w-4" /> Continue
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setStep(1)}>
+            <Button variant="ghost" size="sm" onClick={() => setStep(1)} data-testid="onboarding-skip-path">
               Skip for now
             </Button>
           </div>
@@ -147,8 +155,12 @@ export function Onboarding({
             <div className="rounded-lg border border-border p-3">
               <MotionToggle />
             </div>
-            <Button className="w-full" onClick={finish} data-testid="onboarding-finish">
-              <Sparkles className="mr-1.5 h-4 w-4" /> Start exploring
+            <Button
+              className="w-full"
+              onClick={() => finish({ goPractice: true })}
+              data-testid="onboarding-finish"
+            >
+              <Sparkles className="mr-1.5 h-4 w-4" /> Start practice
             </Button>
           </div>
         )}

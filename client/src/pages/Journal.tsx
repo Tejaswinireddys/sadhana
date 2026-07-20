@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useSearch } from "wouter";
+import { Link, useSearch } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ import { MOODS, type Mood } from "@/data/content";
 import { MOOD_ICONS } from "@/lib/moods";
 import type { Journal as JournalEntry } from "@shared/schema";
 import { todayISO, formatShortDate } from "@/lib/sadhana";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2, Timer } from "lucide-react";
 
 type Draft = {
   id?: number;
@@ -169,15 +169,29 @@ export default function Journal() {
           title={entries.length === 0 ? "Your journal is empty" : "No matching entries"}
           description={
             entries.length === 0
-              ? "Capture a thought after your next practice. A few words is enough to begin."
+              ? "Practice first, then capture how you feel — or write a few words anytime."
               : "Try a different search or mood filter."
           }
           testId="empty-journal"
         >
           {entries.length === 0 && (
-            <Button onClick={() => { setDraft(emptyDraft); setOpen(true); }} data-testid="button-first-entry">
-              <Plus className="mr-1.5 h-4 w-4" /> Write your first entry
-            </Button>
+            <div className="flex flex-col items-center gap-2 sm:flex-row">
+              <Button asChild data-testid="button-journal-start-practice">
+                <Link href="/guided">
+                  <Timer className="mr-1.5 h-4 w-4" /> Start a practice
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDraft(emptyDraft);
+                  setOpen(true);
+                }}
+                data-testid="button-first-entry"
+              >
+                <Plus className="mr-1.5 h-4 w-4" /> Write an entry
+              </Button>
+            </div>
           )}
         </EmptyState>
       ) : (
