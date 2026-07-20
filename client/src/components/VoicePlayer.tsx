@@ -156,7 +156,7 @@ export function VoicePlayer({
 
       <div className="flex items-center justify-between">
         <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-          Calm female voice (ElevenLabs)
+          Calm guided voice
         </span>
         {!voiceEnabled && (
           <span className="text-[11px] text-muted-foreground">Voice disabled</span>
