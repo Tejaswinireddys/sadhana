@@ -3,11 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { todayISO } from "@/lib/sadhana";
 import { BreathingVisualizer, type BreathConfig } from "@/components/BreathingVisualizer";
 import { VoicePlayer } from "@/components/VoicePlayer";
 import { BREATHING, breathOfTheDay, type BreathTechnique } from "@/data/content";
+import { logPracticeSession } from "@/lib/logPracticeSession";
 import { Sparkles, ShieldAlert, Wind } from "lucide-react";
 
 export default function Breathing() {
@@ -34,22 +33,31 @@ export default function Breathing() {
 
   const onComplete = (totalSeconds: number) => {
     const minutes = Math.max(1, Math.round(totalSeconds / 60));
-    apiRequest("POST", "/api/sessions", {
-      date: todayISO(),
-      durationMinutes: minutes,
-      asanas: JSON.stringify([active.name]),
+    void logPracticeSession({
+      minutes,
+      poseNames: [active.name],
+      label: `Pranayama: ${active.name}`,
       pathwaySlug: null,
-      notes: `Pranayama: ${active.name}`,
+      preMood: null,
+      postMood: null,
       kind: "breathing",
-    })
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
-      })
-      .catch(() => {});
-    toast({
-      title: "Breath complete 🌬️",
-      description: `${active.name} logged toward your streak.`,
+      journalTags: ["breathing", active.name],
+      journalBody: `Pranayama — ${active.name} for ${minutes} min.`,
+    }).then((result) => {
+      if (!result.ok) {
+        toast({
+          title: "Could not save breath session",
+          description: result.error ?? "Try again when you're back online.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Breath complete",
+        description: result.milestone
+          ? result.milestone.message
+          : `${active.name} logged toward your streak.`,
+      });
     });
   };
 

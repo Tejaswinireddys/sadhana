@@ -225,10 +225,10 @@ export default function Practice() {
       <div className="animate-fade-in">
         <EmptyState
           title="No asanas selected"
-          description="Add a few poses from the Asana Library to build today's session, then return here to practice."
+          description="Start from the practice hub — pick a mood session, warm-up, or pathway — then switch to timer-only if you prefer."
         >
-          <Button asChild data-testid="button-go-library">
-            <Link href="/asanas">Browse the library</Link>
+          <Button asChild data-testid="button-go-practice-hub">
+            <Link href="/guided">Start practice</Link>
           </Button>
         </EmptyState>
       </div>

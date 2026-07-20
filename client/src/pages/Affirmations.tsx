@@ -6,8 +6,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { AFFIRMATIONS } from "@/data/content";
-import type { Favorite } from "@shared/schema";
+import {
+  AFFIRMATION_THEMES,
+  AFFIRMATIONS,
+  PROFILE_AFFIRMATION_TAG_MAP,
+  affirmationsForTheme,
+  type AffirmationThemeId,
+} from "@/data/content";
+import { profileById } from "@/data/profiles";
+import type { Favorite, UserProfile } from "@shared/schema";
 import { Heart, Volume2 } from "lucide-react";
 
 function readAloud(text: string) {
@@ -19,13 +26,13 @@ function readAloud(text: string) {
   }
 }
 
-function readFocus(): string {
-  const direct = new URLSearchParams(window.location.search).get("focus");
+function readParam(name: string): string {
+  const direct = new URLSearchParams(window.location.search).get(name);
   if (direct) return direct;
   const hash = window.location.hash;
   const qIndex = hash.indexOf("?");
   if (qIndex !== -1) {
-    const fromHash = new URLSearchParams(hash.slice(qIndex + 1)).get("focus");
+    const fromHash = new URLSearchParams(hash.slice(qIndex + 1)).get(name);
     if (fromHash) return fromHash;
   }
   return "";
@@ -73,13 +80,67 @@ function AffirmationCard({
   );
 }
 
+function AffirmationGrid({
+  items,
+  favByText,
+  toggle,
+  focus,
+}: {
+  items: string[];
+  favByText: (text: string) => Favorite | undefined;
+  toggle: (text: string) => void;
+  focus: string;
+}) {
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        title="Nothing in this theme yet"
+        description="Try another theme, or favorite affirmations from All."
+      />
+    );
+  }
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {items.map((text) => (
+        <AffirmationCard
+          key={text}
+          text={text}
+          fav={favByText(text)}
+          onToggle={() => toggle(text)}
+          highlighted={!!focus && focus === text}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function Affirmations() {
   const { data: favorites = [], isLoading } = useQuery<Favorite[]>({ queryKey: ["/api/favorites"] });
-  const [focus, setFocus] = useState(readFocus());
+  const { data: activeProfileRow } = useQuery<UserProfile | null>({
+    queryKey: ["/api/profile/active"],
+  });
+  const [focus, setFocus] = useState(() => readParam("focus"));
+  const profile = profileById(activeProfileRow?.profileId);
+  const profileTheme =
+    profile?.recommendedAffirmationsTag
+      ? PROFILE_AFFIRMATION_TAG_MAP[profile.recommendedAffirmationsTag]
+      : undefined;
 
-  // When arriving from search with ?focus=..., scroll to and highlight the card.
+  const initialTheme = (): string => {
+    const fromUrl = readParam("theme");
+    if (fromUrl && (fromUrl === "all" || fromUrl === "favorites" || fromUrl in PROFILE_AFFIRMATION_TAG_MAP || AFFIRMATION_THEMES.some((t) => t.id === fromUrl))) {
+      return PROFILE_AFFIRMATION_TAG_MAP[fromUrl] ?? fromUrl;
+    }
+    return profileTheme ?? "all";
+  };
+  const [themeTab, setThemeTab] = useState(initialTheme);
+
   useEffect(() => {
-    const onChange = () => setFocus(readFocus());
+    const onChange = () => {
+      setFocus(readParam("focus"));
+      const t = readParam("theme");
+      if (t) setThemeTab(PROFILE_AFFIRMATION_TAG_MAP[t] ?? t);
+    };
     window.addEventListener("hashchange", onChange);
     window.addEventListener("popstate", onChange);
     return () => {
@@ -125,36 +186,62 @@ export default function Affirmations() {
       <header className="space-y-1">
         <h1 className="font-serif text-3xl font-semibold tracking-tight">Affirmations</h1>
         <p className="text-muted-foreground">
-          {AFFIRMATIONS.length} mindful affirmations. Favorite the ones that resonate and read them aloud.
+          {AFFIRMATIONS.length} mindful affirmations across calm, strength, motherhood, clarity,
+          self-love, and sleep. Favorite the ones that resonate and read them aloud.
+          {profile && profileTheme ? (
+            <>
+              {" "}
+              For your {profile.name} path, try{" "}
+              <button
+                type="button"
+                className="underline underline-offset-2 hover:text-foreground"
+                onClick={() => setThemeTab(profileTheme)}
+                data-testid="button-profile-theme"
+              >
+                {AFFIRMATION_THEMES.find((t) => t.id === profileTheme)?.label}
+              </button>
+              .
+            </>
+          ) : null}
         </p>
       </header>
 
-      <Tabs defaultValue="all">
-        <TabsList>
-          <TabsTrigger value="all" data-testid="tab-all-affirmations">All</TabsTrigger>
+      <Tabs value={themeTab} onValueChange={setThemeTab}>
+        <TabsList className="flex h-auto flex-wrap gap-1">
+          <TabsTrigger value="all" data-testid="tab-all-affirmations">
+            All
+          </TabsTrigger>
+          {AFFIRMATION_THEMES.map((t) => (
+            <TabsTrigger key={t.id} value={t.id} data-testid={`tab-theme-${t.id}`}>
+              {t.label}
+            </TabsTrigger>
+          ))}
           <TabsTrigger value="favorites" data-testid="tab-favorite-affirmations">
             Favorites{favorites.length ? ` (${favorites.length})` : ""}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="mt-4">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {AFFIRMATIONS.map((text) => (
-              <AffirmationCard
-                key={text}
-                text={text}
-                fav={favByText(text)}
-                onToggle={() => toggle(text)}
-                highlighted={!!focus && focus === text}
-              />
-            ))}
-          </div>
+          <AffirmationGrid items={AFFIRMATIONS} favByText={favByText} toggle={toggle} focus={focus} />
         </TabsContent>
+
+        {AFFIRMATION_THEMES.map((t) => (
+          <TabsContent key={t.id} value={t.id} className="mt-4">
+            <AffirmationGrid
+              items={affirmationsForTheme(t.id as AffirmationThemeId)}
+              favByText={favByText}
+              toggle={toggle}
+              focus={focus}
+            />
+          </TabsContent>
+        ))}
 
         <TabsContent value="favorites" className="mt-4">
           {isLoading ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32 w-full" />)}
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-32 w-full" />
+              ))}
             </div>
           ) : favorites.length === 0 ? (
             <EmptyState
@@ -163,13 +250,15 @@ export default function Affirmations() {
               testId="empty-favorites"
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {favorites.map((f) => (
-                <AffirmationCard key={f.id} text={f.affirmationText} fav={f} onToggle={() => toggle(f.affirmationText)} />
-              ))}
-            </div>
+            <AffirmationGrid
+              items={favorites.map((f) => f.affirmationText)}
+              favByText={favByText}
+              toggle={toggle}
+              focus={focus}
+            />
           )}
         </TabsContent>
+
       </Tabs>
     </div>
   );

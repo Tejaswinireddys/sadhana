@@ -8,13 +8,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Heatmap } from "@/components/Heatmap";
 import { PoseSvg } from "@/components/PoseSvg";
 import { usePractice } from "@/context/PracticeContext";
-import { asanaBySlug, breathBySlug, dailyAffirmation, breathOfTheDay, pathwayBySlug, PATHWAYS } from "@/data/content";
+import {
+  asanaBySlug,
+  breathBySlug,
+  dailyAffirmation,
+  breathOfTheDay,
+  pathwayBySlug,
+  PATHWAYS,
+  PROFILE_AFFIRMATION_TAG_MAP,
+} from "@/data/content";
 import type { Pathway } from "@/data/content";
 import { profileById } from "@/data/profiles";
 import { resolveIcon } from "@/lib/icons";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
 import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/lib/localPrefs";
 import type { UserProfile, Enrollment, FavoriteAsana } from "@shared/schema";
+import { QUICK_SESSIONS } from "@/data/quickSessions";
 import {
   Flame,
   Trophy,
@@ -27,9 +36,6 @@ import {
   ArrowRight,
   Compass,
   Sparkles,
-  Wind as WindIcon,
-  Sunrise,
-  HeartPulse,
   Moon,
   CalendarDays,
   Zap,
@@ -42,78 +48,6 @@ const SPLITS_SLUG = "sixty-day-splits";
 // Three quick flows featured on Home for users who haven't enrolled in a
 // program yet — a light, one-tap on-ramp mirroring the Quick Start row.
 const FEATURED_FLOW_SLUGS = ["morning-wake-up", "desk-break", "sleep-wind-down"];
-
-// Quick Start mood-based sessions (v3.4). Each is a ready-to-go sequence with
-// per-pose hold overrides, loaded into the Practice timer on "Begin".
-type QuickSession = {
-  id: string;
-  icon: any;
-  label: string;
-  time: string;
-  intent: string;
-  poses: Array<{ slug: string; holdSeconds: number }>;
-  breathSlug?: string;
-};
-
-const QUICK_SESSIONS: QuickSession[] = [
-  {
-    id: "tense",
-    icon: HeartPulse,
-    label: "I'm tense",
-    time: "5 min",
-    intent: "Release",
-    poses: [
-      { slug: "balasana", holdSeconds: 60 },
-      { slug: "paschimottanasana", holdSeconds: 60 },
-      { slug: "viparita-karani", holdSeconds: 180 },
-      { slug: "savasana", holdSeconds: 60 },
-    ],
-  },
-  {
-    id: "tired",
-    icon: Moon,
-    label: "I'm tired",
-    time: "5 min",
-    intent: "Restore",
-    poses: [
-      { slug: "setu-bandhasana", holdSeconds: 45 },
-      { slug: "viparita-karani", holdSeconds: 180 },
-      { slug: "balasana", holdSeconds: 60 },
-      { slug: "savasana", holdSeconds: 75 },
-    ],
-  },
-  {
-    id: "low-energy",
-    icon: Sunrise,
-    label: "I'm low energy",
-    time: "10 min",
-    intent: "Energize",
-    poses: [
-      { slug: "tadasana", holdSeconds: 30 },
-      { slug: "virabhadrasana-ii", holdSeconds: 45 },
-      { slug: "virabhadrasana-i", holdSeconds: 45 },
-      { slug: "utkatasana", holdSeconds: 45 },
-      { slug: "anjaneyasana", holdSeconds: 60 },
-      { slug: "balasana", holdSeconds: 60 },
-      { slug: "adho-mukha-svanasana", holdSeconds: 60 },
-      { slug: "savasana", holdSeconds: 75 },
-    ],
-  },
-  {
-    id: "anxious",
-    icon: WindIcon,
-    label: "I'm anxious",
-    time: "10 min",
-    intent: "Calm",
-    poses: [
-      { slug: "balasana", holdSeconds: 90 },
-      { slug: "sukhasana", holdSeconds: 120 },
-      { slug: "viparita-karani", holdSeconds: 240 },
-      { slug: "savasana", holdSeconds: 150 },
-    ],
-    breathSlug: "nadi-shodhana",
-  },
-];
 
 function StatCard({
   icon: Icon,
@@ -165,7 +99,6 @@ export default function Home() {
   const { data: favoriteAsanas = [] } = useQuery<FavoriteAsana[]>({
     queryKey: ["/api/favorites/asanas"],
   });
-  const affirmation = dailyAffirmation();
   const breath = breathOfTheDay();
   const reminderPrefs = readJson<ReminderPrefs>(KEYS.reminder, {
     enabled: true,
@@ -174,6 +107,10 @@ export default function Home() {
   });
 
   const profile = profileById(activeProfileRow?.profileId);
+  const affirmation = dailyAffirmation(new Date(), profile?.recommendedAffirmationsTag);
+  const profileAffirmationTheme = profile?.recommendedAffirmationsTag
+    ? PROFILE_AFFIRMATION_TAG_MAP[profile.recommendedAffirmationsTag]
+    : undefined;
   const recommendedAsanas = profile
     ? profile.recommendedAsanas.map((s) => asanaBySlug(s)).filter(Boolean)
     : [];
@@ -767,7 +704,15 @@ export default function Home() {
                 <Volume2 className="mr-1.5 h-4 w-4" /> Read aloud
               </Button>
               <Button variant="ghost" size="sm" asChild data-testid="link-more-affirmations">
-                <Link href="/affirmations">More affirmations</Link>
+                <Link
+                  href={
+                    profileAffirmationTheme
+                      ? `/affirmations?theme=${profileAffirmationTheme}`
+                      : "/affirmations"
+                  }
+                >
+                  More affirmations
+                </Link>
               </Button>
             </div>
           </CardContent>

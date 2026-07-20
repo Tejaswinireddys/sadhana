@@ -1328,14 +1328,39 @@ export const ASANAS: Asana[] = RAW_ASANAS.map((raw) => {
 });
 
 // ---- Warm-up routine (shown above pathways) ----
+/** Short runnable warm-up — Start loads these into guided practice. */
 export const WARMUP = {
   title: "Always warm up first — 5 min",
-  description: "A short cat/cow and sun-salutation sequence to wake up the spine and joints before any pathway.",
+  description: "A short sequence to wake up the spine and joints before any pathway.",
   steps: [
-    { name: "Cat / Cow", pose: "cat", imgSlug: "bhujangasana", detail: "8–10 rounds, syncing spine movement with breath" },
-    { name: "Sun Salutation A", pose: "forward-fold", imgSlug: "tadasana", detail: "3–5 slow rounds to build gentle heat" },
-    { name: "Low Lunge", pose: "low-lunge", imgSlug: "anjaneyasana", detail: "30 sec each side to open the hip flexors" },
-    { name: "Forward Fold", pose: "forward-fold", imgSlug: "uttanasana", detail: "30 sec to lengthen the hamstrings" },
+    {
+      name: "Cat / Cow",
+      asanaSlug: "marjaryasana-bitilasana",
+      holdSeconds: 60,
+      sides: "once" as const,
+      detail: "8–10 rounds, syncing spine movement with breath",
+    },
+    {
+      name: "Downward-Facing Dog",
+      asanaSlug: "adho-mukha-svanasana",
+      holdSeconds: 45,
+      sides: "once" as const,
+      detail: "Pedal the feet and lengthen the spine to build gentle heat",
+    },
+    {
+      name: "Low Lunge",
+      asanaSlug: "anjaneyasana",
+      holdSeconds: 30,
+      sides: "each" as const,
+      detail: "30 sec each side to open the hip flexors",
+    },
+    {
+      name: "Forward Fold",
+      asanaSlug: "uttanasana",
+      holdSeconds: 45,
+      sides: "once" as const,
+      detail: "Soft knees if needed — lengthen the hamstrings",
+    },
   ],
 };
 
@@ -3630,74 +3655,125 @@ export const PATHWAYS: Pathway[] = [
   },
 ];
 
-export const AFFIRMATIONS: string[] = [
-  "My body is strong, supple, and capable.",
-  "I breathe in calm, I exhale tension.",
-  "Progress, not perfection.",
-  "I meet my body where it is today.",
-  "Every breath returns me to the present moment.",
-  "I am grounded, steady, and at ease.",
-  "My practice is a gift I give myself.",
-  "I release what no longer serves me.",
-  "Stillness lives within me.",
-  "I move with patience and kindness toward myself.",
-  "My breath is my anchor.",
-  "I am exactly where I need to be.",
-  "Flexibility grows from consistency, not force.",
-  "I honor my limits and trust my growth.",
-  "Peace begins with a single breath.",
-  "I am open to receiving this moment fully.",
-  "My mind is calm, my body is free.",
-  "I let go of comparison and return to myself.",
-  "Each pose teaches me something new.",
-  "I am rooted like a tree and free like the wind.",
-  "I trust the process of my unfolding.",
-  "Tension melts with every exhale.",
-  "I am worthy of rest and renewal.",
-  "Strength and softness live within me.",
-  "I show up for myself, one breath at a time.",
-  "My spine lengthens, my mind clears.",
-  "I am present, patient, and at peace.",
-  "I greet challenge with steady breath.",
-  "Today I choose stillness over rush.",
-  "My practice is a sanctuary.",
-  "I am grateful for this body and this breath.",
-  "Calm is my natural state.",
-  "I bend so I do not break.",
-  "With each practice, I come home to myself.",
-  // --- v3.1 expansion: calm, strength, motherhood, clarity, self-love, sleep ---
-  "Each breath returns me to this moment.",
-  "I let go of what I cannot control.",
-  "Peace is not a place \u2014 it is a practice.",
-  "I release the day with a soft exhale.",
-  "I am stronger than the moments that try me.",
-  "My body knows how to heal.",
-  "Every challenge has prepared me for now.",
-  "I rise gently, again and again.",
-  "The small care I give myself is enough.",
-  "Five minutes of mine are also sacred.",
-  "I do not need to be everything to be enough.",
-  "Rest is part of the work.",
-  "My mind is clear and present.",
-  "I trust what I already know.",
-  "I focus on what is mine to do.",
-  "I meet myself with kindness today.",
-  "My worth is not measured in productivity.",
-  "I am allowed to grow at my own pace.",
-  "I release this day with gratitude.",
-  "Tomorrow will receive me ready.",
-  "Sleep is a soft return.",
-  "I breathe slowly and the noise grows quiet.",
-  "There is room in me for ease.",
-  "I soften where I have been holding on.",
-  "This breath is enough for this moment.",
-  "I carry calm with me into the day.",
-  "My pace is gentle and it is mine.",
-  "I am held by my own steady breath.",
-  "I forgive myself and begin again.",
-  "Quiet moments restore me.",
-  "I welcome rest without guilt.",
-];
+/** Theme ids shown in Affirmations UI (and linked from profiles). */
+export const AFFIRMATION_THEMES = [
+  { id: "calm", label: "Calm" },
+  { id: "strength", label: "Strength" },
+  { id: "motherhood", label: "Motherhood" },
+  { id: "clarity", label: "Clarity" },
+  { id: "self-love", label: "Self-love" },
+  { id: "sleep", label: "Sleep" },
+] as const;
+
+export type AffirmationThemeId = (typeof AFFIRMATION_THEMES)[number]["id"];
+
+/** Profile `recommendedAffirmationsTag` → affirmation theme. */
+export const PROFILE_AFFIRMATION_TAG_MAP: Record<string, AffirmationThemeId> = {
+  calm: "calm",
+  energy: "strength",
+  focus: "clarity",
+  patience: "self-love",
+};
+
+export const AFFIRMATIONS_BY_THEME: Record<AffirmationThemeId, string[]> = {
+  calm: [
+    "I breathe in calm, I exhale tension.",
+    "I am grounded, steady, and at ease.",
+    "Stillness lives within me.",
+    "Peace begins with a single breath.",
+    "My mind is calm, my body is free.",
+    "Calm is my natural state.",
+    "Each breath returns me to this moment.",
+    "I let go of what I cannot control.",
+    "Peace is not a place \u2014 it is a practice.",
+    "I breathe slowly and the noise grows quiet.",
+    "There is room in me for ease.",
+    "I soften where I have been holding on.",
+    "This breath is enough for this moment.",
+    "I carry calm with me into the day.",
+    "I am held by my own steady breath.",
+  ],
+  strength: [
+    "My body is strong, supple, and capable.",
+    "Strength and softness live within me.",
+    "I greet challenge with steady breath.",
+    "I am stronger than the moments that try me.",
+    "My body knows how to heal.",
+    "Every challenge has prepared me for now.",
+    "I rise gently, again and again.",
+    "I bend so I do not break.",
+    "I am rooted like a tree and free like the wind.",
+    "Each pose teaches me something new.",
+    "Flexibility grows from consistency, not force.",
+  ],
+  motherhood: [
+    "My practice is a gift I give myself.",
+    "I show up for myself, one breath at a time.",
+    "The small care I give myself is enough.",
+    "Five minutes of mine are also sacred.",
+    "I do not need to be everything to be enough.",
+    "Rest is part of the work.",
+    "I forgive myself and begin again.",
+    "I am worthy of rest and renewal.",
+    "With each practice, I come home to myself.",
+  ],
+  clarity: [
+    "My breath is my anchor.",
+    "Every breath returns me to the present moment.",
+    "My spine lengthens, my mind clears.",
+    "I am present, patient, and at peace.",
+    "My mind is clear and present.",
+    "I trust what I already know.",
+    "I focus on what is mine to do.",
+    "I am exactly where I need to be.",
+    "Today I choose stillness over rush.",
+    "I am open to receiving this moment fully.",
+  ],
+  "self-love": [
+    "Progress, not perfection.",
+    "I meet my body where it is today.",
+    "I move with patience and kindness toward myself.",
+    "I honor my limits and trust my growth.",
+    "I let go of comparison and return to myself.",
+    "I meet myself with kindness today.",
+    "My worth is not measured in productivity.",
+    "I am allowed to grow at my own pace.",
+    "I trust the process of my unfolding.",
+    "My pace is gentle and it is mine.",
+  ],
+  sleep: [
+    "I release what no longer serves me.",
+    "Tension melts with every exhale.",
+    "My practice is a sanctuary.",
+    "I am grateful for this body and this breath.",
+    "I release the day with a soft exhale.",
+    "I release this day with gratitude.",
+    "Tomorrow will receive me ready.",
+    "Sleep is a soft return.",
+    "Quiet moments restore me.",
+    "I welcome rest without guilt.",
+  ],
+};
+
+/** Flat list for search / favorites (order follows theme groups). */
+export const AFFIRMATIONS: string[] = AFFIRMATION_THEMES.flatMap(
+  (t) => AFFIRMATIONS_BY_THEME[t.id],
+);
+
+export function affirmationsForTheme(themeId: string | null | undefined): string[] {
+  if (!themeId) return AFFIRMATIONS;
+  if (themeId in AFFIRMATIONS_BY_THEME) {
+    return AFFIRMATIONS_BY_THEME[themeId as AffirmationThemeId];
+  }
+  const mapped = PROFILE_AFFIRMATION_TAG_MAP[themeId];
+  return mapped ? AFFIRMATIONS_BY_THEME[mapped] : AFFIRMATIONS;
+}
+
+export function affirmationsForProfileTag(tag: string | null | undefined): string[] {
+  if (!tag) return AFFIRMATIONS;
+  const mapped = PROFILE_AFFIRMATION_TAG_MAP[tag];
+  return mapped ? AFFIRMATIONS_BY_THEME[mapped] : AFFIRMATIONS;
+}
 
 export const MOODS = ["Calm", "Grounded", "Energized", "Tired", "Stressed"] as const;
 export type Mood = (typeof MOODS)[number];
@@ -3709,11 +3785,12 @@ export function pathwayBySlug(slug: string) {
   return PATHWAYS.find((p) => p.slug === slug);
 }
 
-// Deterministic daily affirmation based on date
-export function dailyAffirmation(date = new Date()): string {
+/** Deterministic daily affirmation; optionally scoped to a profile tag/theme. */
+export function dailyAffirmation(date = new Date(), profileTag?: string | null): string {
+  const pool = affirmationsForProfileTag(profileTag);
   const epochDay = Math.floor(date.getTime() / 86400000) - date.getTimezoneOffset() / 1440;
-  const idx = Math.abs(Math.floor(epochDay)) % AFFIRMATIONS.length;
-  return AFFIRMATIONS[idx];
+  const idx = Math.abs(Math.floor(epochDay)) % pool.length;
+  return pool[idx];
 }
 
 

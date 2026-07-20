@@ -1,4 +1,4 @@
-// Search — global search across poses, breathing, pathways, and affirmations.
+// Search — global search across poses, breathing, pathways, affirmations, and kids.
 //   - Reads the query from the URL hash (`#/search?q=...`) since the app uses
 //     hash routing.
 //   - Case-insensitive substring match. No artificial result limit.
@@ -9,7 +9,8 @@ import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/EmptyState";
 import { ASANAS, PATHWAYS, BREATHING, AFFIRMATIONS } from "@/data/content";
-import { Search as SearchIcon, Wind, Route as RouteIcon, Sparkles, LayoutGrid } from "lucide-react";
+import { KIDS_POSES, KIDS_BREATH } from "@/data/kids";
+import { Search as SearchIcon, Wind, Route as RouteIcon, Sparkles, LayoutGrid, Smile } from "lucide-react";
 
 // Read ?q=... from the URL. wouter's hash navigation stores query params on
 // `location.search` (e.g. "http://host/?q=warrior#/search"), so we read there;
@@ -76,7 +77,7 @@ export default function Search() {
   const qSquashed = squash(q);
 
   const results = useMemo(() => {
-    if (!q) return { poses: [], breathing: [], pathways: [], affirmations: [] };
+    if (!q) return { poses: [], breathing: [], pathways: [], affirmations: [], kids: [] };
 
     const poses = ASANAS.filter((a) => {
       // Primary substring match across sanskrit, english, category, summary,
@@ -117,14 +118,31 @@ export default function Search() {
 
     const affirmations = AFFIRMATIONS.filter((t) => t.toLowerCase().includes(q));
 
-    return { poses, breathing, pathways, affirmations };
+    const kidsPoses = KIDS_POSES.filter((k) => {
+      const hay = [k.title, k.poseName, k.sanskrit ?? "", k.intro, k.story.join(" ")].join(" ").toLowerCase();
+      return hay.includes(q) || (qSquashed.length >= 3 && squash(k.poseName).includes(qSquashed));
+    }).map((k) => ({ kind: "pose" as const, ...k }));
+
+    const kidsBreath = KIDS_BREATH.filter((k) => {
+      const hay = [k.techniqueName, k.description, k.why].join(" ").toLowerCase();
+      return hay.includes(q);
+    }).map((k) => ({ kind: "breath" as const, ...k }));
+
+    return {
+      poses,
+      breathing,
+      pathways,
+      affirmations,
+      kids: [...kidsPoses, ...kidsBreath],
+    };
   }, [q, qSquashed]);
 
   const total =
     results.poses.length +
     results.breathing.length +
     results.pathways.length +
-    results.affirmations.length;
+    results.affirmations.length +
+    results.kids.length;
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -140,7 +158,7 @@ export default function Search() {
       {!q ? (
         <EmptyState
           title="Type to search across everything in Sadhana"
-          description="Find poses, breathing techniques, pathways, and affirmations from the search box in the sidebar."
+          description="Find poses, breathing techniques, pathways, affirmations, and kids stories from the search box in the sidebar."
           testId="empty-search-prompt"
         >
           <SearchIcon className="h-8 w-8 text-muted-foreground" />
@@ -277,6 +295,47 @@ export default function Search() {
                     </Card>
                   </Link>
                 ))}
+              </div>
+            </section>
+          )}
+
+          {/* Kids */}
+          {results.kids.length > 0 && (
+            <section className="space-y-3" data-testid="search-group-kids">
+              <h2 className="flex items-center gap-2 font-serif text-xl">
+                <Smile className="h-5 w-5 text-secondary" /> Kids
+                <span className="text-sm font-normal text-muted-foreground">
+                  · {results.kids.length} result{results.kids.length === 1 ? "" : "s"}
+                </span>
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {results.kids.map((k) =>
+                  k.kind === "pose" ? (
+                    <Link key={`pose-${k.slug}`} href={`/kids/${k.slug}`}>
+                      <Card
+                        className="cursor-pointer shadow-soft transition-colors hover:bg-accent/40"
+                        data-testid={`search-result-kids-${k.slug}`}
+                      >
+                        <CardContent className="space-y-1 p-4">
+                          <p className="font-serif text-base">{k.title}</p>
+                          <p className="text-sm text-muted-foreground">{k.poseName}</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ) : (
+                    <Link key={`breath-${k.slug}`} href={`/kids/breath/${k.slug}`}>
+                      <Card
+                        className="cursor-pointer shadow-soft transition-colors hover:bg-accent/40"
+                        data-testid={`search-result-kids-breath-${k.slug}`}
+                      >
+                        <CardContent className="space-y-1 p-4">
+                          <p className="font-serif text-base">{k.techniqueName}</p>
+                          <p className="text-sm text-muted-foreground">{k.description}</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ),
+                )}
               </div>
             </section>
           )}

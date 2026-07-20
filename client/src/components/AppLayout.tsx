@@ -6,6 +6,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -36,18 +37,35 @@ import {
   Settings,
 } from "lucide-react";
 
-const NAV = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/asanas", label: "Asana Library", icon: LayoutGrid },
-  { href: "/pathways", label: "Pathways", icon: RouteIcon },
-  { href: "/guided", label: "Practice", icon: Timer },
-  { href: "/breathing", label: "Breathing", icon: Wind },
-  { href: "/affirmations", label: "Affirmations", icon: Sparkles },
-  { href: "/journal", label: "Journal", icon: NotebookPen },
-  { href: "/profiles", label: "Profiles", icon: Compass },
-  { href: "/builder", label: "Builder", icon: PlusCircle },
-  { href: "/kids", label: "Kids", icon: Smile },
-  { href: "/settings", label: "Settings", icon: Settings },
+type NavItem = { href: string; label: string; icon: typeof Home };
+
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Practice",
+    items: [
+      { href: "/", label: "Home", icon: Home },
+      { href: "/guided", label: "Start practice", icon: Timer },
+      { href: "/pathways", label: "Pathways", icon: RouteIcon },
+      { href: "/builder", label: "Builder", icon: PlusCircle },
+    ],
+  },
+  {
+    label: "Explore",
+    items: [
+      { href: "/asanas", label: "Asana Library", icon: LayoutGrid },
+      { href: "/breathing", label: "Breathing", icon: Wind },
+      { href: "/affirmations", label: "Affirmations", icon: Sparkles },
+      { href: "/kids", label: "Kids", icon: Smile },
+    ],
+  },
+  {
+    label: "You",
+    items: [
+      { href: "/journal", label: "Journal", icon: NotebookPen },
+      { href: "/profiles", label: "Profiles", icon: Compass },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
 
 function SidebarSearch() {
@@ -94,7 +112,7 @@ function SidebarSearch() {
           onKeyDown={(e) => {
             if (e.key === "Enter") submit();
           }}
-          placeholder="Search poses, breathing, affirmations…"
+          placeholder="Search poses, breathing, kids…"
           className="pl-9"
           aria-label="Search Sadhana"
           data-testid="input-sidebar-search"
@@ -131,30 +149,44 @@ function SidebarSearch() {
   );
 }
 
+function isNavActive(href: string, location: string): boolean {
+  if (href === "/") return location === "/";
+  if (href === "/guided") return location === "/guided" || location === "/practice";
+  return location.startsWith(href);
+}
+
 function NavMenu() {
   const [location] = useLocation();
   return (
-    <SidebarMenu>
-      {NAV.map((item) => {
-        const active =
-          item.href === "/"
-            ? location === "/"
-            : item.href === "/guided"
-              ? location === "/guided" || location === "/practice"
-              : location.startsWith(item.href);
-        const Icon = item.icon;
-        return (
-          <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton asChild isActive={active} data-testid={`nav-${item.label.toLowerCase().split(" ")[0]}`}>
-              <Link href={item.href}>
-                <Icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        );
-      })}
-    </SidebarMenu>
+    <>
+      {NAV_GROUPS.map((group) => (
+        <SidebarGroup key={group.label}>
+          <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {group.items.map((item) => {
+                const active = isNavActive(item.href, location);
+                const Icon = item.icon;
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={active}
+                      data-testid={`nav-${item.label.toLowerCase().split(" ")[0]}`}
+                    >
+                      <Link href={item.href}>
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ))}
+    </>
   );
 }
 
@@ -174,11 +206,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <SidebarSearch />
             </SidebarGroupContent>
           </SidebarGroup>
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <NavMenu />
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <NavMenu />
         </SidebarContent>
         <SidebarFooter className="px-3 py-3">
           <Button

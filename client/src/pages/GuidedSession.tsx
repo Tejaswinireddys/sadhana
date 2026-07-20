@@ -31,7 +31,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { EmptyState } from "@/components/EmptyState";
 import { MoodCheckIn } from "@/components/MoodCheckIn";
 import { Confetti } from "@/components/Confetti";
 import { usePractice } from "@/context/PracticeContext";
@@ -51,7 +50,13 @@ import {
   Plus,
   MicVocal,
   Timer as TimerIcon,
+  Flame,
+  Route as RouteIcon,
+  LayoutGrid,
 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { WARMUP, asanaBySlug } from "@/data/content";
+import { QUICK_SESSIONS } from "@/data/quickSessions";
 
 // ---- soft chime (shared with Practice) --------------------------------------
 function playChime() {
@@ -101,6 +106,7 @@ export default function GuidedSession() {
     todays,
     meta,
     clear,
+    loadSession,
     saveProgress,
     progress: sessionProgress,
     needsRestore,
@@ -108,6 +114,34 @@ export default function GuidedSession() {
   } = usePractice();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+
+  const startQuickSession = (q: (typeof QUICK_SESSIONS)[number]) => {
+    const poses = q.poses
+      .map((p) => {
+        const asana = asanaBySlug(p.slug);
+        return asana ? { asana, holdSeconds: p.holdSeconds } : null;
+      })
+      .filter(
+        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
+          x != null,
+      );
+    loadSession(poses, { label: `${q.time} · ${q.label}`, breathSlug: q.breathSlug ?? null });
+  };
+
+  const startWarmup = () => {
+    const poses = WARMUP.steps
+      .map((s) => {
+        const asana = asanaBySlug(s.asanaSlug);
+        if (!asana) return null;
+        return { asana, holdSeconds: s.holdSeconds, sides: s.sides };
+      })
+      .filter(
+        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
+          x != null,
+      );
+    if (!poses.length) return;
+    loadSession(poses, { label: WARMUP.title, pathwaySlug: null });
+  };
 
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
   const voiceEnabled = prefs ? prefs.voiceEnabled !== 0 : true;
@@ -590,18 +624,89 @@ export default function GuidedSession() {
     setConfirmExit(true);
   };
 
-  // ---- empty state ----------------------------------------------------------
+  // ---- empty state: practice hub -------------------------------------------
   if (todays.length === 0 && !finished) {
     return (
-      <div className="animate-fade-in">
-        <EmptyState
-          title="No poses queued"
-          description="Add a few poses from the Asana Library or start a pathway to build a guided session."
-        >
-          <Button asChild data-testid="button-go-library">
-            <Link href="/asanas">Browse the library</Link>
-          </Button>
-        </EmptyState>
+      <div className="animate-fade-in space-y-8" data-testid="practice-hub">
+        <header className="space-y-1">
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">Start practice</h1>
+          <p className="text-muted-foreground">
+            Choose how you feel, warm up, or open a pathway — then begin a guided voice session.
+          </p>
+        </header>
+
+        <section className="space-y-3">
+          <h2 className="font-serif text-xl">How do you feel?</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {QUICK_SESSIONS.map((q) => {
+              const Icon = q.icon;
+              return (
+                <Card key={q.id} className="shadow-soft" data-testid={`hub-quick-${q.id}`}>
+                  <CardContent className="flex items-center justify-between gap-3 p-4">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <p className="font-serif text-lg leading-tight">{q.label}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {q.time} · {q.intent}
+                        </p>
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={() => startQuickSession(q)} data-testid={`button-hub-begin-${q.id}`}>
+                      Begin
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="grid gap-3 sm:grid-cols-3">
+          <Card className="border-primary/30 bg-accent/40 shadow-soft">
+            <CardContent className="flex flex-col gap-3 p-4">
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-primary" />
+                <p className="font-serif text-lg">5-min warm-up</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Wake the spine before a longer flow.</p>
+              <Button onClick={startWarmup} data-testid="button-hub-warmup">
+                <Play className="mr-1.5 h-4 w-4" /> Start warm-up
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="shadow-soft">
+            <CardContent className="flex flex-col gap-3 p-4">
+              <div className="flex items-center gap-2">
+                <RouteIcon className="h-4 w-4 text-secondary" />
+                <p className="font-serif text-lg">Pathways</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Quick flows, challenges, and programs.</p>
+              <Button asChild variant="outline" data-testid="button-hub-pathways">
+                <Link href="/pathways">Browse pathways</Link>
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="shadow-soft">
+            <CardContent className="flex flex-col gap-3 p-4">
+              <div className="flex items-center gap-2">
+                <LayoutGrid className="h-4 w-4 text-secondary" />
+                <p className="font-serif text-lg">Build your own</p>
+              </div>
+              <p className="text-sm text-muted-foreground">Pick poses from the library or Builder.</p>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline" size="sm" data-testid="button-go-library">
+                  <Link href="/asanas">Library</Link>
+                </Button>
+                <Button asChild variant="ghost" size="sm" data-testid="button-hub-builder">
+                  <Link href="/builder">Builder</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
       </div>
     );
   }
