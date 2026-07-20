@@ -79,11 +79,17 @@ git clone https://github.com/Tejaswinireddys/sadhana.git
 cd sadhana
 npm install
 cp .env.example .env
-# edit .env and set DATABASE_URL to your Postgres connection string
+# optional: set DATABASE_URL for Postgres. If unset, an in-memory store is used.
 npm run dev
 ```
 
 Then open http://localhost:5000
+
+Practice data is scoped per browser via an anonymous device id (`X-Device-Id`).
+Refreshing mid-session restores your queued poses and progress.
+
+First-run onboarding, Settings (export/import, reminders, wipe), and an offline
+banner are included. Pathway week progress advances only when sessions are logged.
 
 ## Deploy your own copy
 

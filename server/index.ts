@@ -1,12 +1,12 @@
 import "dotenv/config";
-import express, { Response, NextFunction } from 'express';
-import type { Request } from 'express';
+import express, { Response, NextFunction } from "express";
+import type { Request } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { pool } from "./storage";
+import { initStorage, pool } from "./storage";
 
 const app = express();
 const httpServer = createServer(app);
@@ -72,6 +72,7 @@ app.use((req, res, next) => {
 // Auto-migration: create tables if they don't exist by running drizzle/schema.sql.
 // Idempotent (CREATE TABLE IF NOT EXISTS), so it is safe to run on every boot.
 async function ensureSchema() {
+  if (!pool) return;
   const schemaPath = resolve(process.cwd(), "drizzle", "schema.sql");
   const sql = await readFile(schemaPath, "utf-8");
   await pool.query(sql);
@@ -79,7 +80,12 @@ async function ensureSchema() {
 }
 
 (async () => {
-  await ensureSchema();
+  const { usingMemory } = initStorage();
+  if (usingMemory) {
+    log("DATABASE_URL unset — using in-memory store (data resets on restart)");
+  } else {
+    await ensureSchema();
+  }
 
   await registerRoutes(httpServer, app);
 

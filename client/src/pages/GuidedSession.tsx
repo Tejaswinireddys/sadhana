@@ -36,12 +36,11 @@ import { MoodCheckIn } from "@/components/MoodCheckIn";
 import { Confetti } from "@/components/Confetti";
 import { usePractice } from "@/context/PracticeContext";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { todayISO } from "@/lib/sadhana";
-import { detectMilestones } from "@/lib/milestones";
+import { useWakeLock } from "@/hooks/use-wake-lock";
+import { logPracticeSession } from "@/lib/logPracticeSession";
+import { unlockAudio } from "@/lib/audioUnlock";
 import { type Mood } from "@/data/content";
-import type { Stats } from "@/lib/sadhana";
-import type { Milestone, Preferences } from "@shared/schema";
+import type { Preferences } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import {
   Play,
@@ -98,7 +97,15 @@ const mmss = (s: number) => {
 };
 
 export default function GuidedSession() {
-  const { todays, meta, clear } = usePractice();
+  const {
+    todays,
+    meta,
+    clear,
+    saveProgress,
+    progress: sessionProgress,
+    needsRestore,
+    consumeRestoredProgress,
+  } = usePractice();
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -127,8 +134,12 @@ export default function GuidedSession() {
   const [postMood, setPostMood] = useState<Mood | null>(null);
   const [started, setStarted] = useState(false);
   const [confetti, setConfetti] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const lastPostMood = useRef<Mood | null>(null);
   const finishedMinutes = useRef(1);
   const sessionLogged = useRef(false);
+  useWakeLock(started && !paused && !finished);
   const posesCompleted = useRef(0);
   // Seconds already attributed to a logged session — lets "Do one more pose"
   // log only the *additional* time instead of double-counting the whole run.
@@ -248,79 +259,96 @@ export default function GuidedSession() {
     [todays, speak],
   );
 
+  // Restore mid-session progress after refresh.
+  useEffect(() => {
+    if (!needsRestore || !sessionProgress || sessionProgress.mode !== "guided") return;
+    if (todays.length === 0) return;
+    const i = Math.min(sessionProgress.index, todays.length - 1);
+    setIndex(i);
+    if (sessionProgress.phase) setPhase(sessionProgress.phase as Phase);
+    if (sessionProgress.phaseRemaining != null) setPhaseRemaining(sessionProgress.phaseRemaining);
+    if (sessionProgress.side) setSide(sessionProgress.side);
+    setElapsedTotal(sessionProgress.elapsedTotal ?? 0);
+    setStarted(!!sessionProgress.started);
+    setPaused(true);
+    setShowPreMood(false);
+    consumeRestoredProgress();
+    toast({
+      title: "Session restored",
+      description: "Your guided flow was paused after a refresh. Tap Resume when ready.",
+    });
+  }, [needsRestore, sessionProgress, todays, consumeRestoredProgress, toast]);
+
+  // Snapshot progress while running.
+  useEffect(() => {
+    if (!started || finished || todays.length === 0) return;
+    saveProgress({
+      mode: "guided",
+      index,
+      phase,
+      phaseRemaining,
+      side,
+      started: true,
+      elapsedTotal,
+      paused,
+    });
+  }, [
+    started,
+    finished,
+    index,
+    phase,
+    phaseRemaining,
+    side,
+    elapsedTotal,
+    paused,
+    todays.length,
+    saveProgress,
+  ]);
+
   // ---- persist + auto-journal + milestone (mirrors Practice.tsx) ------------
   const finalizeSession = useCallback(
     async (resolvedPost: Mood | null) => {
-      if (sessionLogged.current) return;
-      sessionLogged.current = true;
+      if (sessionLogged.current || saving) return;
+      lastPostMood.current = resolvedPost;
+      setSaving(true);
+      setSaveFailed(false);
       const minutes = finishedMinutes.current;
       const poseNames = todays.map((a) => a.english);
       const sessionLabel = meta.label ?? "Guided session";
 
-      try {
-        await apiRequest("POST", "/api/sessions", {
-          date: todayISO(),
-          durationMinutes: Math.max(1, minutes),
-          asanas: JSON.stringify(poseNames),
-          pathwaySlug: meta.pathwaySlug ?? null,
-          notes: null,
-          kind: "asana",
-          preMood: preMood ?? null,
-          postMood: resolvedPost ?? null,
+      const result = await logPracticeSession({
+        minutes,
+        poseNames,
+        label: sessionLabel,
+        pathwaySlug: meta.pathwaySlug ?? null,
+        preMood,
+        postMood: resolvedPost,
+        journalTags: [sessionLabel, "guided"],
+      });
+      setSaving(false);
+
+      if (!result.ok) {
+        setSaveFailed(true);
+        sessionLogged.current = false;
+        toast({
+          title: "Couldn't save your practice",
+          description: "Check your connection, then tap Retry save.",
+          variant: "destructive",
         });
-        queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
-      } catch {
-        /* ignore */
+        return;
       }
 
-      try {
-        const moodLine =
-          preMood && resolvedPost
-            ? `Mood: ${preMood} → ${resolvedPost}.`
-            : preMood
-              ? `Mood before: ${preMood}.`
-              : resolvedPost
-                ? `Mood after: ${resolvedPost}.`
-                : "";
-        const body = `${sessionLabel} — guided practice of ${poseNames.join(", ")}. ${minutes} min. ${moodLine}`.trim();
-        await apiRequest("POST", "/api/journal", {
-          date: todayISO(),
-          title: sessionLabel,
-          body,
-          mood: resolvedPost ?? preMood ?? null,
-          tags: JSON.stringify([sessionLabel, "guided"]),
-        });
-        queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
-      } catch {
-        /* ignore */
-      }
-
-      try {
-        const [statsRes, msRes] = await Promise.all([
-          apiRequest("GET", `/api/sessions/stats/${todayISO()}`),
-          apiRequest("GET", "/api/milestones"),
-        ]);
-        const stats = (await statsRes.json()) as Stats;
-        const celebratedRows = (await msRes.json()) as Milestone[];
-        const celebrated = new Set(celebratedRows.map((m) => m.kind));
-        const hits = detectMilestones(stats.currentStreak, stats.totalSessions, celebrated);
-        if (hits.length > 0) {
-          const hit = hits[hits.length - 1];
-          for (const h of hits) {
-            await apiRequest("POST", "/api/milestones", { kind: h.kind }).catch(() => {});
-          }
-          queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
-          setConfetti(true);
-          setTimeout(() => setConfetti(false), 2600);
-          playChime();
-          toast({ title: hit.title, description: hit.message });
-        }
-      } catch {
-        /* ignore */
+      sessionLogged.current = true;
+      setSaveFailed(false);
+      saveProgress(null);
+      if (result.milestone) {
+        setConfetti(true);
+        setTimeout(() => setConfetti(false), 2600);
+        playChime();
+        toast({ title: result.milestone.title, description: result.milestone.message });
       }
     },
-    [todays, meta, preMood, toast],
+    [todays, meta, preMood, toast, saving, saveProgress],
   );
 
   const finish = useCallback(() => {
@@ -522,6 +550,7 @@ export default function GuidedSession() {
 
   // ---- controls -------------------------------------------------------------
   const beginSession = () => {
+    void unlockAudio();
     setStarted(true);
     setIndex(0);
     setElapsedTotal(0);
@@ -628,15 +657,30 @@ export default function GuidedSession() {
               {reflection}
             </p>
           )}
+          {saveFailed && (
+            <Button
+              onClick={() => finalizeSession(lastPostMood.current)}
+              disabled={saving}
+              data-testid="button-retry-save"
+            >
+              Retry save
+            </Button>
+          )}
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button
               size="lg"
-              onClick={() => {
-                if (!showPostMood && !sessionLogged.current) finalizeSession(postMood);
-                clear();
-                navigate("/");
+              onClick={async () => {
+                if (!showPostMood && !sessionLogged.current) {
+                  await finalizeSession(postMood);
+                }
+                // Only leave if the session actually persisted (or was already logged).
+                if (sessionLogged.current) {
+                  clear();
+                  navigate("/");
+                }
               }}
               data-testid="button-log-continue"
+              disabled={saving}
             >
               Log &amp; continue
             </Button>
@@ -693,21 +737,21 @@ export default function GuidedSession() {
             {meta.label ? `${meta.label} · ` : ""}
             {todays.length} poses · a continuous voice-narrated flow.
           </p>
-          {/* Guided ↔ Simple mode toggle */}
+          {/* Guided is primary; timer-only is the secondary mode */}
           <div className="inline-flex rounded-full border border-border bg-card p-0.5 text-sm" data-testid="mode-toggle">
             <button
               className="rounded-full bg-primary px-3 py-1 font-medium text-primary-foreground"
               data-testid="toggle-guided"
               aria-pressed="true"
             >
-              Guided (with voice)
+              Guided
             </button>
             <button
               onClick={() => navigate("/practice")}
               className="rounded-full px-3 py-1 text-muted-foreground hover:text-foreground"
               data-testid="toggle-simple"
             >
-              Simple (chime only)
+              Timer only
             </button>
           </div>
           {!voiceEnabled && (

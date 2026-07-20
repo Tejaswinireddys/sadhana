@@ -8,12 +8,9 @@ import { MoodCheckIn } from "@/components/MoodCheckIn";
 import { Confetti } from "@/components/Confetti";
 import { usePractice } from "@/context/PracticeContext";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { todayISO } from "@/lib/sadhana";
-import { detectMilestones } from "@/lib/milestones";
+import { useWakeLock } from "@/hooks/use-wake-lock";
+import { logPracticeSession } from "@/lib/logPracticeSession";
 import { breathBySlug, type Mood } from "@/data/content";
-import type { Stats } from "@/lib/sadhana";
-import type { Milestone } from "@shared/schema";
 import { Link } from "wouter";
 import { Play, Pause, SkipForward, X, Check } from "lucide-react";
 
@@ -43,7 +40,15 @@ function playChime() {
 }
 
 export default function Practice() {
-  const { todays, meta, clear } = usePractice();
+  const {
+    todays,
+    meta,
+    clear,
+    saveProgress,
+    progress: sessionProgress,
+    needsRestore,
+    consumeRestoredProgress,
+  } = usePractice();
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -54,6 +59,9 @@ export default function Practice() {
   const [paused, setPaused] = useState(false);
   const [elapsedTotal, setElapsedTotal] = useState(0);
   const sessionLogged = useRef(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const lastPostMood = useRef<Mood | null>(null);
 
   // Mood check-in state (v3.4)
   const [showPreMood, setShowPreMood] = useState(false);
@@ -64,84 +72,85 @@ export default function Practice() {
   const finishedMinutes = useRef(1);
 
   const current = todays[index];
+  useWakeLock(started && !paused && !finished);
+
+  // Restore mid-session progress after refresh.
+  useEffect(() => {
+    if (!needsRestore || !sessionProgress || sessionProgress.mode !== "practice") return;
+    if (todays.length === 0) return;
+    setIndex(Math.min(sessionProgress.index, todays.length - 1));
+    setRemaining(
+      sessionProgress.remaining ??
+        todays[Math.min(sessionProgress.index, todays.length - 1)]?.holdSeconds ??
+        30,
+    );
+    setElapsedTotal(sessionProgress.elapsedTotal ?? 0);
+    setStarted(!!sessionProgress.started);
+    setPaused(true);
+    consumeRestoredProgress();
+    toast({
+      title: "Session restored",
+      description: "Your practice was paused after a refresh. Tap Resume when ready.",
+    });
+  }, [needsRestore, sessionProgress, todays, consumeRestoredProgress, toast]);
+
+  // Snapshot progress while running.
+  useEffect(() => {
+    if (!started || finished || todays.length === 0) return;
+    saveProgress({
+      mode: "practice",
+      index,
+      remaining,
+      started: true,
+      elapsedTotal,
+      paused,
+    });
+  }, [started, finished, index, remaining, elapsedTotal, paused, todays.length, saveProgress]);
 
   // Persist the session + auto-journal + milestone celebration. Runs once the
   // post-mood check-in resolves (picked or skipped).
   const finalizeSession = useCallback(
     async (resolvedPost: Mood | null) => {
-      if (sessionLogged.current) return;
-      sessionLogged.current = true;
+      if (sessionLogged.current || saving) return;
+      lastPostMood.current = resolvedPost;
+      setSaving(true);
+      setSaveFailed(false);
       const minutes = finishedMinutes.current;
       const poseNames = todays.map((a) => a.english);
       const sessionLabel = meta.label ?? "Practice session";
 
-      try {
-        await apiRequest("POST", "/api/sessions", {
-          date: todayISO(),
-          durationMinutes: Math.max(1, minutes),
-          asanas: JSON.stringify(poseNames),
-          pathwaySlug: meta.pathwaySlug ?? null,
-          notes: null,
-          kind: "asana",
-          preMood: preMood ?? null,
-          postMood: resolvedPost ?? null,
+      const result = await logPracticeSession({
+        minutes,
+        poseNames,
+        label: sessionLabel,
+        pathwaySlug: meta.pathwaySlug ?? null,
+        preMood,
+        postMood: resolvedPost,
+      });
+      setSaving(false);
+
+      if (!result.ok) {
+        setSaveFailed(true);
+        sessionLogged.current = false;
+        toast({
+          title: "Couldn't save your practice",
+          description: "Check your connection, then tap Retry save.",
+          variant: "destructive",
         });
-        queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
-      } catch {
-        /* ignore */
+        return;
       }
 
-      // Auto-create a journal entry capturing the session + moods.
-      try {
-        const moodLine =
-          preMood && resolvedPost
-            ? `Mood: ${preMood} → ${resolvedPost}.`
-            : preMood
-              ? `Mood before: ${preMood}.`
-              : resolvedPost
-                ? `Mood after: ${resolvedPost}.`
-                : "";
-        const body = `${sessionLabel} — practiced ${poseNames.join(", ")}. ${minutes} min. ${moodLine}`.trim();
-        await apiRequest("POST", "/api/journal", {
-          date: todayISO(),
-          title: sessionLabel,
-          body,
-          mood: resolvedPost ?? preMood ?? null,
-          tags: JSON.stringify([sessionLabel]),
-        });
-        queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
-      } catch {
-        /* ignore */
-      }
-
-      // Milestone detection — fetch fresh stats + already-celebrated kinds.
-      try {
-        const [statsRes, msRes] = await Promise.all([
-          apiRequest("GET", `/api/sessions/stats/${todayISO()}`),
-          apiRequest("GET", "/api/milestones"),
-        ]);
-        const stats = (await statsRes.json()) as Stats;
-        const celebratedRows = (await msRes.json()) as Milestone[];
-        const celebrated = new Set(celebratedRows.map((m) => m.kind));
-        const hits = detectMilestones(stats.currentStreak, stats.totalSessions, celebrated);
-        if (hits.length > 0) {
-          // Celebrate the most significant single milestone (last in list).
-          const hit = hits[hits.length - 1];
-          for (const h of hits) {
-            await apiRequest("POST", "/api/milestones", { kind: h.kind }).catch(() => {});
-          }
-          queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
-          setConfetti(true);
-          setTimeout(() => setConfetti(false), 2600);
-          playChime();
-          toast({ title: hit.title, description: hit.message });
-        }
-      } catch {
-        /* ignore */
+      sessionLogged.current = true;
+      setSaveFailed(false);
+      saveProgress(null);
+      if (result.milestone) {
+        setConfetti(true);
+        setTimeout(() => setConfetti(false), 2600);
+        playChime();
+        toast({ title: result.milestone.title, description: result.milestone.message });
       }
     },
-    [todays, meta, preMood, toast],
+    [todays, meta, preMood, toast, saving, saveProgress],
   );
 
   const finish = useCallback(() => {
@@ -255,8 +264,24 @@ export default function Practice() {
           <AnimatedPose pose="savasana" size={120} className="text-primary" />
           <h1 className="font-serif text-3xl">Namaste 🙏</h1>
           <p className="text-muted-foreground">
-            You practiced {finishedMinutes.current} minutes. Session logged.
+            You practiced {finishedMinutes.current} minutes.
+            {sessionLogged.current
+              ? " Session logged."
+              : saveFailed
+                ? " Not saved yet."
+                : saving
+                  ? " Saving…"
+                  : ""}
           </p>
+          {saveFailed && (
+            <Button
+              onClick={() => finalizeSession(lastPostMood.current)}
+              disabled={saving}
+              data-testid="button-retry-save"
+            >
+              Retry save
+            </Button>
+          )}
           {reflection && (
             <p className="font-serif text-lg text-primary" data-testid="text-mood-reflection">
               {reflection}
@@ -317,21 +342,20 @@ export default function Practice() {
               {meta.label ? `${meta.label} · ` : ""}
               {todays.length} poses queued. Press start when you're ready.
             </p>
-            {/* Guided ↔ Simple mode toggle */}
             <div className="inline-flex rounded-full border border-border bg-card p-0.5 text-sm" data-testid="mode-toggle">
               <button
                 onClick={() => navigate("/guided")}
                 className="rounded-full px-3 py-1 text-muted-foreground hover:text-foreground"
                 data-testid="toggle-guided"
               >
-                Guided (with voice)
+                Guided
               </button>
               <button
                 className="rounded-full bg-primary px-3 py-1 font-medium text-primary-foreground"
                 data-testid="toggle-simple"
                 aria-pressed="true"
               >
-                Simple (chime only)
+                Timer only
               </button>
             </div>
           </header>

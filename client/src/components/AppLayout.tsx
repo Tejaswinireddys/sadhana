@@ -18,8 +18,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Logo } from "./Logo";
 import { useTheme } from "./ThemeProvider";
-import { MotionToggle } from "./MotionToggle";
-import { VoiceToggle } from "./VoiceToggle";
 import { useRecentSearches } from "@/context/RecentSearchesContext";
 import {
   Home,
@@ -35,19 +33,21 @@ import {
   Smile,
   Search,
   PlusCircle,
+  Settings,
 } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Home", icon: Home },
   { href: "/asanas", label: "Asana Library", icon: LayoutGrid },
   { href: "/pathways", label: "Pathways", icon: RouteIcon },
-  { href: "/practice", label: "Practice", icon: Timer },
+  { href: "/guided", label: "Practice", icon: Timer },
   { href: "/breathing", label: "Breathing", icon: Wind },
   { href: "/affirmations", label: "Affirmations", icon: Sparkles },
   { href: "/journal", label: "Journal", icon: NotebookPen },
   { href: "/profiles", label: "Profiles", icon: Compass },
   { href: "/builder", label: "Builder", icon: PlusCircle },
   { href: "/kids", label: "Kids", icon: Smile },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 function SidebarSearch() {
@@ -137,7 +137,11 @@ function NavMenu() {
     <SidebarMenu>
       {NAV.map((item) => {
         const active =
-          item.href === "/" ? location === "/" : location.startsWith(item.href);
+          item.href === "/"
+            ? location === "/"
+            : item.href === "/guided"
+              ? location === "/guided" || location === "/practice"
+              : location.startsWith(item.href);
         const Icon = item.icon;
         return (
           <SidebarMenuItem key={item.href}>
@@ -187,8 +191,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             {theme === "dark" ? "Light mode" : "Dark mode"}
           </Button>
-          <MotionToggle />
-          <VoiceToggle />
           <p className="px-2 pt-2 text-xs text-muted-foreground">
             Sādhanā — a daily, dedicated practice.
           </p>

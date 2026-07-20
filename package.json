@@ -8,6 +8,7 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
+    "test": "tsx --test server/owner.test.ts server/storage.isolation.test.ts server/pathwayProgress.test.ts client/src/lib/practicePersist.test.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

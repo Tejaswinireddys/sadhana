@@ -1,4 +1,5 @@
 import { Link, useParams, useLocation } from "wouter";
+import { useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,9 +14,31 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { pathwayBySlug, asanaBySlug } from "@/data/content";
 import type { PathwayWeek } from "@/data/content";
 import { usePractice } from "@/context/PracticeContext";
-import type { Enrollment } from "@shared/schema";
+import type { Enrollment, Session } from "@shared/schema";
 import { todayISO, daysSince } from "@/lib/sadhana";
 import { ArrowLeft, CalendarDays, Repeat, Clock, Play, X } from "lucide-react";
+
+const MS_PER_DAY = 86400000;
+
+/** Week numbers (1-based) that have at least one logged session for this pathway. */
+function completedWeeksFromSessions(
+  sessions: Session[],
+  pathwaySlug: string,
+  startDate: string,
+  totalWeeks: number,
+): Set<number> {
+  const done = new Set<number>();
+  const start = new Date(startDate.slice(0, 10) + "T00:00:00").getTime();
+  for (const s of sessions) {
+    if (s.pathwaySlug !== pathwaySlug) continue;
+    const t = new Date(s.date.length <= 10 ? s.date + "T00:00:00" : s.date).getTime();
+    const dayN = Math.floor((t - start) / MS_PER_DAY) + 1;
+    if (dayN < 1) continue;
+    const weekN = Math.min(totalWeeks, Math.ceil(dayN / 7));
+    done.add(weekN);
+  }
+  return done;
+}
 
 function formatSeconds(total: number): string {
   if (total < 60) return `${total}s`;
@@ -30,6 +53,7 @@ export default function PathwayDetail() {
   const [, navigate] = useLocation();
   const { loadSession } = usePractice();
   const { data: enrollments = [] } = useQuery<Enrollment[]>({ queryKey: ["/api/enrollments"] });
+  const { data: sessions = [] } = useQuery<Session[]>({ queryKey: ["/api/sessions"] });
 
   const enrollment = enrollments.find((e) => e.pathwaySlug === slug && e.active);
 
@@ -54,6 +78,17 @@ export default function PathwayDetail() {
     },
   });
 
+  // Progress is based on logged sessions, not calendar drift.
+  const completedWeeks = useMemo(() => {
+    if (!enrollment || !pathway) return new Set<number>();
+    return completedWeeksFromSessions(
+      sessions,
+      pathway.slug,
+      enrollment.startDate,
+      pathway.weeks,
+    );
+  }, [enrollment, sessions, pathway]);
+
   if (!pathway) {
     return (
       <div className="animate-fade-in">
@@ -64,10 +99,24 @@ export default function PathwayDetail() {
     );
   }
 
-  const totalDays = pathway.weeks * 7;
-  const elapsed = enrollment ? Math.min(daysSince(enrollment.startDate) + 1, totalDays) : 0;
-  const pct = enrollment ? Math.round((elapsed / totalDays) * 100) : 0;
-  const currentWeek = enrollment ? Math.min(Math.ceil(elapsed / 7), pathway.weeks) : 0;
+  const weeksDone = completedWeeks.size;
+  const pct = enrollment ? Math.round((weeksDone / pathway.weeks) * 100) : 0;
+  // Next week to practice: first incomplete week, else last week.
+  let currentWeek = 0;
+  if (enrollment) {
+    currentWeek = pathway.weeks;
+    for (let w = 1; w <= pathway.weeks; w++) {
+      if (!completedWeeks.has(w)) {
+        currentWeek = w;
+        break;
+      }
+    }
+  }
+  const calendarWeek = enrollment
+    ? Math.min(Math.ceil((daysSince(enrollment.startDate) + 1) / 7), pathway.weeks)
+    : 0;
+  const behindByWeeks =
+    enrollment && calendarWeek > weeksDone ? calendarWeek - weeksDone : 0;
 
   // Load a week's poses into the practice timer and jump to the timer screen.
   // We override each asana's holdSeconds with the week-specific target.
@@ -187,7 +236,10 @@ export default function PathwayDetail() {
           {enrollment ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span data-testid="text-pathway-progress">Week {currentWeek} of {pathway.weeks} · {pct}% complete</span>
+                <span data-testid="text-pathway-progress">
+                  Week {currentWeek} of {pathway.weeks} · {weeksDone} week{weeksDone === 1 ? "" : "s"} practiced · {pct}%
+                  {behindByWeeks > 0 ? ` · ${behindByWeeks} week${behindByWeeks === 1 ? "" : "s"} behind calendar` : ""}
+                </span>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -198,8 +250,15 @@ export default function PathwayDetail() {
                 </Button>
               </div>
               <Progress value={pct} data-testid="progress-pathway" />
-              <Button onClick={startWeekOne} className="w-full sm:w-auto" data-testid="button-start-week-1">
-                <Play className="mr-1.5 h-4 w-4" /> Start week 1
+              <Button
+                onClick={() => {
+                  const wk = pathway.weekPlan.find((w) => w.weekNumber === currentWeek) ?? pathway.weekPlan[0];
+                  if (wk) startWeek(wk);
+                }}
+                className="w-full sm:w-auto"
+                data-testid="button-start-current-week"
+              >
+                <Play className="mr-1.5 h-4 w-4" /> Start week {currentWeek}
               </Button>
             </div>
           ) : (
@@ -223,6 +282,7 @@ export default function PathwayDetail() {
         <ol className="relative space-y-4 border-l border-border pl-6">
           {pathway.weekPlan.map((week) => {
             const isCurrent = enrollment != null && currentWeek === week.weekNumber;
+            const isDone = completedWeeks.has(week.weekNumber);
             const totalHold = week.poses.reduce((sum, p) => sum + p.holdSeconds, 0);
             const sessionsPerWeek = week.sessionsPerWeek ?? pathway.sessionsPerWeek;
             return (
@@ -242,8 +302,13 @@ export default function PathwayDetail() {
                       <h3 className="font-serif text-lg">
                         Week {week.weekNumber} · {week.theme}
                       </h3>
-                      {isCurrent && (
-                        <Badge data-testid={`badge-current-week-${week.weekNumber}`}>← You are here</Badge>
+                      {isDone && (
+                        <Badge variant="secondary" data-testid={`badge-done-week-${week.weekNumber}`}>
+                          Practiced
+                        </Badge>
+                      )}
+                      {isCurrent && !isDone && (
+                        <Badge data-testid={`badge-current-week-${week.weekNumber}`}>← Up next</Badge>
                       )}
                     </div>
 

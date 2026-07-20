@@ -37,263 +37,617 @@ import type {
 } from "@shared/schema";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, desc } from "drizzle-orm";
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is required");
-}
-
-export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
-
-export const db = drizzle(pool);
+import { eq, and, desc } from "drizzle-orm";
 
 export interface IStorage {
-  // sessions
-  getSessions(): Promise<Session[]>;
-  createSession(data: InsertSession): Promise<Session>;
-  // enrollments
-  getEnrollments(): Promise<Enrollment[]>;
-  createEnrollment(data: InsertEnrollment): Promise<Enrollment>;
-  deleteEnrollment(id: number): Promise<void>;
-  // favorites
-  getFavorites(): Promise<Favorite[]>;
-  createFavorite(data: InsertFavorite): Promise<Favorite>;
-  deleteFavorite(id: number): Promise<void>;
-  // journal
-  getJournal(): Promise<Journal[]>;
-  createJournal(data: InsertJournal): Promise<Journal>;
-  updateJournal(id: number, data: Partial<InsertJournal>): Promise<Journal | undefined>;
-  deleteJournal(id: number): Promise<void>;
-  // preferences
-  getPreferences(): Promise<Preferences>;
-  updatePreferences(data: Partial<InsertPreferences>): Promise<Preferences>;
-  // profiles
-  getActiveProfile(): Promise<UserProfile | undefined>;
-  activateProfile(profileId: string): Promise<UserProfile>;
-  deactivateProfile(): Promise<void>;
-  // kids stickers
-  getStickers(): Promise<Sticker[]>;
-  createSticker(data: InsertSticker): Promise<Sticker>;
-  // favorite asanas (v3.4)
-  getFavoriteAsanas(): Promise<FavoriteAsana[]>;
-  addFavoriteAsana(slug: string): Promise<FavoriteAsana>;
-  removeFavoriteAsana(slug: string): Promise<void>;
-  // milestones (v3.4)
-  getMilestones(): Promise<Milestone[]>;
-  createMilestone(data: InsertMilestone): Promise<Milestone>;
-  // pose notes (v3.4)
-  getPoseNote(slug: string): Promise<PoseNote | undefined>;
-  upsertPoseNote(slug: string, body: string): Promise<PoseNote>;
-  // mobility check-ins (v3.5)
-  getMobilityCheckIns(pathwaySlug: string): Promise<MobilityCheckIn[]>;
-  createMobilityCheckIn(data: InsertMobilityCheckIn): Promise<MobilityCheckIn>;
-  deleteMobilityCheckIn(id: number): Promise<void>;
-  // custom flows (v5.1)
-  getCustomFlows(): Promise<CustomFlow[]>;
-  getCustomFlow(id: number): Promise<CustomFlow | undefined>;
-  createCustomFlow(data: InsertCustomFlow): Promise<CustomFlow>;
-  updateCustomFlow(id: number, data: Partial<InsertCustomFlow>): Promise<CustomFlow | undefined>;
-  deleteCustomFlow(id: number): Promise<void>;
+  getSessions(ownerId: string): Promise<Session[]>;
+  createSession(ownerId: string, data: InsertSession): Promise<Session>;
+  deleteSession(ownerId: string, id: number): Promise<boolean>;
+  clearOwnerData(ownerId: string): Promise<void>;
+  getEnrollments(ownerId: string): Promise<Enrollment[]>;
+  createEnrollment(ownerId: string, data: InsertEnrollment): Promise<Enrollment>;
+  deleteEnrollment(ownerId: string, id: number): Promise<void>;
+  getFavorites(ownerId: string): Promise<Favorite[]>;
+  createFavorite(ownerId: string, data: InsertFavorite): Promise<Favorite>;
+  deleteFavorite(ownerId: string, id: number): Promise<void>;
+  getJournal(ownerId: string): Promise<Journal[]>;
+  createJournal(ownerId: string, data: InsertJournal): Promise<Journal>;
+  updateJournal(
+    ownerId: string,
+    id: number,
+    data: Partial<InsertJournal>,
+  ): Promise<Journal | undefined>;
+  deleteJournal(ownerId: string, id: number): Promise<void>;
+  getPreferences(ownerId: string): Promise<Preferences>;
+  updatePreferences(ownerId: string, data: Partial<InsertPreferences>): Promise<Preferences>;
+  getActiveProfile(ownerId: string): Promise<UserProfile | undefined>;
+  activateProfile(ownerId: string, profileId: string): Promise<UserProfile>;
+  deactivateProfile(ownerId: string): Promise<void>;
+  getStickers(ownerId: string): Promise<Sticker[]>;
+  createSticker(ownerId: string, data: InsertSticker): Promise<Sticker>;
+  getFavoriteAsanas(ownerId: string): Promise<FavoriteAsana[]>;
+  addFavoriteAsana(ownerId: string, slug: string): Promise<FavoriteAsana>;
+  removeFavoriteAsana(ownerId: string, slug: string): Promise<void>;
+  getMilestones(ownerId: string): Promise<Milestone[]>;
+  createMilestone(ownerId: string, data: InsertMilestone): Promise<Milestone>;
+  getPoseNote(ownerId: string, slug: string): Promise<PoseNote | undefined>;
+  upsertPoseNote(ownerId: string, slug: string, body: string): Promise<PoseNote>;
+  getMobilityCheckIns(ownerId: string, pathwaySlug: string): Promise<MobilityCheckIn[]>;
+  createMobilityCheckIn(ownerId: string, data: InsertMobilityCheckIn): Promise<MobilityCheckIn>;
+  deleteMobilityCheckIn(ownerId: string, id: number): Promise<void>;
+  getCustomFlows(ownerId: string): Promise<CustomFlow[]>;
+  getCustomFlow(ownerId: string, id: number): Promise<CustomFlow | undefined>;
+  createCustomFlow(ownerId: string, data: InsertCustomFlow): Promise<CustomFlow>;
+  updateCustomFlow(
+    ownerId: string,
+    id: number,
+    data: Partial<InsertCustomFlow>,
+  ): Promise<CustomFlow | undefined>;
+  deleteCustomFlow(ownerId: string, id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async getSessions(): Promise<Session[]> {
-    return db.select().from(sessions).orderBy(desc(sessions.date));
-  }
-  async createSession(data: InsertSession): Promise<Session> {
-    const [row] = await db.insert(sessions).values(data).returning();
-    return row;
-  }
+  constructor(private readonly db: ReturnType<typeof drizzle>) {}
 
-  async getEnrollments(): Promise<Enrollment[]> {
-    return db.select().from(pathwayEnrollments);
+  async getSessions(ownerId: string): Promise<Session[]> {
+    return this.db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.ownerId, ownerId))
+      .orderBy(desc(sessions.date));
   }
-  async createEnrollment(data: InsertEnrollment): Promise<Enrollment> {
-    const [row] = await db.insert(pathwayEnrollments).values(data).returning();
-    return row;
-  }
-  async deleteEnrollment(id: number): Promise<void> {
-    await db.delete(pathwayEnrollments).where(eq(pathwayEnrollments.id, id));
-  }
-
-  async getFavorites(): Promise<Favorite[]> {
-    return db.select().from(favoriteAffirmations).orderBy(desc(favoriteAffirmations.createdAt));
-  }
-  async createFavorite(data: InsertFavorite): Promise<Favorite> {
-    const [row] = await db.insert(favoriteAffirmations).values(data).returning();
-    return row;
-  }
-  async deleteFavorite(id: number): Promise<void> {
-    await db.delete(favoriteAffirmations).where(eq(favoriteAffirmations.id, id));
-  }
-
-  async getJournal(): Promise<Journal[]> {
-    return db.select().from(journalEntries).orderBy(desc(journalEntries.date));
-  }
-  async createJournal(data: InsertJournal): Promise<Journal> {
-    const [row] = await db.insert(journalEntries).values(data).returning();
-    return row;
-  }
-  async updateJournal(id: number, data: Partial<InsertJournal>): Promise<Journal | undefined> {
-    const [row] = await db
-      .update(journalEntries)
-      .set(data)
-      .where(eq(journalEntries.id, id))
+  async createSession(ownerId: string, data: InsertSession): Promise<Session> {
+    const [row] = await this.db
+      .insert(sessions)
+      .values({ ...data, ownerId })
       .returning();
     return row;
   }
-  async deleteJournal(id: number): Promise<void> {
-    await db.delete(journalEntries).where(eq(journalEntries.id, id));
+  async deleteSession(ownerId: string, id: number): Promise<boolean> {
+    const rows = await this.db
+      .delete(sessions)
+      .where(and(eq(sessions.id, id), eq(sessions.ownerId, ownerId)))
+      .returning();
+    return rows.length > 0;
+  }
+  async clearOwnerData(ownerId: string): Promise<void> {
+    await Promise.all([
+      this.db.delete(sessions).where(eq(sessions.ownerId, ownerId)),
+      this.db.delete(pathwayEnrollments).where(eq(pathwayEnrollments.ownerId, ownerId)),
+      this.db.delete(favoriteAffirmations).where(eq(favoriteAffirmations.ownerId, ownerId)),
+      this.db.delete(journalEntries).where(eq(journalEntries.ownerId, ownerId)),
+      this.db.delete(preferences).where(eq(preferences.ownerId, ownerId)),
+      this.db.delete(userProfiles).where(eq(userProfiles.ownerId, ownerId)),
+      this.db.delete(kidsStickers).where(eq(kidsStickers.ownerId, ownerId)),
+      this.db.delete(favoriteAsanas).where(eq(favoriteAsanas.ownerId, ownerId)),
+      this.db.delete(milestones).where(eq(milestones.ownerId, ownerId)),
+      this.db.delete(poseNotes).where(eq(poseNotes.ownerId, ownerId)),
+      this.db.delete(mobilityCheckIns).where(eq(mobilityCheckIns.ownerId, ownerId)),
+      this.db.delete(customFlows).where(eq(customFlows.ownerId, ownerId)),
+    ]);
   }
 
-  async getPreferences(): Promise<Preferences> {
-    const [existing] = await db.select().from(preferences).limit(1);
+  async getEnrollments(ownerId: string): Promise<Enrollment[]> {
+    return this.db
+      .select()
+      .from(pathwayEnrollments)
+      .where(eq(pathwayEnrollments.ownerId, ownerId));
+  }
+  async createEnrollment(ownerId: string, data: InsertEnrollment): Promise<Enrollment> {
+    const [row] = await this.db
+      .insert(pathwayEnrollments)
+      .values({ ...data, ownerId })
+      .returning();
+    return row;
+  }
+  async deleteEnrollment(ownerId: string, id: number): Promise<void> {
+    await this.db
+      .delete(pathwayEnrollments)
+      .where(and(eq(pathwayEnrollments.id, id), eq(pathwayEnrollments.ownerId, ownerId)));
+  }
+
+  async getFavorites(ownerId: string): Promise<Favorite[]> {
+    return this.db
+      .select()
+      .from(favoriteAffirmations)
+      .where(eq(favoriteAffirmations.ownerId, ownerId))
+      .orderBy(desc(favoriteAffirmations.createdAt));
+  }
+  async createFavorite(ownerId: string, data: InsertFavorite): Promise<Favorite> {
+    const [row] = await this.db
+      .insert(favoriteAffirmations)
+      .values({ ...data, ownerId })
+      .returning();
+    return row;
+  }
+  async deleteFavorite(ownerId: string, id: number): Promise<void> {
+    await this.db
+      .delete(favoriteAffirmations)
+      .where(and(eq(favoriteAffirmations.id, id), eq(favoriteAffirmations.ownerId, ownerId)));
+  }
+
+  async getJournal(ownerId: string): Promise<Journal[]> {
+    return this.db
+      .select()
+      .from(journalEntries)
+      .where(eq(journalEntries.ownerId, ownerId))
+      .orderBy(desc(journalEntries.date));
+  }
+  async createJournal(ownerId: string, data: InsertJournal): Promise<Journal> {
+    const [row] = await this.db
+      .insert(journalEntries)
+      .values({ ...data, ownerId })
+      .returning();
+    return row;
+  }
+  async updateJournal(
+    ownerId: string,
+    id: number,
+    data: Partial<InsertJournal>,
+  ): Promise<Journal | undefined> {
+    const [row] = await this.db
+      .update(journalEntries)
+      .set(data)
+      .where(and(eq(journalEntries.id, id), eq(journalEntries.ownerId, ownerId)))
+      .returning();
+    return row;
+  }
+  async deleteJournal(ownerId: string, id: number): Promise<void> {
+    await this.db
+      .delete(journalEntries)
+      .where(and(eq(journalEntries.id, id), eq(journalEntries.ownerId, ownerId)));
+  }
+
+  async getPreferences(ownerId: string): Promise<Preferences> {
+    const [existing] = await this.db
+      .select()
+      .from(preferences)
+      .where(eq(preferences.ownerId, ownerId))
+      .limit(1);
     if (existing) return existing;
-    const [created] = await db
+    const [created] = await this.db
       .insert(preferences)
-      .values({ motionEnabled: 1, voiceEnabled: 1 })
+      .values({ ownerId, motionEnabled: 1, voiceEnabled: 1 })
       .returning();
     return created;
   }
-  async updatePreferences(data: Partial<InsertPreferences>): Promise<Preferences> {
-    const current = await this.getPreferences();
-    const [row] = await db
+  async updatePreferences(
+    ownerId: string,
+    data: Partial<InsertPreferences>,
+  ): Promise<Preferences> {
+    const current = await this.getPreferences(ownerId);
+    const [row] = await this.db
       .update(preferences)
       .set(data)
-      .where(eq(preferences.id, current.id))
+      .where(and(eq(preferences.id, current.id), eq(preferences.ownerId, ownerId)))
       .returning();
     return row;
   }
 
-  async getActiveProfile(): Promise<UserProfile | undefined> {
-    const [row] = await db
+  async getActiveProfile(ownerId: string): Promise<UserProfile | undefined> {
+    const [row] = await this.db
       .select()
       .from(userProfiles)
-      .where(eq(userProfiles.active, true))
+      .where(and(eq(userProfiles.ownerId, ownerId), eq(userProfiles.active, true)))
       .orderBy(desc(userProfiles.id))
       .limit(1);
     return row;
   }
-  async activateProfile(profileId: string): Promise<UserProfile> {
-    // Deactivate all existing active profiles, then insert a new active row
-    await db.update(userProfiles).set({ active: false }).where(eq(userProfiles.active, true));
-    const [row] = await db
+  async activateProfile(ownerId: string, profileId: string): Promise<UserProfile> {
+    await this.db
+      .update(userProfiles)
+      .set({ active: false })
+      .where(and(eq(userProfiles.ownerId, ownerId), eq(userProfiles.active, true)));
+    const [row] = await this.db
       .insert(userProfiles)
-      .values({ profileId, activatedAt: new Date().toISOString(), active: true })
+      .values({ ownerId, profileId, activatedAt: new Date().toISOString(), active: true })
       .returning();
     return row;
   }
-  async deactivateProfile(): Promise<void> {
-    await db.update(userProfiles).set({ active: false }).where(eq(userProfiles.active, true));
+  async deactivateProfile(ownerId: string): Promise<void> {
+    await this.db
+      .update(userProfiles)
+      .set({ active: false })
+      .where(and(eq(userProfiles.ownerId, ownerId), eq(userProfiles.active, true)));
   }
 
-  async getStickers(): Promise<Sticker[]> {
-    return db.select().from(kidsStickers).orderBy(desc(kidsStickers.earnedAt));
+  async getStickers(ownerId: string): Promise<Sticker[]> {
+    return this.db
+      .select()
+      .from(kidsStickers)
+      .where(eq(kidsStickers.ownerId, ownerId))
+      .orderBy(desc(kidsStickers.earnedAt));
   }
-  async createSticker(data: InsertSticker): Promise<Sticker> {
-    const [row] = await db.insert(kidsStickers).values(data).returning();
+  async createSticker(ownerId: string, data: InsertSticker): Promise<Sticker> {
+    const [row] = await this.db
+      .insert(kidsStickers)
+      .values({ ...data, ownerId })
+      .returning();
     return row;
   }
 
-  async getFavoriteAsanas(): Promise<FavoriteAsana[]> {
-    return db.select().from(favoriteAsanas).orderBy(desc(favoriteAsanas.createdAt));
-  }
-  async addFavoriteAsana(slug: string): Promise<FavoriteAsana> {
-    const [existing] = await db
+  async getFavoriteAsanas(ownerId: string): Promise<FavoriteAsana[]> {
+    return this.db
       .select()
       .from(favoriteAsanas)
-      .where(eq(favoriteAsanas.slug, slug))
+      .where(eq(favoriteAsanas.ownerId, ownerId))
+      .orderBy(desc(favoriteAsanas.createdAt));
+  }
+  async addFavoriteAsana(ownerId: string, slug: string): Promise<FavoriteAsana> {
+    const [existing] = await this.db
+      .select()
+      .from(favoriteAsanas)
+      .where(and(eq(favoriteAsanas.ownerId, ownerId), eq(favoriteAsanas.slug, slug)))
       .limit(1);
     if (existing) return existing;
-    const [row] = await db
+    const [row] = await this.db
       .insert(favoriteAsanas)
-      .values({ slug, createdAt: new Date().toISOString() })
+      .values({ ownerId, slug, createdAt: new Date().toISOString() })
       .returning();
     return row;
   }
-  async removeFavoriteAsana(slug: string): Promise<void> {
-    await db.delete(favoriteAsanas).where(eq(favoriteAsanas.slug, slug));
+  async removeFavoriteAsana(ownerId: string, slug: string): Promise<void> {
+    await this.db
+      .delete(favoriteAsanas)
+      .where(and(eq(favoriteAsanas.ownerId, ownerId), eq(favoriteAsanas.slug, slug)));
   }
 
-  async getMilestones(): Promise<Milestone[]> {
-    return db.select().from(milestones).orderBy(desc(milestones.reachedAt));
-  }
-  async createMilestone(data: InsertMilestone): Promise<Milestone> {
-    const [existing] = await db
+  async getMilestones(ownerId: string): Promise<Milestone[]> {
+    return this.db
       .select()
       .from(milestones)
-      .where(eq(milestones.kind, data.kind))
+      .where(eq(milestones.ownerId, ownerId))
+      .orderBy(desc(milestones.reachedAt));
+  }
+  async createMilestone(ownerId: string, data: InsertMilestone): Promise<Milestone> {
+    const [existing] = await this.db
+      .select()
+      .from(milestones)
+      .where(and(eq(milestones.ownerId, ownerId), eq(milestones.kind, data.kind)))
       .limit(1);
     if (existing) return existing;
-    const [row] = await db.insert(milestones).values(data).returning();
+    const [row] = await this.db
+      .insert(milestones)
+      .values({ ...data, ownerId })
+      .returning();
     return row;
   }
 
-  async getPoseNote(slug: string): Promise<PoseNote | undefined> {
-    const [row] = await db.select().from(poseNotes).where(eq(poseNotes.slug, slug)).limit(1);
-    return row;
-  }
-  async upsertPoseNote(slug: string, body: string): Promise<PoseNote> {
-    const now = new Date().toISOString();
-    const [existing] = await db
+  async getPoseNote(ownerId: string, slug: string): Promise<PoseNote | undefined> {
+    const [row] = await this.db
       .select()
       .from(poseNotes)
-      .where(eq(poseNotes.slug, slug))
+      .where(and(eq(poseNotes.ownerId, ownerId), eq(poseNotes.slug, slug)))
       .limit(1);
+    return row;
+  }
+  async upsertPoseNote(ownerId: string, slug: string, body: string): Promise<PoseNote> {
+    const now = new Date().toISOString();
+    const existing = await this.getPoseNote(ownerId, slug);
     if (existing) {
-      const [row] = await db
+      const [row] = await this.db
         .update(poseNotes)
         .set({ body, updatedAt: now })
-        .where(eq(poseNotes.slug, slug))
+        .where(and(eq(poseNotes.ownerId, ownerId), eq(poseNotes.slug, slug)))
         .returning();
       return row;
     }
-    const [row] = await db
+    const [row] = await this.db
       .insert(poseNotes)
-      .values({ slug, body, updatedAt: now })
+      .values({ ownerId, slug, body, updatedAt: now })
       .returning();
     return row;
   }
 
-  async getMobilityCheckIns(pathwaySlug: string): Promise<MobilityCheckIn[]> {
-    return db
+  async getMobilityCheckIns(ownerId: string, pathwaySlug: string): Promise<MobilityCheckIn[]> {
+    return this.db
       .select()
       .from(mobilityCheckIns)
-      .where(eq(mobilityCheckIns.pathwaySlug, pathwaySlug))
+      .where(
+        and(eq(mobilityCheckIns.ownerId, ownerId), eq(mobilityCheckIns.pathwaySlug, pathwaySlug)),
+      )
       .orderBy(mobilityCheckIns.day);
   }
-  async createMobilityCheckIn(data: InsertMobilityCheckIn): Promise<MobilityCheckIn> {
-    const [row] = await db.insert(mobilityCheckIns).values(data).returning();
+  async createMobilityCheckIn(
+    ownerId: string,
+    data: InsertMobilityCheckIn,
+  ): Promise<MobilityCheckIn> {
+    const [row] = await this.db
+      .insert(mobilityCheckIns)
+      .values({ ...data, ownerId })
+      .returning();
     return row;
   }
-  async getCustomFlows(): Promise<CustomFlow[]> {
-    return db.select().from(customFlows).orderBy(desc(customFlows.id));
+  async deleteMobilityCheckIn(ownerId: string, id: number): Promise<void> {
+    await this.db
+      .delete(mobilityCheckIns)
+      .where(and(eq(mobilityCheckIns.id, id), eq(mobilityCheckIns.ownerId, ownerId)));
   }
-  async getCustomFlow(id: number): Promise<CustomFlow | undefined> {
-    const [row] = await db.select().from(customFlows).where(eq(customFlows.id, id)).limit(1);
+
+  async getCustomFlows(ownerId: string): Promise<CustomFlow[]> {
+    return this.db
+      .select()
+      .from(customFlows)
+      .where(eq(customFlows.ownerId, ownerId))
+      .orderBy(desc(customFlows.id));
+  }
+  async getCustomFlow(ownerId: string, id: number): Promise<CustomFlow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(customFlows)
+      .where(and(eq(customFlows.id, id), eq(customFlows.ownerId, ownerId)))
+      .limit(1);
     return row;
   }
-  async createCustomFlow(data: InsertCustomFlow): Promise<CustomFlow> {
-    const [row] = await db.insert(customFlows).values(data).returning();
+  async createCustomFlow(ownerId: string, data: InsertCustomFlow): Promise<CustomFlow> {
+    const [row] = await this.db
+      .insert(customFlows)
+      .values({ ...data, ownerId })
+      .returning();
     return row;
   }
   async updateCustomFlow(
+    ownerId: string,
     id: number,
     data: Partial<InsertCustomFlow>,
   ): Promise<CustomFlow | undefined> {
-    await db.update(customFlows).set(data).where(eq(customFlows.id, id));
-    const [row] = await db.select().from(customFlows).where(eq(customFlows.id, id)).limit(1);
-    return row;
+    await this.db
+      .update(customFlows)
+      .set(data)
+      .where(and(eq(customFlows.id, id), eq(customFlows.ownerId, ownerId)));
+    return this.getCustomFlow(ownerId, id);
   }
-  async deleteCustomFlow(id: number): Promise<void> {
-    await db.delete(customFlows).where(eq(customFlows.id, id));
-  }
-  async deleteMobilityCheckIn(id: number): Promise<void> {
-    await db.delete(mobilityCheckIns).where(eq(mobilityCheckIns.id, id));
+  async deleteCustomFlow(ownerId: string, id: number): Promise<void> {
+    await this.db
+      .delete(customFlows)
+      .where(and(eq(customFlows.id, id), eq(customFlows.ownerId, ownerId)));
   }
 }
 
-export const storage = new DatabaseStorage();
+/** In-memory store for local/dev when DATABASE_URL is unset. */
+export class MemoryStorage implements IStorage {
+  private seq = 1;
+  private sessions: Session[] = [];
+  private enrollments: Enrollment[] = [];
+  private favorites: Favorite[] = [];
+  private journal: Journal[] = [];
+  private prefs = new Map<string, Preferences>();
+  private profiles: UserProfile[] = [];
+  private stickers: Sticker[] = [];
+  private favAsanas: FavoriteAsana[] = [];
+  private milestones: Milestone[] = [];
+  private notes: PoseNote[] = [];
+  private mobility: MobilityCheckIn[] = [];
+  private flows: CustomFlow[] = [];
+
+  private nextId() {
+    return this.seq++;
+  }
+
+  async getSessions(ownerId: string) {
+    return this.sessions.filter((s) => s.ownerId === ownerId).sort((a, b) => (a.date < b.date ? 1 : -1));
+  }
+  async createSession(ownerId: string, data: InsertSession) {
+    const row: Session = { id: this.nextId(), ownerId, ...data } as Session;
+    this.sessions.push(row);
+    return row;
+  }
+  async deleteSession(ownerId: string, id: number) {
+    const before = this.sessions.length;
+    this.sessions = this.sessions.filter((s) => !(s.id === id && s.ownerId === ownerId));
+    return this.sessions.length < before;
+  }
+  async clearOwnerData(ownerId: string) {
+    this.sessions = this.sessions.filter((s) => s.ownerId !== ownerId);
+    this.enrollments = this.enrollments.filter((e) => e.ownerId !== ownerId);
+    this.favorites = this.favorites.filter((f) => f.ownerId !== ownerId);
+    this.journal = this.journal.filter((j) => j.ownerId !== ownerId);
+    this.prefs.delete(ownerId);
+    this.profiles = this.profiles.filter((p) => p.ownerId !== ownerId);
+    this.stickers = this.stickers.filter((s) => s.ownerId !== ownerId);
+    this.favAsanas = this.favAsanas.filter((f) => f.ownerId !== ownerId);
+    this.milestones = this.milestones.filter((m) => m.ownerId !== ownerId);
+    this.notes = this.notes.filter((n) => n.ownerId !== ownerId);
+    this.mobility = this.mobility.filter((m) => m.ownerId !== ownerId);
+    this.flows = this.flows.filter((f) => f.ownerId !== ownerId);
+  }
+
+  async getEnrollments(ownerId: string) {
+    return this.enrollments.filter((e) => e.ownerId === ownerId);
+  }
+  async createEnrollment(ownerId: string, data: InsertEnrollment) {
+    const row: Enrollment = { id: this.nextId(), ownerId, ...data } as Enrollment;
+    this.enrollments.push(row);
+    return row;
+  }
+  async deleteEnrollment(ownerId: string, id: number) {
+    this.enrollments = this.enrollments.filter((e) => !(e.id === id && e.ownerId === ownerId));
+  }
+
+  async getFavorites(ownerId: string) {
+    return this.favorites
+      .filter((f) => f.ownerId === ownerId)
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  }
+  async createFavorite(ownerId: string, data: InsertFavorite) {
+    const row: Favorite = { id: this.nextId(), ownerId, ...data } as Favorite;
+    this.favorites.push(row);
+    return row;
+  }
+  async deleteFavorite(ownerId: string, id: number) {
+    this.favorites = this.favorites.filter((f) => !(f.id === id && f.ownerId === ownerId));
+  }
+
+  async getJournal(ownerId: string) {
+    return this.journal
+      .filter((j) => j.ownerId === ownerId)
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  }
+  async createJournal(ownerId: string, data: InsertJournal) {
+    const row: Journal = { id: this.nextId(), ownerId, ...data } as Journal;
+    this.journal.push(row);
+    return row;
+  }
+  async updateJournal(ownerId: string, id: number, data: Partial<InsertJournal>) {
+    const row = this.journal.find((j) => j.id === id && j.ownerId === ownerId);
+    if (!row) return undefined;
+    Object.assign(row, data);
+    return row;
+  }
+  async deleteJournal(ownerId: string, id: number) {
+    this.journal = this.journal.filter((j) => !(j.id === id && j.ownerId === ownerId));
+  }
+
+  async getPreferences(ownerId: string) {
+    let p = this.prefs.get(ownerId);
+    if (!p) {
+      p = { id: this.nextId(), ownerId, motionEnabled: 1, voiceEnabled: 1 };
+      this.prefs.set(ownerId, p);
+    }
+    return p;
+  }
+  async updatePreferences(ownerId: string, data: Partial<InsertPreferences>) {
+    const current = await this.getPreferences(ownerId);
+    Object.assign(current, data);
+    return current;
+  }
+
+  async getActiveProfile(ownerId: string) {
+    return this.profiles.find((p) => p.ownerId === ownerId && p.active);
+  }
+  async activateProfile(ownerId: string, profileId: string) {
+    for (const p of this.profiles) {
+      if (p.ownerId === ownerId && p.active) p.active = false;
+    }
+    const row: UserProfile = {
+      id: this.nextId(),
+      ownerId,
+      profileId,
+      activatedAt: new Date().toISOString(),
+      active: true,
+    };
+    this.profiles.push(row);
+    return row;
+  }
+  async deactivateProfile(ownerId: string) {
+    for (const p of this.profiles) {
+      if (p.ownerId === ownerId && p.active) p.active = false;
+    }
+  }
+
+  async getStickers(ownerId: string) {
+    return this.stickers
+      .filter((s) => s.ownerId === ownerId)
+      .sort((a, b) => (a.earnedAt < b.earnedAt ? 1 : -1));
+  }
+  async createSticker(ownerId: string, data: InsertSticker) {
+    const row: Sticker = { id: this.nextId(), ownerId, ...data } as Sticker;
+    this.stickers.push(row);
+    return row;
+  }
+
+  async getFavoriteAsanas(ownerId: string) {
+    return this.favAsanas
+      .filter((f) => f.ownerId === ownerId)
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  }
+  async addFavoriteAsana(ownerId: string, slug: string) {
+    const existing = this.favAsanas.find((f) => f.ownerId === ownerId && f.slug === slug);
+    if (existing) return existing;
+    const row: FavoriteAsana = {
+      id: this.nextId(),
+      ownerId,
+      slug,
+      createdAt: new Date().toISOString(),
+    };
+    this.favAsanas.push(row);
+    return row;
+  }
+  async removeFavoriteAsana(ownerId: string, slug: string) {
+    this.favAsanas = this.favAsanas.filter((f) => !(f.ownerId === ownerId && f.slug === slug));
+  }
+
+  async getMilestones(ownerId: string) {
+    return this.milestones
+      .filter((m) => m.ownerId === ownerId)
+      .sort((a, b) => (a.reachedAt < b.reachedAt ? 1 : -1));
+  }
+  async createMilestone(ownerId: string, data: InsertMilestone) {
+    const existing = this.milestones.find((m) => m.ownerId === ownerId && m.kind === data.kind);
+    if (existing) return existing;
+    const row: Milestone = { id: this.nextId(), ownerId, ...data } as Milestone;
+    this.milestones.push(row);
+    return row;
+  }
+
+  async getPoseNote(ownerId: string, slug: string) {
+    return this.notes.find((n) => n.ownerId === ownerId && n.slug === slug);
+  }
+  async upsertPoseNote(ownerId: string, slug: string, body: string) {
+    const now = new Date().toISOString();
+    const existing = await this.getPoseNote(ownerId, slug);
+    if (existing) {
+      existing.body = body;
+      existing.updatedAt = now;
+      return existing;
+    }
+    const row: PoseNote = { id: this.nextId(), ownerId, slug, body, updatedAt: now };
+    this.notes.push(row);
+    return row;
+  }
+
+  async getMobilityCheckIns(ownerId: string, pathwaySlug: string) {
+    return this.mobility
+      .filter((m) => m.ownerId === ownerId && m.pathwaySlug === pathwaySlug)
+      .sort((a, b) => a.day - b.day);
+  }
+  async createMobilityCheckIn(ownerId: string, data: InsertMobilityCheckIn) {
+    const row: MobilityCheckIn = { id: this.nextId(), ownerId, ...data } as MobilityCheckIn;
+    this.mobility.push(row);
+    return row;
+  }
+  async deleteMobilityCheckIn(ownerId: string, id: number) {
+    this.mobility = this.mobility.filter((m) => !(m.id === id && m.ownerId === ownerId));
+  }
+
+  async getCustomFlows(ownerId: string) {
+    return this.flows.filter((f) => f.ownerId === ownerId).sort((a, b) => b.id - a.id);
+  }
+  async getCustomFlow(ownerId: string, id: number) {
+    return this.flows.find((f) => f.id === id && f.ownerId === ownerId);
+  }
+  async createCustomFlow(ownerId: string, data: InsertCustomFlow) {
+    const row: CustomFlow = { id: this.nextId(), ownerId, ...data } as CustomFlow;
+    this.flows.push(row);
+    return row;
+  }
+  async updateCustomFlow(ownerId: string, id: number, data: Partial<InsertCustomFlow>) {
+    const row = await this.getCustomFlow(ownerId, id);
+    if (!row) return undefined;
+    Object.assign(row, data);
+    return row;
+  }
+  async deleteCustomFlow(ownerId: string, id: number) {
+    this.flows = this.flows.filter((f) => !(f.id === id && f.ownerId === ownerId));
+  }
+}
+
+export let pool: Pool | null = null;
+export let storage: IStorage;
+export let usingMemoryStore = false;
+
+export function initStorage(): { usingMemory: boolean } {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    storage = new MemoryStorage();
+    usingMemoryStore = true;
+    return { usingMemory: true };
+  }
+  pool = new Pool({
+    connectionString: url,
+    ssl: { rejectUnauthorized: false },
+  });
+  storage = new DatabaseStorage(drizzle(pool));
+  usingMemoryStore = false;
+  return { usingMemory: false };
+}

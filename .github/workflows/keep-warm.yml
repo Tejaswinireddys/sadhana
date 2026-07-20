@@ -23,7 +23,7 @@ jobs:
       - name: Ping app
         run: |
           set -e
-          URL="https://sadhana-ou9m.onrender.com/api/preferences"
+          URL="https://sadhana-ou9m.onrender.com/healthz"
           # 60s timeout — cold starts on Render Free can take up to 30s
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 "$URL")
           echo "Ping status: $STATUS"

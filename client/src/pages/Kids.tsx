@@ -8,7 +8,7 @@ import { KIDS_POSES, KIDS_BREATH } from "@/data/kids";
 import { Play, Sparkles, Wind } from "lucide-react";
 
 export default function Kids() {
-  const { unlocked } = useKidsGate();
+  const { unlocked, lock } = useKidsGate();
 
   return (
     <>
@@ -19,9 +19,20 @@ export default function Kids() {
           {/* Hero */}
           <div className="grid items-center gap-6 md:grid-cols-[1.1fr_1fr]">
             <div className="space-y-4">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(16_72%_58%)] px-3 py-1 text-xs font-semibold text-white">
-                <Sparkles className="h-3.5 w-3.5" /> Kids Yoga
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(16_72%_58%)] px-3 py-1 text-xs font-semibold text-white">
+                  <Sparkles className="h-3.5 w-3.5" /> Kids Yoga
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full text-xs"
+                  onClick={lock}
+                  data-testid="button-lock-kids"
+                >
+                  Parent lock
+                </Button>
+              </div>
               <h1 className="kids-title text-4xl font-bold leading-tight sm:text-5xl" data-testid="text-kids-title">
                 Let's go on a yoga adventure!
               </h1>

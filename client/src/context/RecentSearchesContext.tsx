@@ -1,7 +1,5 @@
-// RecentSearches — keeps the last handful of search queries in memory only.
-// Intentionally NOT persisted (no localStorage/sessionStorage) — it resets on
-// reload, matching the rest of the app's transient-state approach.
 import { createContext, useContext, useState, useCallback } from "react";
+import { KEYS, readJson, writeJson } from "@/lib/localPrefs";
 
 type RecentSearchesContextType = {
   recents: string[];
@@ -13,14 +11,16 @@ const RecentSearchesContext = createContext<RecentSearchesContextType | null>(nu
 const MAX_RECENTS = 6;
 
 export function RecentSearchesProvider({ children }: { children: React.ReactNode }) {
-  const [recents, setRecents] = useState<string[]>([]);
+  const [recents, setRecents] = useState<string[]>(() => readJson(KEYS.recentSearches, []));
 
   const addRecent = useCallback((q: string) => {
     const trimmed = q.trim();
     if (!trimmed) return;
     setRecents((prev) => {
       const deduped = prev.filter((r) => r.toLowerCase() !== trimmed.toLowerCase());
-      return [trimmed, ...deduped].slice(0, MAX_RECENTS);
+      const next = [trimmed, ...deduped].slice(0, MAX_RECENTS);
+      writeJson(KEYS.recentSearches, next);
+      return next;
     });
   }, []);
 

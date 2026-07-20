@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,8 @@ import type { Pathway } from "@/data/content";
 import { profileById } from "@/data/profiles";
 import { resolveIcon } from "@/lib/icons";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
-import type { UserProfile, Enrollment } from "@shared/schema";
+import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/lib/localPrefs";
+import type { UserProfile, Enrollment, FavoriteAsana } from "@shared/schema";
 import {
   Flame,
   Trophy,
@@ -32,6 +33,7 @@ import {
   Moon,
   CalendarDays,
   Zap,
+  Heart,
 } from "lucide-react";
 
 const MS_PER_DAY = 86400000;
@@ -143,16 +145,33 @@ function StatCard({
 
 export default function Home() {
   const [, navigate] = useLocation();
-  const { todays, remove, loadSession } = usePractice();
+  const { todays, remove, loadSession, progress } = usePractice();
   const [reminderDismissed, setReminderDismissed] = useState(false);
   const [splitsBannerDismissed, setSplitsBannerDismissed] = useState(false);
-  const { data: stats, isLoading } = useQuery<Stats>({ queryKey: ["/api/sessions/stats", todayISO()] });
+  const showResume =
+    todays.length > 0 &&
+    !!progress?.started &&
+    (progress.mode === "guided" || progress.mode === "practice");
+  const {
+    data: stats,
+    isLoading,
+    isError: statsError,
+    refetch: refetchStats,
+  } = useQuery<Stats>({ queryKey: ["/api/sessions/stats", todayISO()] });
   const { data: activeProfileRow } = useQuery<UserProfile | null>({
     queryKey: ["/api/profile/active"],
   });
   const { data: enrollments = [] } = useQuery<Enrollment[]>({ queryKey: ["/api/enrollments"] });
+  const { data: favoriteAsanas = [] } = useQuery<FavoriteAsana[]>({
+    queryKey: ["/api/favorites/asanas"],
+  });
   const affirmation = dailyAffirmation();
   const breath = breathOfTheDay();
+  const reminderPrefs = readJson<ReminderPrefs>(KEYS.reminder, {
+    enabled: true,
+    hour: 18,
+    notifications: false,
+  });
 
   const profile = profileById(activeProfileRow?.profileId);
   const recommendedAsanas = profile
@@ -270,8 +289,29 @@ export default function Home() {
     const todayEntry = stats?.heatmap?.find((h) => h.date === today);
     return !!todayEntry && todayEntry.minutes > 0;
   })();
-  const pastEvening = new Date().getHours() >= 18;
-  const showReminder = !reminderDismissed && !practicedToday && pastEvening && !isLoading;
+  const pastReminderHour = new Date().getHours() >= (reminderPrefs.hour ?? 18);
+  const reminderDismissedToday = readString(KEYS.reminderDismissedDay) === todayISO();
+  const showReminder =
+    reminderPrefs.enabled &&
+    !reminderDismissed &&
+    !reminderDismissedToday &&
+    !practicedToday &&
+    pastReminderHour &&
+    !isLoading;
+
+  // Optional browser notification when the tab is open past the reminder hour.
+  useEffect(() => {
+    if (!showReminder || !reminderPrefs.notifications) return;
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    try {
+      new Notification("Time for Sadhana", {
+        body: "A few mindful minutes will meet you where you are.",
+        tag: `sadhana-reminder-${todayISO()}`,
+      });
+    } catch {
+      /* ignore */
+    }
+  }, [showReminder, reminderPrefs.notifications]);
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -283,6 +323,27 @@ export default function Home() {
           {profile ? `Welcome back to your ${profile.name} practice` : "Welcome to your practice"}
         </h1>
       </header>
+
+      {/* Resume an in-progress session after refresh / navigation away */}
+      {showResume && (
+        <Card className="border-primary/40 bg-accent/30 shadow-soft" data-testid="banner-resume">
+          <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
+            <div>
+              <p className="font-serif text-lg leading-tight">Continue your practice?</p>
+              <p className="text-sm text-muted-foreground">
+                {todays.length} pose{todays.length === 1 ? "" : "s"} queued
+                {progress?.mode === "guided" ? " (guided)" : ""} — pick up where you left off.
+              </p>
+            </div>
+            <Button
+              onClick={() => navigate(progress?.mode === "practice" ? "/practice" : "/guided")}
+              data-testid="button-resume-session"
+            >
+              <Play className="mr-1.5 h-4 w-4" /> Resume
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Daily reminder banner (v3.4) — evening nudge, dismissable for the session */}
       {showReminder && (
@@ -309,7 +370,10 @@ export default function Home() {
                 Begin a quick session
               </Button>
               <button
-                onClick={() => setReminderDismissed(true)}
+                onClick={() => {
+                  setReminderDismissed(true);
+                  writeString(KEYS.reminderDismissedDay, todayISO());
+                }}
                 className="text-muted-foreground hover:text-foreground"
                 aria-label="Dismiss reminder"
                 data-testid="button-dismiss-reminder"
@@ -352,6 +416,17 @@ export default function Home() {
             <Skeleton key={i} className="h-20 w-full" />
           ))}
         </div>
+      ) : statsError ? (
+        <Card className="border-destructive/40 bg-destructive/5 shadow-soft" data-testid="banner-stats-error">
+          <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
+            <p className="text-sm text-muted-foreground">
+              Couldn't load your practice stats. Check your connection and try again.
+            </p>
+            <Button variant="outline" onClick={() => refetchStats()} data-testid="button-retry-stats">
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatCard icon={Flame} label="Current streak (days)" value={stats?.currentStreak ?? 0} testId="stat-current-streak" />
@@ -359,6 +434,63 @@ export default function Home() {
           <StatCard icon={CalendarCheck} label="Total sessions" value={stats?.totalSessions ?? 0} testId="stat-total-sessions" />
           <StatCard icon={Clock} label="Minutes practiced" value={stats?.totalMinutes ?? 0} testId="stat-total-minutes" />
         </div>
+      )}
+
+      {/* Favorited poses — one-tap practice */}
+      {favoriteAsanas.length > 0 && (
+        <section className="space-y-3" data-testid="section-favorite-poses">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Heart className="h-5 w-5 fill-primary text-primary" />
+              <h2 className="font-serif text-xl">Your poses</h2>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => {
+                const poses = favoriteAsanas
+                  .map((f) => {
+                    const asana = asanaBySlug(f.slug);
+                    return asana ? { asana } : null;
+                  })
+                  .filter(
+                    (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>> } => x != null,
+                  );
+                if (!poses.length) return;
+                loadSession(poses, { label: "Favorite poses" });
+                navigate("/guided");
+              }}
+              data-testid="button-practice-favorites"
+            >
+              <Play className="mr-1.5 h-4 w-4" /> Practice all
+            </Button>
+          </div>
+          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+            {favoriteAsanas.slice(0, 12).map((f) => {
+              const a = asanaBySlug(f.slug);
+              if (!a) return null;
+              return (
+                <button
+                  key={f.slug}
+                  type="button"
+                  className="flex w-36 shrink-0 flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-center shadow-soft hover:bg-accent/30"
+                  onClick={() => {
+                    loadSession([{ asana: a }], { label: a.english });
+                    navigate("/guided");
+                  }}
+                  data-testid={`favorite-pose-${f.slug}`}
+                >
+                  <img
+                    src={`${import.meta.env.BASE_URL}poses/${f.slug}.png`}
+                    alt={a.english}
+                    className="h-20 w-20 rounded-md object-cover"
+                    loading="lazy"
+                  />
+                  <span className="text-xs font-medium leading-tight">{a.english}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       {/* Quick Start — mood-based sessions (v3.4) */}
