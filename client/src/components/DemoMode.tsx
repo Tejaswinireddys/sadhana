@@ -27,9 +27,15 @@ export function DemoMode({ slug }: { slug: string }) {
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
+  // When narration can't load (e.g. a pose whose voice file isn't recorded
+  // yet), we run the demo on a silent timer instead of bricking on step 1.
+  const [audioFailed, setAudioFailed] = useState(false);
 
   const steps = asana?.steps ?? [];
   const stepCount = steps.length || 1;
+  const SILENT_SECONDS_PER_STEP = 6;
+  const silentDuration = stepCount * SILENT_SECONDS_PER_STEP;
+  const effectiveDuration = audioFailed ? silentDuration : duration;
 
   // Focus zone for the currently active step. Unlike earlier versions we no
   // longer fall back to a default whole-body halo: if the active step has no
@@ -61,27 +67,54 @@ export function DemoMode({ slug }: { slug: string }) {
     setCompleted(false);
     setCurrent(0);
     setStepIndex(0);
+    setAudioFailed(false);
   }, [slug]);
 
   if (!asana) return null;
 
   const src = `${import.meta.env.BASE_URL}voice/pose-${asana.slug}.mp3`;
-  const progress = duration > 0 ? Math.min(100, (current / duration) * 100) : 0;
+  const progress =
+    effectiveDuration > 0 ? Math.min(100, (current / effectiveDuration) * 100) : 0;
+
+  // Silent fallback engine: when audio is unavailable, advance the clock and
+  // the step highlight on a plain interval (mirrors GuidedSession's muted path).
+  useEffect(() => {
+    if (!audioFailed || !started || !playing || completed) return;
+    const t = setInterval(() => {
+      setCurrent((c) => {
+        const nc = c + 0.5;
+        setStepIndex(Math.min(stepCount - 1, Math.floor((nc / silentDuration) * stepCount)));
+        if (nc >= silentDuration) {
+          setPlaying(false);
+          setCompleted(true);
+          setStepIndex(stepCount - 1);
+          return silentDuration;
+        }
+        return nc;
+      });
+    }, 500);
+    return () => clearInterval(t);
+  }, [audioFailed, started, playing, completed, stepCount, silentDuration]);
 
   const start = () => {
     const a = audioRef.current;
     if (!a) return;
     setStarted(true);
     setCompleted(false);
+    setCurrent(0);
+    setStepIndex(0);
+    if (audioFailed) {
+      // No narration for this pose — run the silent, timed walkthrough.
+      setPlaying(true);
+      return;
+    }
     const p = a.play();
     if (p && typeof p.then === "function") {
-      p.then(() => setPlaying(true)).catch((err) => {
-        setPlaying(false);
-        toast({
-          title: "Couldn't start the demo",
-          description: err?.message || "The narration couldn't play. Please try again.",
-          variant: "destructive",
-        });
+      p.then(() => setPlaying(true)).catch(() => {
+        // Autoplay refusal or missing narration: fall back to the silent demo
+        // rather than dying on step 1.
+        setAudioFailed(true);
+        setPlaying(true);
       });
     } else {
       setPlaying(true);
@@ -96,11 +129,18 @@ export function DemoMode({ slug }: { slug: string }) {
   };
 
   const resume = () => {
+    if (audioFailed) {
+      setPlaying(true);
+      return;
+    }
     const a = audioRef.current;
     if (!a) return;
     const p = a.play();
     if (p && typeof p.then === "function") {
-      p.then(() => setPlaying(true)).catch(() => setPlaying(false));
+      p.then(() => setPlaying(true)).catch(() => {
+        setAudioFailed(true);
+        setPlaying(true);
+      });
     } else {
       setPlaying(true);
     }
@@ -327,12 +367,15 @@ export function DemoMode({ slug }: { slug: string }) {
             setStepIndex(stepCount - 1);
           }}
           onError={() => {
-            setPlaying(false);
-            toast({
-              title: "Demo audio unavailable",
-              description: `Couldn't load narration (${src}).`,
-              variant: "destructive",
-            });
+            setAudioFailed(true);
+            if (started && !completed) {
+              // Mid-demo failure: keep going on the silent timer.
+              setPlaying(true);
+              toast({
+                title: "Narration unavailable",
+                description: "Running the demo silently — follow the highlighted steps.",
+              });
+            }
           }}
         />
       </div>

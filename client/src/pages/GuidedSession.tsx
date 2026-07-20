@@ -137,6 +137,9 @@ export default function GuidedSession() {
   const pendingExtension = useRef(0);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // True when this pose's narration failed to load/play. The instruction phase
+  // then runs on the silent countdown instead of waiting forever for audio.
+  const audioBrokenRef = useRef(false);
   const imgWrapRef = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0, offsetX: 0, offsetY: 0, wrapW: 0, wrapH: 0 });
   const [voiceDuration, setVoiceDuration] = useState(0);
@@ -237,6 +240,8 @@ export default function GuidedSession() {
       setStepIndex(0);
       setPhaseRemaining(TRANSITION_SECONDS);
       setCueIndex(0);
+      audioBrokenRef.current = false;
+      setVoiceDuration(0);
       playChime();
       speak(`Next: ${pose.english}. Take a breath, and prepare.`);
     },
@@ -363,17 +368,33 @@ export default function GuidedSession() {
     [todays.length, finish, enterTransition],
   );
 
+  // Silent narration window (seconds of on-screen step reading) used when
+  // voice is off OR this pose's narration failed to load.
+  const SILENT_INSTRUCTION = 12;
+
   const startInstruction = useCallback(
     (whichSide: 1 | 2) => {
       setPhase("instruction");
       setSide(whichSide);
       setStepIndex(0);
       const a = audioRef.current;
-      if (voiceEnabled && a) {
-        a.currentTime = 0;
-        a.playbackRate = 1;
-        const p = a.play();
-        if (p && typeof p.then === "function") p.catch(() => {});
+      if (!voiceEnabled || audioBrokenRef.current || !a) {
+        // Timer-driven walkthrough: the master tick counts this down and the
+        // step captions cycle across the window.
+        setPhaseRemaining(SILENT_INSTRUCTION);
+        return;
+      }
+      a.currentTime = 0;
+      a.playbackRate = 1;
+      const p = a.play();
+      if (p && typeof p.then === "function") {
+        p.catch((err) => {
+          // AbortError = we interrupted playback ourselves (pause/skip); real
+          // failures (missing/broken narration) fall back to the silent window.
+          if ((err as DOMException)?.name === "AbortError") return;
+          audioBrokenRef.current = true;
+          setPhaseRemaining(SILENT_INSTRUCTION);
+        });
       }
     },
     [voiceEnabled],
@@ -383,7 +404,7 @@ export default function GuidedSession() {
     const a = audioRef.current;
     if (a) a.pause();
     const hold = current?.holdSeconds ?? 30;
-    const vd = voiceEnabled ? Math.round(voiceDuration) : 0;
+    const vd = voiceEnabled && !audioBrokenRef.current ? Math.round(voiceDuration) : 0;
     const remaining = Math.max(3, hold - vd) + pendingExtension.current;
     pendingExtension.current = 0;
     setPhaseRemaining(remaining);
@@ -404,10 +425,6 @@ export default function GuidedSession() {
     }
   }, [isEach, side, enterHold, speak]);
 
-  // If voice is disabled, the "instruction" phase has no audio — run it on a
-  // timer equal to a nominal narration window, then behave like onVoiceEnded.
-  const SILENT_INSTRUCTION = 12; // seconds of on-screen step reading when muted
-
   // ---- master 1s tick -------------------------------------------------------
   useEffect(() => {
     if (!started || paused || finished) return;
@@ -416,8 +433,8 @@ export default function GuidedSession() {
       setRemainingEstimate((r) => Math.max(0, r - 1));
 
       setPhaseRemaining((r) => {
-        // instruction phase with voice is driven by audio, not this countdown
-        if (phase === "instruction" && voiceEnabled) return r;
+        // instruction phase with working voice is driven by audio, not this countdown
+        if (phase === "instruction" && voiceEnabled && !audioBrokenRef.current) return r;
 
         if (r <= 1) {
           if (phase === "transitionIn") {
@@ -442,8 +459,8 @@ export default function GuidedSession() {
             return 0;
           }
         }
-        // muted instruction phase: cycle steps across the SILENT window
-        if (phase === "instruction" && !voiceEnabled) {
+        // silent instruction phase (voice off or narration missing): cycle steps
+        if (phase === "instruction" && (!voiceEnabled || audioBrokenRef.current)) {
           const elapsed = SILENT_INSTRUCTION - (r - 1);
           const idx = Math.min(stepCount - 1, Math.floor((elapsed / SILENT_INSTRUCTION) * stepCount));
           setStepIndex(idx);
@@ -749,8 +766,11 @@ export default function GuidedSession() {
         }}
         onEnded={onVoiceEnded}
         onError={() => {
-          // If narration can't load, fall back to the muted flow for this pose.
-          if (phase === "instruction") onVoiceEnded();
+          // Narration can't load (fires during preload, possibly before the
+          // instruction phase starts). Flag it; if we're already mid-instruction
+          // switch to the silent reading window instead of hanging.
+          audioBrokenRef.current = true;
+          if (phase === "instruction") setPhaseRemaining(SILENT_INSTRUCTION);
         }}
       />
 
