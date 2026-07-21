@@ -34,6 +34,14 @@ export async function setupVite(server: Server, app: Express) {
   app.use("/{*path}", async (req, res, next) => {
     const url = req.originalUrl;
 
+    // A missing static asset (has a file extension, e.g. /poses/*.png that
+    // doesn't exist) should 404, not silently resolve to the SPA's index.html
+    // — otherwise <img onError> / <audio onError> fallbacks never fire.
+    if (path.extname(req.path)) {
+      res.status(404).end();
+      return;
+    }
+
     try {
       const clientTemplate = path.resolve(
         import.meta.dirname,

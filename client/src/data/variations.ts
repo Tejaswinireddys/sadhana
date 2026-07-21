@@ -3044,4 +3044,295 @@ export const EXTRAS: Record<string, AsanaExtras> = {
     },
     stepMotions: ["ground", "arm-extend", "balance", "lift", "settle"],
   },
+
+  rajakapotasana: {
+    avoidIf: [
+      { condition: "Knee, hip, or shoulder injury", severity: "avoid" },
+      { condition: "Lower-back issues or recent spinal surgery", severity: "avoid" },
+      { condition: "High or low blood pressure", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Stay in Eka Pada Rajakapotasana (the seated hip-opener) or loop a strap around the back foot without reaching the hand back yet.",
+        props: ["strap", "none"],
+        cues: ["Front shin stays grounded and square", "Strap bridges the gap to the foot", "Chest lifts instead of the head reaching back"],
+        holdSeconds: 15,
+      },
+      intermediate: {
+        description: "Catch the back foot with one hand, using a strap if the foot is out of easy reach.",
+        props: ["strap", "none"],
+        cues: ["Elbow points up, not out to the side", "Keep both hip points facing forward", "Breathe into the front of the shoulder"],
+        holdSeconds: 15,
+      },
+      advanced: {
+        description: "Catch the foot with both hands and draw it toward the crown of the head, back arching fully.",
+        props: ["none"],
+        cues: ["Foot meets crown, not the other way around", "Keep the front hip grounded and square", "Release the neck — let the upper back do the work"],
+        holdSeconds: 20,
+      },
+    },
+    stepMotions: ["ground", "limb-rotate", "arm-extend", "lift", "settle"],
+  },
+
+  astavakrasana: {
+    avoidIf: [
+      { condition: "Wrist, elbow, or shoulder injury", severity: "avoid" },
+      { condition: "Pregnancy", severity: "avoid" },
+      { condition: "Recent abdominal surgery", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "Keep the hips on a block and practice just the leg-hook and hand placement without lifting.",
+        props: ["block"],
+        cues: ["Block supports the hips while you find the hook", "Ankles cross and squeeze tight", "Hands plant wide before any weight shifts"],
+        holdSeconds: 8,
+      },
+      intermediate: {
+        description: "Lift the hips with the top-leg toes lightly grazing the floor for balance.",
+        props: ["none"],
+        cues: ["Lean the shoulders past the wrists first", "Toes graze for confidence, not weight", "Engage the core to protect the low back"],
+        holdSeconds: 10,
+      },
+      advanced: {
+        description: "Full lift with both legs extended straight out to the side, arms fully straightened.",
+        props: ["none"],
+        cues: ["Squeeze the inner thighs around the arm", "Straighten the arms fully once lifted", "Gaze forward, not down"],
+        holdSeconds: 15,
+      },
+    },
+    stepMotions: ["twist", "ground", "hip-shift", "lift", "settle"],
+  },
+
+  tittibhasana: {
+    avoidIf: [
+      { condition: "Wrist or shoulder injury", severity: "avoid" },
+      { condition: "Tight hamstrings — build up gradually", severity: "modify" },
+      { condition: "Pregnancy", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "Keep the knees bent and heels hovering low, hands on blocks to shorten the reach.",
+        props: ["block"],
+        cues: ["Blocks lift the hands, shortening the lever", "Knees stay bent — no need to straighten yet", "Weight shifts forward before anything lifts"],
+        holdSeconds: 8,
+      },
+      intermediate: {
+        description: "Straighten one leg while the other stays bent, alternating sides.",
+        props: ["none"],
+        cues: ["Thighs press high onto the arms", "One leg straightens at a time", "Core stays engaged to protect the low back"],
+        holdSeconds: 10,
+      },
+      advanced: {
+        description: "Both legs straighten fully out to the sides, arms extended.",
+        props: ["none"],
+        cues: ["Legs squeeze in even as they straighten", "Gaze stays level, not down", "Breathe steadily through the hold"],
+        holdSeconds: 15,
+      },
+    },
+    stepMotions: ["limb-rotate", "ground", "hip-shift", "lift", "settle"],
+  },
+
+  "parsva-bakasana": {
+    avoidIf: [
+      { condition: "Wrist injury", severity: "avoid" },
+      { condition: "Pregnancy", severity: "avoid" },
+      { condition: "Recent abdominal surgery", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "Keep the back toes lightly on the floor for support while learning the twist and arm placement.",
+        props: ["none"],
+        cues: ["Twist from the belly, not just the shoulders", "Toes stay down for confidence", "Hip rests on the upper arms before lifting"],
+        holdSeconds: 8,
+      },
+      intermediate: {
+        description: "Lift both feet off the floor briefly, knees still bent and stacked.",
+        props: ["none"],
+        cues: ["Shift weight forward over the hands", "Squeeze the knees together", "Gaze slightly forward, not down"],
+        holdSeconds: 10,
+      },
+      advanced: {
+        description: "Full lift with a longer hold, exploring straightening the legs slightly.",
+        props: ["none"],
+        cues: ["Engage the core to hold the twist", "Elbows bend at a steady right angle", "Breathe evenly — don't rush the hold"],
+        holdSeconds: 15,
+      },
+    },
+    stepMotions: ["twist", "ground", "hip-shift", "lift", "settle"],
+  },
+
+  "eka-pada-koundinyasana-ii": {
+    avoidIf: [
+      { condition: "Wrist or shoulder injury", severity: "avoid" },
+      { condition: "Hip injury", severity: "avoid" },
+      { condition: "Pregnancy", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "Keep the back foot on the floor, practicing the front-leg hook and forward lean only.",
+        props: ["none"],
+        cues: ["Back foot stays grounded for balance", "Front shin hooks high on the arm", "Shoulders lean past the wrists before lifting"],
+        holdSeconds: 6,
+      },
+      intermediate: {
+        description: "Lift the back leg to hip height, front foot still finding its way off the floor.",
+        props: ["none"],
+        cues: ["Engage the core to steady the float", "Back leg reaches long, not just up", "Front foot lifts last"],
+        holdSeconds: 8,
+      },
+      advanced: {
+        description: "Full flight — both legs off the floor, back leg extended and level.",
+        props: ["none"],
+        cues: ["Squeeze the front shin into the arm", "Back leg stays active and straight", "Breathe steadily through the hold"],
+        holdSeconds: 12,
+      },
+    },
+    stepMotions: ["limb-rotate", "ground", "hip-shift", "lift", "settle"],
+  },
+
+  vrischikasana: {
+    avoidIf: [
+      { condition: "Neck, shoulder, or spinal injury", severity: "avoid" },
+      { condition: "High or low blood pressure", severity: "avoid" },
+      { condition: "Pregnancy", severity: "avoid" },
+      { condition: "New to inversions — build forearm stand first", severity: "modify" },
+    ],
+    variations: {
+      beginner: {
+        description: "Master Forearm Stand at a wall first; do not attempt the backbend until that hold is fully stable.",
+        props: ["wall"],
+        cues: ["Forearms stay parallel and grounded", "Core engaged, legs straight up first", "Wall is there to catch, not to lean on"],
+        holdSeconds: 10,
+      },
+      intermediate: {
+        description: "From a wall-supported Forearm Stand, bend the knees slightly and begin to feel the upper back arch.",
+        props: ["wall"],
+        cues: ["Small bend in the knees only", "Upper back leads the arch, not the low back", "Breathe steadily — don't rush the shape"],
+        holdSeconds: 8,
+      },
+      advanced: {
+        description: "Curl the feet down toward the head, away from the wall, with control.",
+        props: ["none"],
+        cues: ["Feet reach for the head, not the floor", "Ribs stay knit in to protect the low back", "Exit slowly and with full control"],
+        holdSeconds: 12,
+      },
+    },
+    stepMotions: ["balance", "limb-rotate", "lift", "balance", "settle"],
+  },
+
+  "parivrtta-ardha-chandrasana": {
+    avoidIf: [
+      { condition: "Balance difficulty — practice at a wall", severity: "modify" },
+      { condition: "Low back injury", severity: "avoid" },
+      { condition: "High or low blood pressure", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Keep the back foot against a wall for balance and use a block under the bottom hand.",
+        props: ["wall", "block"],
+        cues: ["Wall supports the lifted leg", "Block brings the floor closer", "Twist only as far as balance allows"],
+        holdSeconds: 15,
+      },
+      intermediate: {
+        description: "Balance freely with a block under the hand, twisting a bit further.",
+        props: ["block"],
+        cues: ["Hips square before the twist begins", "Standing leg stays strong and slightly soft", "Top arm reaches long, not just up"],
+        holdSeconds: 20,
+      },
+      advanced: {
+        description: "Full expression with the hand on the floor and a deep twist, gaze to the top hand.",
+        props: ["none"],
+        cues: ["Twist from the belly upward", "Lifted leg stays active and level", "Breathe steadily to hold the balance"],
+        holdSeconds: 25,
+      },
+    },
+    stepMotions: ["hip-shift", "ground", "hip-shift", "twist", "settle"],
+  },
+
+  padangusthasana: {
+    avoidIf: [
+      { condition: "Low-back injury — bend the knees generously", severity: "modify" },
+      { condition: "Sciatica", severity: "caution" },
+      { condition: "Low blood pressure — rise slowly", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Bend the knees generously and loop a strap around the feet instead of reaching the toes.",
+        props: ["strap"],
+        cues: ["Knees stay soft and bent", "Strap bridges the gap to the feet", "Fold only as far as the hamstrings allow"],
+        holdSeconds: 20,
+      },
+      intermediate: {
+        description: "Straighten the legs more as flexibility allows, gripping the toes directly.",
+        props: ["none"],
+        cues: ["Toes hooked with two fingers and thumb", "Elbows bend out to the sides as you fold", "Weight stays even across both feet"],
+        holdSeconds: 30,
+      },
+      advanced: {
+        description: "Fold fully with straight legs, drawing the torso flush against the thighs.",
+        props: ["none"],
+        cues: ["Crown reaches toward the floor", "Chest draws toward the shins", "Breathe fully even in the deep fold"],
+        holdSeconds: 45,
+      },
+    },
+    stepMotions: ["ground", "torso-fold", "limb-rotate", "torso-fold", "settle"],
+  },
+
+  "ardha-baddha-padmottanasana": {
+    avoidIf: [
+      { condition: "Knee or hip injury — do not force the half-lotus", severity: "avoid" },
+      { condition: "Ankle injury", severity: "caution" },
+      { condition: "Balance difficulty — practice at a wall", severity: "modify" },
+    ],
+    variations: {
+      beginner: {
+        description: "Skip the bind — rest the foot on the opposite thigh and hold it with the hand in front instead of behind the back.",
+        props: ["block"],
+        cues: ["Foot rests gently on the thigh, no bind yet", "Block brings the floor closer to the standing hand", "Balance first, fold second"],
+        holdSeconds: 15,
+      },
+      intermediate: {
+        description: "Find the half-lotus bind, folding partway over the standing leg with a block under the hand.",
+        props: ["block"],
+        cues: ["Bind only if the hip allows it without strain", "Standing leg stays strong and slightly soft", "Fold hinges from the hips, not the low back"],
+        holdSeconds: 20,
+      },
+      advanced: {
+        description: "Full bind and full fold, fingertips or palm reaching the floor beside the standing foot.",
+        props: ["none"],
+        cues: ["Crown reaches toward the shin", "Bound knee relaxes down, not forced", "Breathe steadily through the balance and fold"],
+        holdSeconds: 25,
+      },
+    },
+    stepMotions: ["limb-rotate", "arm-extend", "balance", "torso-fold", "settle"],
+  },
+
+  "high-lunge": {
+    avoidIf: [
+      { condition: "Knee injury — shorten the stance", severity: "modify" },
+      { condition: "High blood pressure — keep arms lower if lightheaded", severity: "caution" },
+      { condition: "Balance difficulty", severity: "modify" },
+    ],
+    variations: {
+      beginner: {
+        description: "Keep the hands on the front thigh or hips instead of lifting overhead, and shorten the stance for stability.",
+        props: ["none"],
+        cues: ["Shorter stance for easier balance", "Hands on the thigh support the torso", "Back leg stays active even without lifting arms"],
+        holdSeconds: 15,
+      },
+      intermediate: {
+        description: "Full stance with arms reaching overhead, front thigh working toward parallel.",
+        props: ["none"],
+        cues: ["Front knee stacks over the ankle", "Arms reach actively, shoulders soften down", "Back heel lifts high and stays engaged"],
+        holdSeconds: 20,
+      },
+      advanced: {
+        description: "Add a gentle backbend, reaching the arms up and slightly back while holding the balance.",
+        props: ["none"],
+        cues: ["Core stays engaged to protect the low back", "Gaze lifts with the chest", "Back leg remains long and active"],
+        holdSeconds: 30,
+      },
+    },
+    stepMotions: ["ground", "lift", "leg-extend", "inhale", "settle"],
+  },
 };

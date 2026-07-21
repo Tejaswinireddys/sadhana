@@ -121,7 +121,8 @@ async function ensureSchema() {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
+      // reusePort isn't supported on macOS (ENOTSUP); harmless to skip locally.
+      reusePort: process.platform !== "darwin",
     },
     () => {
       log(`serving on port ${port}`);

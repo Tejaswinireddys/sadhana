@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { asanaBySlug } from "@/data/content";
 import { cn } from "@/lib/utils";
+import { PoseSvg } from "@/components/PoseSvg";
 import { Play, Pause, Check, Sparkles } from "lucide-react";
 
 export function DemoMode({ slug }: { slug: string }) {
@@ -21,6 +22,7 @@ export function DemoMode({ slug }: { slug: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const imgWrapRef = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
+  const [imgErrored, setImgErrored] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -188,16 +190,27 @@ export function DemoMode({ slug }: { slug: string }) {
             animated SVG "focus halo" overlay that moves to the body region the
             current step targets. */}
         <div ref={imgWrapRef} className="relative w-full overflow-hidden rounded-2xl bg-accent/30">
-          <img
-            src={`${import.meta.env.BASE_URL}poses/${asana.slug}.png`}
-            alt={`${asana.english} (${asana.sanskrit}) illustration`}
-            draggable={false}
-            className={cn(
-              "block w-full select-none rounded-2xl object-cover shadow-soft-lg",
-              playing ? "photo-breath-demo photo-brightness-pulse" : "photo-breath",
-            )}
-            data-testid={`demo-hero-${asana.slug}`}
-          />
+          {imgErrored ? (
+            <div
+              className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-2xl bg-accent/30 text-muted-foreground"
+              data-testid={`demo-hero-${asana.slug}`}
+            >
+              <PoseSvg pose={asana.pose} size={200} />
+              <span className="text-xs">Illustration coming soon</span>
+            </div>
+          ) : (
+            <img
+              src={`${import.meta.env.BASE_URL}poses/${asana.slug}.png`}
+              alt={`${asana.english} (${asana.sanskrit}) illustration`}
+              draggable={false}
+              onError={() => setImgErrored(true)}
+              className={cn(
+                "block w-full select-none rounded-2xl object-cover shadow-soft-lg",
+                playing ? "photo-breath-demo photo-brightness-pulse" : "photo-breath",
+              )}
+              data-testid={`demo-hero-${asana.slug}`}
+            />
+          )}
 
           {/* Focus overlay — only while the demo is running AND the current step
               actually declares a focusZone. The circle cx/cy/r are

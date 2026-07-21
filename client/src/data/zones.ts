@@ -673,5 +673,55 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Core", sensation: "Full-front-body engagement", intensity: "strong", primary: true },
     { region: "Shoulders", sensation: "Stable support through the elbows", intensity: "medium", primary: false },
   ],
+  "rajakapotasana": [
+    { region: "Hip flexors & quads", sensation: "Deep, strong opening through the back leg", intensity: "strong", primary: true },
+    { region: "Shoulders & chest", sensation: "Broadening as the arm reaches back", intensity: "strong", primary: true },
+    { region: "Spine", sensation: "Full-length backbend curve", intensity: "medium", primary: false },
+  ],
+  "astavakrasana": [
+    { region: "Wrists & forearms", sensation: "Strong weight-bearing engagement", intensity: "strong", primary: true },
+    { region: "Obliques & core", sensation: "Deep compression and twist", intensity: "strong", primary: true },
+    { region: "Shoulders", sensation: "Stabilizing engagement", intensity: "medium", primary: false },
+  ],
+  "tittibhasana": [
+    { region: "Hamstrings & inner groin", sensation: "Deep stretch as the legs straighten", intensity: "strong", primary: true },
+    { region: "Shoulders & wrists", sensation: "Strong weight-bearing engagement", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Steady engagement to hold the lift", intensity: "medium", primary: false },
+  ],
+  "parsva-bakasana": [
+    { region: "Spine & obliques", sensation: "Deep rotation and compression", intensity: "strong", primary: true },
+    { region: "Wrists & forearms", sensation: "Strong weight-bearing engagement", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Steady engagement to hold the twist aloft", intensity: "medium", primary: false },
+  ],
+  "eka-pada-koundinyasana-ii": [
+    { region: "Front hip & groin", sensation: "Deep opening as the shin hooks the arm", intensity: "strong", primary: true },
+    { region: "Shoulders & wrists", sensation: "Strong weight-bearing engagement", intensity: "strong", primary: true },
+    { region: "Core & back leg", sensation: "Active reaching engagement", intensity: "medium", primary: false },
+  ],
+  "vrischikasana": [
+    { region: "Shoulders & upper back", sensation: "Strong weight-bearing engagement", intensity: "strong", primary: true },
+    { region: "Spine", sensation: "Deep backbend arch", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Steady engagement to protect the low back", intensity: "medium", primary: false },
+  ],
+  "parivrtta-ardha-chandrasana": [
+    { region: "Spine", sensation: "Deep rotation while balancing", intensity: "strong", primary: true },
+    { region: "Standing leg & hip", sensation: "Strong stabilizing engagement", intensity: "strong", primary: true },
+    { region: "Hamstrings (lifted leg)", sensation: "Active lengthening", intensity: "medium", primary: false },
+  ],
+  "padangusthasana": [
+    { region: "Hamstrings", sensation: "Long, steady pull down the back of the legs", intensity: "strong", primary: true },
+    { region: "Calves", sensation: "Gentle lengthening", intensity: "medium", primary: false },
+    { region: "Spine", sensation: "Lengthening on the halfway lift", intensity: "low", primary: false },
+  ],
+  "ardha-baddha-padmottanasana": [
+    { region: "Bound hip & knee", sensation: "Deep rotational opening", intensity: "strong", primary: true },
+    { region: "Standing-leg hamstring", sensation: "Long stretch while folding", intensity: "strong", primary: true },
+    { region: "Ankle (bound foot)", sensation: "Gentle stretch across the top of the foot", intensity: "medium", primary: false },
+  ],
+  "high-lunge": [
+    { region: "Back-leg hip flexor", sensation: "Steady stretch across the front of the back hip", intensity: "medium", primary: true },
+    { region: "Front thigh & glute", sensation: "Building strength as the knee bends", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Engaging to stabilize the balance", intensity: "medium", primary: false },
+  ],
 };
 

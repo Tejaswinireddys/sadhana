@@ -106,6 +106,16 @@ export const BEST_FOR: Record<string, string[]> = {
   "supta-garudasana": ["Compact hip melt before sleep", "IT band tension", "Containing, calming stretch"],
   "dandasana": ["Starting seated practice", "Posture reset", "Foundation for folds & twists"],
   "mayurasana": ["Advanced arm-balance days", "Building fierce core strength", "Courage practice"],
+  "rajakapotasana": ["Peak backbend practice", "Deep hip and heart opening", "Advanced pigeon progression"],
+  "astavakrasana": ["Advanced arm-balance goals", "Building playful strength", "Twisting + compression combo work"],
+  "tittibhasana": ["Arm-balance + flexibility combo", "Playful advanced practice", "Hamstring & core challenge days"],
+  "parsva-bakasana": ["Building arm-balance confidence", "Twist + strength combo", "Playful advanced practice"],
+  "eka-pada-koundinyasana-ii": ["Advanced arm-balance goals", "Hip opening + strength combo", "Playful peak-pose practice"],
+  "vrischikasana": ["Advanced inversion goals", "Peak backbend + inversion combo", "Building courage upside down"],
+  "parivrtta-ardha-chandrasana": ["Advanced balance + twist combo", "Building standing-leg strength", "Focus and coordination training"],
+  "padangusthasana": ["Precise hamstring lengthening", "Sun salutation variations", "Calming standing fold"],
+  "ardha-baddha-padmottanasana": ["Hip opening + balance combo", "Ashtanga primary series practice", "Focused intermediate challenge"],
+  "high-lunge": ["Sun salutation transitions", "Building standing-flow stability", "Warm-up before the warriors"],
 };
 
 export function bestForFor(slug: string, fallback: string[] = ["Everyday practice", "Building body awareness", "Moving with breath"]): string[] {

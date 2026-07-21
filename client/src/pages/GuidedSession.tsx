@@ -57,6 +57,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
+import { PoseSvg } from "@/components/PoseSvg";
 import { QUICK_SESSIONS } from "@/data/quickSessions";
 
 // ---- soft chime (shared with Practice) --------------------------------------
@@ -157,6 +158,7 @@ export default function GuidedSession() {
   const [elapsedTotal, setElapsedTotal] = useState(0);
   const [imgVisible, setImgVisible] = useState(true); // crossfade toggle
   const [cueIndex, setCueIndex] = useState(0);
+  const [heroImgErrored, setHeroImgErrored] = useState(false);
 
   // ---- premium: breath cycle + image key for crossfade ----------------------
   const [confirmExit, setConfirmExit] = useState(false);
@@ -193,6 +195,11 @@ export default function GuidedSession() {
   const current = todays[index];
   const prev = index > 0 ? todays[index - 1] : null;
   const next = index + 1 < todays.length ? todays[index + 1] : null;
+
+  // Reset the "photo missing" fallback whenever the pose changes.
+  useEffect(() => {
+    setHeroImgErrored(false);
+  }, [current?.slug]);
   const steps = current?.steps ?? [];
   const stepCount = steps.length || 1;
   const isEach = current?.sides === "each";
@@ -978,6 +985,9 @@ export default function GuidedSession() {
               src={`${import.meta.env.BASE_URL}poses/${prev.slug}.png`}
               alt={prev.english}
               className="h-20 w-20 rounded-xl object-contain"
+              onError={(e) => {
+                e.currentTarget.style.visibility = "hidden";
+              }}
               data-testid="thumb-prev"
             />
             <span className="max-w-[6rem] truncate text-center text-xs text-muted-foreground">
@@ -992,6 +1002,9 @@ export default function GuidedSession() {
               src={`${import.meta.env.BASE_URL}poses/${next.slug}.png`}
               alt={next.english}
               className="h-20 w-20 rounded-xl object-contain"
+              onError={(e) => {
+                e.currentTarget.style.visibility = "hidden";
+              }}
               data-testid="thumb-next"
             />
             <span className="max-w-[6rem] truncate text-center text-xs text-muted-foreground">
@@ -1005,19 +1018,29 @@ export default function GuidedSession() {
             ref={imgWrapRef}
             className="relative flex h-[46vh] w-full items-center justify-center"
           >
-            <img
-              key={current?.slug}
-              src={`${import.meta.env.BASE_URL}poses/${current?.slug}.png`}
-              alt={`${current?.english} illustration`}
-              draggable={false}
-              style={{ transition: "opacity 400ms ease" }}
-              className={cn(
-                "block h-full w-full select-none object-contain",
-                imgVisible ? "opacity-100" : "opacity-0",
-                phase === "instruction" ? "photo-breath-demo" : "photo-breath",
-              )}
-              data-testid="guided-hero"
-            />
+            {heroImgErrored ? (
+              <div
+                className="flex h-full w-full items-center justify-center text-muted-foreground"
+                data-testid="guided-hero"
+              >
+                <PoseSvg pose={current?.pose ?? "mountain"} size={200} />
+              </div>
+            ) : (
+              <img
+                key={current?.slug}
+                src={`${import.meta.env.BASE_URL}poses/${current?.slug}.png`}
+                alt={`${current?.english} illustration`}
+                draggable={false}
+                onError={() => setHeroImgErrored(true)}
+                style={{ transition: "opacity 400ms ease" }}
+                className={cn(
+                  "block h-full w-full select-none object-contain",
+                  imgVisible ? "opacity-100" : "opacity-0",
+                  phase === "instruction" ? "photo-breath-demo" : "photo-breath",
+                )}
+                data-testid="guided-hero"
+              />
+            )}
 
             {/* Focus halo overlay — only when the current step has an explicit
                 focusZone. Positioned inside the actual visible image bounds
