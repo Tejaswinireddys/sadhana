@@ -428,4 +428,89 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Chest", sensation: "A soft widening with each breath", intensity: "low", primary: false },
     { region: "Whole body", sensation: "Heaviness settling into the floor", intensity: "low", primary: false },
   ],
+  "ardha-matsyendrasana": [
+    { region: "Spine & mid-back", sensation: "A satisfying wringing-out through the torso", intensity: "medium", primary: true },
+    { region: "Outer hip", sensation: "A deep stretch in the twisted hip", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "A gentle opening across the upper back", intensity: "low", primary: false },
+  ],
+  "upavistha-konasana": [
+    { region: "Inner thighs", sensation: "A wide, honest opening through the adductors", intensity: "strong", primary: true },
+    { region: "Hamstrings", sensation: "A long stretch down the back of the legs", intensity: "medium", primary: true },
+    { region: "Lower back", sensation: "A gentle lengthening when the spine stays long", intensity: "low", primary: false },
+  ],
+  halasana: [
+    { region: "Spine & back body", sensation: "A deep forward fold while inverted", intensity: "strong", primary: true },
+    { region: "Shoulders", sensation: "A firm stretch as the shoulder blades tuck under", intensity: "medium", primary: true },
+    { region: "Hamstrings", sensation: "A strong pull if the legs are straight", intensity: "medium", primary: false },
+  ],
+  sarvangasana: [
+    { region: "Shoulders & upper arms", sensation: "Steady strength holding the inversion", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Quiet engagement to keep the legs lifted", intensity: "medium", primary: true },
+    { region: "Neck", sensation: "Soft and still — never strained", intensity: "low", primary: false },
+  ],
+  bakasana: [
+    { region: "Arms & wrists", sensation: "Strong, focused weight-bearing", intensity: "strong", primary: true },
+    { region: "Core", sensation: "A deep hug of the belly toward the spine", intensity: "strong", primary: true },
+    { region: "Inner thighs", sensation: "Squeezing into the upper arms", intensity: "medium", primary: false },
+  ],
+  "parivrtta-anjaneyasana": [
+    { region: "Hip flexors", sensation: "A deep stretch in the back-leg hip", intensity: "strong", primary: true },
+    { region: "Spine", sensation: "A bright twisting length through the torso", intensity: "medium", primary: true },
+    { region: "Chest", sensation: "An opening as the heart lifts", intensity: "medium", primary: false },
+  ],
+  purvottanasana: [
+    { region: "Front body", sensation: "A full opening from ankles to throat", intensity: "strong", primary: true },
+    { region: "Arms & wrists", sensation: "Steady strength pressing the floor away", intensity: "strong", primary: true },
+    { region: "Glutes & hamstrings", sensation: "Engagement to keep the hips lifted", intensity: "medium", primary: false },
+  ],
+  apanasana: [
+    { region: "Lower back", sensation: "A soft release as the knees draw in", intensity: "medium", primary: true },
+    { region: "Hips", sensation: "A gentle flexion without effort", intensity: "low", primary: true },
+    { region: "Belly", sensation: "A light massage with the breath", intensity: "low", primary: false },
+  ],
+  "supta-padangusthasana": [
+    { region: "Hamstrings", sensation: "A focused lengthening down the raised leg", intensity: "strong", primary: true },
+    { region: "Calves", sensation: "A stretch as the foot flexes", intensity: "medium", primary: true },
+    { region: "Hip", sensation: "A gentle opening in the raised-leg hip", intensity: "low", primary: false },
+  ],
+  parighasana: [
+    { region: "Side body", sensation: "A long stretch from hip to fingertips", intensity: "strong", primary: true },
+    { region: "Inner thigh", sensation: "An opening in the extended leg", intensity: "medium", primary: true },
+    { region: "Ribs", sensation: "Space for a fuller breath", intensity: "medium", primary: false },
+  ],
+  "ardha-pincha-mayurasana": [
+    { region: "Shoulders", sensation: "Deep strength and stretch through the upper arms", intensity: "strong", primary: true },
+    { region: "Hamstrings", sensation: "A strong pull as the hips lift", intensity: "medium", primary: true },
+    { region: "Upper back", sensation: "Engagement as the chest reaches toward the thighs", intensity: "medium", primary: false },
+  ],
+  "parivrtta-trikonasana": [
+    { region: "Hamstrings", sensation: "A precise stretch in the front leg", intensity: "strong", primary: true },
+    { region: "Spine", sensation: "A deep rotational stretch", intensity: "medium", primary: true },
+    { region: "Standing legs", sensation: "Steady strength through both feet", intensity: "medium", primary: false },
+  ],
+  natarajasana: [
+    { region: "Standing leg", sensation: "Balance and strength through the foot and thigh", intensity: "strong", primary: true },
+    { region: "Hip flexors & chest", sensation: "A bright opening as the back leg lifts", intensity: "strong", primary: true },
+    { region: "Shoulders", sensation: "A stretch as the arm reaches back", intensity: "medium", primary: false },
+  ],
+  agnistambhasana: [
+    { region: "Outer hips & glutes", sensation: "A deep, honest stretch in both hips", intensity: "strong", primary: true },
+    { region: "Groin", sensation: "A secondary opening as the shins stack", intensity: "medium", primary: false },
+    { region: "Lower back", sensation: "A gentle release when folding forward", intensity: "low", primary: false },
+  ],
+  "salamba-bhujangasana": [
+    { region: "Lower back", sensation: "A gentle strengthening arch", intensity: "medium", primary: true },
+    { region: "Chest & throat", sensation: "A soft opening across the front body", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "Melting down away from the ears", intensity: "low", primary: false },
+  ],
+  skandasana: [
+    { region: "Inner thighs", sensation: "A wide opening in the straight leg", intensity: "strong", primary: true },
+    { region: "Hips", sensation: "A deep squat stretch in the bent leg", intensity: "strong", primary: true },
+    { region: "Ankles", sensation: "Mobility as the bent heel roots", intensity: "medium", primary: false },
+  ],
+  makarasana: [
+    { region: "Lower back", sensation: "A complete release into the floor", intensity: "low", primary: true },
+    { region: "Belly", sensation: "Natural diaphragmatic breath against the mat", intensity: "low", primary: true },
+    { region: "Whole body", sensation: "Prone heaviness and rest", intensity: "low", primary: false },
+  ],
 };

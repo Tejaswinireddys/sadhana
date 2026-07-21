@@ -18,14 +18,23 @@ RATE = "-8%"
 PITCH = "-2Hz"
 
 MISSING = [
-    "marjaryasana-bitilasana",
-    "supta-matsyendrasana",
-    "supta-kapotasana",
-    "parsva-balasana",
-    "uttana-shishosana",
-    "malasana",
-    "virasana",
-    "supta-baddha-konasana",
+    "ardha-matsyendrasana",
+    "upavistha-konasana",
+    "halasana",
+    "sarvangasana",
+    "bakasana",
+    "parivrtta-anjaneyasana",
+    "purvottanasana",
+    "apanasana",
+    "supta-padangusthasana",
+    "parighasana",
+    "ardha-pincha-mayurasana",
+    "parivrtta-trikonasana",
+    "natarajasana",
+    "agnistambhasana",
+    "salamba-bhujangasana",
+    "skandasana",
+    "makarasana",
 ]
 
 
@@ -79,50 +88,47 @@ def script_for(a: dict[str, object]) -> str:
     if a["breathing"]:
         lines.append(f"Breathing. {a['breathing']}")
     if a["hold"]:
-        lines.append(f"Hold for about {a['hold']}. Soften wherever you can.")
-    lines.append("Beautiful. Stay present in the pose.")
+        lines.append(f"Hold for about {a['hold']}. Stay with your breath.")
+    lines.append("When you're ready, gently release the pose.")
     return " ".join(lines)
 
 
-async def synthesize(text: str, mp3_path: Path) -> None:
-    tmp = mp3_path.with_suffix(".tmp.mp3")
+async def synth_one(slug: str, text: str) -> Path:
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    raw = OUT_DIR / f"pose-{slug}.raw.mp3"
+    out = OUT_DIR / f"pose-{slug}.mp3"
     communicate = edge_tts.Communicate(text, VOICE, rate=RATE, pitch=PITCH)
-    await communicate.save(str(tmp))
-    # Normalize to 128 kbps mono 44.1 kHz to match existing assets
+    await communicate.save(str(raw))
+    # Normalize loudness / convert for web
     subprocess.run(
         [
             "ffmpeg",
             "-y",
             "-i",
-            str(tmp),
-            "-ac",
-            "1",
+            str(raw),
+            "-af",
+            "loudnorm=I=-16:TP=-1.5:LRA=11",
             "-ar",
             "44100",
-            "-b:a",
-            "128k",
-            str(mp3_path),
+            "-ac",
+            "1",
+            str(out),
         ],
         check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        capture_output=True,
     )
-    tmp.unlink(missing_ok=True)
+    raw.unlink(missing_ok=True)
+    return out
 
 
 async def main() -> None:
     src = CONTENT.read_text(encoding="utf-8")
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
     for slug in MISSING:
-        out = OUT_DIR / f"pose-{slug}.mp3"
-        if out.exists() and out.stat().st_size > 50_000:
-            print(f"skip (exists): {slug}")
-            continue
-        asana = extract_asana_block(src, slug)
-        text = script_for(asana)
-        print(f"generating {slug} ({len(text)} chars)…")
-        await synthesize(text, out)
-        print(f"  -> {out.name} ({out.stat().st_size} bytes)")
+        a = extract_asana_block(src, slug)
+        text = script_for(a)
+        print(f"Generating {slug}…")
+        path = await synth_one(slug, text)
+        print(f"  → {path.name} ({path.stat().st_size // 1024} KB)")
 
 
 if __name__ == "__main__":

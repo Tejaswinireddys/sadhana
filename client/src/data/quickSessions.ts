@@ -20,6 +20,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     time: "5 min",
     intent: "Release",
     poses: [
+      { slug: "apanasana", holdSeconds: 60 },
       { slug: "balasana", holdSeconds: 60 },
       { slug: "paschimottanasana", holdSeconds: 60 },
       { slug: "viparita-karani", holdSeconds: 180 },
@@ -33,9 +34,9 @@ export const QUICK_SESSIONS: QuickSession[] = [
     time: "5 min",
     intent: "Restore",
     poses: [
+      { slug: "salamba-bhujangasana", holdSeconds: 45 },
       { slug: "setu-bandhasana", holdSeconds: 45 },
-      { slug: "viparita-karani", holdSeconds: 180 },
-      { slug: "balasana", holdSeconds: 60 },
+      { slug: "makarasana", holdSeconds: 90 },
       { slug: "savasana", holdSeconds: 75 },
     ],
   },
