@@ -96,7 +96,16 @@ export const BEST_FOR: Record<string, string[]> = {
   "simhasana": ["Releasing jaw & face tension", "Letting go of self-consciousness", "Stress relief with a roar"],
   "samakonasana": ["Side-splits journey", "Deep inner-thigh opening", "Patient hip mobility"],
   "adho-mukha-vrksasana": ["Advanced inversion goals", "Upper-body power days", "Courage and delight upside down"],
-  "pasasana": ["Deep squat + twist days", "Advanced hip opening", "Digestive wringing-out"],
+  "pasasana": ["Deep squat + twist days", "Advanced hip opening", "Digestive wringing-out"],  "constructive-rest": ["Right before sleep", "Lower-back comfort", "When full Savasana feels too open"],
+  "pawanmuktasana": ["Bedtime digestion ease", "Lower-back hug", "Winding down after dinner"],
+  "chair-viparita-karani": ["Tired legs at bedtime", "No wall needed", "Deep nervous-system calm"],
+  "salamba-matsyasana": ["Opening the chest before sleep", "After screen time", "Softening jaw & throat"],
+  "parsva-savasana": ["Pregnancy-friendly rest", "Falling asleep on your side", "When the back wants support"],
+  "salamba-balasana": ["Anxiety before bed", "Propped forehead rest", "Emotional overwhelm"],
+  "supta-gomukhasana": ["Outer-hip release in bed prep", "Sciatic-friendly evenings", "Quiet hip opening"],
+  "supta-garudasana": ["Compact hip melt before sleep", "IT band tension", "Containing, calming stretch"],
+  "dandasana": ["Starting seated practice", "Posture reset", "Foundation for folds & twists"],
+  "mayurasana": ["Advanced arm-balance days", "Building fierce core strength", "Courage practice"],
 };
 
 export function bestForFor(slug: string, fallback: string[] = ["Everyday practice", "Building body awareness", "Moving with breath"]): string[] {

@@ -623,5 +623,55 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Hips & ankles", sensation: "A profound squat opening", intensity: "strong", primary: true },
     { region: "Shoulders", sensation: "A bind stretch across the chest", intensity: "medium", primary: false },
   ],
+  "constructive-rest": [
+    { region: "Lower back", sensation: "A complete release with knees bent", intensity: "low", primary: true },
+    { region: "Whole body", sensation: "Heaviness settling into the floor", intensity: "low", primary: true },
+    { region: "Nervous system", sensation: "A deep downshift toward sleep", intensity: "low", primary: false },
+  ],
+  "pawanmuktasana": [
+    { region: "Lower back", sensation: "A soft massage as the knees draw in", intensity: "medium", primary: true },
+    { region: "Belly", sensation: "Gentle compression for digestion", intensity: "medium", primary: true },
+    { region: "Hips", sensation: "A comfortable flexion", intensity: "low", primary: false },
+  ],
+  "chair-viparita-karani": [
+    { region: "Legs", sensation: "A draining release through the calves", intensity: "low", primary: true },
+    { region: "Lower back", sensation: "Soft support with hips grounded", intensity: "low", primary: true },
+    { region: "Nervous system", sensation: "Quiet, heavy calm", intensity: "low", primary: false },
+  ],
+  "salamba-matsyasana": [
+    { region: "Chest & throat", sensation: "A soft propped opening", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "Melting toward the floor", intensity: "low", primary: true },
+    { region: "Jaw", sensation: "An easy unclenching", intensity: "low", primary: false },
+  ],
+  "parsva-savasana": [
+    { region: "Whole body", sensation: "Side-lying heaviness and rest", intensity: "low", primary: true },
+    { region: "Hips", sensation: "Soft stacking with pillow support", intensity: "low", primary: true },
+    { region: "Spine", sensation: "Neutral, comfortable alignment", intensity: "low", primary: false },
+  ],
+  "salamba-balasana": [
+    { region: "Back body", sensation: "A melting fold over the bolster", intensity: "low", primary: true },
+    { region: "Hips", sensation: "A gentle kneeling release", intensity: "low", primary: true },
+    { region: "Nervous system", sensation: "Contained, quiet calm", intensity: "low", primary: false },
+  ],
+  "supta-gomukhasana": [
+    { region: "Outer hips", sensation: "A deep stacked-thigh stretch", intensity: "medium", primary: true },
+    { region: "Glutes", sensation: "A slow melt on each exhale", intensity: "medium", primary: true },
+    { region: "Lower back", sensation: "Supported and quiet", intensity: "low", primary: false },
+  ],
+  "supta-garudasana": [
+    { region: "Outer hip & IT band", sensation: "A wrapping compression stretch", intensity: "medium", primary: true },
+    { region: "Glutes", sensation: "A focused outer-hip release", intensity: "medium", primary: true },
+    { region: "Lower back", sensation: "Gentle as the legs draw in", intensity: "low", primary: false },
+  ],
+  "dandasana": [
+    { region: "Spine", sensation: "Tall upright length", intensity: "medium", primary: true },
+    { region: "Hamstrings", sensation: "A mild stretch with flexed feet", intensity: "low", primary: true },
+    { region: "Core", sensation: "Quiet support for the posture", intensity: "low", primary: false },
+  ],
+  "mayurasana": [
+    { region: "Arms & wrists", sensation: "Intense balancing strength", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Full-front-body engagement", intensity: "strong", primary: true },
+    { region: "Shoulders", sensation: "Stable support through the elbows", intensity: "medium", primary: false },
+  ],
 };
 

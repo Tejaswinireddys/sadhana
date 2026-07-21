@@ -18,16 +18,16 @@ RATE = "-8%"
 PITCH = "-2Hz"
 
 MISSING = [
-    "urdhva-hastasana",
-    "ashtanga-namaskara",
-    "parivrtta-utkatasana",
-    "supta-virasana",
-    "anantasana",
-    "krounchasana",
-    "simhasana",
-    "samakonasana",
-    "adho-mukha-vrksasana",
-    "pasasana",
+    "constructive-rest",
+    "pawanmuktasana",
+    "chair-viparita-karani",
+    "salamba-matsyasana",
+    "parsva-savasana",
+    "salamba-balasana",
+    "supta-gomukhasana",
+    "supta-garudasana",
+    "dandasana",
+    "mayurasana",
 ]
 
 

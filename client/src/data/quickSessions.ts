@@ -1,4 +1,4 @@
-import { HeartPulse, Moon, Smile, Sunrise, Wind } from "lucide-react";
+import { CloudMoon, HeartPulse, Moon, Smile, Sunrise, Wind } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 /** Mood-based one-tap sessions used on Home and the Practice hub. */
@@ -35,11 +35,10 @@ export const QUICK_SESSIONS: QuickSession[] = [
     time: "5 min",
     intent: "Restore",
     poses: [
+      { slug: "salamba-balasana", holdSeconds: 90 },
       { slug: "salamba-bhujangasana", holdSeconds: 45 },
-      { slug: "setu-bandhasana", holdSeconds: 45 },
-      { slug: "supta-virasana", holdSeconds: 60 },
-      { slug: "makarasana", holdSeconds: 90 },
-      { slug: "savasana", holdSeconds: 75 },
+      { slug: "chair-viparita-karani", holdSeconds: 120 },
+      { slug: "constructive-rest", holdSeconds: 120 },
     ],
   },
   {
@@ -69,11 +68,11 @@ export const QUICK_SESSIONS: QuickSession[] = [
     intent: "Calm",
     poses: [
       { slug: "vajrasana", holdSeconds: 60 },
+      { slug: "salamba-balasana", holdSeconds: 90 },
       { slug: "shashankasana", holdSeconds: 60 },
-      { slug: "balasana", holdSeconds: 90 },
-      { slug: "sukhasana", holdSeconds: 120 },
-      { slug: "viparita-karani", holdSeconds: 240 },
-      { slug: "savasana", holdSeconds: 150 },
+      { slug: "constructive-rest", holdSeconds: 120 },
+      { slug: "chair-viparita-karani", holdSeconds: 180 },
+      { slug: "parsva-savasana", holdSeconds: 120 },
     ],
     breathSlug: "nadi-shodhana",
   },
@@ -94,5 +93,23 @@ export const QUICK_SESSIONS: QuickSession[] = [
       { slug: "savasana", holdSeconds: 90 },
     ],
     breathSlug: "bhramari",
+  },
+  {
+    id: "before-bed",
+    icon: CloudMoon,
+    label: "Before bed",
+    time: "12 min",
+    intent: "Sleep",
+    poses: [
+      { slug: "salamba-balasana", holdSeconds: 90 },
+      { slug: "pawanmuktasana", holdSeconds: 60 },
+      { slug: "supta-garudasana", holdSeconds: 45 },
+      { slug: "supta-gomukhasana", holdSeconds: 60 },
+      { slug: "salamba-matsyasana", holdSeconds: 90 },
+      { slug: "chair-viparita-karani", holdSeconds: 150 },
+      { slug: "constructive-rest", holdSeconds: 150 },
+      { slug: "parsva-savasana", holdSeconds: 120 },
+    ],
+    breathSlug: "four-seven-eight",
   },
 ];

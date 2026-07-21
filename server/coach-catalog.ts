@@ -2190,6 +2190,231 @@ export const COACH_CATALOG: CoachPose[] = [
       "Hips & ankles",
       "Shoulders"
     ]
+  },
+  {
+    "slug": "constructive-rest",
+    "english": "Constructive Rest",
+    "sanskrit": "Savasana (Constructive Rest)",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 180,
+    "benefits": [
+      "Releases the lower back without strain",
+      "Downshifts the nervous system for sleep",
+      "A safe rest when full Savasana feels too open"
+    ],
+    "contraindications": [
+      "Late pregnancy (widen the knees or lie on the side)",
+      "Knee discomfort (place a pillow under the thighs)"
+    ],
+    "stretchZones": [
+      "Lower back",
+      "Whole body",
+      "Nervous system"
+    ]
+  },
+  {
+    "slug": "pawanmuktasana",
+    "english": "Wind-Relieving Pose",
+    "sanskrit": "Pawanmuktasana",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 60,
+    "benefits": [
+      "Relieves gas and digestive discomfort",
+      "Softens the lower back",
+      "Settles the body before sleep"
+    ],
+    "contraindications": [
+      "Recent abdominal surgery",
+      "Late pregnancy (practice one knee at a time)",
+      "Hernia"
+    ],
+    "stretchZones": [
+      "Lower back",
+      "Belly",
+      "Hips"
+    ]
+  },
+  {
+    "slug": "chair-viparita-karani",
+    "english": "Legs on a Chair",
+    "sanskrit": "Viparita Karani (Chair)",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 240,
+    "benefits": [
+      "Drains tired legs without a wall",
+      "Calms the nervous system deeply",
+      "Easier than full Legs-Up for tight hamstrings"
+    ],
+    "contraindications": [
+      "Glaucoma (keep the head elevated)",
+      "Serious neck injury",
+      "Late pregnancy (lie on the side instead)"
+    ],
+    "stretchZones": [
+      "Legs",
+      "Lower back",
+      "Nervous system"
+    ]
+  },
+  {
+    "slug": "salamba-matsyasana",
+    "english": "Supported Fish",
+    "sanskrit": "Salamba Matsyasana",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 120,
+    "benefits": [
+      "Opens the chest after screen time",
+      "Softens the throat and jaw",
+      "A restorative heart-opener before bed"
+    ],
+    "contraindications": [
+      "Serious neck injury",
+      "Migraine (keep the head supported)",
+      "Recent rib injury"
+    ],
+    "stretchZones": [
+      "Chest & throat",
+      "Shoulders",
+      "Jaw"
+    ]
+  },
+  {
+    "slug": "parsva-savasana",
+    "english": "Side-Lying Rest",
+    "sanskrit": "Parsva Savasana",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 180,
+    "benefits": [
+      "Ideal before-bed rest for pregnancy",
+      "Supports the spine comfortably",
+      "Transitions easily into actual sleep"
+    ],
+    "contraindications": [
+      "Shoulder injury on the bottom side (switch sides)",
+      "Difficulty lying on the side"
+    ],
+    "stretchZones": [
+      "Whole body",
+      "Hips",
+      "Spine"
+    ]
+  },
+  {
+    "slug": "salamba-balasana",
+    "english": "Supported Child's Pose",
+    "sanskrit": "Salamba Balasana",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 120,
+    "benefits": [
+      "Deeply calming for anxiety before bed",
+      "Releases the back and hips",
+      "A propped rest when the floor feels too hard"
+    ],
+    "contraindications": [
+      "Knee injury (sit on a chair and fold forward onto a table)",
+      "Late pregnancy (widen the knees a lot)"
+    ],
+    "stretchZones": [
+      "Back body",
+      "Hips",
+      "Nervous system"
+    ]
+  },
+  {
+    "slug": "supta-gomukhasana",
+    "english": "Reclined Cow Face",
+    "sanskrit": "Supta Gomukhasana",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 60,
+    "benefits": [
+      "Releases outer hips and glutes",
+      "Eases sciatic-friendly tension for many bodies",
+      "Quieter than seated Cow Face"
+    ],
+    "contraindications": [
+      "Knee injury (place a blanket between the knees)",
+      "Hip replacement (consult your provider)"
+    ],
+    "stretchZones": [
+      "Outer hips",
+      "Glutes",
+      "Lower back"
+    ]
+  },
+  {
+    "slug": "supta-garudasana",
+    "english": "Reclined Eagle",
+    "sanskrit": "Supta Garudasana",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 45,
+    "benefits": [
+      "Opens the outer hips and IT band",
+      "Gentle compression that feels containing",
+      "A calming alternative to figure-four"
+    ],
+    "contraindications": [
+      "Knee injury",
+      "Hip bursitis (ease off)"
+    ],
+    "stretchZones": [
+      "Outer hip & IT band",
+      "Glutes",
+      "Lower back"
+    ]
+  },
+  {
+    "slug": "dandasana",
+    "english": "Staff Pose",
+    "sanskrit": "Dandasana",
+    "category": "Seated",
+    "level": "Beginner",
+    "holdSeconds": 45,
+    "benefits": [
+      "Teaches upright seated posture",
+      "Strengthens the back and core",
+      "Prepares the body for folds and twists"
+    ],
+    "contraindications": [
+      "Tight hamstrings (sit on a blanket)",
+      "Lower-back flare (bend the knees)"
+    ],
+    "stretchZones": [
+      "Spine",
+      "Hamstrings",
+      "Core"
+    ]
+  },
+  {
+    "slug": "mayurasana",
+    "english": "Peacock Pose",
+    "sanskrit": "Mayurasana",
+    "category": "Standing",
+    "level": "Advanced",
+    "holdSeconds": 15,
+    "benefits": [
+      "Builds exceptional arm and core strength",
+      "Stimulates digestion",
+      "Trains focus and courage"
+    ],
+    "contraindications": [
+      "Wrist or elbow injury",
+      "Pregnancy",
+      "High blood pressure",
+      "Recent abdominal surgery"
+    ],
+    "stretchZones": [
+      "Arms & wrists",
+      "Core",
+      "Shoulders"
+    ]
   }
 ];
 
