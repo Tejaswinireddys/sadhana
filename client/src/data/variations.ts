@@ -2474,4 +2474,292 @@ export const EXTRAS: Record<string, AsanaExtras> = {
     },
     stepMotions: ["ground", "inhale", "torso-fold", "settle", "lift"],
   },
+
+  "urdhva-hastasana": {
+    avoidIf: [
+      { condition: "Shoulder injury — soft elbows", severity: "modify" },
+      { condition: "Dizziness — gaze forward", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Arms shoulder-width, soft elbows, gentle lift.",
+        props: ["none"],
+        cues: ["Feet root", "Ribs soft", "Smile optional but encouraged"],
+        holdSeconds: 15,
+      },
+      intermediate: {
+        description: "Palms touch overhead with long side body.",
+        props: ["none"],
+        cues: ["Inhale to lift", "Side ribs lengthen", "Lower ribs stay in"],
+        holdSeconds: 20,
+      },
+      advanced: {
+        description: "Slight backbend gaze up with arms firm.",
+        props: ["none"],
+        cues: ["Heart lifts", "Legs strong", "Breath wide"],
+        holdSeconds: 30,
+      },
+    },
+    stepMotions: ["ground", "inhale", "arm-extend", "lift", "exhale"],
+  },
+
+  "ashtanga-namaskara": {
+    avoidIf: [
+      { condition: "Wrist pain — fists or skip", severity: "modify" },
+      { condition: "Pregnancy", severity: "avoid" },
+      { condition: "Shoulder injury", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Knees down early from Plank; chest barely kisses the floor.",
+        props: ["none"],
+        cues: ["Elbows hug in", "Hips stay a little high", "Soft landing"],
+        holdSeconds: 5,
+      },
+      intermediate: {
+        description: "Classic knees-chest-chin with eight points touching.",
+        props: ["none"],
+        cues: ["Chin and chest down", "Toes tuck", "Ready for Cobra"],
+        holdSeconds: 10,
+      },
+      advanced: {
+        description: "Use as a mindful alternative inside fast sun A rounds.",
+        props: ["none"],
+        cues: ["Smooth transition", "Core stays awake", "No dumping in the low back"],
+        holdSeconds: 15,
+      },
+    },
+    stepMotions: ["ground", "exhale", "settle", "settle", "lift"],
+  },
+
+  "parivrtta-utkatasana": {
+    avoidIf: [
+      { condition: "Knee injury", severity: "caution" },
+      { condition: "Low back injury — twist gently", severity: "modify" },
+      { condition: "Pregnancy", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "High chair, hands at heart, mild twist.",
+        props: ["none"],
+        cues: ["Knees even", "Weight in the heels", "Chest lifts"],
+        holdSeconds: 15,
+      },
+      intermediate: {
+        description: "Classic revolved chair with elbow outside the thigh.",
+        props: ["none"],
+        cues: ["Inhale length, exhale twist", "Sit deeper", "Gaze up or forward"],
+        holdSeconds: 25,
+      },
+      advanced: {
+        description: "Deeper squat with a bind behind the back.",
+        props: ["none"],
+        cues: ["Thighs burn evenly", "Twist from the belly", "Steady breath"],
+        holdSeconds: 40,
+      },
+    },
+    stepMotions: ["ground", "inhale", "twist", "lift", "twist"],
+  },
+
+  "supta-virasana": {
+    avoidIf: [
+      { condition: "Knee injury — elevate a lot or skip", severity: "avoid" },
+      { condition: "Ankle injury", severity: "caution" },
+      { condition: "Lower-back pain without props", severity: "modify" },
+    ],
+    variations: {
+      beginner: {
+        description: "One leg at a time, reclined onto a high bolster stack.",
+        props: ["bolster", "block", "blanket"],
+        cues: ["Zero knee pain", "Come up if the back complains", "Soft belly breath"],
+        holdSeconds: 45,
+      },
+      intermediate: {
+        description: "Both legs in Hero, torso on a bolster.",
+        props: ["bolster", "blanket"],
+        cues: ["Walk down slowly", "Arms soft", "Jaw unclenched"],
+        holdSeconds: 90,
+      },
+      advanced: {
+        description: "Lower support or longer stay if knees are happy.",
+        props: ["bolster", "none"],
+        cues: ["Quads melt", "Front body opens", "Exit via the elbows"],
+        holdSeconds: 180,
+      },
+    },
+    stepMotions: ["ground", "settle", "exhale", "settle", "lift"],
+  },
+
+  anantasana: {
+    avoidIf: [
+      { condition: "Hamstring tear", severity: "avoid" },
+      { condition: "Shoulder injury on the bottom side", severity: "modify" },
+      { condition: "Neck discomfort — use a pillow", severity: "modify" },
+    ],
+    variations: {
+      beginner: {
+        description: "Strap around the raised foot, knee soft, head on a pillow.",
+        props: ["strap", "pillow"],
+        cues: ["Hips stacked", "Bottom waist long", "No forcing"],
+        holdSeconds: 20,
+      },
+      intermediate: {
+        description: "Hold the big toe with the leg extended skyward.",
+        props: ["none"],
+        cues: ["Flex the raised foot", "Gaze soft", "Breath steady"],
+        holdSeconds: 30,
+      },
+      advanced: {
+        description: "Straighter raised leg closer to the head.",
+        props: ["none"],
+        cues: ["Keep the chest open", "Equal both sides", "Smile if it feels playful"],
+        holdSeconds: 45,
+      },
+    },
+    stepMotions: ["ground", "hip-shift", "leg-extend", "settle", "settle"],
+  },
+
+  krounchasana: {
+    avoidIf: [
+      { condition: "Knee injury on the folded leg", severity: "avoid" },
+      { condition: "Hamstring tear", severity: "avoid" },
+      { condition: "Disc issues", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Sit on a blanket, soft knee, strap around the foot.",
+        props: ["blanket", "strap"],
+        cues: ["Spine stays tall", "Folded knee happy", "Gentle draw-in"],
+        holdSeconds: 20,
+      },
+      intermediate: {
+        description: "Classic heron with the leg extending up.",
+        props: ["none"],
+        cues: ["Foot flexed", "Core supports", "Breath even"],
+        holdSeconds: 30,
+      },
+      advanced: {
+        description: "Straighter leg closer to the body with a long spine.",
+        props: ["none"],
+        cues: ["No rounding the back", "Equal both sides", "Release slowly"],
+        holdSeconds: 45,
+      },
+    },
+    stepMotions: ["ground", "hip-shift", "leg-extend", "inhale", "settle"],
+  },
+
+  simhasana: {
+    avoidIf: [
+      { condition: "Recent facial or dental surgery", severity: "avoid" },
+      { condition: "Severe neck injury — head neutral", severity: "modify" },
+    ],
+    variations: {
+      beginner: {
+        description: "Seated in a chair; sigh out without full tongue stretch.",
+        props: ["chair"],
+        cues: ["Fingers spread", "Exhale audibly", "Relax the face after"],
+        holdSeconds: 20,
+      },
+      intermediate: {
+        description: "Classic lion: tongue out, eyes wide, strong 'haaa'.",
+        props: ["none"],
+        cues: ["Three to five rounds", "Let go of looking silly", "Soft face between rounds"],
+        holdSeconds: 30,
+      },
+      advanced: {
+        description: "Longer holds with a lifted gaze and full roar.",
+        props: ["none"],
+        cues: ["Jaw fully releases", "Throat opens", "End with a smile"],
+        holdSeconds: 40,
+      },
+    },
+    stepMotions: ["ground", "settle", "inhale", "exhale", "settle"],
+  },
+
+  samakonasana: {
+    avoidIf: [
+      { condition: "Groin strain", severity: "avoid" },
+      { condition: "Hip injury", severity: "avoid" },
+      { condition: "SI joint instability", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "High supported straddle with hands on blocks — barely lower.",
+        props: ["block"],
+        cues: ["Kneecaps face up", "No sharp pain", "Breathe into the inner thighs"],
+        holdSeconds: 20,
+      },
+      intermediate: {
+        description: "Deeper middle splits with steady hand support.",
+        props: ["block"],
+        cues: ["Melt on the exhale", "Never bounce", "Exit by walking feet in"],
+        holdSeconds: 45,
+      },
+      advanced: {
+        description: "Closer to the floor with a longer patient stay.",
+        props: ["none"],
+        cues: ["Honest edge only", "Inner thighs soften", "Rest after"],
+        holdSeconds: 60,
+      },
+    },
+    stepMotions: ["ground", "hip-shift", "settle", "exhale", "lift"],
+  },
+
+  "adho-mukha-vrksasana": {
+    avoidIf: [
+      { condition: "Wrist, shoulder, or neck injury", severity: "avoid" },
+      { condition: "Glaucoma or high blood pressure", severity: "avoid" },
+      { condition: "Menstruation or pregnancy", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "L-shape at the wall: hips stacked, one leg up.",
+        props: ["wall"],
+        cues: ["Fingers spread wide", "Push the floor away", "Soft gaze"],
+        holdSeconds: 10,
+      },
+      intermediate: {
+        description: "Kick up to the wall and hold briefly.",
+        props: ["wall"],
+        cues: ["Core strong", "Legs squeeze", "Come down with control"],
+        holdSeconds: 15,
+      },
+      advanced: {
+        description: "Freestanding handstand with a quiet balance.",
+        props: ["none"],
+        cues: ["Hollow body", "Shoulders stable", "Child's Pose after"],
+        holdSeconds: 30,
+      },
+    },
+    stepMotions: ["ground", "arm-extend", "lift", "balance", "settle"],
+  },
+
+  pasasana: {
+    avoidIf: [
+      { condition: "Knee or ankle injury", severity: "avoid" },
+      { condition: "Lower-back injury", severity: "caution" },
+      { condition: "Pregnancy", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "Malasana on a block with a gentle twist, hands at heart.",
+        props: ["block"],
+        cues: ["Heels supported", "Chest lifts", "No forced bind"],
+        holdSeconds: 15,
+      },
+      intermediate: {
+        description: "Deeper squat twist with a strap for the bind.",
+        props: ["strap"],
+        cues: ["Twist from the belly", "Knees stay happy", "Breath steady"],
+        holdSeconds: 25,
+      },
+      advanced: {
+        description: "Full noose with hands clasped behind.",
+        props: ["none"],
+        cues: ["Heels ground", "Spine long in the twist", "Equal both sides"],
+        holdSeconds: 40,
+      },
+    },
+    stepMotions: ["ground", "twist", "arm-extend", "settle", "twist"],
+  },
 };

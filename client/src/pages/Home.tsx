@@ -47,7 +47,7 @@ const SPLITS_SLUG = "sixty-day-splits";
 
 // Three quick flows featured on Home for users who haven't enrolled in a
 // program yet — a light, one-tap on-ramp mirroring the Quick Start row.
-const FEATURED_FLOW_SLUGS = ["morning-wake-up", "desk-break", "sleep-wind-down"];
+const FEATURED_FLOW_SLUGS = ["feel-good-reset", "morning-wake-up", "desk-break", "sleep-wind-down"];
 
 function StatCard({
   icon: Icon,

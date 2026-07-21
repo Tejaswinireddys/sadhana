@@ -13,6 +13,8 @@ import { StepMotion } from "@/components/StepMotion";
 import { VoicePlayer } from "@/components/VoicePlayer";
 import { DemoMode } from "@/components/DemoMode";
 import { asanaBySlug, type Severity } from "@/data/content";
+import { usagesForAsana } from "@/data/asanaUsage";
+import { QUICK_SESSIONS } from "@/data/quickSessions";
 import { usePractice } from "@/context/PracticeContext";
 import { EmptyState } from "@/components/EmptyState";
 import {
@@ -29,6 +31,8 @@ import {
   Activity,
   NotebookPen,
   Check as CheckIcon,
+  Heart,
+  Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PoseNote } from "@shared/schema";
@@ -127,7 +131,7 @@ export default function AsanaDetail() {
   const { slug } = useParams();
   const [, navigate] = useLocation();
   const asana = asanaBySlug(slug || "");
-  const { add, todays } = usePractice();
+  const { add, todays, loadSession } = usePractice();
   const { toast } = useToast();
   const [level, setLevel] = useState<Level>("intermediate");
 
@@ -145,6 +149,7 @@ export default function AsanaDetail() {
 
   const inToday = !!todays.find((x) => x.slug === asana.slug);
   const variation = asana.variations[level];
+  const usages = usagesForAsana(asana.slug);
 
   const addToday = () => {
     add(asana);
@@ -152,6 +157,30 @@ export default function AsanaDetail() {
       title: "Added to today's practice",
       description: `${asana.english} is ready in your session.`,
     });
+  };
+
+  const practiceNow = () => {
+    const hold = asana.variations[level]?.holdSeconds ?? asana.holdSeconds;
+    loadSession([{ asana, holdSeconds: hold }], {
+      label: `${asana.english} · practice now`,
+    });
+    navigate("/guided");
+  };
+
+  const startMood = (id: string) => {
+    const q = QUICK_SESSIONS.find((s) => s.id === id);
+    if (!q) return;
+    const poses = q.poses
+      .map((p) => {
+        const a = asanaBySlug(p.slug);
+        return a ? { asana: a, holdSeconds: p.holdSeconds } : null;
+      })
+      .filter(
+        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
+          x != null,
+      );
+    loadSession(poses, { label: `${q.time} · ${q.label}`, breathSlug: q.breathSlug ?? null });
+    navigate("/guided");
   };
 
   // group avoidIf rows by severity, in display order
@@ -186,10 +215,16 @@ export default function AsanaDetail() {
             <p className="text-lg text-muted-foreground">{asana.english}</p>
           </div>
           <p className="text-muted-foreground">{asana.summary}</p>
-          <Button onClick={addToday} disabled={inToday} data-testid="button-add-today">
-            {inToday ? <Check className="mr-1.5 h-4 w-4" /> : <Plus className="mr-1.5 h-4 w-4" />}
-            {inToday ? "In today's practice" : "Add to today's practice"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={practiceNow} data-testid="button-practice-now">
+              <Play className="mr-1.5 h-4 w-4" />
+              Practice now
+            </Button>
+            <Button onClick={addToday} disabled={inToday} variant="outline" data-testid="button-add-today">
+              {inToday ? <Check className="mr-1.5 h-4 w-4" /> : <Plus className="mr-1.5 h-4 w-4" />}
+              {inToday ? "In today's practice" : "Add to today's practice"}
+            </Button>
+          </div>
         </div>
         {/* Quick "listen again" affordance below the headline */}
         <VoicePlayer
@@ -198,6 +233,114 @@ export default function AsanaDetail() {
           label="Listen again — guided audio"
         />
       </header>
+
+      {/* Best for — when to reach for this pose */}
+      {asana.bestFor.length > 0 && (
+        <Card className="border-primary/20 shadow-soft" data-testid="card-best-for">
+          <CardContent className="space-y-3 p-5">
+            <h2 className="flex items-center gap-2 font-serif text-lg">
+              <Heart className="h-5 w-5 text-primary" />
+              Best for
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Reach for {asana.english} when you want:
+            </p>
+            <ul className="flex flex-wrap gap-2">
+              {asana.bestFor.map((item, i) => (
+                <li key={i}>
+                  <Badge
+                    variant="secondary"
+                    className="rounded-full px-3 py-1 text-sm font-normal"
+                    data-testid={`best-for-${i}`}
+                  >
+                    {item}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Where this pose shows up in real practice */}
+      {usages.length > 0 && (
+        <Card className="shadow-soft" data-testid="card-practice-it-in">
+          <CardContent className="space-y-3 p-5">
+            <h2 className="flex items-center gap-2 font-serif text-lg">
+              <Play className="h-5 w-5 text-secondary" />
+              Practice it in
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              This pose is waiting for you in these sessions — tap to begin.
+            </p>
+            <ul className="flex flex-col gap-2">
+              {usages.map((u, i) => {
+                if (u.kind === "mood") {
+                  return (
+                    <li key={`mood-${u.id}-${i}`}>
+                      <Button
+                        variant="outline"
+                        className="h-auto w-full justify-start gap-2 whitespace-normal py-3 text-left"
+                        onClick={() => startMood(u.id)}
+                        data-testid={`usage-mood-${u.id}`}
+                      >
+                        <span className="font-medium">{u.label}</span>
+                        <span className="text-muted-foreground">· {u.time} mood session</span>
+                      </Button>
+                    </li>
+                  );
+                }
+                if (u.kind === "flow") {
+                  return (
+                    <li key={`flow-${u.slug}-${i}`}>
+                      <Button
+                        variant="outline"
+                        className="h-auto w-full justify-start gap-2 whitespace-normal py-3 text-left"
+                        asChild
+                      >
+                        <Link href={`/pathways/${u.slug}`} data-testid={`usage-flow-${u.slug}`}>
+                          <span className="font-medium">{u.name}</span>
+                          <span className="text-muted-foreground">· {u.minutes} min flow</span>
+                        </Link>
+                      </Button>
+                    </li>
+                  );
+                }
+                if (u.kind === "profile") {
+                  return (
+                    <li key={`profile-${u.id}-${i}`}>
+                      <Button
+                        variant="outline"
+                        className="h-auto w-full justify-start gap-2 whitespace-normal py-3 text-left"
+                        asChild
+                      >
+                        <Link href="/profiles" data-testid={`usage-profile-${u.id}`}>
+                          <span className="font-medium">{u.name}</span>
+                          <span className="text-muted-foreground">· practice profile</span>
+                        </Link>
+                      </Button>
+                    </li>
+                  );
+                }
+                return (
+                  <li key={`warmup-${i}`}>
+                    <Button
+                      variant="outline"
+                      className="h-auto w-full justify-start gap-2 whitespace-normal py-3 text-left"
+                      asChild
+                    >
+                      <Link href="/pathways" data-testid="usage-warmup">
+                        <span className="font-medium">{u.label}</span>
+                        <span className="text-muted-foreground">· before any pathway</span>
+                      </Link>
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {/* "You'll feel this in..." — body regions this pose stretches. */}
       {asana.stretchZones.length > 0 && (

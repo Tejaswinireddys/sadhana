@@ -1,6 +1,7 @@
 // Static content for Sadhana. Asanas, pathways, and affirmations live here (not in DB).
 import { EXTRAS } from "./variations";
 import { FOCUS_ZONES, STRETCH_ZONES, DEFAULT_FOCUS_ZONE } from "./zones";
+import { bestForFor } from "./bestFor";
 
 export { DEFAULT_FOCUS_ZONE };
 
@@ -75,6 +76,8 @@ export type Asana = {
   summary: string;
   breathing: string;
   benefits: string[];
+  /** When to reach for this pose — shown as "Best for" on the detail page. */
+  bestFor: string[];
   contraindications: string[]; // legacy flat list (kept for back-compat)
   avoidIf: AvoidRow[]; // structured "who should avoid"
   modifications: string;
@@ -94,7 +97,7 @@ export type StretchZone = {
 
 // Raw asana literals (without the merged extras). The fully-typed ASANAS
 // array below is produced by merging EXTRAS into these at module load.
-type RawAsana = Omit<Asana, "avoidIf" | "variations" | "stretchZones">;
+type RawAsana = Omit<Asana, "avoidIf" | "variations" | "stretchZones" | "bestFor">;
 
 const RAW_ASANAS: RawAsana[] = [
   {
@@ -1942,6 +1945,228 @@ const RAW_ASANAS: RawAsana[] = [
       { text: "Rise on an inhale and sit tall again." },
     ],
   },
+
+  // ---- Batch 3: sun-salutation building blocks + feel-good classics ----
+  {
+    slug: "urdhva-hastasana",
+    sanskrit: "Urdhva Hastasana",
+    english: "Upward Salute",
+    category: "Standing",
+    difficulty: "Beginner",
+    hold: "15–30 sec",
+    holdSeconds: 20,
+    pose: "mountain",
+    summary: "Arms reach high to the sky — the joyful lift that opens every sun salutation.",
+    breathing: "Inhale to sweep the arms up; keep the ribs soft and the breath wide.",
+    benefits: ["Lengthens the side body and spine", "Energizes and lifts the mood", "Teaches full-body extension from the feet"],
+    contraindications: ["Shoulder injury (keep a soft bend in the elbows)", "Dizziness (keep the gaze forward)"],
+    modifications: "Keep a micro-bend in the elbows, or lift only one arm at a time.",
+    steps: [
+      { text: "Stand in Mountain with feet grounded and the spine tall." },
+      { text: "Inhale and sweep both arms out and up overhead." },
+      { text: "Bring the palms to touch, or keep them shoulder-width apart." },
+      { text: "Lift through the side ribs without flaring the lower ribs forward." },
+      { text: "Exhale to lower the arms, or fold forward into the next pose." },
+    ],
+  },
+  {
+    slug: "ashtanga-namaskara",
+    sanskrit: "Ashtanga Namaskara",
+    english: "Knees-Chest-Chin",
+    category: "Standing",
+    difficulty: "Beginner",
+    hold: "5–15 sec",
+    holdSeconds: 10,
+    pose: "plank",
+    summary: "The beginner-friendly lower from Plank — eight points touch so Chaturanga can wait.",
+    breathing: "Exhale to lower. Keep the breath steady; this is a soft landing, not a collapse.",
+    benefits: ["Builds strength toward Chaturanga safely", "Opens the chest and strengthens the arms", "Makes sun salutations accessible for every body"],
+    contraindications: ["Wrist pain (come down onto fists)", "Pregnancy (skip or modify heavily)", "Shoulder injury"],
+    modifications: "Lower the knees first from Plank, or skip and rest in Child's Pose instead.",
+    steps: [
+      { text: "From Plank or Down Dog, lower the knees softly to the mat." },
+      { text: "Keep the hips lifted slightly and lower the chest and chin toward the floor." },
+      { text: "Eight points touch: toes, knees, chest, chin, and both hands." },
+      { text: "Elbows stay close to the ribs; the hips stay a little high." },
+      { text: "Slide forward into Cobra or press back to Down Dog." },
+    ],
+  },
+  {
+    slug: "parivrtta-utkatasana",
+    sanskrit: "Parivrtta Utkatasana",
+    english: "Revolved Chair",
+    category: "Standing",
+    difficulty: "Intermediate",
+    hold: "20–40 sec each side",
+    holdSeconds: 25,
+    pose: "chair",
+    summary: "Chair Pose with a twist — heat, balance, and a wringing-out for the whole torso.",
+    breathing: "Inhale to lengthen the spine; exhale to twist deeper from the belly.",
+    benefits: ["Builds leg strength and heat", "Improves spinal mobility and digestion", "Sharpens focus under effort"],
+    contraindications: ["Knee injury", "Low back injury (twist gently)", "Pregnancy"],
+    modifications: "Sit higher in the chair, keep the hands at the heart, or twist less deeply.",
+    steps: [
+      { text: "Bend the knees into Chair Pose, weight in the heels, arms reaching up." },
+      { text: "Bring the palms together at the heart and lengthen the spine." },
+      { text: "Exhale and hook the left elbow outside the right thigh." },
+      { text: "Press the palms, lift the chest, and keep the knees even." },
+      { text: "Unwind to center and repeat on the other side." },
+    ],
+  },
+  {
+    slug: "supta-virasana",
+    sanskrit: "Supta Virasana",
+    english: "Reclining Hero",
+    category: "Restorative",
+    difficulty: "Intermediate",
+    hold: "60–180 sec",
+    holdSeconds: 90,
+    pose: "savasana",
+    summary: "Hero Pose reclined — a deep quad stretch that feels like melting into the floor.",
+    breathing: "Slow belly breaths. If the low back complains, come up immediately onto props.",
+    benefits: ["Deeply stretches the quadriceps and hip flexors", "Opens the front body for better breathing", "Restorative when fully propped"],
+    contraindications: ["Knee injury (elevate a lot or skip)", "Ankle injury", "Lower-back pain without props"],
+    modifications: "Recline onto a bolster stack; never force the knees. One leg at a time is always welcome.",
+    steps: [
+      { text: "Come into Hero Pose, sitting between the heels on a block if needed." },
+      { text: "Place a bolster or stacked blankets behind you." },
+      { text: "Walk the hands back and lower onto the support, one vertebra at a time." },
+      { text: "Rest the arms alongside or overhead if the shoulders are happy." },
+      { text: "To exit, press into the elbows, come up, and stretch the legs forward." },
+    ],
+  },
+  {
+    slug: "anantasana",
+    sanskrit: "Anantasana",
+    english: "Side-Reclining Leg Stretch",
+    category: "Hip Openers",
+    difficulty: "Intermediate",
+    hold: "30–45 sec each side",
+    holdSeconds: 30,
+    pose: "legs-up",
+    summary: "Lying on your side, stretch one leg to the sky — playful, spacious, and surprisingly calming.",
+    breathing: "Steady breaths. Soften the jaw; keep the bottom waist long on the floor.",
+    benefits: ["Stretches the hamstrings and inner thighs", "Opens the side body", "Improves balance in a supported shape"],
+    contraindications: ["Hamstring tear", "Shoulder injury on the bottom side", "Neck discomfort (use a pillow)"],
+    modifications: "Loop a strap around the raised foot and keep a generous bend in the knee.",
+    steps: [
+      { text: "Lie on your left side with the legs stacked and the head resting on the left arm." },
+      { text: "Bend the right knee and hold the right big toe (or a strap)." },
+      { text: "Extend the right leg toward the sky, flexing the foot." },
+      { text: "Keep the hips stacked and the bottom waist long." },
+      { text: "Release and roll to the other side." },
+    ],
+  },
+  {
+    slug: "krounchasana",
+    sanskrit: "Krounchasana",
+    english: "Heron Pose",
+    category: "Seated",
+    difficulty: "Intermediate",
+    hold: "30–45 sec each side",
+    holdSeconds: 30,
+    pose: "seated-fold",
+    summary: "A seated hamstring stretch with one leg folded back — precise, strong, and deeply lengthening.",
+    breathing: "Inhale to lengthen the spine; exhale to draw the extended leg gently in.",
+    benefits: ["Deeply stretches the hamstrings", "Strengthens the core while seated", "Improves focus through balance in a seat"],
+    contraindications: ["Knee injury on the folded leg", "Hamstring tear", "Lower-back disc issues"],
+    modifications: "Sit on a blanket, keep the extended knee soft, and hold a strap around the foot.",
+    steps: [
+      { text: "Sit in Hero on the left side — left foot beside the left hip, right leg extended." },
+      { text: "Bend the right knee and hold the right foot with both hands." },
+      { text: "Inhale and extend the right leg up, foot flexed." },
+      { text: "Keep the spine long; draw the leg in only as far as the back stays tall." },
+      { text: "Release and switch sides." },
+    ],
+  },
+  {
+    slug: "simhasana",
+    sanskrit: "Simhasana",
+    english: "Lion Pose",
+    category: "Seated",
+    difficulty: "Beginner",
+    hold: "3–5 rounds",
+    holdSeconds: 30,
+    pose: "seated",
+    summary: "The face-releasing roar — stick out the tongue, open the eyes wide, and let tension leave with the breath.",
+    breathing: "Inhale through the nose; exhale with an audible 'haaa' through the mouth, tongue out.",
+    benefits: ["Releases jaw, face, and throat tension", "Relieves stress and self-consciousness", "Stimulates the platysma and facial muscles"],
+    contraindications: ["Recent facial or dental surgery", "Severe neck injury (keep the head neutral)"],
+    modifications: "Practice seated in a chair, or keep the tongue in and simply sigh out loudly.",
+    steps: [
+      { text: "Kneel or sit comfortably with the spine tall and hands on the knees." },
+      { text: "Spread the fingers wide like lion's paws, pressing into the knees." },
+      { text: "Inhale through the nose, then open the mouth wide and stretch the tongue toward the chin." },
+      { text: "Open the eyes wide, gaze up, and exhale with a strong 'haaa' sound." },
+      { text: "Relax the face completely, then repeat for three to five rounds." },
+    ],
+  },
+  {
+    slug: "samakonasana",
+    sanskrit: "Samakonasana",
+    english: "Middle Splits",
+    category: "Hip Openers",
+    difficulty: "Advanced",
+    hold: "30–60 sec",
+    holdSeconds: 45,
+    pose: "butterfly",
+    summary: "Side splits — the wide-leg companion to front splits, built patiently over months.",
+    breathing: "Long exhales into the inner thighs. Never bounce; melt a millimeter at a time.",
+    benefits: ["Opens the adductors and hips deeply", "Builds the foundation for wide-legged poses", "Teaches patience and body honesty"],
+    contraindications: ["Groin strain", "Hip injury", "SI joint instability"],
+    modifications: "Stay high on blocks under the hands, or practice wide-legged seated fold instead.",
+    steps: [
+      { text: "From a wide squat or kneeling, begin to slide both feet out to the sides." },
+      { text: "Support with hands on blocks in front of you." },
+      { text: "Keep the kneecaps and toes pointing up as much as possible." },
+      { text: "Hips sink only as far as the inner thighs stay comfortable — no sharp pain." },
+      { text: "Walk the feet in to exit and shake out the legs." },
+    ],
+  },
+  {
+    slug: "adho-mukha-vrksasana",
+    sanskrit: "Adho Mukha Vrksasana",
+    english: "Handstand",
+    category: "Inversions",
+    difficulty: "Advanced",
+    hold: "10–30 sec",
+    holdSeconds: 15,
+    pose: "headstand",
+    summary: "The full handstand — inverted tree on the hands, for strength, courage, and delight.",
+    breathing: "Steady breaths. Gaze between the hands or slightly forward; never hold the breath.",
+    benefits: ["Builds upper-body and core strength", "Improves balance and spatial awareness", "Boosts confidence and mental clarity"],
+    contraindications: ["Wrist, shoulder, or neck injury", "Glaucoma", "High blood pressure", "Menstruation", "Pregnancy"],
+    modifications: "Practice L-shape at the wall, or kick up with a spotter and soft landing space.",
+    steps: [
+      { text: "From Down Dog at the wall, walk the feet in and stack the hips over the shoulders." },
+      { text: "Place the hands shoulder-width, fingers spread, index fingers pressing down." },
+      { text: "Kick or press one leg up, then the other, finding the wall for support." },
+      { text: "Squeeze the legs, push the floor away, and find a quiet balance." },
+      { text: "Lower one foot at a time and rest in Child's Pose." },
+    ],
+  },
+  {
+    slug: "pasasana",
+    sanskrit: "Pasasana",
+    english: "Noose Pose",
+    category: "Hip Openers",
+    difficulty: "Advanced",
+    hold: "20–40 sec each side",
+    holdSeconds: 25,
+    pose: "twist",
+    summary: "A deep squat with a bind — twists the spine while opening the ankles, knees, and hips.",
+    breathing: "Inhale to lengthen; exhale to wrap deeper. Keep the heels grounding if you can.",
+    benefits: ["Deep spinal twist with hip opening", "Strengthens ankles and lower legs", "Intense digestive stimulation"],
+    contraindications: ["Knee or ankle injury", "Lower-back injury", "Pregnancy"],
+    modifications: "Sit on a block in Malasana and twist with hands at the heart — skip the full bind.",
+    steps: [
+      { text: "Come into a deep squat (Malasana) with the feet together or slightly apart." },
+      { text: "Exhale and twist to the right, bringing the left shoulder outside the right knee." },
+      { text: "Wrap the left arm around the shins and reach the right arm behind the back." },
+      { text: "Clasp the hands if available, or hold a strap between them." },
+      { text: "Unwind and repeat on the other side." },
+    ],
+  },
 ];
 
 // Merge per-asana extras (variations, structured contraindications, step
@@ -1957,6 +2182,7 @@ export const ASANAS: Asana[] = RAW_ASANAS.map((raw) => {
   return {
     ...raw,
     steps,
+    bestFor: bestForFor(raw.slug),
     avoidIf: extra?.avoidIf ?? [],
     stretchZones: STRETCH_ZONES[raw.slug] ?? [
       { region: "Full body", sensation: "A balanced, whole-body engagement", intensity: "medium", primary: true },
@@ -1983,6 +2209,13 @@ export const WARMUP = {
       detail: "8–10 rounds, syncing spine movement with breath",
     },
     {
+      name: "Bird Dog",
+      asanaSlug: "chakravakasana",
+      holdSeconds: 20,
+      sides: "each" as const,
+      detail: "Wake the core with opposite arm and leg",
+    },
+    {
       name: "Downward-Facing Dog",
       asanaSlug: "adho-mukha-svanasana",
       holdSeconds: 45,
@@ -1995,6 +2228,13 @@ export const WARMUP = {
       holdSeconds: 30,
       sides: "each" as const,
       detail: "30 sec each side to open the hip flexors",
+    },
+    {
+      name: "Upward Salute",
+      asanaSlug: "urdhva-hastasana",
+      holdSeconds: 20,
+      sides: "once" as const,
+      detail: "Reach up and lift the mood before you flow",
     },
     {
       name: "Forward Fold",
@@ -3413,6 +3653,8 @@ export const PATHWAYS: Pathway[] = [
           { asanaSlug: "marichyasana-twist", holdSeconds: 30, note: "each side" },
           { asanaSlug: "marjaryasana-bitilasana", holdSeconds: 60, note: "wake the spine, breath by breath" },
           { asanaSlug: "tadasana", holdSeconds: 30 },
+          { asanaSlug: "urdhva-hastasana", holdSeconds: 20, note: "reach up and smile" },
+          { asanaSlug: "ardha-uttanasana", holdSeconds: 15, note: "long flat back" },
           { asanaSlug: "uttanasana", holdSeconds: 45 },
           { asanaSlug: "adho-mukha-svanasana", holdSeconds: 60 },
           { asanaSlug: "virabhadrasana-i", holdSeconds: 45, note: "each side" },
@@ -3584,6 +3826,40 @@ export const PATHWAYS: Pathway[] = [
           { asanaSlug: "vasisthasana", holdSeconds: 30, note: "each side" },
           { asanaSlug: "navasana", holdSeconds: 45 },
           { asanaSlug: "balasana", holdSeconds: 60, note: "release" },
+          { asanaSlug: "savasana", holdSeconds: 90, note: "rest" },
+        ],
+      },
+    ],
+  },
+  {
+    slug: "feel-good-reset",
+    name: "Feel-Good Reset",
+    tagline: "A 12-minute mood lift — stretch, twist, roar, and melt.",
+    target: "Simhasana",
+    targetPose: "seated",
+    targetImgSlug: "simhasana",
+    targetPoseSlug: "simhasana",
+    kind: "flow",
+    weeks: 1,
+    sessionsPerWeek: 7,
+    minutesPerSession: 12,
+    timePerSession: "12 min",
+    summary:
+      "When you need to feel like yourself again: reach up, twist out the day, stretch on your side, and finish with a restorative melt. Built so every pose earns its place.",
+    schedule: [],
+    weekPlan: [
+      {
+        weekNumber: 1,
+        theme: "Feel-Good Reset",
+        sessionsPerWeek: 7,
+        poses: [
+          { asanaSlug: "urdhva-hastasana", holdSeconds: 20, note: "reach up" },
+          { asanaSlug: "simhasana", holdSeconds: 30, note: "let the face go" },
+          { asanaSlug: "parivrtta-utkatasana", holdSeconds: 25, note: "each side" },
+          { asanaSlug: "anantasana", holdSeconds: 30, note: "each side" },
+          { asanaSlug: "supta-virasana", holdSeconds: 75, note: "propped if needed" },
+          { asanaSlug: "shashankasana", holdSeconds: 60 },
+          { asanaSlug: "supta-baddha-konasana", holdSeconds: 90 },
           { asanaSlug: "savasana", holdSeconds: 90, note: "rest" },
         ],
       },

@@ -1960,6 +1960,236 @@ export const COACH_CATALOG: CoachPose[] = [
       "Shoulders",
       "Nervous system"
     ]
+  },
+  {
+    "slug": "urdhva-hastasana",
+    "english": "Upward Salute",
+    "sanskrit": "Urdhva Hastasana",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 20,
+    "benefits": [
+      "Lengthens the side body and spine",
+      "Energizes and lifts the mood",
+      "Teaches full-body extension from the feet"
+    ],
+    "contraindications": [
+      "Shoulder injury (keep a soft bend in the elbows)",
+      "Dizziness (keep the gaze forward)"
+    ],
+    "stretchZones": [
+      "Side body",
+      "Shoulders",
+      "Spine"
+    ]
+  },
+  {
+    "slug": "ashtanga-namaskara",
+    "english": "Knees-Chest-Chin",
+    "sanskrit": "Ashtanga Namaskara",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 10,
+    "benefits": [
+      "Builds strength toward Chaturanga safely",
+      "Opens the chest and strengthens the arms",
+      "Makes sun salutations accessible for every body"
+    ],
+    "contraindications": [
+      "Wrist pain (come down onto fists)",
+      "Pregnancy (skip or modify heavily)",
+      "Shoulder injury"
+    ],
+    "stretchZones": [
+      "Arms & chest",
+      "Core",
+      "Wrists"
+    ]
+  },
+  {
+    "slug": "parivrtta-utkatasana",
+    "english": "Revolved Chair",
+    "sanskrit": "Parivrtta Utkatasana",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 25,
+    "benefits": [
+      "Builds leg strength and heat",
+      "Improves spinal mobility and digestion",
+      "Sharpens focus under effort"
+    ],
+    "contraindications": [
+      "Knee injury",
+      "Low back injury (twist gently)",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Thighs",
+      "Spine",
+      "Core"
+    ]
+  },
+  {
+    "slug": "supta-virasana",
+    "english": "Reclining Hero",
+    "sanskrit": "Supta Virasana",
+    "category": "Restorative",
+    "level": "Intermediate",
+    "holdSeconds": 90,
+    "benefits": [
+      "Deeply stretches the quadriceps and hip flexors",
+      "Opens the front body for better breathing",
+      "Restorative when fully propped"
+    ],
+    "contraindications": [
+      "Knee injury (elevate a lot or skip)",
+      "Ankle injury",
+      "Lower-back pain without props"
+    ],
+    "stretchZones": [
+      "Quadriceps",
+      "Hip flexors",
+      "Chest"
+    ]
+  },
+  {
+    "slug": "anantasana",
+    "english": "Side-Reclining Leg Stretch",
+    "sanskrit": "Anantasana",
+    "category": "Hip Openers",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Stretches the hamstrings and inner thighs",
+      "Opens the side body",
+      "Improves balance in a supported shape"
+    ],
+    "contraindications": [
+      "Hamstring tear",
+      "Shoulder injury on the bottom side",
+      "Neck discomfort (use a pillow)"
+    ],
+    "stretchZones": [
+      "Hamstrings",
+      "Side body",
+      "Inner thigh"
+    ]
+  },
+  {
+    "slug": "krounchasana",
+    "english": "Heron Pose",
+    "sanskrit": "Krounchasana",
+    "category": "Seated",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Deeply stretches the hamstrings",
+      "Strengthens the core while seated",
+      "Improves focus through balance in a seat"
+    ],
+    "contraindications": [
+      "Knee injury on the folded leg",
+      "Hamstring tear",
+      "Lower-back disc issues"
+    ],
+    "stretchZones": [
+      "Hamstrings",
+      "Core",
+      "Folded knee"
+    ]
+  },
+  {
+    "slug": "simhasana",
+    "english": "Lion Pose",
+    "sanskrit": "Simhasana",
+    "category": "Seated",
+    "level": "Beginner",
+    "holdSeconds": 30,
+    "benefits": [
+      "Releases jaw, face, and throat tension",
+      "Relieves stress and self-consciousness",
+      "Stimulates the platysma and facial muscles"
+    ],
+    "contraindications": [
+      "Recent facial or dental surgery",
+      "Severe neck injury (keep the head neutral)"
+    ],
+    "stretchZones": [
+      "Jaw & face",
+      "Throat",
+      "Hands & wrists"
+    ]
+  },
+  {
+    "slug": "samakonasana",
+    "english": "Middle Splits",
+    "sanskrit": "Samakonasana",
+    "category": "Hip Openers",
+    "level": "Advanced",
+    "holdSeconds": 45,
+    "benefits": [
+      "Opens the adductors and hips deeply",
+      "Builds the foundation for wide-legged poses",
+      "Teaches patience and body honesty"
+    ],
+    "contraindications": [
+      "Groin strain",
+      "Hip injury",
+      "SI joint instability"
+    ],
+    "stretchZones": [
+      "Inner thighs",
+      "Hips",
+      "Groin"
+    ]
+  },
+  {
+    "slug": "adho-mukha-vrksasana",
+    "english": "Handstand",
+    "sanskrit": "Adho Mukha Vrksasana",
+    "category": "Inversions",
+    "level": "Advanced",
+    "holdSeconds": 15,
+    "benefits": [
+      "Builds upper-body and core strength",
+      "Improves balance and spatial awareness",
+      "Boosts confidence and mental clarity"
+    ],
+    "contraindications": [
+      "Wrist, shoulder, or neck injury",
+      "Glaucoma",
+      "High blood pressure",
+      "Menstruation",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Shoulders & arms",
+      "Core",
+      "Wrists"
+    ]
+  },
+  {
+    "slug": "pasasana",
+    "english": "Noose Pose",
+    "sanskrit": "Pasasana",
+    "category": "Hip Openers",
+    "level": "Advanced",
+    "holdSeconds": 25,
+    "benefits": [
+      "Deep spinal twist with hip opening",
+      "Strengthens ankles and lower legs",
+      "Intense digestive stimulation"
+    ],
+    "contraindications": [
+      "Knee or ankle injury",
+      "Lower-back injury",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Spine",
+      "Hips & ankles",
+      "Shoulders"
+    ]
   }
 ];
 

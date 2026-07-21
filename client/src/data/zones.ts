@@ -573,4 +573,55 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Shoulders", sensation: "A gentle release as the arms rest", intensity: "low", primary: true },
     { region: "Nervous system", sensation: "A quieting, inward settle", intensity: "low", primary: false },
   ],
+  "urdhva-hastasana": [
+    { region: "Side body", sensation: "A lift from the waist to the fingertips", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "An opening as the arms reach up", intensity: "medium", primary: true },
+    { region: "Spine", sensation: "Lengthening tall from the feet", intensity: "low", primary: false },
+  ],
+  "ashtanga-namaskara": [
+    { region: "Arms & chest", sensation: "A soft strengthening lower", intensity: "medium", primary: true },
+    { region: "Core", sensation: "Engagement to keep the hips lifted", intensity: "medium", primary: true },
+    { region: "Wrists", sensation: "Steady weight-bearing", intensity: "low", primary: false },
+  ],
+  "parivrtta-utkatasana": [
+    { region: "Thighs", sensation: "A strong burn in Chair legs", intensity: "strong", primary: true },
+    { region: "Spine", sensation: "A deep twist through the torso", intensity: "medium", primary: true },
+    { region: "Core", sensation: "Heat and focus under effort", intensity: "medium", primary: false },
+  ],
+  "supta-virasana": [
+    { region: "Quadriceps", sensation: "A deep, melting front-thigh stretch", intensity: "strong", primary: true },
+    { region: "Hip flexors", sensation: "An opening across the front hips", intensity: "strong", primary: true },
+    { region: "Chest", sensation: "A soft opening when reclined", intensity: "low", primary: false },
+  ],
+  "anantasana": [
+    { region: "Hamstrings", sensation: "A long stretch in the raised leg", intensity: "strong", primary: true },
+    { region: "Side body", sensation: "Length along the bottom waist", intensity: "medium", primary: true },
+    { region: "Inner thigh", sensation: "A gentle opening as the leg lifts", intensity: "medium", primary: false },
+  ],
+  "krounchasana": [
+    { region: "Hamstrings", sensation: "A focused stretch in the lifted leg", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Steady engagement to sit tall", intensity: "medium", primary: true },
+    { region: "Folded knee", sensation: "A Hero-leg stretch — never pain", intensity: "low", primary: false },
+  ],
+  "simhasana": [
+    { region: "Jaw & face", sensation: "A full release of held tension", intensity: "medium", primary: true },
+    { region: "Throat", sensation: "An opening with the lion's exhale", intensity: "medium", primary: true },
+    { region: "Hands & wrists", sensation: "A spread through the lion's paws", intensity: "low", primary: false },
+  ],
+  "samakonasana": [
+    { region: "Inner thighs", sensation: "A deep adductor opening", intensity: "strong", primary: true },
+    { region: "Hips", sensation: "Wide, honest hip mobility", intensity: "strong", primary: true },
+    { region: "Groin", sensation: "A careful stretch — no forcing", intensity: "medium", primary: false },
+  ],
+  "adho-mukha-vrksasana": [
+    { region: "Shoulders & arms", sensation: "Full inverted strength", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Powerful midline engagement", intensity: "strong", primary: true },
+    { region: "Wrists", sensation: "Steady handstand support", intensity: "medium", primary: false },
+  ],
+  "pasasana": [
+    { region: "Spine", sensation: "A deep bound twist", intensity: "strong", primary: true },
+    { region: "Hips & ankles", sensation: "A profound squat opening", intensity: "strong", primary: true },
+    { region: "Shoulders", sensation: "A bind stretch across the chest", intensity: "medium", primary: false },
+  ],
 };
+
