@@ -1680,6 +1680,286 @@ export const COACH_CATALOG: CoachPose[] = [
       "Belly",
       "Whole body"
     ]
+  },
+  {
+    "slug": "vajrasana",
+    "english": "Thunderbolt Pose",
+    "sanskrit": "Vajrasana",
+    "category": "Seated",
+    "level": "Beginner",
+    "holdSeconds": 90,
+    "benefits": [
+      "Aids digestion when practiced after eating",
+      "A steady meditation seat for many bodies",
+      "Stretches the ankles and tops of the feet"
+    ],
+    "contraindications": [
+      "Knee injury (sit on a block between the heels)",
+      "Ankle injury",
+      "Recent foot surgery"
+    ],
+    "stretchZones": [
+      "Ankles & feet",
+      "Knees",
+      "Spine"
+    ]
+  },
+  {
+    "slug": "ardha-uttanasana",
+    "english": "Halfway Lift",
+    "sanskrit": "Ardha Uttanasana",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 20,
+    "benefits": [
+      "Lengthens the spine and hamstrings",
+      "Strengthens the back body",
+      "Teaches hinge mechanics for safer forward folds"
+    ],
+    "contraindications": [
+      "Acute lower-back flare (keep knees soft and hands high)",
+      "Vertigo (gaze at the floor)"
+    ],
+    "stretchZones": [
+      "Hamstrings",
+      "Spine",
+      "Back body"
+    ]
+  },
+  {
+    "slug": "padahastasana",
+    "english": "Hands-to-Feet Pose",
+    "sanskrit": "Padahastasana",
+    "category": "Forward Bends",
+    "level": "Intermediate",
+    "holdSeconds": 45,
+    "benefits": [
+      "Deeply stretches hamstrings and calves",
+      "Tractions the spine and releases the neck",
+      "Calms the mind in a folded shape"
+    ],
+    "contraindications": [
+      "Hamstring tear",
+      "Lower-back disc injury (fold less)",
+      "High blood pressure (keep the head elevated)"
+    ],
+    "stretchZones": [
+      "Hamstrings",
+      "Spine & neck",
+      "Calves"
+    ]
+  },
+  {
+    "slug": "utthita-hasta-padangusthasana",
+    "english": "Extended Hand-to-Big-Toe",
+    "sanskrit": "Utthita Hasta Padangusthasana",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Improves balance and concentration",
+      "Stretches hamstrings and hips",
+      "Strengthens the standing leg and ankle"
+    ],
+    "contraindications": [
+      "Ankle instability",
+      "Hamstring injury",
+      "Vertigo or inner-ear issues"
+    ],
+    "stretchZones": [
+      "Standing ankle & leg",
+      "Hamstrings",
+      "Core"
+    ]
+  },
+  {
+    "slug": "parivrtta-parsvakonasana",
+    "english": "Revolved Side Angle",
+    "sanskrit": "Parivrtta Parsvakonasana",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Strengthens legs and core",
+      "Opens the chest and spine in rotation",
+      "Builds stamina for longer flows"
+    ],
+    "contraindications": [
+      "Knee injury",
+      "Recent spinal injury",
+      "Late pregnancy"
+    ],
+    "stretchZones": [
+      "Legs",
+      "Spine",
+      "Chest"
+    ]
+  },
+  {
+    "slug": "chakravakasana",
+    "english": "Bird Dog Pose",
+    "sanskrit": "Chakravakasana",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 25,
+    "benefits": [
+      "Strengthens deep core and back",
+      "Improves balance and coordination",
+      "Warms the spine without strain"
+    ],
+    "contraindications": [
+      "Wrist pain (practice on fists or forearms)",
+      "Knee sensitivity (pad the knees)"
+    ],
+    "stretchZones": [
+      "Core",
+      "Back body",
+      "Shoulders"
+    ]
+  },
+  {
+    "slug": "parivrtta-janu-sirsasana",
+    "english": "Revolved Head-to-Knee",
+    "sanskrit": "Parivrtta Janu Sirsasana",
+    "category": "Seated",
+    "level": "Intermediate",
+    "holdSeconds": 45,
+    "benefits": [
+      "Stretches hamstrings and side body",
+      "Opens the shoulders and ribs",
+      "Improves digestion and spinal mobility"
+    ],
+    "contraindications": [
+      "Hamstring tear",
+      "Shoulder injury (reach less)",
+      "Disc issues (keep the fold mild)"
+    ],
+    "stretchZones": [
+      "Side body",
+      "Hamstrings",
+      "Shoulders"
+    ]
+  },
+  {
+    "slug": "kurmasana",
+    "english": "Tortoise Pose",
+    "sanskrit": "Kurmasana",
+    "category": "Forward Bends",
+    "level": "Advanced",
+    "holdSeconds": 40,
+    "benefits": [
+      "Deeply stretches hamstrings and back",
+      "Quiets the nervous system",
+      "Opens the shoulders and outer hips"
+    ],
+    "contraindications": [
+      "Hamstring injury",
+      "Lower-back injury",
+      "Shoulder injury",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Hamstrings",
+      "Spine",
+      "Shoulders"
+    ]
+  },
+  {
+    "slug": "bhekasana",
+    "english": "Reclining Frog Pose",
+    "sanskrit": "Bhekasana",
+    "category": "Hip Openers",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Stretches quadriceps and hip flexors deeply",
+      "Opens the chest and shoulders",
+      "Counters long sitting and cycling"
+    ],
+    "contraindications": [
+      "Knee injury",
+      "Ankle injury",
+      "Lower-back flare (lift the chest less)"
+    ],
+    "stretchZones": [
+      "Quadriceps",
+      "Hip flexors",
+      "Chest"
+    ]
+  },
+  {
+    "slug": "karna-pidasana",
+    "english": "Ear Pressure Pose",
+    "sanskrit": "Karna Pidasana",
+    "category": "Inversions",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Deeply stretches the spine and back body",
+      "Calms the mind by limiting sensory input",
+      "Releases the neck and shoulders gently when supported"
+    ],
+    "contraindications": [
+      "Neck injury",
+      "Glaucoma",
+      "High blood pressure",
+      "Menstruation",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Spine",
+      "Shoulders",
+      "Back body"
+    ]
+  },
+  {
+    "slug": "pincha-mayurasana",
+    "english": "Forearm Stand",
+    "sanskrit": "Pincha Mayurasana",
+    "category": "Inversions",
+    "level": "Advanced",
+    "holdSeconds": 20,
+    "benefits": [
+      "Builds serious shoulder and core strength",
+      "Improves balance and body awareness upside down",
+      "Energizes and boosts confidence"
+    ],
+    "contraindications": [
+      "Shoulder or elbow injury",
+      "Neck injury",
+      "Glaucoma",
+      "High blood pressure",
+      "Menstruation",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Shoulders & upper arms",
+      "Core",
+      "Wrists & elbows"
+    ]
+  },
+  {
+    "slug": "shashankasana",
+    "english": "Hare Pose",
+    "sanskrit": "Shashankasana",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 60,
+    "benefits": [
+      "Calms anxiety and mental chatter",
+      "Gently stretches the spine and shoulders",
+      "A simple reset between stronger poses"
+    ],
+    "contraindications": [
+      "Knee injury (pad well or skip)",
+      "Vertigo (keep the head elevated on a block)",
+      "Late pregnancy (widen the knees)"
+    ],
+    "stretchZones": [
+      "Spine",
+      "Shoulders",
+      "Nervous system"
+    ]
   }
 ];
 

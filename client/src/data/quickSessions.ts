@@ -47,9 +47,11 @@ export const QUICK_SESSIONS: QuickSession[] = [
     time: "10 min",
     intent: "Energize",
     poses: [
+      { slug: "chakravakasana", holdSeconds: 30 },
       { slug: "tadasana", holdSeconds: 30 },
       { slug: "virabhadrasana-ii", holdSeconds: 45 },
       { slug: "virabhadrasana-i", holdSeconds: 45 },
+      { slug: "ardha-uttanasana", holdSeconds: 20 },
       { slug: "utkatasana", holdSeconds: 45 },
       { slug: "anjaneyasana", holdSeconds: 60 },
       { slug: "balasana", holdSeconds: 60 },
@@ -64,6 +66,8 @@ export const QUICK_SESSIONS: QuickSession[] = [
     time: "10 min",
     intent: "Calm",
     poses: [
+      { slug: "vajrasana", holdSeconds: 60 },
+      { slug: "shashankasana", holdSeconds: 60 },
       { slug: "balasana", holdSeconds: 90 },
       { slug: "sukhasana", holdSeconds: 120 },
       { slug: "viparita-karani", holdSeconds: 240 },

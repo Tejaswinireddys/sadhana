@@ -513,4 +513,64 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Belly", sensation: "Natural diaphragmatic breath against the mat", intensity: "low", primary: true },
     { region: "Whole body", sensation: "Prone heaviness and rest", intensity: "low", primary: false },
   ],
+  vajrasana: [
+    { region: "Ankles & feet", sensation: "A firm stretch across the tops of the feet", intensity: "medium", primary: true },
+    { region: "Knees", sensation: "A gentle kneeling stretch — never pain", intensity: "low", primary: true },
+    { region: "Spine", sensation: "Easy upright length for stillness", intensity: "low", primary: false },
+  ],
+  "ardha-uttanasana": [
+    { region: "Hamstrings", sensation: "A moderate stretch with soft or straight knees", intensity: "medium", primary: true },
+    { region: "Spine", sensation: "Lengthening from tail to crown", intensity: "medium", primary: true },
+    { region: "Back body", sensation: "Gentle strengthening to hold the flat back", intensity: "low", primary: false },
+  ],
+  padahastasana: [
+    { region: "Hamstrings", sensation: "A deep stretch down the back of the legs", intensity: "strong", primary: true },
+    { region: "Spine & neck", sensation: "Traction as the crown hangs heavy", intensity: "medium", primary: true },
+    { region: "Calves", sensation: "A firm stretch as the legs straighten", intensity: "medium", primary: false },
+  ],
+  "utthita-hasta-padangusthasana": [
+    { region: "Standing ankle & leg", sensation: "Steady strength and balance", intensity: "strong", primary: true },
+    { region: "Hamstrings", sensation: "A focused stretch in the raised leg", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Quiet engagement to stay upright", intensity: "medium", primary: false },
+  ],
+  "parivrtta-parsvakonasana": [
+    { region: "Legs", sensation: "Strong endurance through the lunge", intensity: "strong", primary: true },
+    { region: "Spine", sensation: "A deep twisting length", intensity: "medium", primary: true },
+    { region: "Chest", sensation: "An opening as the top arm reaches", intensity: "medium", primary: false },
+  ],
+  chakravakasana: [
+    { region: "Core", sensation: "Deep stabilizing engagement", intensity: "medium", primary: true },
+    { region: "Back body", sensation: "Gentle strength along the spine", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "Steady support through the grounded arm", intensity: "low", primary: false },
+  ],
+  "parivrtta-janu-sirsasana": [
+    { region: "Side body", sensation: "A long stretch from hip to fingertips", intensity: "strong", primary: true },
+    { region: "Hamstrings", sensation: "A stretch in the extended leg", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "An opening through the top arm", intensity: "medium", primary: false },
+  ],
+  kurmasana: [
+    { region: "Hamstrings", sensation: "A deep, introspective stretch", intensity: "strong", primary: true },
+    { region: "Spine", sensation: "A profound forward fold", intensity: "strong", primary: true },
+    { region: "Shoulders", sensation: "An opening as the arms slide under", intensity: "medium", primary: false },
+  ],
+  bhekasana: [
+    { region: "Quadriceps", sensation: "A deep stretch down the front thighs", intensity: "strong", primary: true },
+    { region: "Hip flexors", sensation: "An opening as the feet press down", intensity: "strong", primary: true },
+    { region: "Chest", sensation: "A lift and opening through the heart", intensity: "medium", primary: false },
+  ],
+  "karna-pidasana": [
+    { region: "Spine", sensation: "A cocooning forward fold while inverted", intensity: "strong", primary: true },
+    { region: "Shoulders", sensation: "Weight-bearing with the neck free", intensity: "medium", primary: true },
+    { region: "Back body", sensation: "A deep stretch from hips to neck", intensity: "medium", primary: false },
+  ],
+  "pincha-mayurasana": [
+    { region: "Shoulders & upper arms", sensation: "Intense strength holding the balance", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Powerful engagement to stay stacked", intensity: "strong", primary: true },
+    { region: "Wrists & elbows", sensation: "Steady forearm support", intensity: "medium", primary: false },
+  ],
+  shashankasana: [
+    { region: "Spine", sensation: "A soft forward fold over the thighs", intensity: "low", primary: true },
+    { region: "Shoulders", sensation: "A gentle release as the arms rest", intensity: "low", primary: true },
+    { region: "Nervous system", sensation: "A quieting, inward settle", intensity: "low", primary: false },
+  ],
 };
