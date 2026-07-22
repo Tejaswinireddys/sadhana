@@ -166,6 +166,7 @@ export default function Journal() {
         <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>
       ) : filtered.length === 0 ? (
         <EmptyState
+          variant={entries.length === 0 ? "firstSession" : "search"}
           title={entries.length === 0 ? "Your journal is empty" : "No matching entries"}
           description={
             entries.length === 0

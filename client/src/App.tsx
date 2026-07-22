@@ -33,6 +33,7 @@ import KidsPose from "@/pages/KidsPose";
 import KidsBreath from "@/pages/KidsBreath";
 import Trainer from "@/pages/Trainer";
 import Search from "@/pages/Search";
+import DesignSystem from "@/pages/DesignSystem";
 import Settings from "@/pages/Settings";
 
 function WelcomeRedirect() {
@@ -73,6 +74,7 @@ function AppRouter() {
       <Route path="/kids/:slug" component={KidsPose} />
       <Route path="/search" component={Search} />
       <Route path="/settings" component={Settings} />
+      <Route path="/design-system" component={DesignSystem} />
       <Route component={NotFound} />
     </Switch>
   );

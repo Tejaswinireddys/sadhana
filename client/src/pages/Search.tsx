@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { PoseImage } from "@/components/PoseImage";
 import { ASANAS, PATHWAYS, BREATHING, AFFIRMATIONS } from "@/data/content";
 import { KIDS_POSES, KIDS_BREATH } from "@/data/kids";
-import { Search as SearchIcon, Wind, Route as RouteIcon, Sparkles, LayoutGrid, Smile } from "lucide-react";
+import { Wind, Route as RouteIcon, Sparkles, LayoutGrid, Smile } from "lucide-react";
 
 const diffColor: Record<string, string> = {
   Beginner: "bg-secondary/20 text-secondary-foreground border-secondary/30",
@@ -166,14 +166,14 @@ export default function Search() {
 
       {!q ? (
         <EmptyState
+          variant="search"
           title="Type to search across everything in Sadhana"
           description="Find poses, breathing techniques, pathways, affirmations, and kids stories from the search box in the sidebar."
           testId="empty-search-prompt"
-        >
-          <SearchIcon className="h-8 w-8 text-muted-foreground" />
-        </EmptyState>
+        />
       ) : total === 0 ? (
         <EmptyState
+          variant="search"
           title={`No matches for "${query.trim()}"`}
           description="Try different keywords — a Sanskrit name, an English pose, a benefit, or a feeling."
           testId="empty-search-results"

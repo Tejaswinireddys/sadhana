@@ -289,6 +289,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               About Sadhana
             </Link>
           </Button>
+          <Button variant="ghost" size="sm" className="w-full cursor-pointer justify-start gap-2" asChild>
+            <Link href="/design-system">
+              <Sparkles className="h-4 w-4" />
+              Design system
+            </Link>
+          </Button>
           <p className="px-2 pt-2 text-xs text-muted-foreground">
             Sādhanā — a daily, dedicated practice.
           </p>

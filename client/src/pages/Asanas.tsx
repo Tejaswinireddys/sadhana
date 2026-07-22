@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,9 +10,11 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ASANAS, CATEGORIES, type Category, type Asana } from "@/data/content";
 import { profileById } from "@/data/profiles";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useProgressiveList } from "@/hooks/useProgressiveList";
 import type { FavoriteAsana } from "@shared/schema";
 import { Heart, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FadeIn } from "@/components/motion";
 
 const diffColor: Record<string, string> = {
   Beginner: "bg-secondary/20 text-secondary-foreground border-secondary/30",
@@ -90,6 +92,22 @@ export default function Asanas() {
     });
   }, [category, level, time, prop, favoritesOnly, favSet, audience]);
 
+  const { visible, hasMore, loadMore, visibleCount, total } = useProgressiveList(list, 24);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasMore) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) loadMore();
+      },
+      { rootMargin: "240px" },
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, [hasMore, loadMore, visibleCount]);
+
   const resetFilters = () => {
     setCategory("All");
     setLevel("All");
@@ -131,7 +149,7 @@ export default function Asanas() {
   );
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <FadeIn className="space-y-6">
       <header className="space-y-1">
         <h1 className="font-serif text-3xl font-semibold tracking-tight">Asana Library</h1>
         <p className="text-muted-foreground">
@@ -189,17 +207,38 @@ export default function Asanas() {
 
       {list.length === 0 ? (
         <EmptyState
-          title="No poses match these filters yet"
-          description="Try removing one — your perfect pose is in here somewhere."
+          variant={favoritesOnly ? "favorites" : "search"}
+          title={
+            favoritesOnly
+              ? "No favorites yet"
+              : "No poses match these filters yet"
+          }
+          description={
+            favoritesOnly
+              ? "Heart poses in the library to build a shortlist you can practice anytime."
+              : "Try removing a filter — your perfect pose is in here somewhere."
+          }
           testId="empty-asanas"
         >
-          <Button variant="outline" onClick={resetFilters} data-testid="button-clear-filters">
-            Clear filters
-          </Button>
+          {favoritesOnly ? (
+            <Button
+              variant="outline"
+              className="min-h-11 cursor-pointer"
+              onClick={() => setFavoritesOnly(false)}
+              data-testid="button-browse-all-from-fav"
+            >
+              Browse all poses
+            </Button>
+          ) : (
+            <Button variant="outline" className="min-h-11 cursor-pointer" onClick={resetFilters} data-testid="button-clear-filters">
+              Clear filters
+            </Button>
+          )}
         </EmptyState>
       ) : (
+        <>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {list.map((a) => {
+          {visible.map((a) => {
             const isFav = favSet.has(a.slug);
             return (
               <Card
@@ -262,7 +301,20 @@ export default function Asanas() {
             );
           })}
         </div>
+        {hasMore && (
+          <div ref={sentinelRef} className="flex justify-center py-6">
+            <Button
+              variant="outline"
+              className="min-h-11 cursor-pointer"
+              onClick={loadMore}
+              data-testid="button-load-more-poses"
+            >
+              Show more poses ({visibleCount} of {total})
+            </Button>
+          </div>
+        )}
+        </>
       )}
-    </div>
+    </FadeIn>
   );
 }

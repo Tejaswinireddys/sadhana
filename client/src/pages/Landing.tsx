@@ -3,6 +3,8 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { KEYS, writeString } from "@/lib/localPrefs";
+import { ProductDemoVideo } from "@/components/ProductDemoVideo";
+import { Reveal } from "@/components/motion";
 import {
   ArrowRight,
   BookOpen,
@@ -184,7 +186,20 @@ export default function Landing() {
           </div>
         </section>
 
-        <section id="how" className="border-y border-border/50 bg-card/30">
+        <section id="demo" className="border-y border-border/50 bg-card/30">
+          <div className="mx-auto max-w-5xl px-4 py-16 md:px-6">
+            <h2 className="mb-6 font-serif text-3xl font-semibold tracking-tight">See it in practice</h2>
+            <p className="mb-8 max-w-xl text-muted-foreground">
+              A short walkthrough of Trainer → guided poses. Placeholder until a real capture is added —
+              see docs/product-videos.md.
+            </p>
+            <Reveal>
+              <ProductDemoVideo title="Sadhana product overview" />
+            </Reveal>
+          </div>
+        </section>
+
+        <section id="how" className="border-y border-border/50 bg-card/20">
           <div className="mx-auto max-w-5xl px-4 py-16 md:px-6">
             <h2 className="mb-10 font-serif text-3xl font-semibold tracking-tight">How it works</h2>
             <ol className="grid gap-6 md:grid-cols-3">

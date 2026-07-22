@@ -51,6 +51,8 @@ export function PoseImage({
         <img
           src={`${import.meta.env.BASE_URL}poses/${slug}.png`}
           alt={alt}
+          loading="lazy"
+          decoding="async"
           onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
           className={cn(

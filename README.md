@@ -119,6 +119,11 @@ minutes of inactivity; the first visit after that takes ~30 seconds to wake.
   practice with awareness of your own body and consult a certified teacher
   or medical professional for anything beyond a personal home practice.
 
+## Design system & product video
+
+- Preview UI tokens and states at `/#/design-system` (also linked from Settings).
+- Product demo video placeholders and replacement steps: [`docs/product-videos.md`](docs/product-videos.md).
+
 ## Contributing
 
 Issues and pull requests are welcome. If you'd like to add a pose, a new

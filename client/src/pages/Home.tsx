@@ -24,6 +24,7 @@ import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
 import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/lib/localPrefs";
 import type { UserProfile, Enrollment, FavoriteAsana } from "@shared/schema";
 import { QUICK_SESSIONS } from "@/data/quickSessions";
+import { EmptyState } from "@/components/EmptyState";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   Flame,
@@ -357,28 +358,20 @@ export default function Home() {
         </Card>
       )}
 
-      {/* No-profile prompt banner */}
+      {/* No-profile prompt */}
       {!profile && (
-        <Card className="surface-banner border-primary/30" data-testid="banner-pick-path">
-          <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                <Compass className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="font-serif text-lg leading-tight">Pick a path that fits your life</p>
-                <p className="text-sm text-muted-foreground">
-                  Busy mom, better sleep, splits, desk relief, men, women, pregnancy — tailor practice in one tap.
-                </p>
-              </div>
-            </div>
-            <Button asChild className="min-h-11 cursor-pointer" data-testid="button-go-profiles">
-              <Link href="/profiles">
-                Choose a path <ArrowRight className="ml-1.5 h-4 w-4" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          variant="profile"
+          title="Pick a path that fits your life"
+          description="Busy mom, better sleep, splits, desk relief, men, women, pregnancy — tailor practice in one tap."
+          testId="banner-pick-path"
+        >
+          <Button asChild className="min-h-11 cursor-pointer" data-testid="button-go-profiles">
+            <Link href="/profiles">
+              Choose a path <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Link>
+          </Button>
+        </EmptyState>
       )}
 
       {/* Soft acknowledgment when today's practice is already done */}
@@ -531,7 +524,7 @@ export default function Home() {
       </section>
 
       {/* Favorited poses — one-tap practice */}
-      {favoriteAsanas.length > 0 && (
+      {favoriteAsanas.length > 0 ? (
         <section className="space-y-3" data-testid="section-favorite-poses">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -586,6 +579,23 @@ export default function Home() {
             })}
           </div>
         </section>
+      ) : (
+        !isLoading &&
+        !hasPracticed && (
+          <EmptyState
+            variant="firstSession"
+            title="Your first session is waiting"
+            description="Start with Yoga Trainer or a mood session — favorites will appear here after you heart a pose."
+            testId="empty-home-first-session"
+          >
+            <Button asChild className="min-h-11 cursor-pointer">
+              <Link href="/trainer">Open Yoga Trainer</Link>
+            </Button>
+            <Button asChild variant="outline" className="min-h-11 cursor-pointer">
+              <Link href="/asanas">Browse the library</Link>
+            </Button>
+          </EmptyState>
+        )
       )}
 
       <section className="space-y-6" aria-labelledby="more-ways-heading">
