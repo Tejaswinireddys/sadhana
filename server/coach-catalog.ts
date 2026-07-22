@@ -2415,6 +2415,238 @@ export const COACH_CATALOG: CoachPose[] = [
       "Core",
       "Shoulders"
     ]
+  },
+  {
+    "slug": "rajakapotasana",
+    "english": "King Pigeon Pose",
+    "sanskrit": "Rajakapotasana",
+    "category": "Backbends",
+    "level": "Advanced",
+    "holdSeconds": 18,
+    "benefits": [
+      "Deeply opens hip flexors, quads, and the chest",
+      "Builds spinal flexibility and shoulder mobility",
+      "Cultivates courage and emotional release"
+    ],
+    "contraindications": [
+      "Knee, hip, or shoulder injury",
+      "Lower-back issues or recent spinal surgery",
+      "High or low blood pressure",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Hip flexors & quads",
+      "Shoulders & chest",
+      "Spine"
+    ]
+  },
+  {
+    "slug": "astavakrasana",
+    "english": "Eight-Angle Pose",
+    "sanskrit": "Astavakrasana",
+    "category": "Standing",
+    "level": "Advanced",
+    "holdSeconds": 12,
+    "benefits": [
+      "Builds significant arm, wrist, and core strength",
+      "Improves twisting range through the torso",
+      "Trains focus under a demanding shape"
+    ],
+    "contraindications": [
+      "Wrist, elbow, or shoulder injury",
+      "Pregnancy",
+      "Recent abdominal surgery"
+    ],
+    "stretchZones": [
+      "Wrists & forearms",
+      "Obliques & core",
+      "Shoulders"
+    ]
+  },
+  {
+    "slug": "tittibhasana",
+    "english": "Firefly Pose",
+    "sanskrit": "Tittibhasana",
+    "category": "Standing",
+    "level": "Advanced",
+    "holdSeconds": 12,
+    "benefits": [
+      "Builds arm, shoulder, and core strength",
+      "Stretches the hamstrings and inner groins",
+      "Develops balance and body awareness"
+    ],
+    "contraindications": [
+      "Wrist or shoulder injury",
+      "Tight hamstrings — build up gradually",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Hamstrings & inner groin",
+      "Shoulders & wrists",
+      "Core"
+    ]
+  },
+  {
+    "slug": "parsva-bakasana",
+    "english": "Side Crow Pose",
+    "sanskrit": "Parsva Bakasana",
+    "category": "Standing",
+    "level": "Advanced",
+    "holdSeconds": 12,
+    "benefits": [
+      "Builds arm and wrist strength",
+      "Deepens spinal rotation",
+      "Sharpens balance and focus"
+    ],
+    "contraindications": [
+      "Wrist injury",
+      "Pregnancy",
+      "Recent abdominal surgery"
+    ],
+    "stretchZones": [
+      "Spine & obliques",
+      "Wrists & forearms",
+      "Core"
+    ]
+  },
+  {
+    "slug": "eka-pada-koundinyasana-ii",
+    "english": "Flying Pigeon Pose",
+    "sanskrit": "Eka Pada Koundinyasana II",
+    "category": "Standing",
+    "level": "Advanced",
+    "holdSeconds": 10,
+    "benefits": [
+      "Builds significant arm and shoulder strength",
+      "Opens the front hip while strengthening the back leg",
+      "Trains focus and playful courage"
+    ],
+    "contraindications": [
+      "Wrist or shoulder injury",
+      "Hip injury",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Front hip & groin",
+      "Shoulders & wrists",
+      "Core & back leg"
+    ]
+  },
+  {
+    "slug": "vrischikasana",
+    "english": "Scorpion Pose",
+    "sanskrit": "Vrischikasana",
+    "category": "Inversions",
+    "level": "Advanced",
+    "holdSeconds": 12,
+    "benefits": [
+      "Builds exceptional shoulder, core, and back strength",
+      "Deepens spinal flexibility",
+      "Trains courage, patience, and body trust"
+    ],
+    "contraindications": [
+      "Neck, shoulder, or spinal injury",
+      "High or low blood pressure",
+      "Pregnancy",
+      "Beginners to inversions — build forearm stand first"
+    ],
+    "stretchZones": [
+      "Shoulders & upper back",
+      "Spine",
+      "Core"
+    ]
+  },
+  {
+    "slug": "parivrtta-ardha-chandrasana",
+    "english": "Revolved Half Moon Pose",
+    "sanskrit": "Parivrtta Ardha Chandrasana",
+    "category": "Standing",
+    "level": "Advanced",
+    "holdSeconds": 25,
+    "benefits": [
+      "Builds standing-leg strength and balance",
+      "Deepens spinal rotation",
+      "Sharpens focus and coordination"
+    ],
+    "contraindications": [
+      "Balance difficulty — practice at a wall",
+      "Low back injury",
+      "High or low blood pressure"
+    ],
+    "stretchZones": [
+      "Spine",
+      "Standing leg & hip",
+      "Hamstrings (lifted leg)"
+    ]
+  },
+  {
+    "slug": "padangusthasana",
+    "english": "Big Toe Pose",
+    "sanskrit": "Padangusthasana",
+    "category": "Forward Bends",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Lengthens the hamstrings and calves",
+      "Improves posture and spinal length",
+      "Calms the nervous system"
+    ],
+    "contraindications": [
+      "Low-back injury — bend the knees generously",
+      "Sciatica",
+      "Low blood pressure — rise slowly"
+    ],
+    "stretchZones": [
+      "Hamstrings",
+      "Calves",
+      "Spine"
+    ]
+  },
+  {
+    "slug": "ardha-baddha-padmottanasana",
+    "english": "Half Bound Lotus Forward Bend",
+    "sanskrit": "Ardha Baddha Padmottanasana",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 25,
+    "benefits": [
+      "Opens the hips and improves balance",
+      "Deepens the standing-leg hamstring stretch",
+      "Builds focus through a demanding shape"
+    ],
+    "contraindications": [
+      "Knee or hip injury — do not force the half-lotus",
+      "Ankle injury",
+      "Balance difficulty — practice at a wall"
+    ],
+    "stretchZones": [
+      "Bound hip & knee",
+      "Standing-leg hamstring",
+      "Ankle (bound foot)"
+    ]
+  },
+  {
+    "slug": "high-lunge",
+    "english": "High Lunge",
+    "sanskrit": "Utthita Ashwa Sanchalanasana",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 25,
+    "benefits": [
+      "Strengthens the legs and core",
+      "Opens the hip flexors of the back leg",
+      "Builds heat and stability for standing flows"
+    ],
+    "contraindications": [
+      "Knee injury — shorten the stance",
+      "High blood pressure — keep arms lower if lightheaded",
+      "Balance difficulty"
+    ],
+    "stretchZones": [
+      "Back-leg hip flexor",
+      "Front thigh & glute",
+      "Core"
+    ]
   }
 ];
 

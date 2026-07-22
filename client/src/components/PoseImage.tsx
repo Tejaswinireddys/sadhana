@@ -7,11 +7,11 @@
 //     and the html.motion-off toggle via the .photo-breath class)
 //   - soft drop shadow, rounded corners, full-width responsive
 //   - skeleton placeholder while loading
-// The corner radius and aspect ratio can be overridden via `className` and the
-// `aspect`/`rounded` props so the same component fits square thumbnails, 4/3
-// heroes, etc.
+//   - PoseSvg fallback when the PNG is missing (no more "Illustration unavailable")
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PoseSvg } from "@/components/PoseSvg";
+import { asanaBySlug } from "@/data/content";
 import { cn } from "@/lib/utils";
 
 export function PoseImage({
@@ -38,6 +38,8 @@ export function PoseImage({
 }) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
+  const asana = asanaBySlug(slug);
+  const poseKey = asana?.pose ?? "mountain";
 
   return (
     <div
@@ -65,12 +67,16 @@ export function PoseImage({
       {errored && (
         <div
           className={cn(
-            "flex w-full items-center justify-center bg-accent/40 text-sm text-muted-foreground",
+            "flex w-full flex-col items-center justify-center gap-2 bg-accent/40 text-primary",
             rounded,
             aspect ?? "aspect-square",
           )}
+          data-testid={`pose-image-fallback-${slug}`}
+          role="img"
+          aria-label={alt}
         >
-          Illustration unavailable
+          <PoseSvg pose={poseKey} size={96} className="opacity-80" />
+          <span className="px-3 text-center text-xs text-muted-foreground">Line illustration</span>
         </div>
       )}
     </div>

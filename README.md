@@ -15,13 +15,16 @@ custom sequence builder.
 
 ## What's inside
 
-- **105 illustrated poses**, each with:
+- **115 illustrated poses**, each with:
   - a warm illustrated instructor (consistent character across every pose)
   - calm female voice narration (pre-generated, no runtime AI cost)
   - Beginner / Intermediate / Advanced variations with props and cues
   - a "You'll feel this in…" stretch-zone callout
   - contraindications grouped as _avoid / modify / caution_
   - personal notes you can save per pose
+
+- **Yoga Trainer**: answer four quick questions about body, energy, time, and
+  need — get a personalized sequence that opens straight into a guided session
 
 - **6 quick flows** for common needs: Morning Wake-Up, Desk Break, Neck &
   Shoulders, Post-Run, Sleep Wind-Down, Core Strong

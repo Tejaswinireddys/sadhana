@@ -30,6 +30,7 @@ import Builder from "@/pages/Builder";
 import Kids from "@/pages/Kids";
 import KidsPose from "@/pages/KidsPose";
 import KidsBreath from "@/pages/KidsBreath";
+import Trainer from "@/pages/Trainer";
 import Search from "@/pages/Search";
 import Settings from "@/pages/Settings";
 
@@ -43,6 +44,7 @@ function AppRouter() {
       <Route path="/pathways/:slug" component={PathwayDetail} />
       <Route path="/practice" component={Practice} />
       <Route path="/guided" component={GuidedSession} />
+      <Route path="/trainer" component={Trainer} />
       <Route path="/breathing" component={Breathing} />
       <Route path="/affirmations" component={Affirmations} />
       <Route path="/journal" component={Journal} />

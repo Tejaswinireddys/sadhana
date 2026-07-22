@@ -639,9 +639,23 @@ export default function GuidedSession() {
         <header className="space-y-1">
           <h1 className="font-serif text-3xl font-semibold tracking-tight">Start practice</h1>
           <p className="text-muted-foreground">
-            Choose how you feel, warm up, or open a pathway — then begin a guided voice session.
+            Ask the Yoga Trainer, choose how you feel, warm up, or open a pathway — then begin a guided voice session.
           </p>
         </header>
+
+        <Card className="border-primary/30 bg-accent/40 shadow-soft" data-testid="hub-trainer">
+          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="font-serif text-xl">Yoga Trainer</p>
+              <p className="text-sm text-muted-foreground">
+                Four quick questions → a practice shaped for your body today.
+              </p>
+            </div>
+            <Button asChild data-testid="button-hub-trainer">
+              <Link href="/trainer">Meet your trainer</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         <section className="space-y-3">
           <h2 className="font-serif text-xl">How do you feel?</h2>

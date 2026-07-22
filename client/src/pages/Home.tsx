@@ -537,6 +537,21 @@ export default function Home() {
         </Card>
       ) : null}
 
+      {/* Yoga Trainer CTA */}
+      <Card className="border-primary/25 bg-accent/30 shadow-soft" data-testid="card-trainer-cta">
+        <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="font-serif text-xl">Need a practice for right now?</p>
+            <p className="text-sm text-muted-foreground">
+              The Yoga Trainer builds a session from how your body feels today.
+            </p>
+          </div>
+          <Button asChild data-testid="button-home-trainer">
+            <Link href="/trainer">Open Yoga Trainer</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Quick Start — mood-based sessions (v3.4) */}
       <section id="quick-start" className="space-y-3" data-testid="section-quick-start">
         <div className="flex items-center gap-2">

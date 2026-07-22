@@ -35,6 +35,7 @@ import {
   Search,
   PlusCircle,
   Settings,
+  UserRound,
 } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: typeof Home };
@@ -44,6 +45,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Practice",
     items: [
       { href: "/", label: "Home", icon: Home },
+      { href: "/trainer", label: "Yoga Trainer", icon: UserRound },
       { href: "/guided", label: "Start practice", icon: Timer },
       { href: "/pathways", label: "Pathways", icon: RouteIcon },
       { href: "/builder", label: "Builder", icon: PlusCircle },
