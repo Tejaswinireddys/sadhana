@@ -31,11 +31,14 @@ import {
 } from "@/lib/dataPortability";
 import { KEYS, readJson, writeJson, type ReminderPrefs } from "@/lib/localPrefs";
 import type { Session } from "@shared/schema";
-import { Moon, Sun, Download, Upload, Trash2, Bell, CalendarPlus } from "lucide-react";
+import { Moon, Sun, Download, Upload, Trash2, Bell, CalendarPlus, Info } from "lucide-react";
+import { Link } from "wouter";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const DEFAULT_REMINDER: ReminderPrefs = { enabled: true, hour: 18, notifications: false };
 
 export default function Settings() {
+  useDocumentTitle("Settings · Sadhana");
   const { theme, toggle } = useTheme();
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -156,6 +159,12 @@ export default function Settings() {
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             {theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          </Button>
+          <Button variant="outline" className="min-h-11 w-full cursor-pointer justify-start gap-2" asChild>
+            <Link href="/welcome" data-testid="settings-about">
+              <Info className="h-4 w-4" />
+              About Sadhana — product overview
+            </Link>
           </Button>
           <div className="rounded-md border border-border p-3">
             <VoiceToggle />

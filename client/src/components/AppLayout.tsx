@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Logo } from "./Logo";
 import { useTheme } from "./ThemeProvider";
 import { useRecentSearches } from "@/context/RecentSearchesContext";
+import { cn } from "@/lib/utils";
 import {
   Home,
   LayoutGrid,
@@ -36,6 +37,7 @@ import {
   PlusCircle,
   Settings,
   UserRound,
+  Info,
 } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: typeof Home };
@@ -70,30 +72,25 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
+const MOBILE_PRIMARY: NavItem[] = [
+  { href: "/", label: "Home", icon: Home },
+  { href: "/asanas", label: "Library", icon: LayoutGrid },
+  { href: "/guided", label: "Practice", icon: Timer },
+  { href: "/trainer", label: "Trainer", icon: UserRound },
+  { href: "/profiles", label: "Paths", icon: Compass },
+];
+
 function SidebarSearch() {
   const [, navigate] = useLocation();
   const { recents, addRecent } = useRecentSearches();
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const go = (q: string) => {
     const trimmed = q.trim();
+    if (!trimmed) return;
     navigate(`/search?q=${encodeURIComponent(trimmed)}`);
   };
-
-  // Debounced live navigation as the user types (200ms).
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!value.trim()) return;
-    debounceRef.current = setTimeout(() => {
-      go(value);
-    }, 200);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
 
   const submit = () => {
     const trimmed = value.trim();
@@ -120,31 +117,49 @@ function SidebarSearch() {
           data-testid="input-sidebar-search"
         />
       </div>
-      {focused && recents.length > 0 && (
+      {focused && (value.trim() || recents.length > 0) && (
         <div
           className="absolute left-0 right-0 top-full z-20 mt-1 rounded-lg border border-border bg-popover p-1 shadow-soft-lg"
           data-testid="recent-searches"
         >
-          <p className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Recent
-          </p>
-          {recents.map((r) => (
+          {value.trim() ? (
             <button
-              key={r}
               type="button"
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
               onMouseDown={(e) => {
                 e.preventDefault();
-                setValue(r);
-                addRecent(r);
-                go(r);
+                submit();
               }}
-              data-testid={`recent-search-${r.slice(0, 12)}`}
+              data-testid="search-submit-suggestion"
             >
               <Search className="h-3.5 w-3.5 text-muted-foreground" />
-              {r}
+              Search for “{value.trim()}”
             </button>
-          ))}
+          ) : null}
+          {recents.length > 0 && (
+            <>
+              <p className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Recent
+              </p>
+              {recents.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setValue(r);
+                    addRecent(r);
+                    go(r);
+                  }}
+                  data-testid={`recent-search-${r.slice(0, 12)}`}
+                >
+                  <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                  {r}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -192,10 +207,57 @@ function NavMenu() {
   );
 }
 
+function MobileBottomNav() {
+  const [location] = useLocation();
+  return (
+    <nav
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      aria-label="Primary"
+      data-testid="mobile-bottom-nav"
+    >
+      <ul className="mx-auto grid max-w-lg grid-cols-5">
+        {MOBILE_PRIMARY.map((item) => {
+          const Icon = item.icon;
+          const active = isNavActive(item.href, location);
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={cn(
+                  "flex min-h-14 cursor-pointer flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                )}
+                aria-current={active ? "page" : undefined}
+                data-testid={`mobile-nav-${item.label.toLowerCase()}`}
+              >
+                <Icon className={cn("h-5 w-5", active && "stroke-[2.25]")} />
+                {item.label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
+  const [location] = useLocation();
+  const isWelcome = location === "/welcome";
+
+  if (isWelcome) {
+    return <>{children}</>;
+  }
+
   return (
     <SidebarProvider>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
+      >
+        Skip to content
+      </a>
       <Sidebar>
         <SidebarHeader className="px-4 py-4">
           <Link href="/">
@@ -214,12 +276,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start gap-2"
+            className="w-full cursor-pointer justify-start gap-2"
             onClick={toggle}
             data-testid="button-theme-toggle"
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             {theme === "dark" ? "Light mode" : "Dark mode"}
+          </Button>
+          <Button variant="ghost" size="sm" className="w-full cursor-pointer justify-start gap-2" asChild>
+            <Link href="/welcome">
+              <Info className="h-4 w-4" />
+              About Sadhana
+            </Link>
           </Button>
           <p className="px-2 pt-2 text-xs text-muted-foreground">
             Sādhanā — a daily, dedicated practice.
@@ -233,9 +301,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <Logo />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 md:px-8 md:py-10">
+        <main
+          id="main-content"
+          className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 pb-24 md:px-8 md:py-10 md:pb-10"
+        >
           {children}
         </main>
+        <MobileBottomNav />
       </SidebarInset>
     </SidebarProvider>
   );

@@ -8,8 +8,10 @@ import { PoseImage } from "@/components/PoseImage";
 import { EmptyState } from "@/components/EmptyState";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ASANAS, CATEGORIES, type Category, type Asana } from "@/data/content";
+import { profileById } from "@/data/profiles";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { FavoriteAsana } from "@shared/schema";
-import { Heart } from "lucide-react";
+import { Heart, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const diffColor: Record<string, string> = {
@@ -27,6 +29,21 @@ type TimeFilter = (typeof TIME_FILTERS)[number];
 const PROP_FILTERS = ["Any props", "No props", "Needs block", "Needs strap", "Needs wall"] as const;
 type PropFilter = (typeof PROP_FILTERS)[number];
 
+const AUDIENCE_FILTERS = ["All", "Men", "Women", "Pregnancy"] as const;
+type AudienceFilter = (typeof AUDIENCE_FILTERS)[number];
+
+const MEN_SLUGS = new Set(profileById("mens-strength")?.recommendedAsanas ?? []);
+const WOMEN_SLUGS = new Set(profileById("womens-wellness")?.recommendedAsanas ?? []);
+const PREGNANCY_SLUGS = new Set(profileById("pregnancy")?.recommendedAsanas ?? []);
+
+function matchesAudience(a: Asana, audience: AudienceFilter): boolean {
+  if (audience === "All") return true;
+  if (audience === "Men") return MEN_SLUGS.has(a.slug);
+  if (audience === "Women") return WOMEN_SLUGS.has(a.slug);
+  if (audience === "Pregnancy") return PREGNANCY_SLUGS.has(a.slug) || a.slug.startsWith("prenatal-");
+  return true;
+}
+
 // Does any variation of this asana use the given prop?
 function usesProp(a: Asana, prop: string): boolean {
   return Object.values(a.variations).some((v) => v.props.includes(prop));
@@ -36,7 +53,9 @@ function usesNoProps(a: Asana): boolean {
 }
 
 export default function Asanas() {
+  useDocumentTitle("Asana Library · Sadhana");
   const [category, setCategory] = useState<Category | "All">("All");
+  const [audience, setAudience] = useState<AudienceFilter>("All");
   const [level, setLevel] = useState<LevelFilter>("All");
   const [time, setTime] = useState<TimeFilter>("Any time");
   const [prop, setProp] = useState<PropFilter>("Any props");
@@ -66,9 +85,10 @@ export default function Asanas() {
       if (prop === "Needs strap" && !usesProp(a, "strap")) return false;
       if (prop === "Needs wall" && !usesProp(a, "wall")) return false;
       if (favoritesOnly && !favSet.has(a.slug)) return false;
+      if (!matchesAudience(a, audience)) return false;
       return true;
     });
-  }, [category, level, time, prop, favoritesOnly, favSet]);
+  }, [category, level, time, prop, favoritesOnly, favSet, audience]);
 
   const resetFilters = () => {
     setCategory("All");
@@ -76,6 +96,7 @@ export default function Asanas() {
     setTime("Any time");
     setProp("Any props");
     setFavoritesOnly(false);
+    setAudience("All");
   };
 
   const FilterRow = ({
@@ -141,6 +162,19 @@ export default function Asanas() {
 
       {/* Layered filters */}
       <div className="space-y-4 rounded-xl border border-border bg-card/40 p-4">
+        <FilterRow
+          label="Audience"
+          options={AUDIENCE_FILTERS}
+          active={audience}
+          onSelect={setAudience}
+          group="audience"
+        />
+        <p className="text-xs text-muted-foreground">
+          Looking for kids stories?{" "}
+          <Link href="/kids" className="inline-flex items-center gap-1 text-primary hover:underline">
+            <Smile className="h-3.5 w-3.5" /> Open Kids
+          </Link>
+        </p>
         <FilterRow
           label="Category"
           options={["All", ...CATEGORIES]}

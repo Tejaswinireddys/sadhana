@@ -211,6 +211,7 @@ export default function AsanaDetail() {
             <Badge variant="outline">{asana.difficulty}</Badge>
           </div>
           <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-primary">What it is</p>
             <h1 className="font-serif text-3xl font-semibold tracking-tight" data-testid="text-asana-english">
               {asana.english}
             </h1>
@@ -218,7 +219,7 @@ export default function AsanaDetail() {
               {asana.sanskrit}
             </p>
           </div>
-          <p className="text-muted-foreground">{asana.summary}</p>
+          <p className="max-w-2xl text-base leading-relaxed text-foreground/90">{asana.summary}</p>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Button
               size="lg"
@@ -249,13 +250,13 @@ export default function AsanaDetail() {
         />
       </header>
 
-      {/* Best for — when to reach for this pose */}
+      {/* Why — when to reach for this pose */}
       {asana.bestFor.length > 0 && (
         <Card className="border-primary/20 shadow-soft" data-testid="card-best-for">
           <CardContent className="space-y-3 p-5">
             <h2 className="flex items-center gap-2 font-serif text-lg">
               <Heart className="h-5 w-5 text-primary" />
-              Best for
+              Why practice it
             </h2>
             <p className="text-sm text-muted-foreground">
               Reach for {asana.english} when you want:
@@ -503,9 +504,11 @@ export default function AsanaDetail() {
         </Card>
       </div>
 
-      {/* Steps with animated mini-clips */}
-      <section className="space-y-4">
-        <h2 className="font-serif text-xl">Step by step</h2>
+      {/* How — steps */}
+      <section className="space-y-4" aria-labelledby="how-heading">
+        <h2 id="how-heading" className="font-serif text-xl">
+          How to practice — step by step
+        </h2>
         <ol className="space-y-3">
           {asana.steps.map((step, i) => (
             <li key={i}>
@@ -551,7 +554,7 @@ export default function AsanaDetail() {
           data-testid="callout-avoid-if"
         >
           <CardContent className="space-y-4 p-5">
-            <h3 className="font-serif text-lg">Who should approach with care</h3>
+            <h2 className="font-serif text-lg">Care & caution</h2>
             <div className="space-y-4">
               {grouped.map(({ sev, rows }) => {
                 const meta = SEVERITY_META[sev];

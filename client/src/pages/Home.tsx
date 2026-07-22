@@ -24,6 +24,7 @@ import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
 import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/lib/localPrefs";
 import type { UserProfile, Enrollment, FavoriteAsana } from "@shared/schema";
 import { QUICK_SESSIONS } from "@/data/quickSessions";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   Flame,
   Trophy,
@@ -78,6 +79,7 @@ function StatCard({
 }
 
 export default function Home() {
+  useDocumentTitle("Home · Sadhana");
   const [, navigate] = useLocation();
   const { todays, remove, loadSession, progress } = usePractice();
   const [reminderDismissed, setReminderDismissed] = useState(false);
@@ -251,15 +253,26 @@ export default function Home() {
   }, [showReminder, reminderPrefs.notifications]);
 
   return (
-    <div className="animate-fade-in space-y-8">
-      <header className="space-y-1">
+    <div className="animate-fade-in space-y-10">
+      <header className="space-y-2">
         <p className="text-sm text-muted-foreground" data-testid="text-today-date">
           {formatDate(todayISO())}
         </p>
         <h1 className="font-serif text-3xl font-semibold tracking-tight" data-testid="text-welcome">
           {profile ? `Welcome back to your ${profile.name} practice` : "Welcome to your practice"}
         </h1>
+        <p className="max-w-xl text-muted-foreground">
+          One clear next step below — then more ways to practice if you want them.
+        </p>
       </header>
+
+      <section className="space-y-4" aria-labelledby="primary-practice-heading">
+        <div className="flex items-center gap-2">
+          <Play className="h-5 w-5 text-primary" />
+          <h2 id="primary-practice-heading" className="font-serif text-xl">
+            Practice now
+          </h2>
+        </div>
 
       {/* Resume an in-progress session after refresh / navigation away */}
       {showResume && (
@@ -273,10 +286,11 @@ export default function Home() {
               </p>
             </div>
             <Button
+              className="min-h-11 cursor-pointer"
               onClick={() => navigate(progress?.mode === "practice" ? "/practice" : "/guided")}
               data-testid="button-resume-session"
             >
-              <Play className="mr-1.5 h-4 w-4" /> Resume
+              <Play className="mr-1.5 h-4 w-4" /> Resume session
             </Button>
           </CardContent>
         </Card>
@@ -303,15 +317,15 @@ export default function Home() {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Button onClick={scrollToQuickStart} data-testid="button-reminder-begin">
-                Begin a quick session
+              <Button className="min-h-11 cursor-pointer" onClick={scrollToQuickStart} data-testid="button-reminder-begin">
+                Start a mood session
               </Button>
               <button
                 onClick={() => {
                   setReminderDismissed(true);
                   writeString(KEYS.reminderDismissedDay, todayISO());
                 }}
-                className="text-muted-foreground hover:text-foreground"
+                className="min-h-11 min-w-11 cursor-pointer text-muted-foreground hover:text-foreground"
                 aria-label="Dismiss reminder"
                 data-testid="button-dismiss-reminder"
               >
@@ -333,11 +347,11 @@ export default function Home() {
               <div>
                 <p className="font-serif text-lg leading-tight">Pick a path that fits your life</p>
                 <p className="text-sm text-muted-foreground">
-                  Busy mom, better sleep, splits, desk relief and more — tailor your practice in one tap.
+                  Busy mom, better sleep, splits, desk relief, men, women, pregnancy — tailor practice in one tap.
                 </p>
               </div>
             </div>
-            <Button asChild data-testid="button-go-profiles">
+            <Button asChild className="min-h-11 cursor-pointer" data-testid="button-go-profiles">
               <Link href="/profiles">
                 Choose a path <ArrowRight className="ml-1.5 h-4 w-4" />
               </Link>
@@ -356,70 +370,13 @@ export default function Home() {
                 Rest is part of the practice — or take a few quiet breaths if you like.
               </p>
             </div>
-            <Button asChild variant="outline" data-testid="button-practiced-breath">
+            <Button asChild variant="outline" className="min-h-11 cursor-pointer" data-testid="button-practiced-breath">
               <Link href="/breathing">
                 <Wind className="mr-1.5 h-4 w-4" /> Breath of the day
               </Link>
             </Button>
           </CardContent>
         </Card>
-      )}
-
-      {/* Favorited poses — one-tap practice */}
-      {favoriteAsanas.length > 0 && (
-        <section className="space-y-3" data-testid="section-favorite-poses">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Heart className="h-5 w-5 fill-primary text-primary" />
-              <h2 className="font-serif text-xl">Your poses</h2>
-            </div>
-            <Button
-              size="sm"
-              onClick={() => {
-                const poses = favoriteAsanas
-                  .map((f) => {
-                    const asana = asanaBySlug(f.slug);
-                    return asana ? { asana } : null;
-                  })
-                  .filter(
-                    (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>> } => x != null,
-                  );
-                if (!poses.length) return;
-                loadSession(poses, { label: "Favorite poses" });
-                navigate("/guided");
-              }}
-              data-testid="button-practice-favorites"
-            >
-              <Play className="mr-1.5 h-4 w-4" /> Practice all
-            </Button>
-          </div>
-          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
-            {favoriteAsanas.slice(0, 12).map((f) => {
-              const a = asanaBySlug(f.slug);
-              if (!a) return null;
-              return (
-                <button
-                  key={f.slug}
-                  type="button"
-                  className="flex w-36 shrink-0 flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-center shadow-soft hover:bg-accent/30"
-                  onClick={() => {
-                    loadSession([{ asana: a }], { label: a.english });
-                    navigate("/guided");
-                  }}
-                  data-testid={`favorite-pose-${f.slug}`}
-                >
-                  <img
-                    src={`${import.meta.env.BASE_URL}poses/${f.slug}.png`}
-                    alt={a.english}
-                    className="h-20 w-20 rounded-md object-cover"
-                    loading="lazy"
-                  />
-                  <span className="text-xs font-medium leading-tight">{a.english}</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
       )}
 
       {/* Today's guided session from profile or enrolled splits program */}
@@ -453,14 +410,14 @@ export default function Home() {
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Button
-                className="flex-1 sm:flex-none"
+                className="min-h-11 flex-1 cursor-pointer sm:flex-none"
                 onClick={startSplitsDay}
                 data-testid="button-start-splits-today"
               >
                 <Play className="mr-1.5 h-4 w-4" />{" "}
                 {splitsToday.restDay ? "Start optional recovery" : "Start today's session"}
               </Button>
-              <Button variant="outline" asChild data-testid="link-splits-pathway">
+              <Button variant="outline" className="min-h-11 cursor-pointer" asChild data-testid="link-splits-pathway">
                 <Link href={`/pathways/${SPLITS_SLUG}`}>View journey</Link>
               </Button>
             </div>
@@ -492,7 +449,7 @@ export default function Home() {
                     <li key={a.slug}>
                       <Link href={`/asanas/${a.slug}`}>
                         <div
-                          className="flex items-center gap-2 rounded-lg border border-border bg-background p-2 transition-shadow hover:shadow-soft hover-elevate"
+                          className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background p-2 transition-shadow hover:shadow-soft hover-elevate"
                           data-testid={`profile-asana-${a.slug}`}
                         >
                           <img
@@ -526,7 +483,7 @@ export default function Home() {
               </div>
             )}
             <Button
-              className="w-full"
+              className="min-h-11 w-full cursor-pointer"
               onClick={startProfileSession}
               disabled={recommendedAsanas.length === 0}
               data-testid="button-start-today-session"
@@ -535,29 +492,113 @@ export default function Home() {
             </Button>
           </CardContent>
         </Card>
-      ) : null}
+      ) : (
+        <Card className="border-primary/25 bg-accent/30 shadow-soft" data-testid="card-trainer-cta">
+          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="font-serif text-xl">Build a session for right now</p>
+              <p className="text-sm text-muted-foreground">
+                Yoga Trainer asks how your body feels and composes a guided practice.
+              </p>
+            </div>
+            <Button asChild className="min-h-11 cursor-pointer" data-testid="button-home-trainer">
+              <Link href="/trainer">Open Yoga Trainer</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+      </section>
 
-      {/* Yoga Trainer CTA */}
-      <Card className="border-primary/25 bg-accent/30 shadow-soft" data-testid="card-trainer-cta">
-        <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <p className="font-serif text-xl">Need a practice for right now?</p>
-            <p className="text-sm text-muted-foreground">
-              The Yoga Trainer builds a session from how your body feels today.
-            </p>
+      {/* Favorited poses — one-tap practice */}
+      {favoriteAsanas.length > 0 && (
+        <section className="space-y-3" data-testid="section-favorite-poses">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Heart className="h-5 w-5 fill-primary text-primary" />
+              <h2 className="font-serif text-xl">Your poses</h2>
+            </div>
+            <Button
+              size="sm"
+              className="min-h-11 cursor-pointer"
+              onClick={() => {
+                const poses = favoriteAsanas
+                  .map((f) => {
+                    const asana = asanaBySlug(f.slug);
+                    return asana ? { asana } : null;
+                  })
+                  .filter(
+                    (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>> } => x != null,
+                  );
+                if (!poses.length) return;
+                loadSession(poses, { label: "Favorite poses" });
+                navigate("/guided");
+              }}
+              data-testid="button-practice-favorites"
+            >
+              <Play className="mr-1.5 h-4 w-4" /> Practice all favorites
+            </Button>
           </div>
-          <Button asChild data-testid="button-home-trainer">
-            <Link href="/trainer">Open Yoga Trainer</Link>
-          </Button>
-        </CardContent>
-      </Card>
+          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+            {favoriteAsanas.slice(0, 12).map((f) => {
+              const a = asanaBySlug(f.slug);
+              if (!a) return null;
+              return (
+                <button
+                  key={f.slug}
+                  type="button"
+                  className="flex w-36 shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-center shadow-soft hover:bg-accent/30"
+                  onClick={() => {
+                    loadSession([{ asana: a }], { label: a.english });
+                    navigate("/guided");
+                  }}
+                  data-testid={`favorite-pose-${f.slug}`}
+                >
+                  <img
+                    src={`${import.meta.env.BASE_URL}poses/${f.slug}.png`}
+                    alt={a.english}
+                    className="h-20 w-20 rounded-md object-cover"
+                    loading="lazy"
+                  />
+                  <span className="text-xs font-medium leading-tight">{a.english}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <section className="space-y-6" aria-labelledby="more-ways-heading">
+        <div className="space-y-1">
+          <h2 id="more-ways-heading" className="font-serif text-xl">
+            More ways to practice
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Mood sessions are short and feeling-based. Sequences are curated flows you can open anytime.
+          </p>
+        </div>
+
+      {profile && (
+        <Card className="border-border bg-card/50 shadow-soft" data-testid="card-trainer-secondary">
+          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <p className="font-serif text-lg">Need something different today?</p>
+              <p className="text-sm text-muted-foreground">
+                Skip your path session and build from how your body feels.
+              </p>
+            </div>
+            <Button asChild variant="outline" className="min-h-11 cursor-pointer" data-testid="button-home-trainer">
+              <Link href="/trainer">Open Yoga Trainer</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick Start — mood-based sessions (v3.4) */}
       <section id="quick-start" className="space-y-3" data-testid="section-quick-start">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="font-serif text-xl">Quick start</h2>
-          <span className="text-sm text-muted-foreground">— tied to how you feel right now</span>
+          <h3 className="font-serif text-lg">Mood sessions</h3>
+          <span className="text-sm text-muted-foreground">— how you feel right now</span>
         </div>
         <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
           {QUICK_SESSIONS.map((q) => {
@@ -580,11 +621,11 @@ export default function Home() {
                   </div>
                   <Button
                     size="sm"
-                    className="mt-auto w-full"
+                    className="mt-auto min-h-11 w-full cursor-pointer"
                     onClick={() => startQuickSession(q)}
                     data-testid={`button-begin-quick-${q.id}`}
                   >
-                    <Play className="mr-1.5 h-4 w-4" /> Begin
+                    <Play className="mr-1.5 h-4 w-4" /> Start mood session
                   </Button>
                 </CardContent>
               </Card>
@@ -598,8 +639,8 @@ export default function Home() {
         <section id="quick-flows" className="space-y-3" data-testid="section-quick-flows">
           <div className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary" />
-            <h2 className="font-serif text-xl">Quick flows</h2>
-            <span className="text-sm text-muted-foreground">— short sequences for any moment</span>
+            <h3 className="font-serif text-lg">Curated sequences</h3>
+            <span className="text-sm text-muted-foreground">— short flows</span>
             <Link
               href="/pathways"
               className="ml-auto text-sm text-primary hover:underline"
@@ -627,11 +668,12 @@ export default function Home() {
                   </div>
                   <Button
                     size="sm"
-                    className="mt-auto w-full"
+                    variant="outline"
+                    className="mt-auto min-h-11 w-full cursor-pointer"
                     onClick={() => startFlow(p)}
                     data-testid={`button-start-flow-${p.slug}`}
                   >
-                    <Play className="mr-1.5 h-4 w-4" /> Start
+                    <Play className="mr-1.5 h-4 w-4" /> Open sequence
                   </Button>
                 </CardContent>
               </Card>
@@ -639,7 +681,12 @@ export default function Home() {
           </div>
         </section>
       )}
+      </section>
 
+      <section className="space-y-4" aria-labelledby="progress-heading">
+        <h2 id="progress-heading" className="font-serif text-xl">
+          Your progress
+        </h2>
       {/* Stats — after the practice loop so zeros don't bury the start CTA */}
       {isLoading ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -653,7 +700,7 @@ export default function Home() {
             <p className="text-sm text-muted-foreground">
               Couldn't load your practice stats. Check your connection and try again.
             </p>
-            <Button variant="outline" onClick={() => refetchStats()} data-testid="button-retry-stats">
+            <Button variant="outline" className="min-h-11 cursor-pointer" onClick={() => refetchStats()} data-testid="button-retry-stats">
               Retry
             </Button>
           </CardContent>
@@ -666,6 +713,7 @@ export default function Home() {
           <StatCard icon={Clock} label="Minutes practiced" value={stats?.totalMinutes ?? 0} testId="stat-total-minutes" />
         </div>
       )}
+      </section>
 
       {/* 60-Day Splits discovery banner (v3.5) — shown when NOT enrolled */}
       {!splitsEnrollment && !splitsBannerDismissed && (
@@ -688,14 +736,14 @@ export default function Home() {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Button asChild data-testid="button-splits-start-journey">
+              <Button asChild className="min-h-11 cursor-pointer" data-testid="button-splits-start-journey">
                 <Link href={`/pathways/${SPLITS_SLUG}`}>
-                  Start the journey <ArrowRight className="ml-1.5 h-4 w-4" />
+                  Explore program <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Link>
               </Button>
               <button
                 onClick={() => setSplitsBannerDismissed(true)}
-                className="text-muted-foreground hover:text-foreground"
+                className="min-h-11 min-w-11 cursor-pointer text-muted-foreground hover:text-foreground"
                 aria-label="Dismiss"
                 data-testid="button-dismiss-splits-banner"
               >
@@ -706,6 +754,10 @@ export default function Home() {
         </Card>
       )}
 
+      <section className="space-y-4" aria-labelledby="nourish-heading">
+        <h2 id="nourish-heading" className="font-serif text-xl">
+          Nourish
+        </h2>
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Daily affirmation */}
         <Card className="shadow-soft">
@@ -717,10 +769,10 @@ export default function Home() {
               "{affirmation}"
             </p>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={readAloud} data-testid="button-read-affirmation">
+              <Button variant="outline" size="sm" className="min-h-11 cursor-pointer" onClick={readAloud} data-testid="button-read-affirmation">
                 <Volume2 className="mr-1.5 h-4 w-4" /> Read aloud
               </Button>
-              <Button variant="ghost" size="sm" asChild data-testid="link-more-affirmations">
+              <Button variant="ghost" size="sm" className="min-h-11 cursor-pointer" asChild data-testid="link-more-affirmations">
                 <Link
                   href={
                     profileAffirmationTheme
@@ -746,7 +798,7 @@ export default function Home() {
                 <p className="text-sm text-muted-foreground">
                   Build your own session — add any poses from the library to practice them in any order.
                 </p>
-                <Button asChild variant="outline" className="w-full" data-testid="button-add-custom-poses">
+                <Button asChild variant="outline" className="min-h-11 w-full cursor-pointer" data-testid="button-add-custom-poses">
                   <Link href="/asanas">
                     Add poses from library <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Link>
@@ -769,7 +821,7 @@ export default function Home() {
                       </span>
                       <button
                         onClick={() => remove(a.slug)}
-                        className="text-muted-foreground hover:text-destructive"
+                        className="min-h-11 min-w-11 cursor-pointer text-muted-foreground hover:text-destructive"
                         data-testid={`button-remove-${a.slug}`}
                         aria-label={`Remove ${a.english}`}
                       >
@@ -779,17 +831,18 @@ export default function Home() {
                   ))}
                 </ul>
                 <Button
-                  className="w-full"
+                  className="min-h-11 w-full cursor-pointer"
                   onClick={() => navigate("/guided")}
                   data-testid="button-start-practice"
                 >
-                  <Play className="mr-1.5 h-4 w-4" /> Start practice
+                  <Play className="mr-1.5 h-4 w-4" /> Start custom practice
                 </Button>
               </>
             )}
           </CardContent>
         </Card>
       </div>
+      </section>
 
       {/* Breath of the day */}
       <Card className="shadow-soft" data-testid="card-breath-of-the-day">
@@ -798,7 +851,7 @@ export default function Home() {
         </CardHeader>
         <CardContent>
           <Link href="/breathing">
-            <div className="flex items-center justify-between gap-4 rounded-lg bg-accent/40 p-4 transition-shadow hover:shadow-soft hover-elevate">
+            <div className="flex cursor-pointer items-center justify-between gap-4 rounded-lg bg-accent/40 p-4 transition-shadow hover:shadow-soft hover-elevate">
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-secondary">
                   <Wind className="h-5 w-5" />
