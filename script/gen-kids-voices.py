@@ -18,16 +18,11 @@ RATE = "+5%"
 PITCH = "+2Hz"
 
 MISSING = [
-    "flamingo",
-    "elephant",
-    "airplane",
-    "owl",
-    "penguin",
-    "rainbow",
-    "volcano",
-    "crab",
-    "turtle",
-    "dragon",
+    "mouse",
+    "giraffe",
+    "kangaroo",
+    "jellyfish",
+    "bear",
 ]
 
 

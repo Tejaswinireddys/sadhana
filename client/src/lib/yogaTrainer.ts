@@ -78,6 +78,10 @@ const EACH_SIDE = new Set([
   "deer-pose",
   "swan-pose",
   "seated-side-bend",
+  "wall-calf-stretch",
+  "ninety-ninety-hip",
+  "half-kneeling-hamstring",
+  "side-lying-stretch",
 ]);
 
 const GENTLE = new Set([

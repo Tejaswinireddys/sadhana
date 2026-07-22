@@ -154,6 +154,16 @@ export const BEST_FOR: Record<string, string[]> = {
   "wide-child-pose": ["Anytime calm pause", "Pregnancy-friendly rest with care", "Soft hip + nervous reset"],
   "seated-side-bend": ["Daily waist mobility", "Breath expansion", "Gentle posture care"],
   "supported-squat": ["Pelvic-friendly hip opening", "Grounding women's practice", "Ankle + hip mobility"],
+  "wall-calf-stretch": ["After running or lifting", "Ankle mobility days", "Athletic cool-down"],
+  "ninety-ninety-hip": ["Deep hip rotation work", "Lifter hip recovery", "Athletic mobility sessions"],
+  "strap-shoulder-opener": ["After pressing or screens", "Chest opening for men", "Overhead mobility"],
+  "half-kneeling-hamstring": ["Safe hamstring lengthening", "Prep for splits", "Post-run recovery"],
+  "sumo-hinge": ["Posterior-chain strength", "Inner-thigh opening", "Yoga meets athletic training"],
+  "supported-fish-block": ["Restorative heart opening", "After screen time", "Women's evening restore"],
+  "reclined-goddess": ["Hormonal calm floor practice", "Soft hip restore", "Before bed"],
+  "melting-heart": ["Gentle shoulder opening", "Emotional settling", "Soft backbend days"],
+  "legs-up-bolster": ["Deep nervous-system calm", "Tired legs restore", "Women's rest practice"],
+  "side-lying-stretch": ["Soft waist release", "Pregnancy-friendly with care", "Calm floor mobility"],
 };
 
 export function bestForFor(slug: string, fallback: string[] = ["Everyday practice", "Building body awareness", "Moving with breath"]): string[] {

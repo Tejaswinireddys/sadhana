@@ -912,6 +912,56 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Hips", sensation: "Opening through the hip complex", intensity: "strong", primary: true },
     { region: "Thighs", sensation: "Steady muscular engagement", intensity: "medium", primary: true },
     { region: "Core", sensation: "Stabilizing the pelvis", intensity: "medium", primary: false }
+  ],
+  "wall-calf-stretch": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "ninety-ninety-hip": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "strap-shoulder-opener": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "half-kneeling-hamstring": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "sumo-hinge": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "supported-fish-block": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "reclined-goddess": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "melting-heart": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "legs-up-bolster": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "side-lying-stretch": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
   ]
 };
 

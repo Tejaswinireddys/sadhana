@@ -3978,5 +3978,135 @@ export const EXTRAS: Record<string, AsanaExtras> = {
       advanced: { description: "Deeper expression or longer hold while keeping the breath calm.", props: ["none"], cues: ["Honest edge", "No forcing", "Quiet face"], holdSeconds: 40 },
     },
     stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+  },
+  "wall-calf-stretch": {
+    avoidIf: [
+      { condition: "Move slowly and skip if pain appears", severity: "caution" },
+      { condition: "Recent injury in the working joints", severity: "modify" },
+      { condition: "Dizziness — rise carefully", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Use props and shorten the range until the shape feels steady.", props: ["block", "blanket"], cues: ["Props welcome", "Smaller range", "Soft breath"], holdSeconds: 15 },
+      intermediate: { description: "Classic expression with steady alignment and even breath.", props: ["none"], cues: ["Aligned joints", "Long spine", "Steady gaze"], holdSeconds: 25 },
+      advanced: { description: "Deeper expression or longer hold while keeping the breath calm.", props: ["none"], cues: ["Honest edge", "No forcing", "Quiet face"], holdSeconds: 40 },
+    },
+    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+  },
+  "ninety-ninety-hip": {
+    avoidIf: [
+      { condition: "Move slowly and skip if pain appears", severity: "caution" },
+      { condition: "Recent injury in the working joints", severity: "modify" },
+      { condition: "Dizziness — rise carefully", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Use props and shorten the range until the shape feels steady.", props: ["block", "blanket"], cues: ["Props welcome", "Smaller range", "Soft breath"], holdSeconds: 15 },
+      intermediate: { description: "Classic expression with steady alignment and even breath.", props: ["none"], cues: ["Aligned joints", "Long spine", "Steady gaze"], holdSeconds: 25 },
+      advanced: { description: "Deeper expression or longer hold while keeping the breath calm.", props: ["none"], cues: ["Honest edge", "No forcing", "Quiet face"], holdSeconds: 40 },
+    },
+    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+  },
+  "strap-shoulder-opener": {
+    avoidIf: [
+      { condition: "Move slowly and skip if pain appears", severity: "caution" },
+      { condition: "Recent injury in the working joints", severity: "modify" },
+      { condition: "Dizziness — rise carefully", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Use props and shorten the range until the shape feels steady.", props: ["block", "blanket"], cues: ["Props welcome", "Smaller range", "Soft breath"], holdSeconds: 15 },
+      intermediate: { description: "Classic expression with steady alignment and even breath.", props: ["none"], cues: ["Aligned joints", "Long spine", "Steady gaze"], holdSeconds: 25 },
+      advanced: { description: "Deeper expression or longer hold while keeping the breath calm.", props: ["none"], cues: ["Honest edge", "No forcing", "Quiet face"], holdSeconds: 40 },
+    },
+    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+  },
+  "half-kneeling-hamstring": {
+    avoidIf: [
+      { condition: "Move slowly and skip if pain appears", severity: "caution" },
+      { condition: "Recent injury in the working joints", severity: "modify" },
+      { condition: "Dizziness — rise carefully", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Use props and shorten the range until the shape feels steady.", props: ["block", "blanket"], cues: ["Props welcome", "Smaller range", "Soft breath"], holdSeconds: 15 },
+      intermediate: { description: "Classic expression with steady alignment and even breath.", props: ["none"], cues: ["Aligned joints", "Long spine", "Steady gaze"], holdSeconds: 25 },
+      advanced: { description: "Deeper expression or longer hold while keeping the breath calm.", props: ["none"], cues: ["Honest edge", "No forcing", "Quiet face"], holdSeconds: 40 },
+    },
+    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+  },
+  "sumo-hinge": {
+    avoidIf: [
+      { condition: "Move slowly and skip if pain appears", severity: "caution" },
+      { condition: "Recent injury in the working joints", severity: "modify" },
+      { condition: "Dizziness — rise carefully", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Use props and shorten the range until the shape feels steady.", props: ["block", "blanket"], cues: ["Props welcome", "Smaller range", "Soft breath"], holdSeconds: 15 },
+      intermediate: { description: "Classic expression with steady alignment and even breath.", props: ["none"], cues: ["Aligned joints", "Long spine", "Steady gaze"], holdSeconds: 25 },
+      advanced: { description: "Deeper expression or longer hold while keeping the breath calm.", props: ["none"], cues: ["Honest edge", "No forcing", "Quiet face"], holdSeconds: 40 },
+    },
+    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+  },
+  "supported-fish-block": {
+    avoidIf: [
+      { condition: "Move slowly and skip if pain appears", severity: "caution" },
+      { condition: "Recent injury in the working joints", severity: "modify" },
+      { condition: "Dizziness — rise carefully", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Use props and shorten the range until the shape feels steady.", props: ["block", "blanket"], cues: ["Props welcome", "Smaller range", "Soft breath"], holdSeconds: 15 },
+      intermediate: { description: "Classic expression with steady alignment and even breath.", props: ["none"], cues: ["Aligned joints", "Long spine", "Steady gaze"], holdSeconds: 25 },
+      advanced: { description: "Deeper expression or longer hold while keeping the breath calm.", props: ["none"], cues: ["Honest edge", "No forcing", "Quiet face"], holdSeconds: 40 },
+    },
+    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+  },
+  "reclined-goddess": {
+    avoidIf: [
+      { condition: "Move slowly and skip if pain appears", severity: "caution" },
+      { condition: "Recent injury in the working joints", severity: "modify" },
+      { condition: "Dizziness — rise carefully", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Use props and shorten the range until the shape feels steady.", props: ["block", "blanket"], cues: ["Props welcome", "Smaller range", "Soft breath"], holdSeconds: 15 },
+      intermediate: { description: "Classic expression with steady alignment and even breath.", props: ["none"], cues: ["Aligned joints", "Long spine", "Steady gaze"], holdSeconds: 25 },
+      advanced: { description: "Deeper expression or longer hold while keeping the breath calm.", props: ["none"], cues: ["Honest edge", "No forcing", "Quiet face"], holdSeconds: 40 },
+    },
+    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+  },
+  "melting-heart": {
+    avoidIf: [
+      { condition: "Move slowly and skip if pain appears", severity: "caution" },
+      { condition: "Recent injury in the working joints", severity: "modify" },
+      { condition: "Dizziness — rise carefully", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Use props and shorten the range until the shape feels steady.", props: ["block", "blanket"], cues: ["Props welcome", "Smaller range", "Soft breath"], holdSeconds: 15 },
+      intermediate: { description: "Classic expression with steady alignment and even breath.", props: ["none"], cues: ["Aligned joints", "Long spine", "Steady gaze"], holdSeconds: 25 },
+      advanced: { description: "Deeper expression or longer hold while keeping the breath calm.", props: ["none"], cues: ["Honest edge", "No forcing", "Quiet face"], holdSeconds: 40 },
+    },
+    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+  },
+  "legs-up-bolster": {
+    avoidIf: [
+      { condition: "Move slowly and skip if pain appears", severity: "caution" },
+      { condition: "Recent injury in the working joints", severity: "modify" },
+      { condition: "Dizziness — rise carefully", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Use props and shorten the range until the shape feels steady.", props: ["block", "blanket"], cues: ["Props welcome", "Smaller range", "Soft breath"], holdSeconds: 15 },
+      intermediate: { description: "Classic expression with steady alignment and even breath.", props: ["none"], cues: ["Aligned joints", "Long spine", "Steady gaze"], holdSeconds: 25 },
+      advanced: { description: "Deeper expression or longer hold while keeping the breath calm.", props: ["none"], cues: ["Honest edge", "No forcing", "Quiet face"], holdSeconds: 40 },
+    },
+    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+  },
+  "side-lying-stretch": {
+    avoidIf: [
+      { condition: "Move slowly and skip if pain appears", severity: "caution" },
+      { condition: "Recent injury in the working joints", severity: "modify" },
+      { condition: "Dizziness — rise carefully", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Use props and shorten the range until the shape feels steady.", props: ["block", "blanket"], cues: ["Props welcome", "Smaller range", "Soft breath"], holdSeconds: 15 },
+      intermediate: { description: "Classic expression with steady alignment and even breath.", props: ["none"], cues: ["Aligned joints", "Long spine", "Steady gaze"], holdSeconds: 25 },
+      advanced: { description: "Deeper expression or longer hold while keeping the breath calm.", props: ["none"], cues: ["Honest edge", "No forcing", "Quiet face"], holdSeconds: 40 },
+    },
+    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
   }
 };

@@ -18,26 +18,16 @@ RATE = "-8%"
 PITCH = "-2Hz"
 
 MISSING = [
-    "standing-figure-four",
-    "runner-lunge-twist",
-    "dolphin-plank",
-    "reverse-tabletop",
-    "couch-hip-flexor",
-    "standing-side-stretch",
-    "twisted-lizard",
-    "prasarita-c",
-    "kneeling-thoracic-opener",
-    "wall-chest-opener",
-    "banana-pose",
-    "mermaid-pose",
-    "deer-pose",
-    "caterpillar",
-    "dragonfly",
-    "swan-pose",
-    "wall-butterfly",
-    "wide-child-pose",
-    "seated-side-bend",
-    "supported-squat",
+    "wall-calf-stretch",
+    "ninety-ninety-hip",
+    "strap-shoulder-opener",
+    "half-kneeling-hamstring",
+    "sumo-hinge",
+    "supported-fish-block",
+    "reclined-goddess",
+    "melting-heart",
+    "legs-up-bolster",
+    "side-lying-stretch",
 ]
 
 

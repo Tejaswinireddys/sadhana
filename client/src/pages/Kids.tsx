@@ -70,7 +70,7 @@ export default function Kids() {
               {KIDS_POSES.map((p) => (
                 <Card
                   key={p.slug}
-                  className="kids-card overflow-hidden border-[hsl(38_60%_70%/0.6)] bg-white/70 shadow-soft transition-transform hover:-translate-y-1 dark:bg-white/5"
+                  className="kids-card cursor-pointer overflow-hidden border-[hsl(38_60%_70%/0.6)] bg-white/80 shadow-soft transition-transform duration-200 hover:-translate-y-1 focus-within:ring-2 focus-within:ring-ring dark:bg-white/5"
                   data-testid={`card-kids-${p.slug}`}
                 >
                   <div className="flex items-center justify-center bg-[hsl(41_80%_88%)] p-4 dark:bg-white/5">
@@ -79,13 +79,14 @@ export default function Kids() {
                       alt={p.poseName}
                       className="h-40 w-40 object-contain"
                       draggable={false}
+                      loading="lazy"
                     />
                   </div>
                   <CardContent className="space-y-2 p-4 text-center">
                     <h3 className="kids-title text-xl font-bold leading-tight">{p.title}</h3>
-                    <p className="text-sm text-foreground/70">{p.intro}</p>
+                    <p className="text-sm leading-relaxed text-foreground/70">{p.intro}</p>
                     <Button
-                      className="w-full rounded-full bg-[hsl(92_35%_45%)] hover:bg-[hsl(92_35%_38%)]"
+                      className="min-h-[44px] w-full cursor-pointer rounded-full bg-[hsl(92_35%_45%)] transition-colors duration-200 hover:bg-[hsl(92_35%_38%)]"
                       asChild
                       data-testid={`button-play-${p.slug}`}
                     >

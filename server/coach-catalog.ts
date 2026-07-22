@@ -3522,6 +3522,236 @@ export const COACH_CATALOG: CoachPose[] = [
       "Thighs",
       "Core"
     ]
+  },
+  {
+    "slug": "wall-calf-stretch",
+    "english": "Wall Calf Stretch",
+    "sanskrit": "Wall Calf Stretch",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Lengthens the calves and Achilles",
+      "Supports ankle mobility",
+      "Athletic cool-down staple"
+    ],
+    "contraindications": [
+      "Achilles injury — keep mild",
+      "Plantar fasciitis flare — ease off",
+      "Balance issues — hold the wall"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "ninety-ninety-hip",
+    "english": "90/90 Hip Opener",
+    "sanskrit": "90/90 Hip Stretch",
+    "category": "Hip Openers",
+    "level": "Intermediate",
+    "holdSeconds": 60,
+    "benefits": [
+      "Opens hips in rotation",
+      "Supports athletic hip health",
+      "Undoes tight lifter hips"
+    ],
+    "contraindications": [
+      "Knee pain — reduce the angles",
+      "Hip impingement — stay higher",
+      "SI joint pain — keep mild"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "strap-shoulder-opener",
+    "english": "Strap Shoulder Opener",
+    "sanskrit": "Strap Shoulder Opener",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Opens chest and shoulders",
+      "Counters pressing and desk work",
+      "Improves overhead mobility"
+    ],
+    "contraindications": [
+      "Shoulder injury — keep the grip wider",
+      "Wrist pain",
+      "Recent rotator cuff issues"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "half-kneeling-hamstring",
+    "english": "Half-Kneeling Hamstring Stretch",
+    "sanskrit": "Half-Kneeling Hamstring Stretch",
+    "category": "Forward Bends",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Lengthens the hamstrings",
+      "Athletic recovery",
+      "Preps for deeper folds"
+    ],
+    "contraindications": [
+      "Hamstring tear",
+      "Knee pain on the back knee — pad well",
+      "Low-back disc issues — hinge less"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "sumo-hinge",
+    "english": "Sumo Hip Hinge",
+    "sanskrit": "Sumo Stance Hip Hinge",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 30,
+    "benefits": [
+      "Strengthens the posterior chain",
+      "Opens the inner thighs",
+      "Bridges yoga and athletic training"
+    ],
+    "contraindications": [
+      "Low-back pain — soften the knees more",
+      "Groin strain",
+      "Vertigo — rise slowly"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "supported-fish-block",
+    "english": "Supported Fish on Block",
+    "sanskrit": "Salamba Matsyasana Block",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 180,
+    "benefits": [
+      "Opens the chest gently",
+      "Counters screen posture",
+      "Deeply restorative"
+    ],
+    "contraindications": [
+      "Neck injury — keep the head supported",
+      "Recent spinal surgery",
+      "Vertigo — come out slowly"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "reclined-goddess",
+    "english": "Reclined Goddess",
+    "sanskrit": "Supta Utkata Konasana",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 150,
+    "benefits": [
+      "Restorative hip opening",
+      "Supports hormonal calm",
+      "Beautiful evening practice"
+    ],
+    "contraindications": [
+      "Knee pain — support thighs with blankets",
+      "Groin strain",
+      "Low-back discomfort — elevate the hips"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "melting-heart",
+    "english": "Melting Heart Pose",
+    "sanskrit": "Anahatasana",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 120,
+    "benefits": [
+      "Opens the shoulders and heart",
+      "Gentle backbend without strain",
+      "Emotional settling"
+    ],
+    "contraindications": [
+      "Shoulder injury — keep elbows higher",
+      "Knee pain — pad well",
+      "Neck issues — keep the head turned or supported"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "legs-up-bolster",
+    "english": "Legs-Up with Bolster",
+    "sanskrit": "Salamba Viparita Karani",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 210,
+    "benefits": [
+      "Deeply calming",
+      "Relieves tired legs",
+      "Supports rest and recovery"
+    ],
+    "contraindications": [
+      "Glaucoma or uncontrolled high blood pressure — skip inversions",
+      "Neck injury",
+      "Menstruation preference — choose constructive rest instead"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "side-lying-stretch",
+    "english": "Side-Lying Stretch",
+    "sanskrit": "Parsva Savasana Stretch",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 75,
+    "benefits": [
+      "Soft side-body opening",
+      "Relieves waist tension",
+      "Calm floor mobility"
+    ],
+    "contraindications": [
+      "SI joint pain — keep small",
+      "Shoulder injury on the bottom arm",
+      "Dizziness — move slowly"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
   }
 ];
 
