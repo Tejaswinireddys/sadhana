@@ -962,6 +962,156 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
     { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
     { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "shin-box-switch": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "adductor-rockback": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "deep-squat-pry": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "glute-bridge-march": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "active-hamstring-raise": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "ankle-rocker-wall": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prone-y-lift": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "hip-airplane": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "kneeling-hip-flexor-pulse": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "scapular-plank-push": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "pelvic-clock": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "hip-circles-tabletop": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "butterfly-fold-pulse": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "chair-forward-fold": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "bolster-heart-opener": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "goddess-side-stretch": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "womb-seat": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "moon-lunge": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "soft-bridge-pulse": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "wide-leg-side-fold": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-pelvic-tilt": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-cat-cow": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-hip-circles": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-butterfly": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-side-lying-rest": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-wall-squat": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-chest-opener": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-warrior-ii": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-tree-wall": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-legs-elevated": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
   ]
 };
 

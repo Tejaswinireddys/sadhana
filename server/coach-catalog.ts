@@ -3752,6 +3752,696 @@ export const COACH_CATALOG: CoachPose[] = [
       "Breath",
       "Support"
     ]
+  },
+  {
+    "slug": "shin-box-switch",
+    "english": "Shin Box Switch",
+    "sanskrit": "Shin Box Switch",
+    "category": "Hip Openers",
+    "level": "Intermediate",
+    "holdSeconds": 35,
+    "benefits": [
+      "Builds hip rotational mobility",
+      "Supports athletic hips",
+      "Undoes one-sided tightness"
+    ],
+    "contraindications": [
+      "Knee pain — reduce range",
+      "Hip impingement — stay tall",
+      "SI discomfort — move slowly"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "adductor-rockback",
+    "english": "Adductor Rock-Back",
+    "sanskrit": "Adductor Rock Back",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Opens the adductors",
+      "Athletic groin care",
+      "Prep for wide-leg work"
+    ],
+    "contraindications": [
+      "Groin strain — keep mild",
+      "Knee pain — pad well",
+      "Hamstring tear"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "deep-squat-pry",
+    "english": "Deep Squat Pry",
+    "sanskrit": "Deep Squat Pry",
+    "category": "Hip Openers",
+    "level": "Intermediate",
+    "holdSeconds": 60,
+    "benefits": [
+      "Opens hips and ankles",
+      "Improves squat mobility",
+      "Athletic daily reset"
+    ],
+    "contraindications": [
+      "Knee injury — elevate heels on a block",
+      "Ankle stiffness — hold a support",
+      "Balance difficulty"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "glute-bridge-march",
+    "english": "Glute Bridge March",
+    "sanskrit": "Glute Bridge March",
+    "category": "Backbends",
+    "level": "Beginner",
+    "holdSeconds": 30,
+    "benefits": [
+      "Strengthens glutes and core",
+      "Builds pelvic stability",
+      "Supports low-back health"
+    ],
+    "contraindications": [
+      "Acute low-back pain",
+      "Neck injury — keep head heavy",
+      "Pregnancy — use prenatal alternatives"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "active-hamstring-raise",
+    "english": "Active Straight-Leg Raise",
+    "sanskrit": "Active Hamstring Raise",
+    "category": "Forward Bends",
+    "level": "Beginner",
+    "holdSeconds": 25,
+    "benefits": [
+      "Active hamstring strength",
+      "Protects against overstretching",
+      "Athletic warm-up"
+    ],
+    "contraindications": [
+      "Hamstring tear",
+      "Acute low-back pain",
+      "Sciatica flare — keep range small"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "ankle-rocker-wall",
+    "english": "Ankle Rocker",
+    "sanskrit": "Ankle Rocker at Wall",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 25,
+    "benefits": [
+      "Improves ankle dorsiflexion",
+      "Supports better squats",
+      "Athletic mobility"
+    ],
+    "contraindications": [
+      "Achilles injury",
+      "Ankle sprain recovery — keep mild",
+      "Knee pain — reduce knee travel"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prone-y-lift",
+    "english": "Prone Y-Lift",
+    "sanskrit": "Prone Y Lift",
+    "category": "Backbends",
+    "level": "Beginner",
+    "holdSeconds": 20,
+    "benefits": [
+      "Strengthens mid-back",
+      "Improves posture",
+      "Shoulder endurance"
+    ],
+    "contraindications": [
+      "Shoulder injury",
+      "Low-back pain — lift less",
+      "Neck strain — look at the floor"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "hip-airplane",
+    "english": "Hip Airplane",
+    "sanskrit": "Hip Airplane",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 20,
+    "benefits": [
+      "Builds single-leg stability",
+      "Trains hip rotation strength",
+      "Athletic balance"
+    ],
+    "contraindications": [
+      "Balance disorders — use a wall",
+      "Knee injury on standing leg",
+      "Ankle instability"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "kneeling-hip-flexor-pulse",
+    "english": "Kneeling Hip-Flexor Pulse",
+    "sanskrit": "Kneeling Hip-Flexor Pulse",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Loosens hip flexors",
+      "Dynamic athletic recovery",
+      "Pairs with strength training"
+    ],
+    "contraindications": [
+      "Knee pain — pad heavily",
+      "Low-back flare — tuck pelvis",
+      "Hip labrum issues — keep small"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "scapular-plank-push",
+    "english": "Scapular Plank Push-Up",
+    "sanskrit": "Scapular Plank Push",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Builds scapular strength",
+      "Wrist-friendly shoulder work",
+      "Supports pressing health"
+    ],
+    "contraindications": [
+      "Wrist injury — use fists or forearms",
+      "Shoulder instability — reduce range",
+      "Low-back sag — drop knees"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "pelvic-clock",
+    "english": "Pelvic Clock",
+    "sanskrit": "Pelvic Clock",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 90,
+    "benefits": [
+      "Relieves low-back stiffness",
+      "Builds pelvic awareness",
+      "Gentle women's mobility"
+    ],
+    "contraindications": [
+      "Acute disc pain — keep tiny",
+      "Pelvic pain — stop if sharp",
+      "Recent abdominal surgery"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "hip-circles-tabletop",
+    "english": "Tabletop Hip Circles",
+    "sanskrit": "Tabletop Hip Circles",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Warms the hips",
+      "Gentle daily mobility",
+      "Prep for deeper hip openers"
+    ],
+    "contraindications": [
+      "Knee pain — pad well",
+      "Wrist pain — fists or forearms",
+      "Hip impingement — smaller circles"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "butterfly-fold-pulse",
+    "english": "Butterfly Fold Pulse",
+    "sanskrit": "Butterfly Fold Pulse",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 60,
+    "benefits": [
+      "Opens inner thighs",
+      "Calm flexibility work",
+      "Women's hip care"
+    ],
+    "contraindications": [
+      "Knee pain — support thighs",
+      "Groin strain",
+      "Low-back discomfort — sit taller"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "chair-forward-fold",
+    "english": "Chair Forward Fold",
+    "sanskrit": "Chair Forward Fold",
+    "category": "Forward Bends",
+    "level": "Beginner",
+    "holdSeconds": 90,
+    "benefits": [
+      "Gentle hamstring release",
+      "Desk-break friendly",
+      "Nervous-system downshift"
+    ],
+    "contraindications": [
+      "Disc issues — keep a longer spine",
+      "Hamstring tear",
+      "Vertigo — rise slowly"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "bolster-heart-opener",
+    "english": "Bolster Heart Opener",
+    "sanskrit": "Bolster Heart Opener",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 180,
+    "benefits": [
+      "Opens the chest gently",
+      "Counters screen hunch",
+      "Deep restorative rest"
+    ],
+    "contraindications": [
+      "Neck injury — support the head",
+      "Recent spinal surgery",
+      "Vertigo — exit slowly"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "goddess-side-stretch",
+    "english": "Goddess Side Stretch",
+    "sanskrit": "Goddess Side Stretch",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 25,
+    "benefits": [
+      "Opens hips and side body",
+      "Empowering standing shape",
+      "Breath space in the ribs"
+    ],
+    "contraindications": [
+      "Knee pain — shorten stance",
+      "Shoulder injury — keep hand on hip",
+      "Balance issues — hold a wall"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "womb-seat",
+    "english": "Womb Seat",
+    "sanskrit": "Womb Seat",
+    "category": "Seated",
+    "level": "Beginner",
+    "holdSeconds": 180,
+    "benefits": [
+      "Calms the nervous system",
+      "Builds body awareness",
+      "Gentle centering ritual"
+    ],
+    "contraindications": [
+      "Hip tightness — sit on a blanket",
+      "Knee pain — extend legs",
+      "Meditation discomfort — lean on a wall"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "moon-lunge",
+    "english": "Moon Lunge",
+    "sanskrit": "Moon Lunge",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 25,
+    "benefits": [
+      "Opens hip flexors",
+      "Side-body length",
+      "Gentle flow peak"
+    ],
+    "contraindications": [
+      "Knee injury — pad back knee",
+      "Balance difficulty — hands on hips",
+      "Low-back pain — tuck pelvis"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "soft-bridge-pulse",
+    "english": "Soft Bridge Pulse",
+    "sanskrit": "Soft Bridge Pulse",
+    "category": "Backbends",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Gentle glute activation",
+      "Supports pelvic circulation",
+      "Accessible back strength"
+    ],
+    "contraindications": [
+      "Neck injury",
+      "Acute low-back pain",
+      "Pregnancy — prefer prenatal alternatives"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "wide-leg-side-fold",
+    "english": "Wide-Leg Side Fold",
+    "sanskrit": "Wide-Leg Side Fold",
+    "category": "Forward Bends",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Stretches hamstrings and waist",
+      "Calm seated mobility",
+      "Women's flexibility care"
+    ],
+    "contraindications": [
+      "Hamstring tear",
+      "Groin strain",
+      "SI pain — fold less"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-pelvic-tilt",
+    "english": "Prenatal Pelvic Tilt",
+    "sanskrit": "Prenatal Pelvic Tilt",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 90,
+    "benefits": [
+      "Relieves pregnancy low-back ache",
+      "Safe core connection",
+      "Daily prenatal mobility"
+    ],
+    "contraindications": [
+      "Preterm labor risk — follow clinician guidance",
+      "Pelvic pain — keep tiny",
+      "Dizziness — sit down"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-cat-cow",
+    "english": "Prenatal Cat-Cow",
+    "sanskrit": "Prenatal Cat-Cow",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 90,
+    "benefits": [
+      "Eases back tension in pregnancy",
+      "Links breath to movement",
+      "Safe daily warm-up"
+    ],
+    "contraindications": [
+      "Wrist pain — use fists or forearms",
+      "Knee pain — pad well",
+      "Provider restrictions on floor work"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-hip-circles",
+    "english": "Prenatal Hip Circles",
+    "sanskrit": "Prenatal Hip Circles",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 90,
+    "benefits": [
+      "Pelvic mobility in pregnancy",
+      "Comfort for growing belly",
+      "Gentle prenatal flow"
+    ],
+    "contraindications": [
+      "Pelvic girdle pain — smaller circles",
+      "Knee/wrist issues — modify base",
+      "Provider restrictions"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-butterfly",
+    "english": "Prenatal Butterfly",
+    "sanskrit": "Prenatal Butterfly",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 120,
+    "benefits": [
+      "Hip opening for pregnancy",
+      "Calming seated practice",
+      "Supports birth prep mobility"
+    ],
+    "contraindications": [
+      "Pubic symphysis pain — support knees higher",
+      "Groin strain",
+      "Provider restrictions"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-side-lying-rest",
+    "english": "Prenatal Side-Lying Rest",
+    "sanskrit": "Prenatal Side-Lying Rest",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 150,
+    "benefits": [
+      "Safe prenatal rest",
+      "Relieves swelling and fatigue",
+      "Nervous-system calm"
+    ],
+    "contraindications": [
+      "Provider advice for side preference",
+      "Shoulder numbness — switch props",
+      "Reflux — prop the torso higher"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-wall-squat",
+    "english": "Prenatal Wall Squat",
+    "sanskrit": "Prenatal Wall Squat",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 45,
+    "benefits": [
+      "Pelvic opening with support",
+      "Leg strength in pregnancy",
+      "Birth-prep squat pattern"
+    ],
+    "contraindications": [
+      "Pelvic girdle pain — reduce depth",
+      "Knee issues — stay higher",
+      "Balance risk — hold a stable surface"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-chest-opener",
+    "english": "Prenatal Chest Opener",
+    "sanskrit": "Prenatal Seated Chest Opener",
+    "category": "Seated",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Counters pregnancy posture round",
+      "Opens breath space",
+      "Gentle upper-body ease"
+    ],
+    "contraindications": [
+      "Shoulder injury — keep mild",
+      "Dizziness — look forward",
+      "Third-trimester comfort — shorter hold"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-warrior-ii",
+    "english": "Prenatal Warrior II",
+    "sanskrit": "Prenatal Warrior II",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 25,
+    "benefits": [
+      "Builds leg strength in pregnancy",
+      "Opens the hips safely",
+      "Empowering prenatal standing pose"
+    ],
+    "contraindications": [
+      "Pelvic pain — shorten stance more",
+      "Balance issues — hold a wall",
+      "Provider activity limits"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-tree-wall",
+    "english": "Prenatal Tree at Wall",
+    "sanskrit": "Prenatal Tree at Wall",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 25,
+    "benefits": [
+      "Safe balance in pregnancy",
+      "Focus and calm",
+      "Ankle and hip stability"
+    ],
+    "contraindications": [
+      "Balance disorders — keep toes down",
+      "Ankle injury",
+      "Provider restrictions on standing balance"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-legs-elevated",
+    "english": "Prenatal Legs Elevated",
+    "sanskrit": "Prenatal Legs Elevated",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 180,
+    "benefits": [
+      "Eases swollen legs in pregnancy",
+      "Deep rest",
+      "Safe alternative to Legs-Up-the-Wall"
+    ],
+    "contraindications": [
+      "Reflux — prop the torso",
+      "Provider advice on elevation",
+      "Numbness — bend the knees"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
   }
 ];
 

@@ -14,6 +14,7 @@ import {
   Star,
   Dumbbell,
   Flower2,
+  Heart,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +32,7 @@ const MAP: Record<string, LucideIcon> = {
   Star,
   Dumbbell,
   Flower2,
+  Heart,
 };
 
 export function resolveIcon(name: string): LucideIcon {
