@@ -18,16 +18,11 @@ RATE = "+5%"
 PITCH = "+2Hz"
 
 MISSING = [
-    "fox",
-    "rabbit",
-    "duck",
-    "squirrel",
-    "whale",
-    "horse",
-    "peacock",
-    "spider",
-    "cloud",
-    "chick",
+    "koala",
+    "seal",
+    "otter",
+    "hedgehog",
+    "swan",
 ]
 
 

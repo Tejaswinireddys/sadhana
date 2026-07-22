@@ -194,6 +194,21 @@ export const BEST_FOR: Record<string, string[]> = {
   "prenatal-warrior-ii": ["Empowering prenatal strength", "Safe standing hip open", "Pregnancy leg endurance"],
   "prenatal-tree-wall": ["Pregnancy balance with support", "Focus and calm", "Shifting center of gravity practice"],
   "prenatal-legs-elevated": ["Pregnancy swelling relief", "Safe elevation rest", "Prenatal recovery"],
+  "copenhagen-adductor": ["Athletic hip strength", "Groin resilience", "Training recovery"],
+  "world-greatest-stretch": ["Full-body warm-up", "Athletic mobility", "Hip and thoracic open"],
+  "dead-bug": ["Core control", "Low-back friendly strength", "Athletic midline"],
+  "wall-angel": ["Desk posture reset", "Shoulder mobility", "Upper-back wake-up"],
+  "single-leg-rdl": ["Hamstring strength", "Balance training", "Posterior chain"],
+  "seated-eagle-arms": ["Desk shoulder release", "Upper-back ease", "Calm focus"],
+  "thread-needle-rest": ["Shoulder melt", "Nervous system calm", "Gentle twist"],
+  "goddess-pulse": ["Hip opening with strength", "Cycle-friendly heat", "Lower-body empowerment"],
+  "supported-side-curl": ["Side-body restore", "Breath space", "Restorative calm"],
+  "reclined-figure-four-soft": ["Outer-hip release", "Lower-back ease", "Soft restorative hips"],
+  "prenatal-goddess": ["Pregnancy pelvic openness", "Steady standing strength", "Prenatal grounding"],
+  "prenatal-malasana": ["Pregnancy squat comfort", "Pelvic mobility", "Birth-prep support"],
+  "prenatal-thread-needle": ["Pregnancy shoulder relief", "Soft upper-back mobility", "Prenatal tension release"],
+  "prenatal-side-angle": ["Pregnancy standing strength", "Side-body length", "Belly-friendly stance"],
+  "prenatal-supported-twist": ["Pregnancy-safe twist", "Spine freshness", "Digestion-friendly mobility"],
 };
 
 export function bestForFor(slug: string, fallback: string[] = ["Everyday practice", "Building body awareness", "Moving with breath"]): string[] {

@@ -15,7 +15,7 @@ custom sequence builder.
 
 ## What's inside
 
-- **193 illustrated poses**, each with:
+- **208 illustrated poses**, each with:
   - a warm illustrated instructor (consistent character across every pose)
   - calm female voice narration (pre-generated, no runtime AI cost)
   - Beginner / Intermediate / Advanced variations with props and cues
@@ -43,7 +43,7 @@ custom sequence builder.
   synchronized voice, illustrated pose, countdown timer, step captions,
   and automatic pose-to-pose transitions
 
-- **Kids section**: 35 story-based poses ("The Friendly Snake", "The Tall Oak
+- **Kids section**: 40 story-based poses ("The Friendly Snake", "The Tall Oak
   Tree", "The Pink Flamingo"…), 4 breathing games (Balloon, Bunny, Bumblebee, Pinwheel), and a
   sticker collection. Parent-gated with a simple math question. Plus **For Men**, **For Women**, and **Pregnancy** practice profiles.
 

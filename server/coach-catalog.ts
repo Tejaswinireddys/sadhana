@@ -4442,6 +4442,351 @@ export const COACH_CATALOG: CoachPose[] = [
       "Breath",
       "Support"
     ]
+  },
+  {
+    "slug": "copenhagen-adductor",
+    "english": "Copenhagen Adductor",
+    "sanskrit": "Copenhagen Adductor Hold",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Inner-thigh strength",
+      "Hip stability for running and cutting",
+      "Injury resilience"
+    ],
+    "contraindications": [
+      "Acute groin strain",
+      "Shoulder pain in the supporting arm",
+      "Pregnancy — skip or modify heavily"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "world-greatest-stretch",
+    "english": "World's Greatest Stretch",
+    "sanskrit": "World's Greatest Stretch",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Full-body mobility warm-up",
+      "Hip flexor and hamstring open",
+      "Thoracic rotation"
+    ],
+    "contraindications": [
+      "Knee pain in the lunge",
+      "Acute low-back flare",
+      "Dizziness with twists"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "dead-bug",
+    "english": "Dead Bug",
+    "sanskrit": "Dead Bug",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 45,
+    "benefits": [
+      "Deep core control",
+      "Protects the low back",
+      "Athletic midline strength"
+    ],
+    "contraindications": [
+      "Acute lumbar pain — keep range tiny",
+      "Breath-holding — stay soft",
+      "Neck strain — keep head down"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "wall-angel",
+    "english": "Wall Angels",
+    "sanskrit": "Wall Angel",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 45,
+    "benefits": [
+      "Posture after desk work",
+      "Shoulder mobility",
+      "Upper-back activation"
+    ],
+    "contraindications": [
+      "Sharp shoulder impingement",
+      "Uncontrolled high blood pressure — keep effort easy",
+      "Neck pain — soften the chin"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "single-leg-rdl",
+    "english": "Single-Leg Romanian Deadlift",
+    "sanskrit": "Single-Leg RDL",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 40,
+    "benefits": [
+      "Posterior-chain strength",
+      "Balance and proprioception",
+      "Hamstring resilience"
+    ],
+    "contraindications": [
+      "Acute hamstring tear",
+      "Vertigo — use a wall",
+      "Low-back flare — shorten the hinge"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "seated-eagle-arms",
+    "english": "Seated Eagle Arms",
+    "sanskrit": "Garudasana Arms",
+    "category": "Seated",
+    "level": "Beginner",
+    "holdSeconds": 40,
+    "benefits": [
+      "Shoulder and upper-back release",
+      "Eases desk tension",
+      "Calm focus"
+    ],
+    "contraindications": [
+      "Frozen shoulder — keep a soft hug instead",
+      "Recent shoulder surgery",
+      "Numbness in the hands — uncross"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "thread-needle-rest",
+    "english": "Resting Thread the Needle",
+    "sanskrit": "Parsva Balasana Rest",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 75,
+    "benefits": [
+      "Shoulder and mid-back ease",
+      "Nervous-system downshift",
+      "Gentle spinal rotation"
+    ],
+    "contraindications": [
+      "Acute shoulder injury",
+      "Neck pain — keep gaze down",
+      "Pregnancy — use a wider knee stance"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "goddess-pulse",
+    "english": "Goddess Pulse",
+    "sanskrit": "Utkata Konasana Pulse",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 40,
+    "benefits": [
+      "Hip opening with strength",
+      "Circulation and warmth",
+      "Empowered lower body"
+    ],
+    "contraindications": [
+      "Knee pain — reduce depth",
+      "Pelvic floor flare — keep small",
+      "Dizziness — stand tall between pulses"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "supported-side-curl",
+    "english": "Supported Side Curl",
+    "sanskrit": "Supported Side Curl",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 75,
+    "benefits": [
+      "Side-body release",
+      "Breath space",
+      "Restorative calm"
+    ],
+    "contraindications": [
+      "Rib injury",
+      "Recent abdominal surgery",
+      "Reflux — keep height modest"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "reclined-figure-four-soft",
+    "english": "Soft Reclined Figure Four",
+    "sanskrit": "Supta Kapotasana Soft",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 75,
+    "benefits": [
+      "Outer-hip ease",
+      "Lower-back relief",
+      "Gentle restorative stretch"
+    ],
+    "contraindications": [
+      "Acute SI joint pain",
+      "Knee discomfort — support the ankle",
+      "Pregnancy — elevate the torso or skip late term"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-goddess",
+    "english": "Prenatal Goddess",
+    "sanskrit": "Prenatal Goddess",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Pelvic mobility in pregnancy",
+      "Leg strength with space",
+      "Grounding standing practice"
+    ],
+    "contraindications": [
+      "Follow clinician guidance",
+      "Pelvic girdle pain — shorten stance",
+      "Dizziness — hold a chair"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-malasana",
+    "english": "Prenatal Supported Squat",
+    "sanskrit": "Prenatal Malasana",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 40,
+    "benefits": [
+      "Pelvic opening for comfort",
+      "Birth-prep mobility",
+      "Grounded lower body"
+    ],
+    "contraindications": [
+      "Follow clinician guidance",
+      "Hemorrhoids flare — keep brief",
+      "Knee pain — sit on a block"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-thread-needle",
+    "english": "Prenatal Thread the Needle",
+    "sanskrit": "Prenatal Thread the Needle",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Shoulder and upper-back relief in pregnancy",
+      "Soft spinal mobility",
+      "Tension release"
+    ],
+    "contraindications": [
+      "Follow clinician guidance",
+      "Wrist pain — use fists",
+      "Dizziness — keep range small"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-side-angle",
+    "english": "Prenatal Side Angle",
+    "sanskrit": "Prenatal Side Angle",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Leg strength with belly space",
+      "Side-body opening",
+      "Steady standing balance"
+    ],
+    "contraindications": [
+      "Follow clinician guidance",
+      "Pelvic pain — shorten stance",
+      "Reflux — keep torso more upright"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
+  },
+  {
+    "slug": "prenatal-supported-twist",
+    "english": "Prenatal Supported Twist",
+    "sanskrit": "Prenatal Seated Twist",
+    "category": "Seated",
+    "level": "Beginner",
+    "holdSeconds": 40,
+    "benefits": [
+      "Digestion-friendly mobility",
+      "Spine freshness in pregnancy",
+      "Shoulder ease"
+    ],
+    "contraindications": [
+      "Follow clinician guidance",
+      "Avoid forcing closed twists",
+      "Dizziness — reduce range"
+    ],
+    "stretchZones": [
+      "Primary tissues",
+      "Breath",
+      "Support"
+    ]
   }
 ];
 

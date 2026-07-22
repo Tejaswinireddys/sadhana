@@ -1112,6 +1112,81 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
     { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
     { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "copenhagen-adductor": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "world-greatest-stretch": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "dead-bug": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "wall-angel": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "single-leg-rdl": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "seated-eagle-arms": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "thread-needle-rest": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "goddess-pulse": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "supported-side-curl": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "reclined-figure-four-soft": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-goddess": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-malasana": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-thread-needle": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-side-angle": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+  ],
+  "prenatal-supported-twist": [
+    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
+    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
+    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
   ]
 };
 
