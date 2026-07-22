@@ -26,12 +26,12 @@ export type TrainerSession = {
 
 const SEQUENCES: Record<string, string[]> = {
   calm: ["sukhasana", "balasana", "paschimottanasana", "supta-matsyendrasana", "viparita-karani", "constructive-rest", "savasana"],
-  energy: ["urdhva-hastasana", "tadasana", "high-lunge", "virabhadrasana-i", "virabhadrasana-ii", "utkatasana", "adho-mukha-svanasana", "balasana", "savasana"],
-  flexibility: ["marjaryasana-bitilasana", "anjaneyasana", "ardha-hanumanasana", "supta-kapotasana", "paschimottanasana", "upavistha-konasana", "balasana", "savasana"],
-  sleep: ["salamba-balasana", "pawanmuktasana", "supta-gomukhasana", "salamba-matsyasana", "chair-viparita-karani", "constructive-rest", "parsva-savasana"],
-  focus: ["sukhasana", "vajrasana", "vrksasana", "garudasana", "balasana", "savasana"],
-  movement: ["tadasana", "urdhva-hastasana", "ardha-uttanasana", "adho-mukha-svanasana", "anjaneyasana", "trikonasana", "balasana", "savasana"],
-  strength: ["tadasana", "utkatasana", "virabhadrasana-ii", "kumbhakasana", "vasisthasana", "navasana", "balasana", "savasana"],
+  energy: ["urdhva-hastasana", "tadasana", "high-lunge", "baddha-virabhadrasana", "virabhadrasana-i", "virabhadrasana-ii", "utkatasana", "adho-mukha-svanasana", "balasana", "savasana"],
+  flexibility: ["marjaryasana-bitilasana", "anjaneyasana", "ardha-hanumanasana", "supta-kapotasana", "paschimottanasana", "parivrtta-paschimottanasana", "upavistha-konasana", "balasana", "savasana"],
+  sleep: ["salamba-balasana", "pawanmuktasana", "jathara-parivartanasana", "supta-gomukhasana", "salamba-matsyasana", "chair-viparita-karani", "constructive-rest", "parsva-savasana"],
+  focus: ["sukhasana", "vajrasana", "vrksasana", "garudasana", "parivrtta-hasta-padangusthasana", "balasana", "savasana"],
+  movement: ["tadasana", "urdhva-hastasana", "ardha-uttanasana", "adho-mukha-svanasana", "anjaneyasana", "baddha-parsvakonasana", "trikonasana", "balasana", "savasana"],
+  strength: ["tadasana", "utkatasana", "virabhadrasana-ii", "kumbhakasana", "uttana-padasana", "vasisthasana", "navasana", "balasana", "savasana"],
 };
 
 const EACH_SIDE = new Set([
@@ -54,6 +54,13 @@ const EACH_SIDE = new Set([
   "garudasana",
   "parivrtta-utkatasana",
   "parivrtta-anjaneyasana",
+  "baddha-virabhadrasana",
+  "baddha-parsvakonasana",
+  "parivrtta-hasta-padangusthasana",
+  "parivrtta-paschimottanasana",
+  "jathara-parivartanasana",
+  "galavasana",
+  "eka-pada-bakasana",
 ]);
 
 const GENTLE = new Set([

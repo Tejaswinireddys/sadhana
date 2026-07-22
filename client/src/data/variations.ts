@@ -3335,4 +3335,284 @@ export const EXTRAS: Record<string, AsanaExtras> = {
     },
     stepMotions: ["ground", "lift", "leg-extend", "inhale", "settle"],
   },
+  "baddha-virabhadrasana": {
+    avoidIf: [
+      { condition: "Knee injury — shorten the stance", severity: "modify" },
+      { condition: "Neck issues — keep gaze soft", severity: "caution" },
+      { condition: "Low blood pressure — rise slowly", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Interlace the hands behind the back without folding deeply; keep the torso more upright.",
+        props: ["none"],
+        cues: ["Hands clasp lightly behind the back", "Chest stays open", "Front knee tracks safely"],
+        holdSeconds: 15,
+      },
+      intermediate: {
+        description: "Fold the torso inside the front thigh with arms lifting away from the back.",
+        props: ["none"],
+        cues: ["Hinge from the hips", "Arms lift as the crown reaches down", "Back heel stays grounded"],
+        holdSeconds: 25,
+      },
+      advanced: {
+        description: "Deepen the fold and lift the arms higher while keeping the stance strong and steady.",
+        props: ["none"],
+        cues: ["Front thigh works toward parallel", "Shoulders draw away from the ears", "Breath stays even in the fold"],
+        holdSeconds: 35,
+      },
+    },
+    stepMotions: ["ground", "torso-fold", "arm-extend", "balance", "settle"],
+  },
+  "baddha-parsvakonasana": {
+    avoidIf: [
+      { condition: "Shoulder injury — skip the bind", severity: "avoid" },
+      { condition: "Knee issues — shorten the stance", severity: "modify" },
+      { condition: "Pregnancy — avoid deep compression", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "Keep the top hand on the hip and reach the bottom arm to a block outside the front foot.",
+        props: ["block"],
+        cues: ["No bind yet — open the chest", "Front knee stacks over the ankle", "Back leg stays strong"],
+        holdSeconds: 15,
+      },
+      intermediate: {
+        description: "Use a strap between the hands to create the bind under the thigh.",
+        props: ["strap"],
+        cues: ["Strap bridges the hands", "Chest spirals open", "Gaze softens upward"],
+        holdSeconds: 25,
+      },
+      advanced: {
+        description: "Full hand clasp under the thigh with a deep, open spiral through the chest.",
+        props: ["none"],
+        cues: ["Thigh presses back into the bind", "Top shoulder stacks", "Breath fills the side body"],
+        holdSeconds: 35,
+      },
+    },
+    stepMotions: ["hip-shift", "limb-rotate", "twist", "balance", "settle"],
+  },
+  "parivrtta-hasta-padangusthasana": {
+    avoidIf: [
+      { condition: "Hamstring injury", severity: "avoid" },
+      { condition: "Balance disorders — practice near a wall", severity: "modify" },
+      { condition: "Low back disc issues — keep the twist gentle", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Keep the lifted knee bent and hold a strap; twist only slightly.",
+        props: ["strap", "wall"],
+        cues: ["Bent knee reduces hamstring demand", "Wall steadies balance", "Twist stays mild"],
+        holdSeconds: 10,
+      },
+      intermediate: {
+        description: "Extend the lifted leg and hold the big toe while twisting open.",
+        props: ["none"],
+        cues: ["Standing hip stays steady", "Chest rotates toward the open arm", "Gaze follows the free hand"],
+        holdSeconds: 20,
+      },
+      advanced: {
+        description: "Fully straighten both legs with a deep twist and soft, steady gaze.",
+        props: ["none"],
+        cues: ["Both legs long and active", "Core supports the twist", "Breath stays calm in the balance"],
+        holdSeconds: 30,
+      },
+    },
+    stepMotions: ["ground", "leg-extend", "twist", "balance", "settle"],
+  },
+  "parivrtta-paschimottanasana": {
+    avoidIf: [
+      { condition: "Acute low-back pain", severity: "avoid" },
+      { condition: "Hamstring tear", severity: "avoid" },
+      { condition: "Pregnancy — skip deep twists", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "Sit on a blanket and hold a strap around the extended foot without forcing the fold.",
+        props: ["blanket", "strap"],
+        cues: ["Elevated hips ease the fold", "Strap keeps the spine long", "Twist stays gentle"],
+        holdSeconds: 20,
+      },
+      intermediate: {
+        description: "Hold the extended foot and fold with a clear spiral through the torso.",
+        props: ["none"],
+        cues: ["Inhale length, exhale twist", "Both sit bones stay grounded", "Neck stays soft"],
+        holdSeconds: 35,
+      },
+      advanced: {
+        description: "Deepen the fold and bind further around the foot while keeping the breath easy.",
+        props: ["none"],
+        cues: ["Belly stays soft toward the thigh", "Shoulders draw away from the ears", "Even breath in the twist"],
+        holdSeconds: 45,
+      },
+    },
+    stepMotions: ["ground", "limb-rotate", "twist", "torso-fold", "settle"],
+  },
+  "jathara-parivartanasana": {
+    avoidIf: [
+      { condition: "Recent abdominal surgery", severity: "avoid" },
+      { condition: "Disc herniation — keep the twist small", severity: "modify" },
+      { condition: "Pregnancy — use a propped open twist", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "Keep a bolster under the thighs and a small twist with both shoulders grounded.",
+        props: ["bolster"],
+        cues: ["Knees stay stacked", "Shoulders heavy on the floor", "Breath softens the low back"],
+        holdSeconds: 45,
+      },
+      intermediate: {
+        description: "Knees stacked toward the floor with arms in a T and gaze opposite the knees.",
+        props: ["none"],
+        cues: ["Exhale knees down", "Chest stays open", "Neck softens with the gaze"],
+        holdSeconds: 60,
+      },
+      advanced: {
+        description: "Extend both legs toward the side for a longer belly twist, still keeping shoulders grounded.",
+        props: ["none"],
+        cues: ["Legs lengthen without forcing", "Opposite shoulder stays down", "Long exhales"],
+        holdSeconds: 90,
+      },
+    },
+    stepMotions: ["ground", "twist", "settle", "exhale", "settle"],
+  },
+  "uttana-padasana": {
+    avoidIf: [
+      { condition: "Acute low-back pain", severity: "avoid" },
+      { condition: "Hernia", severity: "avoid" },
+      { condition: "Pregnancy", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "Bend the knees with shins parallel to the floor, hands under the hips for support.",
+        props: ["none"],
+        cues: ["Low back stays heavy", "Knees bent reduces intensity", "Face stays soft"],
+        holdSeconds: 15,
+      },
+      intermediate: {
+        description: "Straight legs at about 45–60 degrees with arms alongside the body.",
+        props: ["none"],
+        cues: ["Belly draws gently in", "Legs active but not locked", "Steady breath"],
+        holdSeconds: 30,
+      },
+      advanced: {
+        description: "Legs toward vertical with arms reaching overhead for a longer lever.",
+        props: ["none"],
+        cues: ["Low back stays protected", "Arms frame the ears", "Core stays engaged"],
+        holdSeconds: 40,
+      },
+    },
+    stepMotions: ["ground", "exhale", "lift", "settle", "exhale"],
+  },
+  "tolasana": {
+    avoidIf: [
+      { condition: "Wrist injury", severity: "avoid" },
+      { condition: "Knee issues in full Lotus — use Easy Seat", severity: "modify" },
+      { condition: "Shoulder instability", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "From Easy Pose, press into blocks beside the hips and practice a tiny hover.",
+        props: ["blocks"],
+        cues: ["Blocks reduce wrist angle", "Even a one-inch lift counts", "Core draws in on the lift"],
+        holdSeconds: 5,
+      },
+      intermediate: {
+        description: "From a steady cross-legged seat, lift the hips clear of the floor.",
+        props: ["none"],
+        cues: ["Fingers spread wide", "Chest lifts as hips rise", "Gaze soft"],
+        holdSeconds: 15,
+      },
+      advanced: {
+        description: "From full Lotus, lift and hold with straight arms and quiet breath.",
+        props: ["none"],
+        cues: ["Lotus stays steady", "Arms strong without collapsing", "Short calm breaths"],
+        holdSeconds: 20,
+      },
+    },
+    stepMotions: ["ground", "arm-extend", "lift", "balance", "settle"],
+  },
+  "bhujapidasana": {
+    avoidIf: [
+      { condition: "Wrist or shoulder injury", severity: "avoid" },
+      { condition: "Pregnancy", severity: "avoid" },
+      { condition: "Recent hip surgery", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "From a squat, rest the thighs on the upper arms with toes still on the floor.",
+        props: ["none"],
+        cues: ["Learn the squeeze first", "Gaze slightly forward", "Knees hug the arms"],
+        holdSeconds: 5,
+      },
+      intermediate: {
+        description: "Lift one foot, then both, without crossing the ankles yet.",
+        props: ["none"],
+        cues: ["Shift weight forward", "Core lifts the hips", "Toes point back"],
+        holdSeconds: 10,
+      },
+      advanced: {
+        description: "Cross the ankles and hold the full Shoulder-Pressing balance.",
+        props: ["none"],
+        cues: ["Ankles cross firmly", "Round slightly to balance", "Soft steady breath"],
+        holdSeconds: 20,
+      },
+    },
+    stepMotions: ["ground", "hip-shift", "lift", "balance", "settle"],
+  },
+  "galavasana": {
+    avoidIf: [
+      { condition: "Wrist injury", severity: "avoid" },
+      { condition: "Knee pain in the folded leg", severity: "avoid" },
+      { condition: "Shoulder instability", severity: "caution" },
+    ],
+    variations: {
+      beginner: {
+        description: "Practice figure-four Chair and fold forward with hands planted, back toes down.",
+        props: ["none"],
+        cues: ["Shin rests on upper arms", "Back toes stay grounded", "Learn the lean"],
+        holdSeconds: 5,
+      },
+      intermediate: {
+        description: "Lift the back foot with a bent knee, hovering without fully extending.",
+        props: ["none"],
+        cues: ["Elbows bend like Chaturanga", "Hips stay light", "Gaze forward"],
+        holdSeconds: 10,
+      },
+      advanced: {
+        description: "Extend the back leg long and float in full Flying Pigeon.",
+        props: ["none"],
+        cues: ["Back leg reaches long", "Shin presses into the arms", "Core keeps the float"],
+        holdSeconds: 15,
+      },
+    },
+    stepMotions: ["ground", "torso-fold", "lift", "leg-extend", "settle"],
+  },
+  "eka-pada-bakasana": {
+    avoidIf: [
+      { condition: "Wrist injury", severity: "avoid" },
+      { condition: "Shoulder instability", severity: "avoid" },
+      { condition: "Pregnancy", severity: "avoid" },
+    ],
+    variations: {
+      beginner: {
+        description: "From Crow, extend one leg with the toes lightly tapping the floor behind you.",
+        props: ["none"],
+        cues: ["Keep Crow strong first", "Toes touch for confidence", "Gaze stays forward"],
+        holdSeconds: 5,
+      },
+      intermediate: {
+        description: "Hover the extended leg with a soft bend in the knee.",
+        props: ["none"],
+        cues: ["Shift weight slightly forward", "Core supports the extension", "Standing Crow knee stays hooked"],
+        holdSeconds: 8,
+      },
+      advanced: {
+        description: "Fully straighten the back leg and hold One-Legged Crow with control.",
+        props: ["none"],
+        cues: ["Back leg long and active", "Shoulders stable over the wrists", "Quiet breath"],
+        holdSeconds: 15,
+      },
+    },
+    stepMotions: ["ground", "lift", "leg-extend", "balance", "settle"],
+  },
 };

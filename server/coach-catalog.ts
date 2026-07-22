@@ -2647,6 +2647,237 @@ export const COACH_CATALOG: CoachPose[] = [
       "Front thigh & glute",
       "Core"
     ]
+  },
+  {
+    "slug": "baddha-virabhadrasana",
+    "english": "Humble Warrior",
+    "sanskrit": "Baddha Virabhadrasana",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 25,
+    "benefits": [
+      "Opens the shoulders and chest",
+      "Builds strong legs and hips",
+      "Quiets the mind while staying strong"
+    ],
+    "contraindications": [
+      "Knee injury — shorten the stance",
+      "Neck issues — keep the gaze soft and neck long",
+      "Low blood pressure — rise slowly"
+    ],
+    "stretchZones": [
+      "Front thigh & hip",
+      "Shoulders & chest",
+      "Hamstrings"
+    ]
+  },
+  {
+    "slug": "baddha-parsvakonasana",
+    "english": "Bound Side Angle",
+    "sanskrit": "Baddha Parsvakonasana",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 25,
+    "benefits": [
+      "Opens the hips, shoulders, and chest",
+      "Strengthens the legs",
+      "Improves balance and focus"
+    ],
+    "contraindications": [
+      "Shoulder injury — skip the bind",
+      "Knee issues — shorten the stance",
+      "Pregnancy — avoid deep compression"
+    ],
+    "stretchZones": [
+      "Front hip & groin",
+      "Shoulders & chest",
+      "Back leg"
+    ]
+  },
+  {
+    "slug": "parivrtta-hasta-padangusthasana",
+    "english": "Revolved Hand-to-Big-Toe Pose",
+    "sanskrit": "Parivrtta Hasta Padangusthasana",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 20,
+    "benefits": [
+      "Builds balance and concentration",
+      "Stretches the hamstrings",
+      "Strengthens the standing leg and core"
+    ],
+    "contraindications": [
+      "Hamstring injury",
+      "Balance disorders — practice near a wall",
+      "Low back disc issues — keep the twist gentle"
+    ],
+    "stretchZones": [
+      "Standing-leg hamstring & hip",
+      "Lifted-leg hamstring",
+      "Core & waist"
+    ]
+  },
+  {
+    "slug": "parivrtta-paschimottanasana",
+    "english": "Revolved Seated Forward Bend",
+    "sanskrit": "Parivrtta Paschimottanasana",
+    "category": "Forward Bends",
+    "level": "Intermediate",
+    "holdSeconds": 35,
+    "benefits": [
+      "Stretches the hamstrings and spine",
+      "Stimulates digestion",
+      "Releases mid-back tension"
+    ],
+    "contraindications": [
+      "Acute low-back pain",
+      "Hamstring tear",
+      "Pregnancy — skip deep twists"
+    ],
+    "stretchZones": [
+      "Hamstrings",
+      "Spine & waist",
+      "Outer hip (crossed leg)"
+    ]
+  },
+  {
+    "slug": "jathara-parivartanasana",
+    "english": "Revolved Abdomen Pose",
+    "sanskrit": "Jathara Parivartanasana",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 60,
+    "benefits": [
+      "Releases the lower back",
+      "Aids digestion",
+      "Calms the mind before rest"
+    ],
+    "contraindications": [
+      "Recent abdominal surgery",
+      "Disc herniation — keep knees stacked and twist small",
+      "Pregnancy — use a propped open twist instead"
+    ],
+    "stretchZones": [
+      "Lower back",
+      "Waist & belly",
+      "Chest & shoulders"
+    ]
+  },
+  {
+    "slug": "uttana-padasana",
+    "english": "Raised Legs Pose",
+    "sanskrit": "Uttana Padasana",
+    "category": "Seated",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Strengthens the deep core",
+      "Stabilizes the low back",
+      "Builds heat without jumping"
+    ],
+    "contraindications": [
+      "Acute low-back pain",
+      "Hernia",
+      "Pregnancy",
+      "Neck injury — support the head"
+    ],
+    "stretchZones": [
+      "Core",
+      "Hip flexors",
+      "Low back"
+    ]
+  },
+  {
+    "slug": "tolasana",
+    "english": "Scale Pose",
+    "sanskrit": "Tolasana",
+    "category": "Seated",
+    "level": "Intermediate",
+    "holdSeconds": 15,
+    "benefits": [
+      "Strengthens wrists, arms, and core",
+      "Builds lift for arm balances",
+      "Sharpens focus"
+    ],
+    "contraindications": [
+      "Wrist injury",
+      "Knee issues in full Lotus — use Easy Seat instead",
+      "Shoulder instability"
+    ],
+    "stretchZones": [
+      "Wrists & arms",
+      "Core",
+      "Hips"
+    ]
+  },
+  {
+    "slug": "bhujapidasana",
+    "english": "Shoulder-Pressing Pose",
+    "sanskrit": "Bhujapidasana",
+    "category": "Standing",
+    "level": "Advanced",
+    "holdSeconds": 15,
+    "benefits": [
+      "Builds arm, wrist, and core strength",
+      "Opens the hips through compression",
+      "Trains balance and courage"
+    ],
+    "contraindications": [
+      "Wrist or shoulder injury",
+      "Pregnancy",
+      "Recent hip surgery"
+    ],
+    "stretchZones": [
+      "Arms & wrists",
+      "Core",
+      "Inner thighs & hips"
+    ]
+  },
+  {
+    "slug": "galavasana",
+    "english": "Flying Pigeon Pose",
+    "sanskrit": "Galavasana",
+    "category": "Hip Openers",
+    "level": "Advanced",
+    "holdSeconds": 12,
+    "benefits": [
+      "Deep outer-hip opening",
+      "Builds arm and core strength",
+      "Combines flexibility with focus"
+    ],
+    "contraindications": [
+      "Wrist injury",
+      "Knee pain in the folded leg",
+      "Shoulder instability"
+    ],
+    "stretchZones": [
+      "Outer hip (folded leg)",
+      "Arms & shoulders",
+      "Core"
+    ]
+  },
+  {
+    "slug": "eka-pada-bakasana",
+    "english": "One-Legged Crow Pose",
+    "sanskrit": "Eka Pada Bakasana",
+    "category": "Standing",
+    "level": "Advanced",
+    "holdSeconds": 10,
+    "benefits": [
+      "Advances Crow practice",
+      "Strengthens core and shoulders",
+      "Builds single-leg control in arm balances"
+    ],
+    "contraindications": [
+      "Wrist injury",
+      "Shoulder instability",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Arms & wrists",
+      "Core",
+      "Shoulders"
+    ]
   }
 ];
 

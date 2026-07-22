@@ -18,16 +18,16 @@ RATE = "-8%"
 PITCH = "-2Hz"
 
 MISSING = [
-    "rajakapotasana",
-    "astavakrasana",
-    "tittibhasana",
-    "parsva-bakasana",
-    "eka-pada-koundinyasana-ii",
-    "vrischikasana",
-    "parivrtta-ardha-chandrasana",
-    "padangusthasana",
-    "ardha-baddha-padmottanasana",
-    "high-lunge",
+    "baddha-virabhadrasana",
+    "baddha-parsvakonasana",
+    "parivrtta-hasta-padangusthasana",
+    "parivrtta-paschimottanasana",
+    "jathara-parivartanasana",
+    "uttana-padasana",
+    "tolasana",
+    "bhujapidasana",
+    "galavasana",
+    "eka-pada-bakasana",
 ]
 
 

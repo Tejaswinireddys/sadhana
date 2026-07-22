@@ -723,5 +723,55 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Front thigh & glute", sensation: "Building strength as the knee bends", intensity: "strong", primary: true },
     { region: "Core", sensation: "Engaging to stabilize the balance", intensity: "medium", primary: false },
   ],
+  "baddha-virabhadrasana": [
+    { region: "Front thigh & hip", sensation: "Strong work as the knee bends", intensity: "strong", primary: true },
+    { region: "Shoulders & chest", sensation: "Opening as the arms lift behind the back", intensity: "medium", primary: true },
+    { region: "Hamstrings", sensation: "Gentle lengthening in the fold", intensity: "low", primary: false },
+  ],
+  "baddha-parsvakonasana": [
+    { region: "Front hip & groin", sensation: "Deep opening in the bent-leg hip", intensity: "strong", primary: true },
+    { region: "Shoulders & chest", sensation: "Spiraling open through the bind", intensity: "medium", primary: true },
+    { region: "Back leg", sensation: "Strong, grounding engagement", intensity: "medium", primary: false },
+  ],
+  "parivrtta-hasta-padangusthasana": [
+    { region: "Standing-leg hamstring & hip", sensation: "Steady work to stay tall", intensity: "strong", primary: true },
+    { region: "Lifted-leg hamstring", sensation: "Long stretch through the extended leg", intensity: "strong", primary: true },
+    { region: "Core & waist", sensation: "Twisting and stabilizing the torso", intensity: "medium", primary: false },
+  ],
+  "parivrtta-paschimottanasana": [
+    { region: "Hamstrings", sensation: "Long pull down the extended leg", intensity: "strong", primary: true },
+    { region: "Spine & waist", sensation: "Twisting and lengthening together", intensity: "medium", primary: true },
+    { region: "Outer hip (crossed leg)", sensation: "Gentle compression and stretch", intensity: "medium", primary: false },
+  ],
+  "jathara-parivartanasana": [
+    { region: "Lower back", sensation: "Soft release as the knees settle", intensity: "medium", primary: true },
+    { region: "Waist & belly", sensation: "Gentle wringing through the twist", intensity: "medium", primary: true },
+    { region: "Chest & shoulders", sensation: "Opening across the grounded shoulder", intensity: "low", primary: false },
+  ],
+  "uttana-padasana": [
+    { region: "Core", sensation: "Clear, honest engagement through the belly", intensity: "strong", primary: true },
+    { region: "Hip flexors", sensation: "Working to keep the legs lifted", intensity: "medium", primary: true },
+    { region: "Low back", sensation: "Stabilizing against the floor", intensity: "medium", primary: false },
+  ],
+  "tolasana": [
+    { region: "Wrists & arms", sensation: "Pressing power to lift the hips", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Drawing in to hover", intensity: "strong", primary: true },
+    { region: "Hips", sensation: "Light lift away from the floor", intensity: "medium", primary: false },
+  ],
+  "bhujapidasana": [
+    { region: "Arms & wrists", sensation: "Bearing weight in the balance", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Lifting the hips and legs", intensity: "strong", primary: true },
+    { region: "Inner thighs & hips", sensation: "Squeezing into the upper arms", intensity: "medium", primary: false },
+  ],
+  "galavasana": [
+    { region: "Outer hip (folded leg)", sensation: "Deep figure-four opening", intensity: "strong", primary: true },
+    { region: "Arms & shoulders", sensation: "Supporting the float", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Keeping the back leg light", intensity: "medium", primary: false },
+  ],
+  "eka-pada-bakasana": [
+    { region: "Arms & wrists", sensation: "Holding Crow while one leg extends", intensity: "strong", primary: true },
+    { region: "Core", sensation: "Controlling the extended leg", intensity: "strong", primary: true },
+    { region: "Shoulders", sensation: "Stable shelf for the remaining knee", intensity: "medium", primary: false },
+  ],
 };
 

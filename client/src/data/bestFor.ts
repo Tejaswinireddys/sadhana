@@ -116,6 +116,16 @@ export const BEST_FOR: Record<string, string[]> = {
   "padangusthasana": ["Precise hamstring lengthening", "Sun salutation variations", "Calming standing fold"],
   "ardha-baddha-padmottanasana": ["Hip opening + balance combo", "Ashtanga primary series practice", "Focused intermediate challenge"],
   "high-lunge": ["Sun salutation transitions", "Building standing-flow stability", "Warm-up before the warriors"],
+  "baddha-virabhadrasana": ["Quieting a strong standing practice", "Opening shoulders after desk work", "Humble strength days"],
+  "baddha-parsvakonasana": ["Deep hip opening with strength", "Shoulder mobility in standing flows", "Intermediate warrior progressions"],
+  "parivrtta-hasta-padangusthasana": ["Focus and balance training", "Hamstring work with a twist", "Intermediate standing challenges"],
+  "parivrtta-paschimottanasana": ["Seated digestion-friendly practice", "Wringing out mid-back tension", "Calm forward-fold days"],
+  "jathara-parivartanasana": ["Before bed low-back release", "Closing any strong practice", "Gentle twist when standing twists feel too much"],
+  "uttana-padasana": ["Core strength without jumping", "Building heat on the floor", "Low-back stability days"],
+  "tolasana": ["Prep for arm balances", "Quiet seated strength", "Wrist and core power"],
+  "bhujapidasana": ["Advanced arm-balance goals", "Hip compression + strength combo", "Playful peak-pose practice"],
+  "galavasana": ["Flying pigeon peak days", "Hip opening with arm strength", "Advanced balance challenges"],
+  "eka-pada-bakasana": ["Progressing beyond Crow", "Single-leg arm-balance control", "Advanced core and shoulder days"],
 };
 
 export function bestForFor(slug: string, fallback: string[] = ["Everyday practice", "Building body awareness", "Moving with breath"]): string[] {
