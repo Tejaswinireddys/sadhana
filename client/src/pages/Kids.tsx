@@ -37,7 +37,7 @@ export default function Kids() {
                 Let's go on a yoga adventure!
               </h1>
               <p className="text-lg text-foreground/80">
-                Become a tall tree, a friendly snake, and a brave lion. Each story has a calm voice
+                Become a tall tree, a friendly dragon, a pink flamingo, and more. Each story has a calm voice
                 to guide you. Ready to play?
               </p>
               <Button

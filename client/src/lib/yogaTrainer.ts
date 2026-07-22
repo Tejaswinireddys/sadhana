@@ -66,6 +66,18 @@ const EACH_SIDE = new Set([
   "parsva-uttanasana",
   "parivrtta-upavistha-konasana",
   "camatkarasana",
+  "standing-figure-four",
+  "runner-lunge-twist",
+  "couch-hip-flexor",
+  "standing-side-stretch",
+  "twisted-lizard",
+  "kneeling-thoracic-opener",
+  "wall-chest-opener",
+  "banana-pose",
+  "mermaid-pose",
+  "deer-pose",
+  "swan-pose",
+  "seated-side-bend",
 ]);
 
 const GENTLE = new Set([

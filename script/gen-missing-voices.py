@@ -18,24 +18,34 @@ RATE = "-8%"
 PITCH = "-2Hz"
 
 MISSING = [
-    "ardha-navasana",
-    "marichyasana-a",
-    "eka-pada-adho-mukha-svanasana",
-    "parsva-uttanasana",
-    "salamba-setu-bandhasana",
-    "parivrtta-upavistha-konasana",
-    "camatkarasana",
-    "makara-adho-mukha-svanasana",
+    "standing-figure-four",
+    "runner-lunge-twist",
+    "dolphin-plank",
+    "reverse-tabletop",
+    "couch-hip-flexor",
+    "standing-side-stretch",
+    "twisted-lizard",
+    "prasarita-c",
+    "kneeling-thoracic-opener",
+    "wall-chest-opener",
+    "banana-pose",
+    "mermaid-pose",
+    "deer-pose",
+    "caterpillar",
+    "dragonfly",
+    "swan-pose",
+    "wall-butterfly",
+    "wide-child-pose",
+    "seated-side-bend",
+    "supported-squat",
 ]
 
 
 def extract_asana_block(src: str, slug: str) -> dict[str, object]:
-    # Find the object that starts with slug: "<slug>"
     m = re.search(rf'slug:\s*"{re.escape(slug)}"\s*,', src)
     if not m:
         raise SystemExit(f"slug not found: {slug}")
     start = src.rfind("{", 0, m.start())
-    # naive brace match from start
     depth = 0
     end = None
     for i, ch in enumerate(src[start:], start):
@@ -90,7 +100,6 @@ async def synth_one(slug: str, text: str) -> Path:
     out = OUT_DIR / f"pose-{slug}.mp3"
     communicate = edge_tts.Communicate(text, VOICE, rate=RATE, pitch=PITCH)
     await communicate.save(str(raw))
-    # Normalize loudness / convert for web
     subprocess.run(
         [
             "ffmpeg",
@@ -115,11 +124,11 @@ async def synth_one(slug: str, text: str) -> Path:
 async def main() -> None:
     src = CONTENT.read_text(encoding="utf-8")
     for slug in MISSING:
+        print(f"Generating {slug}…")
         a = extract_asana_block(src, slug)
         text = script_for(a)
-        print(f"Generating {slug}…")
-        path = await synth_one(slug, text)
-        print(f"  → {path.name} ({path.stat().st_size // 1024} KB)")
+        out = await synth_one(slug, text)
+        print(f"  → {out.name} ({out.stat().st_size // 1024} KB)")
 
 
 if __name__ == "__main__":

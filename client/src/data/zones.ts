@@ -813,5 +813,105 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Hamstrings", sensation: "Stretch as the hips lift", intensity: "medium", primary: true },
     { region: "Core", sensation: "Engaging to support the inverted V", intensity: "medium", primary: false },
   ],
+  "standing-figure-four": [
+    { region: "Hips", sensation: "Opening through the hip complex", intensity: "strong", primary: true },
+    { region: "Thighs", sensation: "Steady muscular engagement", intensity: "medium", primary: true },
+    { region: "Core", sensation: "Stabilizing the pelvis", intensity: "medium", primary: false }
+  ],
+  "runner-lunge-twist": [
+    { region: "Spine", sensation: "Gentle rotational mobility", intensity: "medium", primary: true },
+    { region: "Hips", sensation: "Anchoring the twist", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "Opening as the chest turns", intensity: "low", primary: false }
+  ],
+  "dolphin-plank": [
+    { region: "Core", sensation: "Endurance through the midline", intensity: "strong", primary: true },
+    { region: "Shoulders", sensation: "Supporting the frame", intensity: "strong", primary: true },
+    { region: "Legs", sensation: "Long active lines", intensity: "medium", primary: false }
+  ],
+  "reverse-tabletop": [
+    { region: "Chest", sensation: "Opening across the front body", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "Drawing open and down", intensity: "medium", primary: true },
+    { region: "Arms", sensation: "Pressing support", intensity: "medium", primary: false }
+  ],
+  "couch-hip-flexor": [
+    { region: "Hips", sensation: "Opening through the hip complex", intensity: "strong", primary: true },
+    { region: "Thighs", sensation: "Steady muscular engagement", intensity: "medium", primary: true },
+    { region: "Core", sensation: "Stabilizing the pelvis", intensity: "medium", primary: false }
+  ],
+  "standing-side-stretch": [
+    { region: "Side waist", sensation: "Lengthening laterally", intensity: "medium", primary: true },
+    { region: "Ribs", sensation: "Space for the breath", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "Reaching without shrugging", intensity: "low", primary: false }
+  ],
+  "twisted-lizard": [
+    { region: "Hips", sensation: "Opening through the hip complex", intensity: "strong", primary: true },
+    { region: "Thighs", sensation: "Steady muscular engagement", intensity: "medium", primary: true },
+    { region: "Core", sensation: "Stabilizing the pelvis", intensity: "medium", primary: false }
+  ],
+  "prasarita-c": [
+    { region: "Hamstrings", sensation: "Long steady stretch", intensity: "strong", primary: true },
+    { region: "Shoulders", sensation: "Opening in the bind", intensity: "medium", primary: true },
+    { region: "Spine", sensation: "Folding with length", intensity: "medium", primary: false }
+  ],
+  "kneeling-thoracic-opener": [
+    { region: "Upper back", sensation: "Releasing held tension", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "Mobilizing gently", intensity: "medium", primary: true },
+    { region: "Neck", sensation: "Staying soft", intensity: "low", primary: false }
+  ],
+  "wall-chest-opener": [
+    { region: "Chest", sensation: "Opening across the front body", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "Drawing open and down", intensity: "medium", primary: true },
+    { region: "Arms", sensation: "Pressing support", intensity: "medium", primary: false }
+  ],
+  "banana-pose": [
+    { region: "Side waist", sensation: "Lengthening laterally", intensity: "medium", primary: true },
+    { region: "Ribs", sensation: "Space for the breath", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "Reaching without shrugging", intensity: "low", primary: false }
+  ],
+  "mermaid-pose": [
+    { region: "Hips", sensation: "Opening through the hip complex", intensity: "strong", primary: true },
+    { region: "Thighs", sensation: "Steady muscular engagement", intensity: "medium", primary: true },
+    { region: "Core", sensation: "Stabilizing the pelvis", intensity: "medium", primary: false }
+  ],
+  "deer-pose": [
+    { region: "Hips", sensation: "Opening through the hip complex", intensity: "strong", primary: true },
+    { region: "Thighs", sensation: "Steady muscular engagement", intensity: "medium", primary: true },
+    { region: "Core", sensation: "Stabilizing the pelvis", intensity: "medium", primary: false }
+  ],
+  "caterpillar": [
+    { region: "Spine", sensation: "Soft release in the fold", intensity: "medium", primary: true },
+    { region: "Hamstrings", sensation: "Gentle length", intensity: "medium", primary: true },
+    { region: "Nervous system", sensation: "Settling toward calm", intensity: "low", primary: false }
+  ],
+  "dragonfly": [
+    { region: "Inner thighs", sensation: "Wide opening", intensity: "strong", primary: true },
+    { region: "Hamstrings", sensation: "Long stretch", intensity: "medium", primary: true },
+    { region: "Low back", sensation: "Softening forward", intensity: "low", primary: false }
+  ],
+  "swan-pose": [
+    { region: "Hips", sensation: "Opening through the hip complex", intensity: "strong", primary: true },
+    { region: "Thighs", sensation: "Steady muscular engagement", intensity: "medium", primary: true },
+    { region: "Core", sensation: "Stabilizing the pelvis", intensity: "medium", primary: false }
+  ],
+  "wall-butterfly": [
+    { region: "Hips", sensation: "Opening through the hip complex", intensity: "strong", primary: true },
+    { region: "Thighs", sensation: "Steady muscular engagement", intensity: "medium", primary: true },
+    { region: "Core", sensation: "Stabilizing the pelvis", intensity: "medium", primary: false }
+  ],
+  "wide-child-pose": [
+    { region: "Hips", sensation: "Gentle release", intensity: "low", primary: true },
+    { region: "Back body", sensation: "Broadening with breath", intensity: "low", primary: true },
+    { region: "Mind", sensation: "Quieting", intensity: "low", primary: false }
+  ],
+  "seated-side-bend": [
+    { region: "Side waist", sensation: "Lengthening laterally", intensity: "medium", primary: true },
+    { region: "Ribs", sensation: "Space for the breath", intensity: "medium", primary: true },
+    { region: "Shoulders", sensation: "Reaching without shrugging", intensity: "low", primary: false }
+  ],
+  "supported-squat": [
+    { region: "Hips", sensation: "Opening through the hip complex", intensity: "strong", primary: true },
+    { region: "Thighs", sensation: "Steady muscular engagement", intensity: "medium", primary: true },
+    { region: "Core", sensation: "Stabilizing the pelvis", intensity: "medium", primary: false }
+  ]
 };
 
