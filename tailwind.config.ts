@@ -6,9 +6,11 @@ export default {
   theme: {
     extend: {
       borderRadius: {
-        lg: ".5625rem", /* 9px */
-        md: ".375rem", /* 6px */
-        sm: ".1875rem", /* 3px */
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 4px)",
+        sm: "var(--radius-sm)",
+        xl: "var(--radius)",
+        "2xl": "var(--radius-lg)",
       },
       colors: {
         // Flat / base colors (regular buttons)
@@ -89,8 +91,8 @@ export default {
         mono: ["var(--font-mono)"],
       },
       boxShadow: {
-        soft: "0 1px 2px hsl(30 12% 30% / 0.04), 0 8px 24px -12px hsl(30 12% 30% / 0.12)",
-        "soft-lg": "0 2px 4px hsl(30 12% 30% / 0.05), 0 18px 48px -18px hsl(30 12% 30% / 0.18)",
+        soft: "var(--surface-shadow)",
+        "soft-lg": "var(--surface-shadow-lg)",
       },
       keyframes: {
         "accordion-down": {

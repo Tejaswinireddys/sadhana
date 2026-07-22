@@ -161,7 +161,7 @@ export default function Asanas() {
       </div>
 
       {/* Layered filters */}
-      <div className="space-y-4 rounded-xl border border-border bg-card/40 p-4">
+      <div className="surface-inset space-y-4 p-4">
         <FilterRow
           label="Audience"
           options={AUDIENCE_FILTERS}

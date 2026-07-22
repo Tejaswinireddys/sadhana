@@ -254,16 +254,37 @@ export default function Home() {
 
   return (
     <div className="animate-fade-in space-y-10">
-      <header className="space-y-2">
-        <p className="text-sm text-muted-foreground" data-testid="text-today-date">
-          {formatDate(todayISO())}
-        </p>
-        <h1 className="font-serif text-3xl font-semibold tracking-tight" data-testid="text-welcome">
-          {profile ? `Welcome back to your ${profile.name} practice` : "Welcome to your practice"}
-        </h1>
-        <p className="max-w-xl text-muted-foreground">
-          One clear next step below — then more ways to practice if you want them.
-        </p>
+      <header className="grid gap-6 md:grid-cols-[1.2fr_0.8fr] md:items-end">
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground" data-testid="text-today-date">
+            {formatDate(todayISO())}
+          </p>
+          <h1 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl" data-testid="text-welcome">
+            {profile ? `Welcome back to your ${profile.name} practice` : "Welcome to your practice"}
+          </h1>
+          <p className="max-w-xl text-muted-foreground">
+            One clear next step below — then more ways to practice if you want them.
+          </p>
+        </div>
+        <div
+          className="relative hidden h-36 overflow-hidden rounded-2xl border border-card-border bg-card shadow-soft md:block"
+          aria-hidden
+        >
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,hsl(var(--primary)/0.12),transparent_55%)]" />
+          <div className="absolute inset-y-0 right-0 flex items-end gap-2 pr-3 pt-3">
+            {["tadasana", "balasana", "viparita-karani", "vrksasana"].map((slug, i) => (
+              <img
+                key={slug}
+                src={`${import.meta.env.BASE_URL}poses/${slug}.png`}
+                alt=""
+                className="h-[7.5rem] w-auto rounded-xl object-cover shadow-soft"
+                style={{ transform: `translateY(${(i % 2) * 10}px)` }}
+                loading="lazy"
+                draggable={false}
+              />
+            ))}
+          </div>
+        </div>
       </header>
 
       <section className="space-y-4" aria-labelledby="primary-practice-heading">
@@ -276,7 +297,7 @@ export default function Home() {
 
       {/* Resume an in-progress session after refresh / navigation away */}
       {showResume && (
-        <Card className="border-primary/40 bg-accent/30 shadow-soft" data-testid="banner-resume">
+        <Card className="surface-banner border-primary/30" data-testid="banner-resume">
           <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
             <div>
               <p className="font-serif text-lg leading-tight">Continue your practice?</p>
@@ -299,7 +320,7 @@ export default function Home() {
       {/* Daily reminder banner (v3.4) — evening nudge, dismissable for the session */}
       {showReminder && (
         <Card
-          className="border-secondary/40 bg-secondary/10 shadow-soft"
+          className="surface-banner-soft"
           data-testid="banner-reminder"
         >
           <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
@@ -338,7 +359,7 @@ export default function Home() {
 
       {/* No-profile prompt banner */}
       {!profile && (
-        <Card className="border-primary/40 bg-accent/40 shadow-soft" data-testid="banner-pick-path">
+        <Card className="surface-banner border-primary/30" data-testid="banner-pick-path">
           <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
             <div className="flex items-start gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
@@ -362,7 +383,7 @@ export default function Home() {
 
       {/* Soft acknowledgment when today's practice is already done */}
       {practicedToday && !showReminder && (
-        <Card className="border-secondary/30 bg-secondary/10 shadow-soft" data-testid="banner-practiced-today">
+        <Card className="surface-banner-soft" data-testid="banner-practiced-today">
           <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
             <div>
               <p className="font-serif text-lg leading-tight">You've practiced today</p>
@@ -381,7 +402,7 @@ export default function Home() {
 
       {/* Today's guided session from profile or enrolled splits program */}
       {splitsEnrollment && splitsToday ? (
-        <Card className="border-primary/40 shadow-soft" data-testid="card-splits-today">
+        <Card className="surface-banner border-primary/30" data-testid="card-splits-today">
           <CardHeader className="pb-2">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle className="flex items-center gap-2 font-serif text-lg">
@@ -424,7 +445,7 @@ export default function Home() {
           </CardContent>
         </Card>
       ) : profile ? (
-        <Card className="border-primary/30 shadow-soft" data-testid="card-profile-session">
+        <Card className="surface-banner border-primary/25" data-testid="card-profile-session">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-3">
               <CardTitle className="flex items-center gap-2 font-serif text-lg">
@@ -493,7 +514,7 @@ export default function Home() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-primary/25 bg-accent/30 shadow-soft" data-testid="card-trainer-cta">
+        <Card className="surface-banner border-primary/25" data-testid="card-trainer-cta">
           <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
               <p className="font-serif text-xl">Build a session for right now</p>
@@ -578,7 +599,7 @@ export default function Home() {
         </div>
 
       {profile && (
-        <Card className="border-border bg-card/50 shadow-soft" data-testid="card-trainer-secondary">
+        <Card className="surface-inset" data-testid="card-trainer-secondary">
           <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
               <p className="font-serif text-lg">Need something different today?</p>
@@ -718,7 +739,7 @@ export default function Home() {
       {/* 60-Day Splits discovery banner (v3.5) — shown when NOT enrolled */}
       {!splitsEnrollment && !splitsBannerDismissed && (
         <Card
-          className="border-primary/40 bg-primary/5 shadow-soft"
+          className="surface-banner border-primary/30"
           data-testid="banner-splits-discover"
         >
           <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">

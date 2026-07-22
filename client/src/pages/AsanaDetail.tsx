@@ -550,7 +550,7 @@ export default function AsanaDetail() {
       {/* Who should approach with care — soft callout, grouped by severity */}
       {grouped.length > 0 && (
         <Card
-          className="border-[hsl(20_45%_60%/0.45)] bg-[hsl(20_50%_88%/0.35)] shadow-soft dark:bg-[hsl(20_30%_24%/0.35)]"
+          className="surface-banner-soft border-primary/20"
           data-testid="callout-avoid-if"
         >
           <CardContent className="space-y-4 p-5">

@@ -20,7 +20,7 @@ export default function Kids() {
           <div className="grid items-center gap-6 md:grid-cols-[1.1fr_1fr]">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(16_72%_58%)] px-3 py-1 text-xs font-semibold text-white">
+                <span className="kids-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold">
                   <Sparkles className="h-3.5 w-3.5" /> Kids Yoga
                 </span>
                 <Button
@@ -42,7 +42,7 @@ export default function Kids() {
               </p>
               <Button
                 size="lg"
-                className="rounded-full bg-[hsl(16_72%_55%)] text-base hover:bg-[hsl(16_72%_48%)]"
+                className="kids-cta min-h-12 rounded-full text-base"
                 asChild
                 data-testid="button-start-adventure"
               >
@@ -70,10 +70,10 @@ export default function Kids() {
               {KIDS_POSES.map((p) => (
                 <Card
                   key={p.slug}
-                  className="kids-card cursor-pointer overflow-hidden border-[hsl(38_60%_70%/0.6)] bg-white/80 shadow-soft transition-transform duration-200 hover:-translate-y-1 focus-within:ring-2 focus-within:ring-ring dark:bg-white/5"
+                  className="kids-card cursor-pointer overflow-hidden border-border/70 bg-card/90 transition-transform duration-200 hover:-translate-y-1 focus-within:ring-2 focus-within:ring-ring"
                   data-testid={`card-kids-${p.slug}`}
                 >
-                  <div className="flex items-center justify-center bg-[hsl(41_80%_88%)] p-4 dark:bg-white/5">
+                  <div className="flex items-center justify-center bg-accent/50 p-4">
                     <img
                       src={`${import.meta.env.BASE_URL}kids/${p.image}.png`}
                       alt={p.poseName}
@@ -84,9 +84,9 @@ export default function Kids() {
                   </div>
                   <CardContent className="space-y-2 p-4 text-center">
                     <h3 className="kids-title text-xl font-bold leading-tight">{p.title}</h3>
-                    <p className="text-sm leading-relaxed text-foreground/70">{p.intro}</p>
+                    <p className="text-sm leading-relaxed text-muted-foreground">{p.intro}</p>
                     <Button
-                      className="min-h-[44px] w-full cursor-pointer rounded-full bg-[hsl(92_35%_45%)] transition-colors duration-200 hover:bg-[hsl(92_35%_38%)]"
+                      className="kids-cta min-h-[44px] w-full cursor-pointer rounded-full transition-colors duration-200"
                       asChild
                       data-testid={`button-play-${p.slug}`}
                     >
@@ -104,18 +104,18 @@ export default function Kids() {
           <div className="space-y-4">
             <div className="space-y-1">
               <h2 className="kids-title flex items-center gap-2 text-2xl font-bold">
-                <Wind className="h-6 w-6 text-[hsl(200_55%_50%)]" /> Breathing games
+                <Wind className="h-6 w-6 text-secondary" /> Breathing games
               </h2>
-              <p className="text-sm text-foreground/70">Fun ways to take a big, calm breath.</p>
+              <p className="text-sm text-muted-foreground">Fun ways to take a big, calm breath.</p>
             </div>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {KIDS_BREATH.map((b) => (
                 <Card
                   key={b.slug}
-                  className="kids-card overflow-hidden border-[hsl(38_60%_70%/0.6)] bg-white/70 shadow-soft transition-transform hover:-translate-y-1 dark:bg-white/5"
+                  className="kids-card overflow-hidden border-border/70 bg-card/90 transition-transform hover:-translate-y-1"
                   data-testid={`card-kids-breath-${b.slug}`}
                 >
-                  <div className="flex items-center justify-center bg-[hsl(200_55%_90%)] p-4 dark:bg-white/5">
+                  <div className="flex items-center justify-center bg-secondary/15 p-4">
                     <img
                       src={`${import.meta.env.BASE_URL}kids/${b.image}.png`}
                       alt={b.techniqueName}
@@ -125,9 +125,9 @@ export default function Kids() {
                   </div>
                   <CardContent className="space-y-2 p-4 text-center">
                     <h3 className="kids-title text-lg font-bold leading-tight">{b.techniqueName}</h3>
-                    <p className="text-sm text-foreground/70">{b.description}</p>
+                    <p className="text-sm text-muted-foreground">{b.description}</p>
                     <Button
-                      className="w-full rounded-full bg-[hsl(200_55%_45%)] hover:bg-[hsl(200_55%_38%)]"
+                      className="min-h-11 w-full cursor-pointer rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/90"
                       asChild
                       data-testid={`button-play-breath-${b.slug}`}
                     >

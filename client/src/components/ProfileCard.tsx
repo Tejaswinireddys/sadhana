@@ -46,11 +46,11 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
       }`}
       data-testid={`profile-card-${profile.id}`}
     >
-      <div className="relative flex items-center gap-4 bg-accent/30 p-4">
+      <div className="relative flex items-center gap-4 bg-accent/40 p-4">
         <img
           src={`${import.meta.env.BASE_URL}poses/${thumbSlug}.png`}
           alt=""
-          className="h-20 w-20 shrink-0 rounded-xl object-cover shadow-soft"
+          className="h-20 w-20 shrink-0 rounded-2xl object-cover shadow-soft"
           draggable={false}
         />
         <div className="min-w-0">

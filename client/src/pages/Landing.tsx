@@ -172,7 +172,7 @@ export default function Landing() {
             {FEATURES.map((f) => {
               const Icon = f.icon;
               return (
-                <div key={f.title} className="rounded-2xl border border-border/70 bg-card/60 p-5 shadow-soft">
+                <div key={f.title} className="surface p-5">
                   <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <Icon className="h-5 w-5" />
                   </span>
@@ -200,7 +200,7 @@ export default function Landing() {
         </section>
 
         <section className="mx-auto max-w-5xl px-4 py-16 md:px-6">
-          <div className="rounded-2xl border border-primary/25 bg-accent/40 p-8 text-center shadow-soft md:p-12">
+          <div className="surface-banner mx-auto max-w-5xl border-primary/25 p-8 text-center md:p-12">
             <h2 className="font-serif text-3xl font-semibold tracking-tight">Ready when you are</h2>
             <p className="mx-auto mt-3 max-w-md text-muted-foreground">
               Open the app, pick a mood or path, and begin. You can explore the landing page again anytime from Settings.
