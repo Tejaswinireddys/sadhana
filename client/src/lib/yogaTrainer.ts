@@ -26,12 +26,12 @@ export type TrainerSession = {
 
 const SEQUENCES: Record<string, string[]> = {
   calm: ["sukhasana", "balasana", "paschimottanasana", "supta-matsyendrasana", "viparita-karani", "constructive-rest", "savasana"],
-  energy: ["urdhva-hastasana", "tadasana", "high-lunge", "baddha-virabhadrasana", "virabhadrasana-i", "virabhadrasana-ii", "utkatasana", "adho-mukha-svanasana", "balasana", "savasana"],
-  flexibility: ["marjaryasana-bitilasana", "anjaneyasana", "ardha-hanumanasana", "supta-kapotasana", "paschimottanasana", "parivrtta-paschimottanasana", "upavistha-konasana", "balasana", "savasana"],
-  sleep: ["salamba-balasana", "pawanmuktasana", "jathara-parivartanasana", "supta-gomukhasana", "salamba-matsyasana", "chair-viparita-karani", "constructive-rest", "parsva-savasana"],
+  energy: ["urdhva-hastasana", "tadasana", "eka-pada-adho-mukha-svanasana", "high-lunge", "baddha-virabhadrasana", "virabhadrasana-i", "camatkarasana", "adho-mukha-svanasana", "balasana", "savasana"],
+  flexibility: ["marjaryasana-bitilasana", "anjaneyasana", "ardha-hanumanasana", "supta-kapotasana", "paschimottanasana", "parivrtta-paschimottanasana", "parivrtta-upavistha-konasana", "balasana", "savasana"],
+  sleep: ["salamba-balasana", "pawanmuktasana", "jathara-parivartanasana", "salamba-setu-bandhasana", "chair-viparita-karani", "constructive-rest", "parsva-savasana"],
   focus: ["sukhasana", "vajrasana", "vrksasana", "garudasana", "parivrtta-hasta-padangusthasana", "balasana", "savasana"],
   movement: ["tadasana", "urdhva-hastasana", "ardha-uttanasana", "adho-mukha-svanasana", "anjaneyasana", "baddha-parsvakonasana", "trikonasana", "balasana", "savasana"],
-  strength: ["tadasana", "utkatasana", "virabhadrasana-ii", "kumbhakasana", "uttana-padasana", "vasisthasana", "navasana", "balasana", "savasana"],
+  strength: ["tadasana", "utkatasana", "virabhadrasana-ii", "kumbhakasana", "uttana-padasana", "ardha-navasana", "makara-adho-mukha-svanasana", "navasana", "balasana", "savasana"],
 };
 
 const EACH_SIDE = new Set([
@@ -61,6 +61,11 @@ const EACH_SIDE = new Set([
   "jathara-parivartanasana",
   "galavasana",
   "eka-pada-bakasana",
+  "marichyasana-a",
+  "eka-pada-adho-mukha-svanasana",
+  "parsva-uttanasana",
+  "parivrtta-upavistha-konasana",
+  "camatkarasana",
 ]);
 
 const GENTLE = new Set([

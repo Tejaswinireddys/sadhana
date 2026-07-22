@@ -2878,6 +2878,190 @@ export const COACH_CATALOG: CoachPose[] = [
       "Core",
       "Shoulders"
     ]
+  },
+  {
+    "slug": "ardha-navasana",
+    "english": "Half Boat Pose",
+    "sanskrit": "Ardha Navasana",
+    "category": "Seated",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Strengthens the deep abdominals",
+      "Builds endurance for full Boat",
+      "Supports posture"
+    ],
+    "contraindications": [
+      "Acute low-back pain",
+      "Neck injury — support the head",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Core",
+      "Hip flexors",
+      "Spine"
+    ]
+  },
+  {
+    "slug": "marichyasana-a",
+    "english": "Marichi's Pose A",
+    "sanskrit": "Marichyasana A",
+    "category": "Forward Bends",
+    "level": "Intermediate",
+    "holdSeconds": 35,
+    "benefits": [
+      "Stretches hamstrings and spine",
+      "Improves digestion",
+      "Builds shoulder mobility for binds"
+    ],
+    "contraindications": [
+      "Hamstring tear",
+      "Shoulder injury — skip the bind",
+      "Pregnancy — avoid deep compression"
+    ],
+    "stretchZones": [
+      "Hamstrings",
+      "Shoulders",
+      "Spine"
+    ]
+  },
+  {
+    "slug": "eka-pada-adho-mukha-svanasana",
+    "english": "Three-Legged Dog",
+    "sanskrit": "Eka Pada Adho Mukha Svanasana",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 20,
+    "benefits": [
+      "Opens the hip flexors and hamstrings",
+      "Strengthens shoulders and arms",
+      "Preps lunges and warriors"
+    ],
+    "contraindications": [
+      "Wrist injury",
+      "Shoulder instability",
+      "High blood pressure — keep the head above the heart if needed"
+    ],
+    "stretchZones": [
+      "Lifted-leg hip",
+      "Shoulders & arms",
+      "Standing-leg hamstring"
+    ]
+  },
+  {
+    "slug": "parsva-uttanasana",
+    "english": "Sideways Forward Fold",
+    "sanskrit": "Parsva Uttanasana",
+    "category": "Forward Bends",
+    "level": "Intermediate",
+    "holdSeconds": 25,
+    "benefits": [
+      "Stretches hamstrings and side body",
+      "Relieves waist tension",
+      "Builds balance in folds"
+    ],
+    "contraindications": [
+      "Hamstring injury",
+      "Low-back disc issues — keep a soft bend in the knees",
+      "Vertigo — rise slowly"
+    ],
+    "stretchZones": [
+      "Hamstrings",
+      "Side waist",
+      "Low back"
+    ]
+  },
+  {
+    "slug": "salamba-setu-bandhasana",
+    "english": "Supported Bridge Pose",
+    "sanskrit": "Salamba Setu Bandhasana",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 120,
+    "benefits": [
+      "Opens the chest gently",
+      "Relieves tired legs and low back",
+      "Calms the nervous system"
+    ],
+    "contraindications": [
+      "Acute neck injury",
+      "Recent spinal surgery",
+      "Pregnancy — use a lower prop or skip"
+    ],
+    "stretchZones": [
+      "Chest",
+      "Hip flexors",
+      "Low back"
+    ]
+  },
+  {
+    "slug": "parivrtta-upavistha-konasana",
+    "english": "Revolved Wide-Angle Pose",
+    "sanskrit": "Parivrtta Upavistha Konasana",
+    "category": "Seated",
+    "level": "Intermediate",
+    "holdSeconds": 35,
+    "benefits": [
+      "Opens the hamstrings and inner thighs",
+      "Stretches the side waist",
+      "Improves seated mobility"
+    ],
+    "contraindications": [
+      "Hamstring tear",
+      "Groin injury",
+      "Pregnancy — keep the twist mild"
+    ],
+    "stretchZones": [
+      "Inner thighs",
+      "Hamstrings",
+      "Side waist"
+    ]
+  },
+  {
+    "slug": "camatkarasana",
+    "english": "Wild Thing",
+    "sanskrit": "Camatkarasana",
+    "category": "Backbends",
+    "level": "Intermediate",
+    "holdSeconds": 20,
+    "benefits": [
+      "Opens the chest and hip flexors",
+      "Strengthens the supporting arm and shoulder",
+      "Invites joy into practice"
+    ],
+    "contraindications": [
+      "Wrist or shoulder injury",
+      "Acute low-back pain",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Chest & shoulders",
+      "Supporting arm",
+      "Hip flexors"
+    ]
+  },
+  {
+    "slug": "makara-adho-mukha-svanasana",
+    "english": "Dolphin Pose",
+    "sanskrit": "Makara Adho Mukha Svanasana",
+    "category": "Inversions",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Strengthens shoulders and core",
+      "Stretches hamstrings and calves",
+      "Prepares for Forearm Stand"
+    ],
+    "contraindications": [
+      "Shoulder injury",
+      "Neck issues — keep the head off the floor",
+      "High blood pressure — come down if dizzy"
+    ],
+    "stretchZones": [
+      "Shoulders",
+      "Hamstrings",
+      "Core"
+    ]
   }
 ];
 

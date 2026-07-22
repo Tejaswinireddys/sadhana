@@ -192,8 +192,10 @@ export default function AsanaDetail() {
   return (
     <article className="animate-fade-in space-y-8">
       <button
+        type="button"
         onClick={() => navigate("/asanas")}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-md px-2 py-2 text-sm text-muted-foreground transition-colors duration-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Back to Asana Library"
         data-testid="link-back-asanas"
       >
         <ArrowLeft className="h-4 w-4" /> Library
@@ -209,18 +211,31 @@ export default function AsanaDetail() {
             <Badge variant="outline">{asana.difficulty}</Badge>
           </div>
           <div>
-            <h1 className="font-serif text-3xl font-semibold tracking-tight" data-testid="text-asana-sanskrit">
-              {asana.sanskrit}
+            <h1 className="font-serif text-3xl font-semibold tracking-tight" data-testid="text-asana-english">
+              {asana.english}
             </h1>
-            <p className="text-lg text-muted-foreground">{asana.english}</p>
+            <p className="text-lg italic text-muted-foreground" data-testid="text-asana-sanskrit">
+              {asana.sanskrit}
+            </p>
           </div>
           <p className="text-muted-foreground">{asana.summary}</p>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={practiceNow} data-testid="button-practice-now">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Button
+              size="lg"
+              onClick={practiceNow}
+              className="min-h-[48px] w-full cursor-pointer sm:w-auto"
+              data-testid="button-practice-now"
+            >
               <Play className="mr-1.5 h-4 w-4" />
               Practice now
             </Button>
-            <Button onClick={addToday} disabled={inToday} variant="outline" data-testid="button-add-today">
+            <Button
+              onClick={addToday}
+              disabled={inToday}
+              variant="outline"
+              className="min-h-[44px] w-full cursor-pointer sm:w-auto"
+              data-testid="button-add-today"
+            >
               {inToday ? <Check className="mr-1.5 h-4 w-4" /> : <Plus className="mr-1.5 h-4 w-4" />}
               {inToday ? "In today's practice" : "Add to today's practice"}
             </Button>
@@ -248,16 +263,19 @@ export default function AsanaDetail() {
             <ul className="flex flex-wrap gap-2">
               {asana.bestFor.map((item, i) => (
                 <li key={i}>
-                  <Badge
-                    variant="secondary"
-                    className="rounded-full px-3 py-1 text-sm font-normal"
-                    data-testid={`best-for-${i}`}
-                  >
-                    {item}
-                  </Badge>
+                  <Link href={`/search?q=${encodeURIComponent(item)}`}>
+                    <Badge
+                      variant="secondary"
+                      className="min-h-[36px] cursor-pointer rounded-full px-3 py-2 text-sm font-normal transition-colors duration-200 hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      data-testid={`best-for-${i}`}
+                    >
+                      {item}
+                    </Badge>
+                  </Link>
                 </li>
               ))}
             </ul>
+            <p className="text-xs text-muted-foreground">Tap a chip to search related poses and practices.</p>
           </CardContent>
         </Card>
       )}

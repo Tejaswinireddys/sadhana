@@ -3615,4 +3615,108 @@ export const EXTRAS: Record<string, AsanaExtras> = {
     },
     stepMotions: ["ground", "lift", "leg-extend", "balance", "settle"],
   },
+  "ardha-navasana": {
+    avoidIf: [
+      { condition: "Acute low-back pain", severity: "avoid" },
+      { condition: "Neck injury — support the head", severity: "modify" },
+      { condition: "Pregnancy", severity: "avoid" },
+    ],
+    variations: {
+      beginner: { description: "Keep the hands behind the thighs and toes lightly on the floor.", props: ["none"], cues: ["Chest stays lifted", "Low belly draws in", "Toes can tap"], holdSeconds: 15 },
+      intermediate: { description: "Shins parallel, hands reaching forward beside the legs.", props: ["none"], cues: ["Spine long", "Gaze soft forward", "Steady breath"], holdSeconds: 30 },
+      advanced: { description: "Lower the torso slightly more while keeping the chest open and legs lifted.", props: ["none"], cues: ["Core endures", "Neck soft", "No breath holding"], holdSeconds: 40 },
+    },
+    stepMotions: ["ground", "lift", "exhale", "arm-extend", "settle"],
+  },
+  "marichyasana-a": {
+    avoidIf: [
+      { condition: "Hamstring tear", severity: "avoid" },
+      { condition: "Shoulder injury — skip the bind", severity: "modify" },
+      { condition: "Pregnancy — avoid deep compression", severity: "avoid" },
+    ],
+    variations: {
+      beginner: { description: "Sit on a blanket and hold a strap around the extended foot without binding.", props: ["blanket", "strap"], cues: ["Hips elevated", "Spine long", "Gentle fold"], holdSeconds: 20 },
+      intermediate: { description: "Wrap the arm around the bent shin and clasp behind the back while folding.", props: ["none"], cues: ["Inhale length", "Exhale fold", "Shoulders soft"], holdSeconds: 35 },
+      advanced: { description: "Deepen the fold with a firm bind and longer hold.", props: ["none"], cues: ["Belly toward the thigh", "Even breath", "Neck soft"], holdSeconds: 45 },
+    },
+    stepMotions: ["ground", "limb-rotate", "arm-extend", "torso-fold", "settle"],
+  },
+  "eka-pada-adho-mukha-svanasana": {
+    avoidIf: [
+      { condition: "Wrist injury", severity: "modify" },
+      { condition: "Shoulder instability", severity: "caution" },
+      { condition: "High blood pressure — keep head above heart if needed", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Lift the leg with a bent knee, hips staying mostly square.", props: ["none"], cues: ["Soft knee lift", "Shoulders steady", "Press hands down"], holdSeconds: 10 },
+      intermediate: { description: "Straight leg lift with toes pointing down and hips square.", props: ["none"], cues: ["Leg reaches long", "Hips level", "Neck soft"], holdSeconds: 20 },
+      advanced: { description: "Open the hip, stack the hips, and bend the knee toward the sky.", props: ["none"], cues: ["Hip opens", "Supporting leg strong", "Steady breath"], holdSeconds: 25 },
+    },
+    stepMotions: ["ground", "hip-shift", "leg-extend", "balance", "settle"],
+  },
+  "parsva-uttanasana": {
+    avoidIf: [
+      { condition: "Hamstring injury", severity: "avoid" },
+      { condition: "Low-back disc issues — soft knees", severity: "modify" },
+      { condition: "Vertigo — rise slowly", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Bend the knees and rest hands on blocks toward one foot.", props: ["blocks"], cues: ["Soft knees", "Long spine", "Side body opens"], holdSeconds: 15 },
+      intermediate: { description: "Walk both hands toward one foot with a clearer fold.", props: ["none"], cues: ["Sit bones lift", "Neck soft", "Even weight in feet"], holdSeconds: 25 },
+      advanced: { description: "Deeper fold with straighter legs and longer side stretch.", props: ["none"], cues: ["Hamstrings long", "Side waist lengthens", "Calm breath"], holdSeconds: 35 },
+    },
+    stepMotions: ["ground", "torso-fold", "hip-shift", "settle", "settle"],
+  },
+  "salamba-setu-bandhasana": {
+    avoidIf: [
+      { condition: "Acute neck injury", severity: "avoid" },
+      { condition: "Recent spinal surgery", severity: "avoid" },
+      { condition: "Pregnancy — use a lower prop or skip", severity: "modify" },
+    ],
+    variations: {
+      beginner: { description: "Lowest block height under the sacrum, feet wide.", props: ["block"], cues: ["Gentle lift", "Throat soft", "Easy breath"], holdSeconds: 60 },
+      intermediate: { description: "Medium block height with arms resting by the sides.", props: ["block"], cues: ["Chest opens", "Legs heavy", "Jaw soft"], holdSeconds: 120 },
+      advanced: { description: "Higher block or longer hold with cactus arms.", props: ["block"], cues: ["Heart soft", "Steady stillness", "Slow exhales"], holdSeconds: 180 },
+    },
+    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+  },
+  "parivrtta-upavistha-konasana": {
+    avoidIf: [
+      { condition: "Hamstring tear", severity: "avoid" },
+      { condition: "Groin injury", severity: "avoid" },
+      { condition: "Pregnancy — keep the twist mild", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Sit on a blanket and hold a strap around one foot without forcing the fold.", props: ["blanket", "strap"], cues: ["Wide comfortable V", "Spine long", "Gentle turn"], holdSeconds: 20 },
+      intermediate: { description: "Turn toward one leg and fold with both hands on the foot.", props: ["none"], cues: ["Both sit bones down", "Side waist lengthens", "Soft neck"], holdSeconds: 35 },
+      advanced: { description: "Deeper fold over the leg with longer hold and calm breath.", props: ["none"], cues: ["Inner thighs open", "Twist stays honest", "Even breath"], holdSeconds: 45 },
+    },
+    stepMotions: ["ground", "twist", "torso-fold", "settle", "settle"],
+  },
+  "camatkarasana": {
+    avoidIf: [
+      { condition: "Wrist or shoulder injury", severity: "avoid" },
+      { condition: "Acute low-back pain", severity: "avoid" },
+      { condition: "Pregnancy", severity: "avoid" },
+    ],
+    variations: {
+      beginner: { description: "Keep the bottom knee down and open the top arm without a deep backbend.", props: ["none"], cues: ["Knee supports", "Chest opens gently", "Soft gaze"], holdSeconds: 10 },
+      intermediate: { description: "Full Wild Thing from Side Plank with hips lifted.", props: ["none"], cues: ["Press the hand down", "Hips high", "Top arm reaches back"], holdSeconds: 20 },
+      advanced: { description: "Deeper backbend with longer reach and steadier hold.", props: ["none"], cues: ["Heart opens", "Supporting shoulder stable", "Joyful breath"], holdSeconds: 30 },
+    },
+    stepMotions: ["ground", "lift", "arm-extend", "balance", "settle"],
+  },
+  "makara-adho-mukha-svanasana": {
+    avoidIf: [
+      { condition: "Shoulder injury", severity: "avoid" },
+      { condition: "Neck issues — keep the head off the floor", severity: "modify" },
+      { condition: "High blood pressure — come down if dizzy", severity: "caution" },
+    ],
+    variations: {
+      beginner: { description: "Generous knee bend with forearms on a blanket.", props: ["blanket"], cues: ["Hips lift", "Knees soft", "Head hangs free"], holdSeconds: 15 },
+      intermediate: { description: "Classic Dolphin with active legs and steady forearms.", props: ["none"], cues: ["Elbows under shoulders", "Press forearms down", "Heels reach back"], holdSeconds: 30 },
+      advanced: { description: "Longer hold with straighter legs as preparation for Forearm Stand.", props: ["none"], cues: ["Shoulders strong", "Core draws in", "Calm breath"], holdSeconds: 40 },
+    },
+    stepMotions: ["ground", "lift", "leg-extend", "settle", "settle"],
+  },
 };

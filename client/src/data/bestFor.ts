@@ -126,6 +126,14 @@ export const BEST_FOR: Record<string, string[]> = {
   "bhujapidasana": ["Advanced arm-balance goals", "Hip compression + strength combo", "Playful peak-pose practice"],
   "galavasana": ["Flying pigeon peak days", "Hip opening with arm strength", "Advanced balance challenges"],
   "eka-pada-bakasana": ["Progressing beyond Crow", "Single-leg arm-balance control", "Advanced core and shoulder days"],
+  "ardha-navasana": ["Core endurance without full Boat", "Building heat on the floor", "Posture support days"],
+  "marichyasana-a": ["Seated hamstring + bind practice", "Digestion-friendly folds", "Ashtanga primary series work"],
+  "eka-pada-adho-mukha-svanasana": ["Warming up for lunges", "Hip opening in flows", "Sun salutation variations"],
+  "parsva-uttanasana": ["Side-body stretch after sitting", "Hamstring work with a twist of direction", "Standing fold variety"],
+  "salamba-setu-bandhasana": ["Restorative heart opening", "Before bed chest release", "Tired-day backbends"],
+  "parivrtta-upavistha-konasana": ["Wide-leg flexibility days", "Side-waist opening", "Calm seated practice"],
+  "camatkarasana": ["Playful heart opening", "Energizing side-plank progressions", "Creative flow peaks"],
+  "makara-adho-mukha-svanasana": ["Shoulder strength for inversions", "Prep for Forearm Stand", "Building upside-down confidence"],
 };
 
 export function bestForFor(slug: string, fallback: string[] = ["Everyday practice", "Building body awareness", "Moving with breath"]): string[] {

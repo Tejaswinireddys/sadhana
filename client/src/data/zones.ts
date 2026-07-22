@@ -773,5 +773,45 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Core", sensation: "Controlling the extended leg", intensity: "strong", primary: true },
     { region: "Shoulders", sensation: "Stable shelf for the remaining knee", intensity: "medium", primary: false },
   ],
+  "ardha-navasana": [
+    { region: "Core", sensation: "Steady endurance through the belly", intensity: "strong", primary: true },
+    { region: "Hip flexors", sensation: "Working to keep the shins lifted", intensity: "medium", primary: true },
+    { region: "Spine", sensation: "Lengthening while leaning back", intensity: "low", primary: false },
+  ],
+  "marichyasana-a": [
+    { region: "Hamstrings", sensation: "Long stretch on the extended leg", intensity: "strong", primary: true },
+    { region: "Shoulders", sensation: "Opening through the bind", intensity: "medium", primary: true },
+    { region: "Spine", sensation: "Folding and wrapping", intensity: "medium", primary: false },
+  ],
+  "eka-pada-adho-mukha-svanasana": [
+    { region: "Lifted-leg hip", sensation: "Opening as the leg reaches high", intensity: "medium", primary: true },
+    { region: "Shoulders & arms", sensation: "Bearing weight in Down Dog", intensity: "strong", primary: true },
+    { region: "Standing-leg hamstring", sensation: "Steady stretch", intensity: "medium", primary: false },
+  ],
+  "parsva-uttanasana": [
+    { region: "Hamstrings", sensation: "Deep stretch in the fold", intensity: "strong", primary: true },
+    { region: "Side waist", sensation: "Lengthening toward the foot", intensity: "medium", primary: true },
+    { region: "Low back", sensation: "Softening with bent knees as needed", intensity: "low", primary: false },
+  ],
+  "salamba-setu-bandhasana": [
+    { region: "Chest", sensation: "Gentle opening over the block", intensity: "low", primary: true },
+    { region: "Hip flexors", sensation: "Soft stretch as hips rest elevated", intensity: "low", primary: true },
+    { region: "Low back", sensation: "Supported and eased", intensity: "low", primary: false },
+  ],
+  "parivrtta-upavistha-konasana": [
+    { region: "Inner thighs", sensation: "Wide-leg opening", intensity: "strong", primary: true },
+    { region: "Hamstrings", sensation: "Long pull on the folded side", intensity: "strong", primary: true },
+    { region: "Side waist", sensation: "Lengthening in the twist-fold", intensity: "medium", primary: false },
+  ],
+  "camatkarasana": [
+    { region: "Chest & shoulders", sensation: "Opening as the top arm reaches back", intensity: "medium", primary: true },
+    { region: "Supporting arm", sensation: "Strong press into the floor", intensity: "strong", primary: true },
+    { region: "Hip flexors", sensation: "Stretch as the hips lift", intensity: "medium", primary: false },
+  ],
+  "makara-adho-mukha-svanasana": [
+    { region: "Shoulders", sensation: "Building strength on the forearms", intensity: "strong", primary: true },
+    { region: "Hamstrings", sensation: "Stretch as the hips lift", intensity: "medium", primary: true },
+    { region: "Core", sensation: "Engaging to support the inverted V", intensity: "medium", primary: false },
+  ],
 };
 

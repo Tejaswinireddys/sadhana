@@ -7,10 +7,18 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/EmptyState";
+import { PoseImage } from "@/components/PoseImage";
 import { ASANAS, PATHWAYS, BREATHING, AFFIRMATIONS } from "@/data/content";
 import { KIDS_POSES, KIDS_BREATH } from "@/data/kids";
 import { Search as SearchIcon, Wind, Route as RouteIcon, Sparkles, LayoutGrid, Smile } from "lucide-react";
+
+const diffColor: Record<string, string> = {
+  Beginner: "bg-secondary/20 text-secondary-foreground border-secondary/30",
+  Intermediate: "bg-primary/15 text-primary border-primary/30",
+  Advanced: "bg-destructive/15 text-destructive border-destructive/30",
+};
 
 // Read ?q=... from the URL. wouter's hash navigation stores query params on
 // `location.search` (e.g. "http://host/?q=warrior#/search"), so we read there;
@@ -81,13 +89,14 @@ export default function Search() {
 
     const poses = ASANAS.filter((a) => {
       // Primary substring match across sanskrit, english, category, summary,
-      // benefits, and step text (all case-insensitive).
+      // benefits, best-for intents, and step text (all case-insensitive).
       const hay = [
         a.sanskrit,
         a.english,
         a.category,
         a.summary,
         a.benefits.join(" "),
+        a.bestFor.join(" "),
         a.steps.map((s) => s.text).join(" "),
       ]
         .join(" ")
@@ -182,28 +191,41 @@ export default function Search() {
               </h2>
               <div className="grid gap-3 sm:grid-cols-2">
                 {results.poses.map((a) => (
-                  <Link key={a.slug} href={`/asanas/${a.slug}`}>
+                  <Link
+                    key={a.slug}
+                    href={`/asanas/${a.slug}`}
+                    className="block cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
                     <Card
-                      className="cursor-pointer shadow-soft transition-colors hover:bg-accent/40"
+                      className="cursor-pointer shadow-soft transition-colors duration-200 hover:bg-accent/40"
                       data-testid={`search-result-pose-${a.slug}`}
                     >
                       <CardContent className="flex items-center gap-3 p-3">
-                        <img
-                          src={`${import.meta.env.BASE_URL}poses/${a.slug}.png`}
-                          alt={a.english}
-                          className="h-14 w-14 shrink-0 rounded-lg bg-accent/40 object-cover"
-                          draggable={false}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.visibility = "hidden";
-                          }}
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate font-serif text-base" data-testid={`search-pose-english-${a.slug}`}>
-                            {a.english}
-                          </p>
+                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg">
+                          <PoseImage
+                            slug={a.slug}
+                            alt={a.english}
+                            rounded="rounded-lg"
+                            aspect="aspect-square"
+                            shadow={false}
+                            breath={false}
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="truncate font-serif text-base" data-testid={`search-pose-english-${a.slug}`}>
+                              {a.english}
+                            </p>
+                            <Badge variant="outline" className={`shrink-0 text-[10px] ${diffColor[a.difficulty]}`}>
+                              {a.difficulty}
+                            </Badge>
+                          </div>
                           <p className="truncate text-sm italic text-muted-foreground" data-testid={`search-pose-sanskrit-${a.slug}`}>
                             {a.sanskrit}
                           </p>
+                          {a.bestFor[0] && (
+                            <p className="truncate text-xs text-primary/90">Best for · {a.bestFor[0]}</p>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

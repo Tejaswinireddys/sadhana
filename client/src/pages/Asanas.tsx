@@ -97,9 +97,9 @@ export default function Asanas() {
         {options.map((o) => (
           <Button
             key={o}
-            size="sm"
             variant={active === o ? "default" : "outline"}
             onClick={() => onSelect(o)}
+            className="min-h-[44px] cursor-pointer px-3 transition-colors duration-200"
             data-testid={`filter-${group}-${o.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
           >
             {o}
@@ -121,10 +121,9 @@ export default function Asanas() {
       {/* Favorites tab + count chip */}
       <div className="flex flex-wrap items-center gap-3">
         <Button
-          size="sm"
           variant={favoritesOnly ? "default" : "outline"}
           onClick={() => setFavoritesOnly((v) => !v)}
-          className="gap-1.5"
+          className="min-h-[44px] cursor-pointer gap-1.5 transition-colors duration-200"
           data-testid="filter-favorites"
         >
           <Heart className={cn("h-4 w-4", favoritesOnly && "fill-current")} />
@@ -176,12 +175,13 @@ export default function Asanas() {
               >
                 {/* Favorite toggle */}
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     toggleFav.mutate({ slug: a.slug, isFav });
                   }}
-                  className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/85 text-foreground shadow-soft backdrop-blur transition-colors hover:bg-background"
+                  className="absolute right-3 top-3 z-10 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-background/85 text-foreground shadow-soft backdrop-blur transition-colors duration-200 hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label={isFav ? `Remove ${a.english} from favorites` : `Add ${a.english} to favorites`}
                   aria-pressed={isFav}
                   data-testid={`button-favorite-${a.slug}`}
@@ -189,9 +189,9 @@ export default function Asanas() {
                   <Heart className={cn("h-5 w-5", isFav ? "fill-primary text-primary" : "text-muted-foreground")} />
                 </button>
 
-                <Link href={`/asanas/${a.slug}`}>
-                  <div className="cursor-pointer">
-                    <div className="transition-transform group-hover:scale-[1.02]">
+                <Link href={`/asanas/${a.slug}`} className="block cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <div>
+                    <div className="transition-transform duration-200 group-hover:scale-[1.02]">
                       <PoseImage
                         slug={a.slug}
                         alt={a.english}
@@ -204,14 +204,19 @@ export default function Asanas() {
                     </div>
                     <CardContent className="space-y-2 p-4">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-serif text-lg leading-tight">{a.sanskrit}</h3>
-                          <p className="text-sm text-muted-foreground">{a.english}</p>
+                        <div className="min-w-0">
+                          <h3 className="font-serif text-lg leading-tight">{a.english}</h3>
+                          <p className="text-sm italic text-muted-foreground">{a.sanskrit}</p>
                         </div>
                         <Badge variant="outline" className={`shrink-0 ${diffColor[a.difficulty]}`}>
                           {a.difficulty}
                         </Badge>
                       </div>
+                      {a.bestFor[0] && (
+                        <p className="truncate text-xs text-primary/90" data-testid={`asana-best-for-${a.slug}`}>
+                          Best for · {a.bestFor[0]}
+                        </p>
+                      )}
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>{a.category}</span>
                         <span>{a.hold}</span>
