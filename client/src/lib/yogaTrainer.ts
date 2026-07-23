@@ -170,14 +170,30 @@ function estimatedMinutes(poses: TrainerPose[]): number {
 }
 
 /** Compose a personalized practice from the trainer check-in. */
-export function composeTrainerSession(c: TrainerCheckIn): TrainerSession {
+export function composeTrainerSession(
+  c: TrainerCheckIn,
+  opts?: { preferSlugs?: string[] },
+): TrainerSession {
   const injured = c.body.some((b) => b.toLowerCase().includes("injured"));
   const need = (c.need || "movement").toLowerCase();
   const key = SEQUENCES[need] ? need : "movement";
+  const prefer = (opts?.preferSlugs ?? []).filter(hasSlug);
 
   let slugs = injured
     ? ["salamba-balasana", "constructive-rest", "chair-viparita-karani", "parsva-savasana"]
     : [...(SEQUENCES[key] ?? SEQUENCES.movement)];
+
+  // Active Men / Women / Pregnancy path: weave preferred poses into the session.
+  if (!injured && prefer.length > 0) {
+    const mixed: string[] = [];
+    const seq = slugs.filter(hasSlug);
+    const maxPrefer = Math.min(4, prefer.length);
+    for (let i = 0; i < Math.max(seq.length, maxPrefer); i++) {
+      if (i < maxPrefer) mixed.push(prefer[i]);
+      if (i < seq.length) mixed.push(seq[i]);
+    }
+    slugs = mixed;
+  }
 
   // Prefer poses that exist in the catalog.
   slugs = slugs.filter(hasSlug);

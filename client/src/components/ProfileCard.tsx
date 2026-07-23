@@ -162,7 +162,7 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
                 <Check className="mr-1.5 h-4 w-4" /> Currently active
               </>
             ) : (
-              "Activate this path"
+              `Use ${profile.name}`
             )}
           </Button>
         </div>

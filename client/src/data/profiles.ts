@@ -280,3 +280,17 @@ export function profileById(id: string | null | undefined): Profile | undefined 
   if (!id) return undefined;
   return PROFILES.find((p) => p.id === id);
 }
+
+/** Library / register audience chip derived from an active profile id. */
+export type AudienceChip = "All" | "Men" | "Women" | "Pregnancy";
+
+export function audienceChipFromProfileId(id: string | null | undefined): AudienceChip {
+  if (id === "mens-strength") return "Men";
+  if (id === "womens-wellness") return "Women";
+  if (id === "pregnancy") return "Pregnancy";
+  return "All";
+}
+
+export function isAudienceProfile(id: string | null | undefined): boolean {
+  return id === "mens-strength" || id === "womens-wellness" || id === "pregnancy";
+}

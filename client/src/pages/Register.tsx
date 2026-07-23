@@ -59,11 +59,38 @@ const EXPERIENCE: { id: ExperienceLevel; label: string; hint: string }[] = [
 
 const INTENT_TO_PROFILE: Partial<Record<PracticeIntent, string>> = {
   calm: "stress-relief",
-  strength: "mens-strength",
+  strength: "weight-loss-energy",
   flexibility: "flexibility-splits",
   sleep: "better-sleep",
   explore: "working-professional",
 };
+
+type PathAudience = "all" | "everyday" | "men" | "women" | "pregnancy";
+
+const PATH_AUDIENCE_FILTERS: { id: PathAudience; label: string }[] = [
+  { id: "all", label: "All paths" },
+  { id: "everyday", label: "Everyday" },
+  { id: "men", label: "Men" },
+  { id: "women", label: "Women" },
+  { id: "pregnancy", label: "Pregnancy" },
+];
+
+const PATH_AUDIENCE_PROFILE: Partial<Record<PathAudience, string>> = {
+  men: "mens-strength",
+  women: "womens-wellness",
+  pregnancy: "pregnancy",
+};
+
+function matchesPathAudience(
+  profile: (typeof PROFILES)[number],
+  audience: PathAudience,
+): boolean {
+  if (audience === "all") return true;
+  if (audience === "men") return profile.id === "mens-strength";
+  if (audience === "women") return profile.id === "womens-wellness";
+  if (audience === "pregnancy") return profile.id === "pregnancy";
+  return !["mens-strength", "womens-wellness", "pregnancy"].includes(profile.id);
+}
 
 const HERO_SRC = `${import.meta.env.BASE_URL}poses/adho-mukha-svanasana.png`;
 const TOTAL_STEPS = 6; // 0 welcome … 5 confirm
@@ -109,6 +136,7 @@ export default function Register() {
   const [name, setName] = useState(() => readString(KEYS.practitionerName) ?? "");
   const [nameError, setNameError] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [pathAudience, setPathAudience] = useState<PathAudience>("all");
   const [experience, setExperience] = useState<ExperienceLevel | null>(
     () => (readString(KEYS.experienceLevel) as ExperienceLevel | null) ?? null,
   );
@@ -140,6 +168,11 @@ export default function Register() {
     [],
   );
 
+  const visiblePathProfiles = useMemo(
+    () => featuredProfiles.filter((p) => matchesPathAudience(p, pathAudience)),
+    [featuredProfiles, pathAudience],
+  );
+
   const selectedProfile = profileId ? PROFILES.find((p) => p.id === profileId) : null;
 
   const activate = useMutation({
@@ -160,6 +193,22 @@ export default function Register() {
       const suggested = INTENT_TO_PROFILE[id];
       if (suggested) setProfileId(suggested);
     }
+  };
+
+  const pickPathAudience = (audience: PathAudience) => {
+    setPathAudience(audience);
+    const locked = PATH_AUDIENCE_PROFILE[audience];
+    if (locked) {
+      setProfileId(locked);
+      return;
+    }
+    // Leaving Men/Women/Pregnancy — keep current pick only if it still matches.
+    setProfileId((current) => {
+      if (!current) return current;
+      const profile = PROFILES.find((p) => p.id === current);
+      if (profile && matchesPathAudience(profile, audience)) return current;
+      return INTENT_TO_PROFILE[intent ?? "explore"] ?? "working-professional";
+    });
   };
 
   const validateName = () => {
@@ -433,11 +482,37 @@ export default function Register() {
                     <header className="space-y-2">
                       <h2 className="font-serif text-3xl font-semibold tracking-tight">Choose a starting path</h2>
                       <p className="text-muted-foreground">
-                        Profiles shape recommendations on Home. Switch anytime from Profiles.
+                        Pick Men, Women, Pregnancy, or an everyday goal — this shapes Home recommendations.
+                        Switch anytime from My path.
                       </p>
                     </header>
+                    <div
+                      className="flex flex-wrap gap-2"
+                      role="group"
+                      aria-label="Filter paths by audience"
+                    >
+                      {PATH_AUDIENCE_FILTERS.map((f) => {
+                        const on = pathAudience === f.id;
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => pickPathAudience(f.id)}
+                            className={`inline-flex min-h-11 cursor-pointer items-center rounded-full border px-4 text-sm font-medium transition-colors ${
+                              on
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-card text-foreground hover:bg-accent/40"
+                            }`}
+                            data-testid={`register-audience-${f.id}`}
+                          >
+                            {f.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                     <div className="grid max-h-[min(52vh,24rem)] gap-2 overflow-y-auto pr-1">
-                      {featuredProfiles.map((p) => {
+                      {visiblePathProfiles.map((p) => {
                         const Icon = resolveIcon(p.icon);
                         const selected = profileId === p.id;
                         return (
@@ -462,6 +537,11 @@ export default function Register() {
                         );
                       })}
                     </div>
+                    {pathAudience === "men" && (
+                      <p className="text-sm text-muted-foreground" data-testid="register-men-hint">
+                        Men’s path selected — athletic hips, chest mobility, and strength-friendly recovery.
+                      </p>
+                    )}
                     <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
                       <Button variant="ghost" className="min-h-11 cursor-pointer" onClick={() => go(2)}>
                         <ArrowLeft className="mr-1.5 h-4 w-4" /> Back

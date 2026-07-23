@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PoseImage } from "@/components/PoseImage";
 import { usePractice } from "@/context/PracticeContext";
 import { asanaBySlug } from "@/data/content";
+import { profileById } from "@/data/profiles";
 import { readString, writeString } from "@/lib/localPrefs";
 import {
   BODY_OPTIONS,
@@ -20,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Play, RefreshCw, Sparkles, UserRound } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import type { UserProfile } from "@shared/schema";
 
 const TOUR_KEY = "sadhana.trainer.tourDone";
 
@@ -82,6 +85,10 @@ export default function Trainer() {
   useDocumentTitle("Yoga Trainer · Sadhana");
   const [, navigate] = useLocation();
   const { loadSession } = usePractice();
+  const { data: activeProfileRow } = useQuery<UserProfile | null>({
+    queryKey: ["/api/profile/active"],
+  });
+  const activeProfile = profileById(activeProfileRow?.profileId);
 
   const [step, setStep] = useState(0);
   const [body, setBody] = useState<string[]>([]);
@@ -116,13 +123,16 @@ export default function Trainer() {
   const doCompose = async () => {
     setPhase("composing");
     const started = Date.now();
-    const session = composeTrainerSession({
-      body,
-      soreParts: showBodyParts ? soreParts.filter((p) => p !== "None specific") : [],
-      energy: energy || "Balanced",
-      timeMinutes: timeMinutes ?? 10,
-      need: need || "movement",
-    });
+    const session = composeTrainerSession(
+      {
+        body,
+        soreParts: showBodyParts ? soreParts.filter((p) => p !== "None specific") : [],
+        energy: energy || "Balanced",
+        timeMinutes: timeMinutes ?? 10,
+        need: need || "movement",
+      },
+      { preferSlugs: activeProfile?.recommendedAsanas },
+    );
     const elapsed = Date.now() - started;
     if (elapsed < 900) await new Promise((r) => setTimeout(r, 900 - elapsed));
     setResult(session);
@@ -288,7 +298,8 @@ export default function Trainer() {
               </span>
               <h2 className="font-serif text-xl">Meet your Yoga Trainer</h2>
               <p className="text-sm text-muted-foreground">
-                Answer four quick questions and get a practice shaped for your body right now —
+                Answer four quick questions and get a practice shaped for your body right now
+                {activeProfile ? ` — with ${activeProfile.name} poses woven in` : ""} —
                 then flow into a guided session with voice and timers.
               </p>
               <Button

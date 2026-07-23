@@ -8,13 +8,13 @@ import { PoseImage } from "@/components/PoseImage";
 import { EmptyState } from "@/components/EmptyState";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ASANAS, CATEGORIES, type Category, type Asana } from "@/data/content";
-import { profileById } from "@/data/profiles";
+import { audienceChipFromProfileId, profileById, type AudienceChip } from "@/data/profiles";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useProgressiveList } from "@/hooks/useProgressiveList";
-import type { FavoriteAsana } from "@shared/schema";
+import type { FavoriteAsana, UserProfile } from "@shared/schema";
 import { Heart, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FadeIn, Pressable } from "@/components/motion";
+import { FadeIn } from "@/components/motion";
 
 const diffColor: Record<string, string> = {
   Beginner: "bg-secondary/20 text-secondary-foreground border-secondary/30",
@@ -32,7 +32,7 @@ const PROP_FILTERS = ["Any props", "No props", "Needs block", "Needs strap", "Ne
 type PropFilter = (typeof PROP_FILTERS)[number];
 
 const AUDIENCE_FILTERS = ["All", "Men", "Women", "Pregnancy"] as const;
-type AudienceFilter = (typeof AUDIENCE_FILTERS)[number];
+type AudienceFilter = AudienceChip;
 
 const MEN_SLUGS = new Set(profileById("mens-strength")?.recommendedAsanas ?? []);
 const WOMEN_SLUGS = new Set(profileById("womens-wellness")?.recommendedAsanas ?? []);
@@ -58,6 +58,7 @@ export default function Asanas() {
   useDocumentTitle("Asana Library · Sadhana");
   const [category, setCategory] = useState<Category | "All">("All");
   const [audience, setAudience] = useState<AudienceFilter>("All");
+  const [audienceTouched, setAudienceTouched] = useState(false);
   const [level, setLevel] = useState<LevelFilter>("All");
   const [time, setTime] = useState<TimeFilter>("Any time");
   const [prop, setProp] = useState<PropFilter>("Any props");
@@ -66,7 +67,17 @@ export default function Asanas() {
   const { data: favorites = [] } = useQuery<FavoriteAsana[]>({
     queryKey: ["/api/favorites/asanas"],
   });
+  const { data: activeProfileRow } = useQuery<UserProfile | null>({
+    queryKey: ["/api/profile/active"],
+  });
   const favSet = useMemo(() => new Set(favorites.map((f) => f.slug)), [favorites]);
+
+  // Active Men / Women / Pregnancy path should open the matching library filter.
+  useEffect(() => {
+    if (audienceTouched) return;
+    const chip = audienceChipFromProfileId(activeProfileRow?.profileId);
+    if (chip !== "All") setAudience(chip);
+  }, [activeProfileRow?.profileId, audienceTouched]);
 
   const toggleFav = useMutation({
     mutationFn: ({ slug, isFav }: { slug: string; isFav: boolean }) =>
@@ -115,6 +126,12 @@ export default function Asanas() {
     setProp("Any props");
     setFavoritesOnly(false);
     setAudience("All");
+    setAudienceTouched(true);
+  };
+
+  const selectAudience = (next: AudienceFilter) => {
+    setAudienceTouched(true);
+    setAudience(next);
   };
 
   const FilterRow = ({
@@ -134,20 +151,19 @@ export default function Asanas() {
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <div className="flex flex-wrap gap-2" role="group" aria-label={label}>
         {options.map((o) => (
-          <Pressable key={o}>
-            <Button
-              variant={active === o ? "default" : "outline"}
-              onClick={() => onSelect(o)}
-              aria-pressed={active === o}
-              className={cn(
-                "min-h-[44px] cursor-pointer px-3 transition-colors duration-200",
-                active === o && "shadow-soft",
-              )}
-              data-testid={`filter-${group}-${o.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-            >
-              {o}
-            </Button>
-          </Pressable>
+          <Button
+            key={o}
+            variant={active === o ? "default" : "outline"}
+            onClick={() => onSelect(o)}
+            aria-pressed={active === o}
+            className={cn(
+              "min-h-[44px] cursor-pointer px-3 transition-colors duration-200",
+              active === o && "shadow-soft",
+            )}
+            data-testid={`filter-${group}-${o.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+          >
+            {o}
+          </Button>
         ))}
       </div>
     </div>
@@ -189,9 +205,19 @@ export default function Asanas() {
           label="Audience"
           options={AUDIENCE_FILTERS}
           active={audience}
-          onSelect={setAudience}
+          onSelect={selectAudience}
           group="audience"
         />
+        {audience !== "All" && (
+          <p className="text-xs text-muted-foreground" data-testid="audience-filter-hint">
+            Showing {audience.toLowerCase()} practice poses
+            {activeProfileRow?.profileId &&
+            audienceChipFromProfileId(activeProfileRow.profileId) === audience
+              ? " from your active path"
+              : ""}
+            .
+          </p>
+        )}
         <p className="text-xs text-muted-foreground">
           Looking for kids stories?{" "}
           <Link href="/kids" className="inline-flex items-center gap-1 text-primary hover:underline">
