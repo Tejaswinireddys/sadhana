@@ -51,7 +51,7 @@ const STEPS = [
 const FAQ = [
   {
     q: "Is Sadhana free?",
-    a: "Yes. Sadhana is free and open source. Creating a practice saves your name and path on this device — no email or password required.",
+    a: "Yes. Sadhana is free and open source. The create-practice flow saves your intent, name, path, and preferences on this device — no email or password required.",
   },
   {
     q: "Do I need yoga experience?",
@@ -220,7 +220,7 @@ export default function Landing() {
           <div className="surface-banner mx-auto max-w-5xl border-primary/25 p-8 text-center md:p-12">
             <h2 className="font-serif text-3xl font-semibold tracking-tight">Ready when you are</h2>
             <p className="mx-auto mt-3 max-w-md text-muted-foreground">
-              Create your practice identity, pick a path, and begin. You can revisit this overview anytime from Settings.
+              Walk through a short setup — intent, name, path, and preferences — then begin. You can revisit this overview anytime from Settings.
             </p>
             <Button size="lg" className="mt-6 min-h-12 cursor-pointer" asChild data-testid="landing-cta-final">
               <Link href="/register">

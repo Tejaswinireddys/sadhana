@@ -46,6 +46,8 @@ export const KEYS = {
   onboardingDone: "sadhana.onboarding.done",
   welcomeSeen: "sadhana.welcome.seen",
   practitionerName: "sadhana.practitioner.name",
+  practiceIntent: "sadhana.practice.intent",
+  experienceLevel: "sadhana.experience.level",
   kidsGateDay: "sadhana.kidsGate.unlockedDay",
   recentSearches: "sadhana.recentSearches",
   reminder: "sadhana.reminder",
@@ -58,3 +60,14 @@ export type ReminderPrefs = {
   hour: number;
   notifications: boolean;
 };
+
+/** Why the practitioner is starting — set during registration. */
+export type PracticeIntent =
+  | "calm"
+  | "strength"
+  | "flexibility"
+  | "sleep"
+  | "explore";
+
+/** Self-reported experience — set during registration. */
+export type ExperienceLevel = "new" | "some" | "regular";
