@@ -17,9 +17,12 @@ import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageFade } from "@/components/motion";
 
-/** Eager: first paint + marketing entry. Everything else is route-split. */
+/** Eager: first paint + marketing / registration entry. Everything else is route-split. */
 import Home from "@/pages/Home";
 import Landing from "@/pages/Landing";
+import Register from "@/pages/Register";
+
+const MARKETING_PATHS = new Set(["/welcome", "/register"]);
 
 function lazyPage<T extends ComponentType<any>>(loader: () => Promise<{ default: T }>) {
   return lazy(loader);
@@ -65,8 +68,8 @@ function WelcomeRedirect() {
       writeString(KEYS.welcomeSeen, "1");
       return;
     }
-    if (location !== "/welcome") {
-      navigate("/welcome");
+    if (!MARKETING_PATHS.has(location)) {
+      navigate("/register");
     }
   }, [location, navigate]);
   return null;
@@ -78,6 +81,7 @@ function AppRouter() {
     <PageFade routeKey={location.split("?")[0] || "/"}>
       <Suspense fallback={<RouteFallback />}>
         <Switch>
+          <Route path="/register" component={Register} />
           <Route path="/welcome" component={Landing} />
           <Route path="/" component={Home} />
           <Route path="/asanas" component={Asanas} />
@@ -108,19 +112,19 @@ function AppRouter() {
 function AppShell() {
   const [location] = useLocation();
   const welcomeSeen = !!readString(KEYS.welcomeSeen);
-  const onWelcome = location === "/welcome";
+  const onMarketing = MARKETING_PATHS.has(location);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    if (welcomeSeen && !onWelcome && !readString(KEYS.onboardingDone)) {
+    if (welcomeSeen && !onMarketing && !readString(KEYS.onboardingDone)) {
       setShowOnboarding(true);
     }
-  }, [welcomeSeen, onWelcome]);
+  }, [welcomeSeen, onMarketing]);
 
   return (
     <>
       <WelcomeRedirect />
-      {welcomeSeen && !onWelcome && (
+      {welcomeSeen && !onMarketing && (
         <Onboarding open={showOnboarding} onDone={() => setShowOnboarding(false)} />
       )}
       <AppLayout>

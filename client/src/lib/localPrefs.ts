@@ -45,6 +45,7 @@ export function removeKey(key: string): void {
 export const KEYS = {
   onboardingDone: "sadhana.onboarding.done",
   welcomeSeen: "sadhana.welcome.seen",
+  practitionerName: "sadhana.practitioner.name",
   kidsGateDay: "sadhana.kidsGate.unlockedDay",
   recentSearches: "sadhana.recentSearches",
   reminder: "sadhana.reminder",

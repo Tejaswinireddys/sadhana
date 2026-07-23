@@ -29,7 +29,7 @@ import {
   importExport,
   type SadhanaExport,
 } from "@/lib/dataPortability";
-import { KEYS, readJson, writeJson, type ReminderPrefs } from "@/lib/localPrefs";
+import { KEYS, readJson, readString, removeKey, writeJson, writeString, type ReminderPrefs } from "@/lib/localPrefs";
 import type { Session } from "@shared/schema";
 import { Moon, Sun, Download, Upload, Trash2, Bell, CalendarPlus, Info } from "lucide-react";
 import { Link } from "wouter";
@@ -46,6 +46,14 @@ export default function Settings() {
   const [reminder, setReminder] = useState<ReminderPrefs>(() =>
     readJson(KEYS.reminder, DEFAULT_REMINDER),
   );
+  const [practitionerName, setPractitionerName] = useState(() => readString(KEYS.practitionerName) ?? "");
+
+  const savePractitionerName = () => {
+    const trimmed = practitionerName.trim();
+    if (trimmed) writeString(KEYS.practitionerName, trimmed);
+    else removeKey(KEYS.practitionerName);
+    toast({ title: trimmed ? "Name saved" : "Name cleared" });
+  };
 
   const { data: sessions = [] } = useQuery<Session[]>({ queryKey: ["/api/sessions"] });
 
@@ -145,6 +153,40 @@ export default function Settings() {
           Preferences, reminders, and a backup of your practice on this device.
         </p>
       </header>
+
+      <Card className="surface-inset border-0 shadow-none">
+        <CardHeader>
+          <CardTitle className="font-serif text-xl">Your practice</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="settings-name">Display name</Label>
+            <Input
+              id="settings-name"
+              value={practitionerName}
+              onChange={(e) => setPractitionerName(e.target.value)}
+              placeholder="How should Home greet you?"
+              maxLength={48}
+              className="min-h-11"
+              data-testid="settings-name"
+            />
+            <Button
+              variant="outline"
+              className="min-h-11 cursor-pointer"
+              onClick={savePractitionerName}
+              data-testid="settings-save-name"
+            >
+              Save name
+            </Button>
+          </div>
+          <Button variant="outline" className="min-h-11 w-full cursor-pointer justify-start gap-2" asChild>
+            <Link href="/register" data-testid="settings-register">
+              <Info className="h-4 w-4" />
+              Create or update practice setup
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card className="surface-inset border-0 shadow-none">
         <CardHeader>

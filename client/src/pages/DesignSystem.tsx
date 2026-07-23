@@ -183,6 +183,8 @@ export default function DesignSystem() {
       <div className="flex flex-wrap gap-3">
         <Button asChild variant="outline" className="min-h-11 cursor-pointer">
           <Link href="/welcome">Landing</Link>
+          {" · "}
+          <Link href="/register">Register</Link>
         </Button>
         <Button asChild variant="outline" className="min-h-11 cursor-pointer">
           <Link href="/settings">Settings</Link>

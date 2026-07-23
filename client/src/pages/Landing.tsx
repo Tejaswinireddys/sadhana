@@ -1,4 +1,4 @@
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { lazy, Suspense, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
@@ -8,12 +8,9 @@ import {
   ArrowRight,
   BookOpen,
   Compass,
-  Heart,
   Play,
   Smile,
-  Sparkles,
   UserRound,
-  Wind,
 } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
@@ -54,7 +51,7 @@ const STEPS = [
 const FAQ = [
   {
     q: "Is Sadhana free?",
-    a: "Yes. Sadhana is free and open source. Practice data stays on your device identity — no account required.",
+    a: "Yes. Sadhana is free and open source. Creating a practice saves your name and path on this device — no email or password required.",
   },
   {
     q: "Do I need yoga experience?",
@@ -72,16 +69,10 @@ const FAQ = [
 
 export default function Landing() {
   useDocumentTitle("Welcome · Sadhana");
-  const [, navigate] = useLocation();
 
   useEffect(() => {
     document.title = "Sadhana — Calm guided yoga practice";
   }, []);
-
-  const enterApp = () => {
-    writeString(KEYS.welcomeSeen, "1");
-    navigate("/");
-  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -112,8 +103,8 @@ export default function Landing() {
             <Button variant="ghost" className="hidden min-h-11 cursor-pointer sm:inline-flex" asChild>
               <Link href="/asanas">Browse poses</Link>
             </Button>
-            <Button className="min-h-11 cursor-pointer" onClick={enterApp} data-testid="landing-cta-header">
-              Open app
+            <Button className="min-h-11 cursor-pointer" asChild data-testid="landing-cta-header">
+              <Link href="/register">Create practice</Link>
             </Button>
           </div>
         </div>
@@ -127,17 +118,21 @@ export default function Landing() {
           />
           <div className="relative mx-auto grid max-w-5xl gap-10 px-4 py-16 md:grid-cols-2 md:items-center md:px-6 md:py-24">
             <FadeIn className="space-y-6">
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">Sādhanā</p>
-              <h1 className="font-serif text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
+              <p className="font-serif text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                Sadhana
+              </p>
+              <h1 className="font-serif text-3xl font-semibold leading-tight tracking-tight md:text-4xl">
                 A calm, guided yoga practice — free, illustrated, and ready when you are.
               </h1>
               <p className="max-w-md text-base leading-relaxed text-muted-foreground md:text-lg">
                 Pose library, voice-guided sessions, pathways, and kids stories in one quiet companion.
-                No account. No pressure. Just practice.
+                Create your practice on this device — no account required.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button size="lg" className="min-h-12 cursor-pointer" onClick={enterApp} data-testid="landing-cta-primary">
-                  Start practicing <ArrowRight className="ml-1.5 h-4 w-4" />
+                <Button size="lg" className="min-h-12 cursor-pointer" asChild data-testid="landing-cta-primary">
+                  <Link href="/register">
+                    Create your practice <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="min-h-12 cursor-pointer" asChild>
                   <Link href="/trainer">
@@ -145,17 +140,6 @@ export default function Landing() {
                   </Link>
                 </Button>
               </div>
-              <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
-                <li className="inline-flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" /> Guided voice
-                </li>
-                <li className="inline-flex items-center gap-1.5">
-                  <Heart className="h-3.5 w-3.5 text-primary" /> Men · Women · Pregnancy
-                </li>
-                <li className="inline-flex items-center gap-1.5">
-                  <Wind className="h-3.5 w-3.5 text-primary" /> Breath + journal
-                </li>
-              </ul>
             </FadeIn>
             <FadeIn delay={0.08} className="relative mx-auto w-full max-w-md">
               <Suspense
@@ -236,10 +220,12 @@ export default function Landing() {
           <div className="surface-banner mx-auto max-w-5xl border-primary/25 p-8 text-center md:p-12">
             <h2 className="font-serif text-3xl font-semibold tracking-tight">Ready when you are</h2>
             <p className="mx-auto mt-3 max-w-md text-muted-foreground">
-              Open the app, pick a mood or path, and begin. You can explore the landing page again anytime from Settings.
+              Create your practice identity, pick a path, and begin. You can revisit this overview anytime from Settings.
             </p>
-            <Button size="lg" className="mt-6 min-h-12 cursor-pointer" onClick={enterApp} data-testid="landing-cta-final">
-              Enter Sadhana <ArrowRight className="ml-1.5 h-4 w-4" />
+            <Button size="lg" className="mt-6 min-h-12 cursor-pointer" asChild data-testid="landing-cta-final">
+              <Link href="/register">
+                Create your practice <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </section>
@@ -266,6 +252,9 @@ export default function Landing() {
         <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-6">
           <p>Sadhana — a daily, dedicated practice. MIT open source.</p>
           <div className="flex flex-wrap gap-4">
+            <Link href="/register" className="hover:text-foreground">
+              Create practice
+            </Link>
             <Link href="/" className="hover:text-foreground" onClick={() => writeString(KEYS.welcomeSeen, "1")}>
               App home
             </Link>

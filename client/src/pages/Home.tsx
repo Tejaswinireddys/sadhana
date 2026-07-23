@@ -114,6 +114,14 @@ export default function Home() {
   });
 
   const profile = profileById(activeProfileRow?.profileId);
+  const practitionerName = readString(KEYS.practitionerName)?.trim() || null;
+  const welcomeTitle = practitionerName
+    ? profile
+      ? `Welcome back, ${practitionerName} — your ${profile.name} practice`
+      : `Welcome back, ${practitionerName}`
+    : profile
+      ? `Welcome back to your ${profile.name} practice`
+      : "Welcome to your practice";
   const affirmation = dailyAffirmation(new Date(), profile?.recommendedAffirmationsTag);
   const profileAffirmationTheme = profile?.recommendedAffirmationsTag
     ? PROFILE_AFFIRMATION_TAG_MAP[profile.recommendedAffirmationsTag]
@@ -261,7 +269,7 @@ export default function Home() {
     <div className="space-y-10">
       <HomeWelcomeHeader
         dateLabel={formatDate(todayISO())}
-        title={profile ? `Welcome back to your ${profile.name} practice` : "Welcome to your practice"}
+        title={welcomeTitle}
       />
 
       <Reveal className="space-y-4" aria-labelledby="primary-practice-heading">

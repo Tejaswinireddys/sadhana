@@ -244,9 +244,9 @@ function MobileBottomNav() {
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
   const [location] = useLocation();
-  const isWelcome = location === "/welcome";
+  const isChromeFree = location === "/welcome" || location === "/register";
 
-  if (isWelcome) {
+  if (isChromeFree) {
     return <>{children}</>;
   }
 
