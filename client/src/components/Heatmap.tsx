@@ -23,31 +23,40 @@ export function Heatmap({ data }: { data: Cell[] }) {
   }
 
   return (
-    <div data-testid="heatmap" className="flex flex-col gap-2">
-      <div className="flex gap-[3px] overflow-x-auto pb-1">
+    <div data-testid="heatmap" className="flex flex-col gap-2" role="img" aria-label="Practice consistency over the last 12 weeks">
+      <div className="flex gap-[3px] overflow-x-auto pb-1" aria-hidden={!cells.some((c) => c.date)}>
         {weeks.map((week, wi) => (
           <div key={wi} className="flex flex-col gap-[3px]">
-            {week.map((cell, di) => (
-              <Tooltip key={di}>
-                <TooltipTrigger asChild>
-                  <div
-                    className={`h-3.5 w-3.5 rounded-[3px] ${intensityClass(cell.minutes)}`}
-                    data-testid={`heatmap-cell-${cell.date}`}
-                  />
-                </TooltipTrigger>
-                {cell.date && (
-                  <TooltipContent>
-                    {cell.minutes > 0
-                      ? `${cell.minutes} min on ${cell.date}`
-                      : `No practice on ${cell.date}`}
-                  </TooltipContent>
-                )}
-              </Tooltip>
-            ))}
+            {week.map((cell, di) => {
+              const label = cell.date
+                ? cell.minutes > 0
+                  ? `${cell.minutes} minutes on ${cell.date}`
+                  : `No practice on ${cell.date}`
+                : undefined;
+              return (
+                <Tooltip key={di}>
+                  <TooltipTrigger asChild>
+                    <div
+                      className={`h-3.5 w-3.5 rounded-[3px] ${intensityClass(cell.minutes)}`}
+                      data-testid={`heatmap-cell-${cell.date}`}
+                      title={label}
+                      aria-label={label}
+                    />
+                  </TooltipTrigger>
+                  {cell.date && (
+                    <TooltipContent>
+                      {cell.minutes > 0
+                        ? `${cell.minutes} min on ${cell.date}`
+                        : `No practice on ${cell.date}`}
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              );
+            })}
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-hidden>
         <span>Less</span>
         <div className="h-3 w-3 rounded-[3px] bg-muted" />
         <div className="h-3 w-3 rounded-[3px] bg-secondary/30" />
