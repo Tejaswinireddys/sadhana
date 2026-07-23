@@ -17,6 +17,7 @@ import { usePractice } from "@/context/PracticeContext";
 import type { Enrollment, Session } from "@shared/schema";
 import { todayISO, daysSince } from "@/lib/sadhana";
 import { ArrowLeft, CalendarDays, Repeat, Clock, Play, X } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const MS_PER_DAY = 86400000;
 
@@ -49,6 +50,7 @@ function formatSeconds(total: number): string {
 export default function PathwayDetail() {
   const { slug } = useParams();
   const pathway = pathwayBySlug(slug || "");
+  useDocumentTitle(pathway ? `${pathway.name} · Sadhana` : "Pathway · Sadhana");
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { loadSession } = usePractice();

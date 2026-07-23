@@ -10,6 +10,7 @@ import type { Pathway } from "@/data/content";
 import type { Enrollment } from "@shared/schema";
 import { usePractice } from "@/context/PracticeContext";
 import { CalendarDays, Repeat, Clock, Sparkles, Play, Zap, Flower2, Trophy } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 // Build the ordered pose queue for a quick flow from its single week plan.
 // A "each side" note flags a bilateral hold so guided mode re-narrates side 2.
@@ -169,6 +170,7 @@ function PathwayCard({ p, enrolled }: { p: Pathway; enrolled: boolean }) {
 }
 
 export default function Pathways() {
+  useDocumentTitle("Pathways · Sadhana");
   const { data: enrollments = [] } = useQuery<Enrollment[]>({ queryKey: ["/api/enrollments"] });
   const [, navigate] = useLocation();
   const { loadSession } = usePractice();

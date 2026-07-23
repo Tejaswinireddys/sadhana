@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useKidsGate } from "@/context/KidsGateContext";
 import { kidsBreathBySlug, type KidsBreath as KidsBreathType } from "@/data/kids";
 import { ArrowLeft, Play, Pause, Heart } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 // A simple, kid-friendly breath driver. One requestAnimationFrame loop tracks
 // where we are in the inhale/exhale cycle so pause/resume is exact. We expose a
@@ -180,6 +181,7 @@ function Visualizer({ breath, openness, phase }: { breath: KidsBreathType; openn
 }
 
 export default function KidsBreath() {
+  useDocumentTitle("Kids breath · Sadhana");
   const { slug } = useParams();
   const { unlocked } = useKidsGate();
   const breath = kidsBreathBySlug(slug);

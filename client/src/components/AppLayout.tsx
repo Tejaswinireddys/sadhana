@@ -211,7 +211,7 @@ function MobileBottomNav() {
   const [location] = useLocation();
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
       aria-label="Primary"
       data-testid="mobile-bottom-nav"
     >
@@ -254,7 +254,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-primary focus:px-4 focus:py-3 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-soft-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
       >
         Skip to content
       </a>
@@ -301,15 +301,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur md:px-6">
+        <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur lg:px-6">
           <SidebarTrigger data-testid="button-sidebar-toggle" />
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <Logo />
           </div>
         </header>
         <main
           id="main-content"
-          className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 pb-24 md:px-8 md:py-10 md:pb-10"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 pb-28 outline-none lg:px-8 lg:py-10 lg:pb-10"
         >
           {children}
         </main>

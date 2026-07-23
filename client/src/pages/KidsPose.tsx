@@ -11,11 +11,13 @@ import { kidsPoseBySlug } from "@/data/kids";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { todayISO } from "@/lib/sadhana";
 import { ArrowLeft, Check, Star } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function KidsPose() {
   const { slug } = useParams();
   const { unlocked } = useKidsGate();
   const pose = kidsPoseBySlug(slug);
+  useDocumentTitle(pose ? `${pose.title} · Kids · Sadhana` : "Kids story · Sadhana");
   const [done, setDone] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
 

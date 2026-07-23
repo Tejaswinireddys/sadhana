@@ -36,6 +36,7 @@ import {
   Plus,
   Search,
 } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const MAX_POSES = 20;
 
@@ -508,6 +509,7 @@ function BuilderView({
 /* ------------------------------------------------------------------ */
 
 export default function Builder() {
+  useDocumentTitle("Builder · Sadhana");
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { loadSession } = usePractice();

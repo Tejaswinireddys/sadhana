@@ -19,6 +19,7 @@ import {
 } from "@/lib/yogaTrainer";
 import { cn } from "@/lib/utils";
 import { Play, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const TOUR_KEY = "sadhana.trainer.tourDone";
 
@@ -40,8 +41,9 @@ function ChipButton({
       type="button"
       onClick={onClick}
       data-testid={testId}
+      aria-pressed={selected}
       className={cn(
-        "rounded-2xl border px-4 py-4 text-left text-sm font-medium transition-colors",
+        "min-h-11 rounded-2xl border px-4 py-4 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         selected
           ? "border-primary bg-primary/15 text-foreground shadow-soft"
           : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
@@ -77,6 +79,7 @@ function fmtHold(seconds: number, sides?: "once" | "each") {
 }
 
 export default function Trainer() {
+  useDocumentTitle("Yoga Trainer · Sadhana");
   const [, navigate] = useLocation();
   const { loadSession } = usePractice();
 

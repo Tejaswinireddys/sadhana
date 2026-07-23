@@ -132,12 +132,13 @@ export default function Asanas() {
   }) => (
     <div className="space-y-1.5">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" role="group" aria-label={label}>
         {options.map((o) => (
           <Button
             key={o}
             variant={active === o ? "default" : "outline"}
             onClick={() => onSelect(o)}
+            aria-pressed={active === o}
             className="min-h-[44px] cursor-pointer px-3 transition-colors duration-200"
             data-testid={`filter-${group}-${o.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
           >

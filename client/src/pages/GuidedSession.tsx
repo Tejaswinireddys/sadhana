@@ -59,6 +59,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
 import { PoseSvg } from "@/components/PoseSvg";
 import { QUICK_SESSIONS } from "@/data/quickSessions";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 // ---- soft chime (shared with Practice) --------------------------------------
 function playChime() {
@@ -104,6 +105,7 @@ const mmss = (s: number) => {
 };
 
 export default function GuidedSession() {
+  useDocumentTitle("Guided practice · Sadhana");
   const {
     todays,
     meta,

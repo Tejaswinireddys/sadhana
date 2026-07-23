@@ -266,7 +266,8 @@ function SidebarTrigger({
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon"
-      className={cn("h-7 w-7", className)}
+      className={cn("h-11 w-11 min-h-11 min-w-11", className)}
+      aria-label="Toggle navigation menu"
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
@@ -274,7 +275,7 @@ function SidebarTrigger({
       {...props}
     >
       <PanelLeftIcon />
-      <span className="sr-only">Toggle Sidebar</span>
+      <span className="sr-only">Toggle navigation menu</span>
     </Button>
   )
 }

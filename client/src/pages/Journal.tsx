@@ -32,6 +32,7 @@ import { MOOD_ICONS } from "@/lib/moods";
 import type { Journal as JournalEntry } from "@shared/schema";
 import { todayISO, formatShortDate } from "@/lib/sadhana";
 import { Plus, Search, Trash2, Timer } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 type Draft = {
   id?: number;
@@ -44,6 +45,7 @@ type Draft = {
 const emptyDraft: Draft = { title: "", body: "", mood: "", tags: "" };
 
 export default function Journal() {
+  useDocumentTitle("Journal · Sadhana");
   const { toast } = useToast();
   const search = useSearch();
   const { data: entries = [], isLoading } = useQuery<JournalEntry[]>({ queryKey: ["/api/journal"] });

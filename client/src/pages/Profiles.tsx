@@ -5,6 +5,7 @@ import { ProfileCard } from "@/components/ProfileCard";
 import { PROFILES, type Profile } from "@/data/profiles";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { UserProfile } from "@shared/schema";
 import { Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ function matchesFilter(p: Profile, filter: AudienceFilter): boolean {
 }
 
 export default function Profiles() {
+  useDocumentTitle("Practice paths · Sadhana");
   const { toast } = useToast();
   const [filter, setFilter] = useState<AudienceFilter>("all");
   const { data: activeProfile } = useQuery<UserProfile | null>({
@@ -63,7 +65,7 @@ export default function Profiles() {
           your home dashboard and pre-builds today's session — poses and breath, ready to go.
         </p>
         {activeId && (
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex flex-col items-start gap-3 pt-1 sm:flex-row sm:items-center">
             <p className="text-sm text-muted-foreground" data-testid="text-active-profile-note">
               Currently following your path. Want a change?
             </p>
@@ -82,8 +84,8 @@ export default function Profiles() {
       </header>
 
       <div
-        className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        role="tablist"
+        className="flex flex-wrap gap-2"
+        role="group"
         aria-label="Filter practice paths"
       >
         {FILTERS.map((f) => {
@@ -92,11 +94,10 @@ export default function Profiles() {
             <button
               key={f.id}
               type="button"
-              role="tab"
-              aria-selected={on}
+              aria-pressed={on}
               onClick={() => setFilter(f.id)}
               className={cn(
-                "inline-flex h-11 shrink-0 cursor-pointer items-center rounded-full border px-4 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-full border px-4 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 on
                   ? "border-primary bg-primary text-primary-foreground shadow-sm"
                   : "border-border/60 bg-card/80 text-foreground hover:border-primary/30 hover:bg-primary/5",
@@ -109,7 +110,12 @@ export default function Profiles() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div
+        className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3"
+        role="region"
+        aria-live="polite"
+        aria-label={`${visible.length} practice path${visible.length === 1 ? "" : "s"}`}
+      >
         {visible.map((p) => (
           <ProfileCard key={p.id} profile={p} active={p.id === activeId} />
         ))}

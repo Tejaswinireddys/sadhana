@@ -13,6 +13,7 @@ import { PoseImage } from "@/components/PoseImage";
 import { ASANAS, PATHWAYS, BREATHING, AFFIRMATIONS } from "@/data/content";
 import { KIDS_POSES, KIDS_BREATH } from "@/data/kids";
 import { Wind, Route as RouteIcon, Sparkles, LayoutGrid, Smile } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const diffColor: Record<string, string> = {
   Beginner: "bg-secondary/20 text-secondary-foreground border-secondary/30",
@@ -64,6 +65,7 @@ function matchesWordPrefixes(squashedQuery: string, name: string): boolean {
 }
 
 export default function Search() {
+  useDocumentTitle("Search · Sadhana");
   const [query, setQuery] = useState(readQuery());
 
   // Keep query in sync as navigation changes (sidebar live-typing navigation).

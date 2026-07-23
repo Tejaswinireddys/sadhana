@@ -25,6 +25,8 @@ import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/l
 import type { UserProfile, Enrollment, FavoriteAsana } from "@shared/schema";
 import { QUICK_SESSIONS } from "@/data/quickSessions";
 import { EmptyState } from "@/components/EmptyState";
+import { ScrollRow } from "@/components/ScrollRow";
+import { ResponsiveDetails } from "@/components/ResponsiveDetails";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   Flame,
@@ -552,7 +554,7 @@ export default function Home() {
               <Play className="mr-1.5 h-4 w-4" /> Practice all favorites
             </Button>
           </div>
-          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+          <ScrollRow label="Favorite poses" testId="scroll-favorite-poses">
             {favoriteAsanas.slice(0, 12).map((f) => {
               const a = asanaBySlug(f.slug);
               if (!a) return null;
@@ -560,7 +562,7 @@ export default function Home() {
                 <button
                   key={f.slug}
                   type="button"
-                  className="flex w-36 shrink-0 cursor-pointer flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-center shadow-soft hover:bg-accent/30"
+                  className="flex w-36 shrink-0 snap-start cursor-pointer flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-center shadow-soft hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => {
                     loadSession([{ asana: a }], { label: a.english });
                     navigate("/guided");
@@ -569,7 +571,7 @@ export default function Home() {
                 >
                   <img
                     src={`${import.meta.env.BASE_URL}poses/${f.slug}.png`}
-                    alt={a.english}
+                    alt=""
                     className="h-20 w-20 rounded-md object-cover"
                     loading="lazy"
                   />
@@ -577,7 +579,7 @@ export default function Home() {
                 </button>
               );
             })}
-          </div>
+          </ScrollRow>
         </section>
       ) : (
         !isLoading &&
@@ -631,13 +633,13 @@ export default function Home() {
           <h3 className="font-serif text-lg">Mood sessions</h3>
           <span className="text-sm text-muted-foreground">— how you feel right now</span>
         </div>
-        <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+        <ScrollRow label="Mood sessions" testId="scroll-mood-sessions">
           {QUICK_SESSIONS.map((q) => {
             const QIcon = q.icon;
             return (
               <Card
                 key={q.id}
-                className="flex w-56 shrink-0 flex-col border-border shadow-soft"
+                className="flex w-56 shrink-0 snap-start flex-col border-border shadow-soft"
                 data-testid={`quick-session-${q.id}`}
               >
                 <CardContent className="flex flex-1 flex-col gap-3 p-4">
@@ -662,7 +664,7 @@ export default function Home() {
               </Card>
             );
           })}
-        </div>
+        </ScrollRow>
       </section>
 
       {/* Quick Flows on-ramp (v5) — only for users not enrolled in any program */}
@@ -680,11 +682,11 @@ export default function Home() {
               See all
             </Link>
           </div>
-          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
+          <ScrollRow label="Curated sequences" testId="scroll-quick-flows">
             {featuredFlows.map((p) => (
               <Card
                 key={p.slug}
-                className="flex w-56 shrink-0 flex-col border-border shadow-soft"
+                className="flex w-56 shrink-0 snap-start flex-col border-border shadow-soft"
                 data-testid={`quick-flow-${p.slug}`}
               >
                 <CardContent className="flex flex-1 flex-col gap-3 p-4">
@@ -709,15 +711,17 @@ export default function Home() {
                 </CardContent>
               </Card>
             ))}
-          </div>
+          </ScrollRow>
         </section>
       )}
       </section>
 
-      <section className="space-y-4" aria-labelledby="progress-heading">
-        <h2 id="progress-heading" className="font-serif text-xl">
-          Your progress
-        </h2>
+      <ResponsiveDetails
+        title="Your progress"
+        description="Streaks, session totals, and consistency when you want them."
+        summaryId="progress-heading"
+        testId="section-progress"
+      >
       {/* Stats — after the practice loop so zeros don't bury the start CTA */}
       {isLoading ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -744,7 +748,22 @@ export default function Home() {
           <StatCard icon={Clock} label="Minutes practiced" value={stats?.totalMinutes ?? 0} testId="stat-total-minutes" />
         </div>
       )}
-      </section>
+      <Card className="shadow-soft">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            Practice consistency — last 12 weeks
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Heatmap data={stats?.heatmap ?? []} />
+          {!hasPracticed && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Complete a session to start filling in your practice map.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      </ResponsiveDetails>
 
       {/* 60-Day Splits discovery banner (v3.5) — shown when NOT enrolled */}
       {!splitsEnrollment && !splitsBannerDismissed && (
@@ -785,10 +804,12 @@ export default function Home() {
         </Card>
       )}
 
-      <section className="space-y-4" aria-labelledby="nourish-heading">
-        <h2 id="nourish-heading" className="font-serif text-xl">
-          Nourish
-        </h2>
+      <ResponsiveDetails
+        title="Nourish"
+        description="Affirmation, custom practice queue, and breath of the day."
+        summaryId="nourish-heading"
+        testId="section-nourish"
+      >
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Daily affirmation */}
         <Card className="shadow-soft">
@@ -851,6 +872,7 @@ export default function Home() {
                         {a.english}
                       </span>
                       <button
+                        type="button"
                         onClick={() => remove(a.slug)}
                         className="min-h-11 min-w-11 cursor-pointer text-muted-foreground hover:text-destructive"
                         data-testid={`button-remove-${a.slug}`}
@@ -873,7 +895,6 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
-      </section>
 
       {/* Breath of the day */}
       <Card className="shadow-soft" data-testid="card-breath-of-the-day">
@@ -881,7 +902,7 @@ export default function Home() {
           <CardTitle className="text-sm font-medium text-muted-foreground">Breath of the day</CardTitle>
         </CardHeader>
         <CardContent>
-          <Link href="/breathing">
+          <Link href="/breathing" aria-label={`Breath of the day: ${breath.name}`}>
             <div className="flex cursor-pointer items-center justify-between gap-4 rounded-lg bg-accent/40 p-4 transition-shadow hover:shadow-soft hover-elevate">
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-secondary">
@@ -897,28 +918,12 @@ export default function Home() {
                   <p className="text-sm text-muted-foreground">{breath.tagline}</p>
                 </div>
               </div>
-              <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+              <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
             </div>
           </Link>
         </CardContent>
       </Card>
-
-      {/* Heatmap */}
-      <Card className="shadow-soft">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Practice consistency — last 12 weeks
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Heatmap data={stats?.heatmap ?? []} />
-          {!hasPracticed && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Complete a session to start filling in your practice map.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      </ResponsiveDetails>
     </div>
   );
 }

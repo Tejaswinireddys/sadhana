@@ -6,8 +6,10 @@ import { StickerDisplay } from "@/components/StickerDisplay";
 import { useKidsGate } from "@/context/KidsGateContext";
 import { KIDS_POSES, KIDS_BREATH } from "@/data/kids";
 import { Play, Sparkles, Wind } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function Kids() {
+  useDocumentTitle("Kids · Sadhana");
   const { unlocked, lock } = useKidsGate();
 
   return (

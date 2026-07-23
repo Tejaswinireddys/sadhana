@@ -16,6 +16,7 @@ import {
 import { profileById } from "@/data/profiles";
 import type { Favorite, UserProfile } from "@shared/schema";
 import { Heart, Volume2 } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 function readAloud(text: string) {
   if ("speechSynthesis" in window) {
@@ -115,6 +116,7 @@ function AffirmationGrid({
 }
 
 export default function Affirmations() {
+  useDocumentTitle("Affirmations · Sadhana");
   const { data: favorites = [], isLoading } = useQuery<Favorite[]>({ queryKey: ["/api/favorites"] });
   const { data: activeProfileRow } = useQuery<UserProfile | null>({
     queryKey: ["/api/profile/active"],

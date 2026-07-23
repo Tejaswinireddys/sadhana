@@ -290,7 +290,8 @@ export function DemoMode({ slug }: { slug: string }) {
             size="lg"
             onClick={start}
             data-testid={`button-watch-demo-${asana.slug}`}
-            className="w-full gap-2 rounded-full bg-primary py-6 text-base font-medium text-primary-foreground hover:bg-primary/90"
+            aria-label={`Watch guided demo for ${asana.english}`}
+            className="min-h-12 w-full gap-2 rounded-full bg-primary py-6 text-base font-medium text-primary-foreground hover:bg-primary/90"
           >
             <Play className="h-5 w-5 fill-current" /> Watch a guided demo
           </Button>

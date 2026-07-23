@@ -13,6 +13,7 @@ import { logPracticeSession } from "@/lib/logPracticeSession";
 import { breathBySlug, type Mood } from "@/data/content";
 import { Link } from "wouter";
 import { Play, Pause, SkipForward, X, Check } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 function playChime() {
   try {
@@ -40,6 +41,7 @@ function playChime() {
 }
 
 export default function Practice() {
+  useDocumentTitle("Practice timer · Sadhana");
   const {
     todays,
     meta,

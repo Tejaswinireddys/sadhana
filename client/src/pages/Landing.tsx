@@ -16,6 +16,7 @@ import {
   UserRound,
   Wind,
 } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const FEATURES = [
   {
@@ -66,6 +67,7 @@ const FAQ = [
 ];
 
 export default function Landing() {
+  useDocumentTitle("Welcome · Sadhana");
   const [, navigate] = useLocation();
 
   useEffect(() => {

@@ -2,8 +2,10 @@ import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Compass } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function NotFound() {
+  useDocumentTitle("Page not found · Sadhana");
   return (
     <div className="flex min-h-[60vh] w-full items-center justify-center">
       <Card className="mx-4 w-full max-w-md">

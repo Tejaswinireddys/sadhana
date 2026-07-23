@@ -8,8 +8,10 @@ import { VoicePlayer } from "@/components/VoicePlayer";
 import { BREATHING, breathOfTheDay, type BreathTechnique } from "@/data/content";
 import { logPracticeSession } from "@/lib/logPracticeSession";
 import { Sparkles, ShieldAlert, Wind } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function Breathing() {
+  useDocumentTitle("Breathing · Sadhana");
   const { toast } = useToast();
   const [activeSlug, setActiveSlug] = useState<string>(() => breathOfTheDay().slug);
   const active: BreathTechnique = useMemo(

@@ -17,6 +17,7 @@ import { usagesForAsana } from "@/data/asanaUsage";
 import { QUICK_SESSIONS } from "@/data/quickSessions";
 import { usePractice } from "@/context/PracticeContext";
 import { EmptyState } from "@/components/EmptyState";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   ArrowLeft,
   Plus,
@@ -134,6 +135,7 @@ export default function AsanaDetail() {
   const { add, todays, loadSession } = usePractice();
   const { toast } = useToast();
   const [level, setLevel] = useState<Level>("intermediate");
+  useDocumentTitle(asana ? `${asana.english} · Sadhana` : "Pose · Sadhana");
 
   if (!asana) {
     return (
@@ -425,14 +427,14 @@ export default function AsanaDetail() {
       <section className="space-y-4">
         <h2 className="font-serif text-xl">Choose your path</h2>
         <Tabs value={level} onValueChange={(v) => setLevel(v as Level)}>
-          <TabsList data-testid="tabs-level">
-            <TabsTrigger value="beginner" data-testid="tab-beginner">
+          <TabsList className="flex h-auto w-full flex-wrap gap-1" data-testid="tabs-level">
+            <TabsTrigger value="beginner" className="min-h-11 flex-1" data-testid="tab-beginner">
               Beginner
             </TabsTrigger>
-            <TabsTrigger value="intermediate" data-testid="tab-intermediate">
+            <TabsTrigger value="intermediate" className="min-h-11 flex-1" data-testid="tab-intermediate">
               Intermediate
             </TabsTrigger>
-            <TabsTrigger value="advanced" data-testid="tab-advanced">
+            <TabsTrigger value="advanced" className="min-h-11 flex-1" data-testid="tab-advanced">
               Advanced
             </TabsTrigger>
           </TabsList>
@@ -592,6 +594,36 @@ export default function AsanaDetail() {
 
       {/* Personal notes (v3.4) */}
       <PersonalNotes slug={asana.slug} />
+
+      {/* Mobile sticky practice actions — stays above bottom nav */}
+      <div
+        className="fixed inset-x-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden"
+        style={{ bottom: "calc(3.5rem + env(safe-area-inset-bottom, 0px))" }}
+        data-testid="sticky-practice-actions"
+      >
+        <div className="mx-auto flex max-w-5xl gap-2">
+          <Button
+            size="lg"
+            onClick={practiceNow}
+            className="min-h-12 flex-1 cursor-pointer"
+            data-testid="button-practice-now-sticky"
+          >
+            <Play className="mr-1.5 h-4 w-4" />
+            Practice now
+          </Button>
+          <Button
+            onClick={addToday}
+            disabled={inToday}
+            variant="outline"
+            className="min-h-12 cursor-pointer px-3"
+            aria-label={inToday ? "Already in today's practice" : "Add to today's practice"}
+            data-testid="button-add-today-sticky"
+          >
+            {inToday ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+      <div className="h-20 lg:hidden" aria-hidden />
     </article>
   );
 }
