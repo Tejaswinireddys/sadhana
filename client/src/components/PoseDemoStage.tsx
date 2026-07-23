@@ -162,7 +162,7 @@ export function PoseDemoStage({
   // Graceful fallthrough if the clip never becomes ready.
   useEffect(() => {
     if (!useVideo || !showSources || videoReady || videoFailed) return;
-    const t = window.setTimeout(() => setVideoFailed(true), 10000);
+    const t = window.setTimeout(() => setVideoFailed(true), 15000);
     return () => window.clearTimeout(t);
   }, [useVideo, showSources, videoReady, videoFailed]);
 
@@ -195,9 +195,10 @@ export function PoseDemoStage({
           playsInline
           muted
           loop
-          preload={saveData ? "none" : "metadata"}
+          preload={saveData ? "none" : "auto"}
           aria-label={alt}
           onLoadedData={() => setVideoReady(true)}
+          onCanPlay={() => setVideoReady(true)}
           onError={() => setVideoFailed(true)}
           data-testid={`pose-demo-video-${slug}`}
         >
