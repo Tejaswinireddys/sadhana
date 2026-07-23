@@ -16,15 +16,22 @@ import { Onboarding } from "@/components/Onboarding";
 import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageFade } from "@/components/motion";
+import { clearStickySearchParams } from "@/lib/hashQuery";
 
 /**
  * Hash routing with query support (`#/search?q=tree`).
  * wouter's useHashLocation includes `?…` in the path, which breaks <Route path="/search" />.
  * Strip the query for matching; pages still read `window.location.hash` / `location.search` for params.
+ * Also clear sticky `location.search` when navigating to a path without a query.
  */
 function useAppHashLocation(options?: { ssrPath?: string }): [string, ReturnType<typeof useHashLocation>[1]] {
   const [loc, navigate] = useHashLocation(options);
-  return [loc.split("?")[0] || "/", navigate];
+  const path = loc.split("?")[0] || "/";
+  const nav: ReturnType<typeof useHashLocation>[1] = (to, opts) => {
+    navigate(to, opts);
+    if (!String(to).includes("?")) clearStickySearchParams();
+  };
+  return [path, nav];
 }
 // Preserve hash Link formatting used by wouter's hash location hook.
 (useAppHashLocation as { hrefs?: (href: string) => string }).hrefs = (href) =>
@@ -82,7 +89,7 @@ function WelcomeRedirect() {
       return;
     }
     if (!MARKETING_PATHS.has(location)) {
-      navigate("/register");
+      navigate("/welcome");
     }
   }, [location, navigate]);
   return null;

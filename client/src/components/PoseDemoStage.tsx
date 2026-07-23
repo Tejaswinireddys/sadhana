@@ -297,7 +297,7 @@ export function PoseDemoStage({
             )}
           >
             <PoseSvg pose={poseKey} size={variant === "practice" ? 200 : 180} />
-            <span className="text-xs">Illustration coming soon</span>
+            <span className="text-xs">Pose guide unavailable</span>
           </div>
         ) : (
           <img

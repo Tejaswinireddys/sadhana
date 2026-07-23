@@ -369,7 +369,7 @@ export default function Home() {
               </p>
             </div>
             <Button asChild variant="outline" className="min-h-11 cursor-pointer" data-testid="button-practiced-breath">
-              <Link href="/breathing">
+              <Link href={`/breathing?slug=${encodeURIComponent(breath.slug)}`}>
                 <Wind className="mr-1.5 h-4 w-4" /> Breath of the day
               </Link>
             </Button>
@@ -471,7 +471,7 @@ export default function Home() {
                 {recommendedBreath.map(
                   (b) =>
                     b && (
-                      <Link key={b.slug} href="/breathing">
+                      <Link key={b.slug} href={`/breathing?slug=${encodeURIComponent(b.slug)}`}>
                         <Badge variant="outline" className="cursor-pointer gap-1 hover-elevate">
                           <Wind className="h-3 w-3 text-secondary" /> {b.name}
                         </Badge>
@@ -884,7 +884,10 @@ export default function Home() {
           <CardTitle className="text-sm font-medium text-muted-foreground">Breath of the day</CardTitle>
         </CardHeader>
         <CardContent>
-          <Link href="/breathing" aria-label={`Breath of the day: ${breath.name}`}>
+          <Link
+            href={`/breathing?slug=${encodeURIComponent(breath.slug)}`}
+            aria-label={`Breath of the day: ${breath.name}`}
+          >
             <div className="flex cursor-pointer items-center justify-between gap-4 rounded-lg bg-accent/40 p-4 transition-shadow hover:shadow-soft hover-elevate">
               <div className="flex items-start gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-secondary">

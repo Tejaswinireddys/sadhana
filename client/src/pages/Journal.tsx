@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link, useSearch } from "wouter";
+import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ import { MOODS, type Mood } from "@/data/content";
 import { MOOD_ICONS } from "@/lib/moods";
 import type { Journal as JournalEntry } from "@shared/schema";
 import { todayISO, formatShortDate } from "@/lib/sadhana";
+import { clearStickySearchParams, readUrlParam } from "@/lib/hashQuery";
 import { Plus, Search, Trash2, Timer } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
@@ -47,7 +48,6 @@ const emptyDraft: Draft = { title: "", body: "", mood: "", tags: "" };
 export default function Journal() {
   useDocumentTitle("Journal · Sadhana");
   const { toast } = useToast();
-  const search = useSearch();
   const { data: entries = [], isLoading } = useQuery<JournalEntry[]>({ queryKey: ["/api/journal"] });
 
   const [open, setOpen] = useState(false);
@@ -56,18 +56,21 @@ export default function Journal() {
   const [query, setQuery] = useState("");
   const [moodFilter, setMoodFilter] = useState<Mood | "All">("All");
 
-  // Pre-fill from query params (e.g. after a practice session)
+  // Pre-fill once from deep-link params (e.g. after a practice session), then clear sticky query.
   useEffect(() => {
-    const params = new URLSearchParams(search);
-    if (params.get("new")) {
-      setDraft({
-        ...emptyDraft,
-        title: params.get("title") || "",
-        body: params.get("body") || "",
-      });
-      setOpen(true);
+    const openNew = readUrlParam("new");
+    if (!openNew) return;
+    setDraft({
+      ...emptyDraft,
+      title: readUrlParam("title") || "",
+      body: readUrlParam("body") || "",
+    });
+    setOpen(true);
+    clearStickySearchParams();
+    if (window.location.hash.includes("?")) {
+      window.location.hash = "#/journal";
     }
-  }, [search]);
+  }, []);
 
   const save = useMutation({
     mutationFn: (d: Draft) => {

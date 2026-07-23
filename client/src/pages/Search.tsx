@@ -5,15 +5,17 @@
 //   - Groups results by type with section headers and per-group counts.
 //   - Each result links to its detail page; affirmations link to /affirmations.
 import { useEffect, useState, useMemo } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/EmptyState";
 import { PoseImage } from "@/components/PoseImage";
 import { ASANAS, PATHWAYS, BREATHING, AFFIRMATIONS } from "@/data/content";
 import { KIDS_POSES, KIDS_BREATH } from "@/data/kids";
-import { Wind, Route as RouteIcon, Sparkles, LayoutGrid, Smile } from "lucide-react";
+import { Wind, Route as RouteIcon, Sparkles, LayoutGrid, Smile, Search as SearchIcon } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useRecentSearches } from "@/context/RecentSearchesContext";
 
 const diffColor: Record<string, string> = {
   Beginner: "bg-secondary/20 text-secondary-foreground border-secondary/30",
@@ -66,12 +68,19 @@ function matchesWordPrefixes(squashedQuery: string, name: string): boolean {
 
 export default function Search() {
   useDocumentTitle("Search · Sadhana");
+  const [, navigate] = useLocation();
+  const { addRecent } = useRecentSearches();
   const [query, setQuery] = useState(readQuery());
+  const [draft, setDraft] = useState(readQuery());
 
   // Keep query in sync as navigation changes (sidebar live-typing navigation).
   // wouter dispatches a `hashchange` event on every navigate().
   useEffect(() => {
-    const onChange = () => setQuery(readQuery());
+    const onChange = () => {
+      const next = readQuery();
+      setQuery(next);
+      setDraft(next);
+    };
     window.addEventListener("hashchange", onChange);
     window.addEventListener("popstate", onChange);
     return () => {
@@ -79,6 +88,18 @@ export default function Search() {
       window.removeEventListener("popstate", onChange);
     };
   }, []);
+
+  const commitSearch = (value: string) => {
+    const trimmed = value.trim();
+    setQuery(trimmed);
+    setDraft(trimmed);
+    if (!trimmed) {
+      navigate("/search");
+      return;
+    }
+    addRecent(trimmed);
+    navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+  };
 
   const q = query.trim().toLowerCase();
   // A more forgiving, "squashed" form of the query with spaces and hyphens
@@ -157,8 +178,22 @@ export default function Search() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <header className="space-y-1">
+      <header className="space-y-3">
         <h1 className="font-serif text-3xl font-semibold tracking-tight">Search</h1>
+        <div className="relative max-w-xl">
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitSearch(draft);
+            }}
+            placeholder="Search poses, breathing, pathways, kids…"
+            className="min-h-11 pl-9"
+            aria-label="Search Sadhana"
+            data-testid="input-search-page"
+          />
+        </div>
         {q && (
           <p className="text-muted-foreground" data-testid="text-search-summary">
             {total} result{total === 1 ? "" : "s"} for "{query.trim()}"
@@ -170,7 +205,7 @@ export default function Search() {
         <EmptyState
           variant="search"
           title="Type to search across everything in Sadhana"
-          description="Find poses, breathing techniques, pathways, affirmations, and kids stories from the search box in the sidebar."
+          description="Find poses, breathing techniques, pathways, affirmations, and kids stories."
           testId="empty-search-prompt"
         />
       ) : total === 0 ? (
@@ -249,7 +284,7 @@ export default function Search() {
               </h2>
               <div className="grid gap-3 sm:grid-cols-2">
                 {results.breathing.map((b) => (
-                  <Link key={b.slug} href={`/breathing`}>
+                  <Link key={b.slug} href={`/breathing?slug=${encodeURIComponent(b.slug)}`}>
                     <Card
                       className="cursor-pointer shadow-soft transition-colors hover:bg-accent/40"
                       data-testid={`search-result-breathing-${b.slug}`}

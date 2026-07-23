@@ -211,7 +211,7 @@ export default function Settings() {
           <Button variant="outline" className="min-h-11 w-full cursor-pointer justify-start gap-2" asChild>
             <Link href="/design-system" data-testid="settings-design-system">
               <Info className="h-4 w-4" />
-              Design system preview
+              Design tokens (internal)
             </Link>
           </Button>
           <div className="rounded-md border border-border p-3">

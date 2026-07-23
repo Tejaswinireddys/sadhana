@@ -66,7 +66,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "You",
     items: [
       { href: "/journal", label: "Journal", icon: NotebookPen },
-      { href: "/profiles", label: "Profiles", icon: Compass },
+      { href: "/profiles", label: "My path", icon: Compass },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
@@ -74,10 +74,10 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
 
 const MOBILE_PRIMARY: NavItem[] = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/asanas", label: "Library", icon: LayoutGrid },
   { href: "/guided", label: "Practice", icon: Timer },
   { href: "/trainer", label: "Trainer", icon: UserRound },
-  { href: "/profiles", label: "Paths", icon: Compass },
+  { href: "/pathways", label: "Pathways", icon: RouteIcon },
+  { href: "/asanas", label: "Library", icon: LayoutGrid },
 ];
 
 function SidebarSearch() {
@@ -289,12 +289,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               About Sadhana
             </Link>
           </Button>
-          <Button variant="ghost" size="sm" className="w-full cursor-pointer justify-start gap-2" asChild>
-            <Link href="/design-system">
-              <Sparkles className="h-4 w-4" />
-              Design system
-            </Link>
-          </Button>
           <p className="px-2 pt-2 text-xs text-muted-foreground">
             Sādhanā — a daily, dedicated practice.
           </p>
@@ -303,9 +297,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur lg:px-6">
           <SidebarTrigger data-testid="button-sidebar-toggle" />
-          <div className="lg:hidden">
+          <div className="min-w-0 flex-1 lg:hidden">
             <Logo />
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto cursor-pointer lg:hidden"
+            asChild
+            data-testid="mobile-header-search"
+          >
+            <Link href="/search" aria-label="Search Sadhana">
+              <Search className="h-5 w-5" />
+            </Link>
+          </Button>
         </header>
         <main
           id="main-content"

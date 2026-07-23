@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -7,18 +7,41 @@ import { BreathingVisualizer, type BreathConfig } from "@/components/BreathingVi
 import { VoicePlayer } from "@/components/VoicePlayer";
 import { BREATHING, breathOfTheDay, type BreathTechnique } from "@/data/content";
 import { logPracticeSession } from "@/lib/logPracticeSession";
+import { readUrlParam } from "@/lib/hashQuery";
 import { Sparkles, ShieldAlert, Wind } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+
+function initialBreathSlug(): string {
+  const fromUrl = readUrlParam("slug") || readUrlParam("technique");
+  if (fromUrl && BREATHING.some((b) => b.slug === fromUrl)) return fromUrl;
+  return breathOfTheDay().slug;
+}
 
 export default function Breathing() {
   useDocumentTitle("Breathing · Sadhana");
   const { toast } = useToast();
-  const [activeSlug, setActiveSlug] = useState<string>(() => breathOfTheDay().slug);
+  const [activeSlug, setActiveSlug] = useState<string>(initialBreathSlug);
   const active: BreathTechnique = useMemo(
     () => BREATHING.find((b) => b.slug === activeSlug) ?? BREATHING[0],
     [activeSlug],
   );
   const [rounds, setRounds] = useState<number>(active.defaultRounds);
+
+  useEffect(() => {
+    const onChange = () => {
+      const fromUrl = readUrlParam("slug") || readUrlParam("technique");
+      if (fromUrl && BREATHING.some((b) => b.slug === fromUrl)) {
+        setActiveSlug(fromUrl);
+        setRounds(BREATHING.find((b) => b.slug === fromUrl)!.defaultRounds);
+      }
+    };
+    window.addEventListener("hashchange", onChange);
+    window.addEventListener("popstate", onChange);
+    return () => {
+      window.removeEventListener("hashchange", onChange);
+      window.removeEventListener("popstate", onChange);
+    };
+  }, []);
 
   const selectTechnique = (slug: string) => {
     const t = BREATHING.find((b) => b.slug === slug)!;
