@@ -185,7 +185,7 @@ export default function Trainer() {
           <span className="text-sm font-medium uppercase tracking-wide">Your practice for today</span>
         </div>
 
-        <Card className="border-primary/30 bg-accent/30 shadow-soft">
+        <Card className="surface-banner border-primary/30">
           <CardContent className="p-6">
             <p className="font-serif text-lg leading-relaxed" data-testid="text-reasoning">
               {result.reasoning}
@@ -309,11 +309,12 @@ export default function Trainer() {
           <span className="text-sm font-medium uppercase tracking-wide">Yoga Trainer</span>
         </div>
         <StepDots step={step} total={4} />
-        <h1 className="font-serif text-2xl leading-tight tracking-tight" data-testid="text-question">
+        <h1 className="font-serif text-3xl font-semibold leading-tight tracking-tight" data-testid="text-question">
           {QUESTIONS[step]}
         </h1>
       </header>
 
+      <div className="surface-inset space-y-4 p-4">
       {step === 0 && (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">Select all that apply.</p>
@@ -395,6 +396,7 @@ export default function Trainer() {
           ))}
         </div>
       )}
+      </div>
 
       <div className="flex items-center justify-between gap-3 pt-2">
         <Button

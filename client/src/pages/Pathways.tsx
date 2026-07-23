@@ -208,7 +208,9 @@ export default function Pathways() {
         </p>
       </header>
 
-      <WarmupCard />
+      <div className="surface-inset p-4">
+        <WarmupCard />
+      </div>
 
       {/* ---- 1. Quick Flows ---- */}
       {quickFlows.length > 0 && (

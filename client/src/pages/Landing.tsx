@@ -1,9 +1,8 @@
 import { Link, useLocation } from "wouter";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { KEYS, writeString } from "@/lib/localPrefs";
-import { ProductDemoVideo } from "@/components/ProductDemoVideo";
 import { Reveal } from "@/components/motion";
 import {
   ArrowRight,
@@ -17,6 +16,10 @@ import {
   Wind,
 } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+
+const ProductDemoVideo = lazy(() =>
+  import("@/components/ProductDemoVideo").then((m) => ({ default: m.ProductDemoVideo })),
+);
 
 const FEATURES = [
   {
@@ -196,7 +199,13 @@ export default function Landing() {
               see docs/product-videos.md.
             </p>
             <Reveal>
-              <ProductDemoVideo title="Sadhana product overview" />
+              <Suspense
+                fallback={
+                  <div className="surface aspect-video animate-pulse bg-muted/40" aria-hidden />
+                }
+              >
+                <ProductDemoVideo title="Sadhana product overview" />
+              </Suspense>
             </Reveal>
           </div>
         </section>

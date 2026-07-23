@@ -1,5 +1,5 @@
 // ProfileCard — a single personalization preset card on the /profiles page.
-//   - illustration thumbnail (reuses the first recommended pose image)
+//   - outcome chip + multi-pose preview strip
 //   - name, tagline, minutes/sessions badge
 //   - "Activate" button (persists via /api/profile/activate)
 //   - "Currently active" badge when selected
@@ -18,13 +18,14 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { resolveIcon } from "@/lib/icons";
 import type { Profile } from "@/data/profiles";
-import { Check, Clock, CalendarDays, ChevronDown, Info } from "lucide-react";
+import { Check, Clock, CalendarDays, ChevronDown, Info, Sparkles } from "lucide-react";
 
 export function ProfileCard({ profile, active }: { profile: Profile; active: boolean }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const Icon = resolveIcon(profile.icon);
-  const thumbSlug = profile.recommendedAsanas[0];
+  const previewSlugs = profile.recommendedAsanas.slice(0, 3);
+  const outcome = profile.tagline;
 
   const activate = useMutation({
     mutationFn: () => apiRequest("POST", "/api/profile/activate", { profileId: profile.id }),
@@ -46,27 +47,48 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
       }`}
       data-testid={`profile-card-${profile.id}`}
     >
-      <div className="relative flex items-center gap-4 bg-accent/40 p-4">
-        <img
-          src={`${import.meta.env.BASE_URL}poses/${thumbSlug}.png`}
-          alt=""
-          className="h-20 w-20 shrink-0 rounded-2xl object-cover shadow-soft"
-          draggable={false}
-        />
-        <div className="min-w-0">
-          <div className="mb-1 flex items-center gap-1.5 text-primary">
-            <Icon className="h-4 w-4" />
-            <h3 className="truncate font-serif text-lg leading-tight" data-testid={`text-profile-name-${profile.id}`}>
-              {profile.name}
-            </h3>
+      <div className="surface-banner relative space-y-3 border-0 p-4">
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+            <Icon className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h3
+                className="font-serif text-lg leading-tight"
+                data-testid={`text-profile-name-${profile.id}`}
+              >
+                {profile.name}
+              </h3>
+              {active && (
+                <Badge className="shrink-0 gap-1" data-testid={`badge-active-${profile.id}`}>
+                  <Check className="h-3 w-3" /> Active
+                </Badge>
+              )}
+            </div>
+            <p
+              className="mt-1 inline-flex items-start gap-1.5 text-sm font-medium text-foreground"
+              data-testid={`text-profile-outcome-${profile.id}`}
+            >
+              <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+              <span>{outcome}</span>
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground">{profile.tagline}</p>
         </div>
-        {active && (
-          <Badge className="absolute right-3 top-3 gap-1" data-testid={`badge-active-${profile.id}`}>
-            <Check className="h-3 w-3" /> Active
-          </Badge>
-        )}
+
+        <div className="flex gap-2" aria-label="Sample poses in this path">
+          {previewSlugs.map((slug) => (
+            <img
+              key={slug}
+              src={`${import.meta.env.BASE_URL}poses/${slug}.png`}
+              alt=""
+              className="h-16 w-16 rounded-xl object-cover shadow-soft"
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+            />
+          ))}
+        </div>
       </div>
 
       <CardContent className="flex flex-1 flex-col gap-3 p-4">
@@ -92,7 +114,8 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
         <Collapsible open={open} onOpenChange={setOpen}>
           <CollapsibleTrigger asChild>
             <button
-              className="inline-flex items-center gap-1 text-xs font-medium text-secondary hover:underline"
+              type="button"
+              className="inline-flex min-h-11 cursor-pointer items-center gap-1 text-xs font-medium text-secondary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               data-testid={`button-why-${profile.id}`}
             >
               <Info className="h-3.5 w-3.5" /> Why this profile?
@@ -100,7 +123,10 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-2">
-            <p className="rounded-lg bg-accent/40 p-3 text-xs text-muted-foreground" data-testid={`text-why-${profile.id}`}>
+            <p
+              className="surface-inset p-3 text-xs text-muted-foreground"
+              data-testid={`text-why-${profile.id}`}
+            >
               {profile.why}
             </p>
           </CollapsibleContent>
@@ -108,7 +134,7 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
 
         <div className="mt-auto pt-1">
           <Button
-            className="w-full"
+            className="min-h-11 w-full cursor-pointer"
             variant={active ? "outline" : "default"}
             disabled={active || activate.isPending}
             onClick={() => activate.mutate()}
@@ -119,7 +145,7 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
                 <Check className="mr-1.5 h-4 w-4" /> Currently active
               </>
             ) : (
-              "Activate"
+              "Activate this path"
             )}
           </Button>
         </div>

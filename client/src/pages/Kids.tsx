@@ -17,7 +17,7 @@ export default function Kids() {
       <ParentGate />
       {/* Only render the playful content once the gate is unlocked */}
       {unlocked && (
-        <div className="kids-zone animate-fade-in space-y-8 p-5 sm:p-8" data-testid="kids-home">
+        <div className="kids-zone animate-fade-in space-y-8 rounded-2xl border border-border/40 bg-card/30 p-5 shadow-soft sm:p-8" data-testid="kids-home">
           {/* Hero */}
           <div className="grid items-center gap-6 md:grid-cols-[1.1fr_1fr]">
             <div className="space-y-4">

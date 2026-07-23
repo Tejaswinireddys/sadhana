@@ -166,7 +166,7 @@ export function VoicePlayer({
       <audio
         ref={audioRef}
         src={src}
-        preload="auto"
+        preload="none"
         data-testid={`audio-el-${slug}`}
         onLoadedMetadata={(e) => setDuration((e.target as HTMLAudioElement).duration)}
         onTimeUpdate={(e) => setCurrent((e.target as HTMLAudioElement).currentTime)}

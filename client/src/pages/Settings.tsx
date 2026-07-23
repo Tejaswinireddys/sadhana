@@ -146,7 +146,7 @@ export default function Settings() {
         </p>
       </header>
 
-      <Card className="shadow-soft">
+      <Card className="surface-inset border-0 shadow-none">
         <CardHeader>
           <CardTitle className="font-serif text-xl">Experience</CardTitle>
         </CardHeader>
@@ -240,7 +240,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card className="shadow-soft">
+      <Card className="surface-raised">
         <CardHeader>
           <CardTitle className="font-serif text-xl">Backup &amp; data</CardTitle>
         </CardHeader>

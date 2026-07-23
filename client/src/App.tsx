@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import { Switch, Route, Router, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { queryClient } from "./lib/queryClient";
@@ -14,27 +14,46 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ConnectivityBanner } from "@/components/ConnectivityBanner";
 import { Onboarding } from "@/components/Onboarding";
 import { KEYS, readString, writeString } from "@/lib/localPrefs";
-import NotFound from "@/pages/not-found";
+import { Skeleton } from "@/components/ui/skeleton";
+
+/** Eager: first paint + marketing entry. Everything else is route-split. */
 import Home from "@/pages/Home";
 import Landing from "@/pages/Landing";
-import Asanas from "@/pages/Asanas";
-import AsanaDetail from "@/pages/AsanaDetail";
-import Pathways from "@/pages/Pathways";
-import PathwayDetail from "@/pages/PathwayDetail";
-import Practice from "@/pages/Practice";
-import GuidedSession from "@/pages/GuidedSession";
-import Breathing from "@/pages/Breathing";
-import Affirmations from "@/pages/Affirmations";
-import Journal from "@/pages/Journal";
-import Profiles from "@/pages/Profiles";
-import Builder from "@/pages/Builder";
-import Kids from "@/pages/Kids";
-import KidsPose from "@/pages/KidsPose";
-import KidsBreath from "@/pages/KidsBreath";
-import Trainer from "@/pages/Trainer";
-import Search from "@/pages/Search";
-import DesignSystem from "@/pages/DesignSystem";
-import Settings from "@/pages/Settings";
+
+function lazyPage<T extends ComponentType<any>>(loader: () => Promise<{ default: T }>) {
+  return lazy(loader);
+}
+
+const NotFound = lazyPage(() => import("@/pages/not-found"));
+const Asanas = lazyPage(() => import("@/pages/Asanas"));
+const AsanaDetail = lazyPage(() => import("@/pages/AsanaDetail"));
+const Pathways = lazyPage(() => import("@/pages/Pathways"));
+const PathwayDetail = lazyPage(() => import("@/pages/PathwayDetail"));
+const Practice = lazyPage(() => import("@/pages/Practice"));
+const GuidedSession = lazyPage(() => import("@/pages/GuidedSession"));
+const Breathing = lazyPage(() => import("@/pages/Breathing"));
+const Affirmations = lazyPage(() => import("@/pages/Affirmations"));
+const Journal = lazyPage(() => import("@/pages/Journal"));
+const Profiles = lazyPage(() => import("@/pages/Profiles"));
+const Builder = lazyPage(() => import("@/pages/Builder"));
+const Kids = lazyPage(() => import("@/pages/Kids"));
+const KidsPose = lazyPage(() => import("@/pages/KidsPose"));
+const KidsBreath = lazyPage(() => import("@/pages/KidsBreath"));
+const Trainer = lazyPage(() => import("@/pages/Trainer"));
+const Search = lazyPage(() => import("@/pages/Search"));
+const DesignSystem = lazyPage(() => import("@/pages/DesignSystem"));
+const Settings = lazyPage(() => import("@/pages/Settings"));
+
+function RouteFallback() {
+  return (
+    <div className="space-y-4 py-6" role="status" aria-live="polite" aria-label="Loading page">
+      <Skeleton className="h-10 w-2/3 max-w-md" />
+      <Skeleton className="h-4 w-full max-w-xl" />
+      <Skeleton className="h-48 w-full" />
+      <span className="sr-only">Loading…</span>
+    </div>
+  );
+}
 
 function WelcomeRedirect() {
   const [location, navigate] = useLocation();
@@ -54,29 +73,31 @@ function WelcomeRedirect() {
 
 function AppRouter() {
   return (
-    <Switch>
-      <Route path="/welcome" component={Landing} />
-      <Route path="/" component={Home} />
-      <Route path="/asanas" component={Asanas} />
-      <Route path="/asanas/:slug" component={AsanaDetail} />
-      <Route path="/pathways" component={Pathways} />
-      <Route path="/pathways/:slug" component={PathwayDetail} />
-      <Route path="/practice" component={Practice} />
-      <Route path="/guided" component={GuidedSession} />
-      <Route path="/trainer" component={Trainer} />
-      <Route path="/breathing" component={Breathing} />
-      <Route path="/affirmations" component={Affirmations} />
-      <Route path="/journal" component={Journal} />
-      <Route path="/profiles" component={Profiles} />
-      <Route path="/builder" component={Builder} />
-      <Route path="/kids" component={Kids} />
-      <Route path="/kids/breath/:slug" component={KidsBreath} />
-      <Route path="/kids/:slug" component={KidsPose} />
-      <Route path="/search" component={Search} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/design-system" component={DesignSystem} />
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<RouteFallback />}>
+      <Switch>
+        <Route path="/welcome" component={Landing} />
+        <Route path="/" component={Home} />
+        <Route path="/asanas" component={Asanas} />
+        <Route path="/asanas/:slug" component={AsanaDetail} />
+        <Route path="/pathways" component={Pathways} />
+        <Route path="/pathways/:slug" component={PathwayDetail} />
+        <Route path="/practice" component={Practice} />
+        <Route path="/guided" component={GuidedSession} />
+        <Route path="/trainer" component={Trainer} />
+        <Route path="/breathing" component={Breathing} />
+        <Route path="/affirmations" component={Affirmations} />
+        <Route path="/journal" component={Journal} />
+        <Route path="/profiles" component={Profiles} />
+        <Route path="/builder" component={Builder} />
+        <Route path="/kids" component={Kids} />
+        <Route path="/kids/breath/:slug" component={KidsBreath} />
+        <Route path="/kids/:slug" component={KidsPose} />
+        <Route path="/search" component={Search} />
+        <Route path="/settings" component={Settings} />
+        <Route path="/design-system" component={DesignSystem} />
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 

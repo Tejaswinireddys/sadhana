@@ -209,19 +209,21 @@ export default function Affirmations() {
       </header>
 
       <Tabs value={themeTab} onValueChange={setThemeTab}>
-        <TabsList className="flex h-auto flex-wrap gap-1">
-          <TabsTrigger value="all" data-testid="tab-all-affirmations">
+        <div className="surface-inset p-3">
+        <TabsList className="flex h-auto w-full flex-wrap gap-1 bg-transparent p-0">
+          <TabsTrigger value="all" className="min-h-11" data-testid="tab-all-affirmations">
             All
           </TabsTrigger>
           {AFFIRMATION_THEMES.map((t) => (
-            <TabsTrigger key={t.id} value={t.id} data-testid={`tab-theme-${t.id}`}>
+            <TabsTrigger key={t.id} value={t.id} className="min-h-11" data-testid={`tab-theme-${t.id}`}>
               {t.label}
             </TabsTrigger>
           ))}
-          <TabsTrigger value="favorites" data-testid="tab-favorite-affirmations">
+          <TabsTrigger value="favorites" className="min-h-11" data-testid="tab-favorite-affirmations">
             Favorites{favorites.length ? ` (${favorites.length})` : ""}
           </TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="all" className="mt-4">
           <AffirmationGrid items={AFFIRMATIONS} favByText={favByText} toggle={toggle} focus={focus} />

@@ -16,6 +16,19 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/framer-motion")) return "motion";
+          if (id.includes("node_modules/recharts")) return "charts";
+          if (id.includes("node_modules/@tanstack")) return "query";
+          if (id.includes("node_modules/lucide-react")) return "icons";
+          if (id.includes("/client/src/data/content")) return "catalog-content";
+          if (id.includes("/client/src/data/kids")) return "catalog-kids";
+          if (id.includes("/client/src/data/profiles")) return "catalog-profiles";
+        },
+      },
+    },
   },
   server: {
     fs: {

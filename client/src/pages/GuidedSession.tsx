@@ -198,6 +198,23 @@ export default function GuidedSession() {
   const prev = index > 0 ? todays[index - 1] : null;
   const next = index + 1 < todays.length ? todays[index + 1] : null;
 
+  // Prefetch the next pose narration during hold — one file, skip on save-data.
+  useEffect(() => {
+    if (phase !== "hold" || !next || !voiceEnabled) return;
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    if (conn?.saveData) return;
+    const href = `${import.meta.env.BASE_URL}voice/pose-${next.slug}.mp3`;
+    const link = document.createElement("link");
+    link.rel = "prefetch";
+    link.as = "fetch";
+    link.href = href;
+    link.crossOrigin = "anonymous";
+    document.head.appendChild(link);
+    return () => {
+      link.remove();
+    };
+  }, [phase, next, voiceEnabled]);
+
   // Reset the "photo missing" fallback whenever the pose changes.
   useEffect(() => {
     setHeroImgErrored(false);
@@ -944,7 +961,7 @@ export default function GuidedSession() {
       <audio
         ref={audioRef}
         src={src}
-        preload="auto"
+        preload={voiceEnabled ? "metadata" : "none"}
         data-testid="guided-audio"
         onLoadedMetadata={(e) => setVoiceDuration((e.target as HTMLAudioElement).duration)}
         onTimeUpdate={(e) => {
@@ -1001,6 +1018,8 @@ export default function GuidedSession() {
               src={`${import.meta.env.BASE_URL}poses/${prev.slug}.png`}
               alt={prev.english}
               className="h-20 w-20 rounded-xl object-contain"
+              loading="lazy"
+              decoding="async"
               onError={(e) => {
                 e.currentTarget.style.visibility = "hidden";
               }}
@@ -1018,6 +1037,8 @@ export default function GuidedSession() {
               src={`${import.meta.env.BASE_URL}poses/${next.slug}.png`}
               alt={next.english}
               className="h-20 w-20 rounded-xl object-contain"
+              loading="lazy"
+              decoding="async"
               onError={(e) => {
                 e.currentTarget.style.visibility = "hidden";
               }}

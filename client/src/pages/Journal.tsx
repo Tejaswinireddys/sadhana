@@ -137,24 +137,25 @@ export default function Journal() {
       </header>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[180px]">
+      <div className="surface-inset flex flex-wrap items-center gap-3 p-4">
+        <div className="relative min-w-[180px] flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search entries..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="pl-9"
+            className="min-h-11 pl-9"
             data-testid="input-search-journal"
           />
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by mood">
           {(["All", ...MOODS] as const).map((m) => (
             <Button
               key={m}
               size="sm"
               variant={moodFilter === m ? "default" : "outline"}
               onClick={() => setMoodFilter(m)}
+              aria-pressed={moodFilter === m}
               data-testid={`filter-mood-${m.toLowerCase()}`}
             >
               {m}

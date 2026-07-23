@@ -244,7 +244,7 @@ export default function Asanas() {
             return (
               <Card
                 key={a.slug}
-                className="group relative h-full overflow-hidden shadow-soft transition-shadow hover:shadow-soft-lg hover-elevate"
+                className="group relative h-full overflow-hidden shadow-soft transition-shadow [content-visibility:auto] [contain-intrinsic-size:auto_340px] hover:shadow-soft-lg hover-elevate"
                 data-testid={`card-asana-${a.slug}`}
               >
                 {/* Favorite toggle */}
