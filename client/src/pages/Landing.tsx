@@ -202,7 +202,7 @@ export default function Landing() {
           <div className="mx-auto max-w-5xl px-4 py-16 md:px-6">
             <h2 className="mb-6 font-serif text-3xl font-semibold tracking-tight">See it in practice</h2>
             <p className="mb-8 max-w-xl text-muted-foreground">
-              A short walkthrough of Trainer → guided poses. Placeholder until a real capture is added —
+              A short walkthrough of Trainer → guided poses. Swap in a real capture anytime —
               see docs/product-videos.md.
             </p>
             <Reveal>

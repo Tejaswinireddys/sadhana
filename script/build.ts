@@ -2,27 +2,16 @@ import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, readFile } from "node:fs/promises";
 
-// server deps to bundle to reduce openat(2) syscalls
-// which helps cold start times
+// Server packages that are safe/desired to inline into dist/index.cjs.
+// Everything else stays external and must exist in production node_modules
+// after `npm prune --omit=dev`.
 const allowlist = [
-  "@anthropic-ai/sdk",
-  "@google/generative-ai",
-  "axios",
-  "cors",
   "date-fns",
   "drizzle-orm",
   "drizzle-zod",
   "express",
-  "express-rate-limit",
-  "jsonwebtoken",
-  "multer",
   "nanoid",
-  "nodemailer",
-  "openai",
-  "stripe",
-  "uuid",
   "ws",
-  "xlsx",
   "zod",
   "zod-validation-error",
 ];
