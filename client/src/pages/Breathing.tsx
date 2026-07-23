@@ -47,6 +47,11 @@ export default function Breathing() {
     const t = BREATHING.find((b) => b.slug === slug)!;
     setActiveSlug(slug);
     setRounds(t.defaultRounds);
+    // Keep deep links shareable / back-button friendly.
+    const next = `#/breathing?slug=${encodeURIComponent(slug)}`;
+    if (window.location.hash !== next) {
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${next}`);
+    }
   };
 
   const config: BreathConfig = {

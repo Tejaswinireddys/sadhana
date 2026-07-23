@@ -74,6 +74,9 @@ export default function Landing() {
     document.title = "Sadhana — Calm guided yoga practice";
   }, []);
 
+  /** Enter the app without bouncing back through WelcomeRedirect. */
+  const enterApp = () => writeString(KEYS.welcomeSeen, "1");
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <a
@@ -101,7 +104,9 @@ export default function Landing() {
           </nav>
           <div className="flex items-center gap-2">
             <Button variant="ghost" className="hidden min-h-11 cursor-pointer sm:inline-flex" asChild>
-              <Link href="/asanas">Browse poses</Link>
+              <Link href="/asanas" onClick={enterApp}>
+                Browse poses
+              </Link>
             </Button>
             <Button className="min-h-11 cursor-pointer" asChild data-testid="landing-cta-header">
               <Link href="/register">Create practice</Link>
@@ -135,7 +140,7 @@ export default function Landing() {
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="min-h-12 cursor-pointer" asChild>
-                  <Link href="/trainer">
+                  <Link href="/trainer" onClick={enterApp}>
                     <UserRound className="mr-1.5 h-4 w-4" /> Try Yoga Trainer
                   </Link>
                 </Button>
@@ -186,8 +191,8 @@ export default function Landing() {
           <div className="mx-auto max-w-5xl px-4 py-16 md:px-6">
             <h2 className="mb-6 font-serif text-3xl font-semibold tracking-tight">See it in practice</h2>
             <p className="mb-8 max-w-xl text-muted-foreground">
-              A short walkthrough of Trainer → guided poses. Swap in a real capture anytime —
-              see docs/product-videos.md.
+              A short montage of Sadhana poses — Trainer, balance, and restorative shapes in one calm
+              walkthrough.
             </p>
             <Reveal>
               <Suspense
@@ -255,16 +260,16 @@ export default function Landing() {
             <Link href="/register" className="hover:text-foreground">
               Create practice
             </Link>
-            <Link href="/" className="hover:text-foreground" onClick={() => writeString(KEYS.welcomeSeen, "1")}>
+            <Link href="/" className="hover:text-foreground" onClick={enterApp}>
               App home
             </Link>
-            <Link href="/asanas" className="hover:text-foreground">
+            <Link href="/asanas" className="hover:text-foreground" onClick={enterApp}>
               Asana library
             </Link>
-            <Link href="/profiles" className="hover:text-foreground">
-              Profiles
+            <Link href="/profiles" className="hover:text-foreground" onClick={enterApp}>
+              My path
             </Link>
-            <Link href="/kids" className="hover:text-foreground">
+            <Link href="/kids" className="hover:text-foreground" onClick={enterApp}>
               Kids
             </Link>
           </div>

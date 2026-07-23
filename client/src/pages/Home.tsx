@@ -46,6 +46,9 @@ import {
   CalendarDays,
   Zap,
   Heart,
+  NotebookPen,
+  Smile,
+  PlusCircle,
 } from "lucide-react";
 
 const MS_PER_DAY = 86400000;
@@ -909,6 +912,39 @@ export default function Home() {
         </CardContent>
       </Card>
       </ResponsiveDetails>
+
+      <section className="space-y-3" aria-labelledby="explore-more-heading" data-testid="home-explore-more">
+        <h2 id="explore-more-heading" className="font-serif text-xl font-semibold tracking-tight">
+          Explore more
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Features that live beyond the main practice loop — always a tap away.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {[
+            { href: "/journal", label: "Journal", hint: "Reflect after practice", icon: NotebookPen },
+            { href: "/kids", label: "Kids", hint: "Stories and breath games", icon: Smile },
+            { href: "/builder", label: "Builder", hint: "Craft your own sequence", icon: PlusCircle },
+            { href: "/breathing", label: "Breathing", hint: "Guided pranayama", icon: Wind },
+          ].map(({ href, label, hint, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              data-testid={`home-explore-${label.toLowerCase()}`}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Icon className="h-5 w-5" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">{label}</span>
+                <span className="block text-xs text-muted-foreground">{hint}</span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

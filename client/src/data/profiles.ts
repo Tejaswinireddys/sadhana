@@ -30,7 +30,7 @@ export const PROFILES: Profile[] = [
     daysPerWeek: 4,
     recommendedAsanas: ["tadasana", "urdhva-hastasana", "vrksasana", "utkatasana", "anjaneyasana", "balasana", "savasana"],
     recommendedBreathing: ["ujjayi"],
-    recommendedAffirmationsTag: "energy",
+    recommendedAffirmationsTag: "motherhood",
     why: "Short, full-body sequences keep the nervous system regulated and energy steady through demanding days. Standing and balancing poses wake up the body fast, while child's pose and savasana give the brief recovery that makes a habit sustainable.",
   },
   {
@@ -67,7 +67,7 @@ export const PROFILES: Profile[] = [
       "salamba-matsyasana",
     ],
     recommendedBreathing: ["four-seven-eight"],
-    recommendedAffirmationsTag: "calm",
+    recommendedAffirmationsTag: "sleep",
     why: "Restorative, low-effort postures and 4-7-8 breathing cue the body toward sleep by extending the exhale and reducing sympathetic arousal. A consistent nightly ritual is one of the strongest evidence-based sleep aids.",
   },
   {
@@ -271,7 +271,7 @@ export const PROFILES: Profile[] = [
       "prenatal-supported-twist",
     ],
     recommendedBreathing: ["four-seven-eight", "nadi-shodhana"],
-    recommendedAffirmationsTag: "calm",
+    recommendedAffirmationsTag: "motherhood",
     why: "Pregnancy asks for mobility without compression or long flat-on-the-back holds. This profile favors wide-knee shapes, side-lying rest, and supported standing balance so practice stays nourishing across trimesters.",
   },
 ];

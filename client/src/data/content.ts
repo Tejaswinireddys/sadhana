@@ -7199,6 +7199,8 @@ export const PROFILE_AFFIRMATION_TAG_MAP: Record<string, AffirmationThemeId> = {
   energy: "strength",
   focus: "clarity",
   patience: "self-love",
+  motherhood: "motherhood",
+  sleep: "sleep",
 };
 
 export const AFFIRMATIONS_BY_THEME: Record<AffirmationThemeId, string[]> = {
