@@ -1,19 +1,24 @@
 /**
- * PoseDemoStage — the visual heart of pose explanation.
+ * PoseDemoStage — the visual heart of pose explanation / guided practice.
  *
- * Tries a looping demonstration video (MP4 → WebM). When video assets are
- * missing or reduced-data is on, falls back to the pose PNG illustration with
- * an optional focus-halo overlay (same teaching accent as GuidedSession).
+ * Primary: narration-synced 3D figurine (CSS perspective + PoseSvg mannequin)
+ * driven by step pose key, focus zone, and stepMotion — the “correct moment”.
+ *
+ * Optional: looping Ken Burns video remains available when prefer3D is false
+ * (or save-data / reduced paths). Poster PNG is a soft recognition layer under 3D.
  *
  * Never invents external CDN URLs — callers pass sources from poseMediaFor().
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { PoseSvg } from "@/components/PoseSvg";
+import { PoseFigurine3D } from "@/components/PoseFigurine3D";
+import type { StepMotionKey } from "@/components/StepMotion";
 import type { PoseMediaSources } from "@/data/poseMedia";
+import type { FocusZone } from "@/lib/poseMoments";
 import { AlertCircle, Loader2 } from "lucide-react";
 
-export type FocusZone = { cx: number; cy: number; r: number; label: string };
+export type { FocusZone };
 
 type PoseDemoStageProps = {
   slug: string;
@@ -21,24 +26,36 @@ type PoseDemoStageProps = {
   sanskrit: string;
   poseKey: string;
   media: PoseMediaSources;
-  /** When true, attempt video; otherwise force illustration. */
+  /**
+   * Prefer the 3D figurine stage (default). Set false only when you explicitly
+   * want the looping illustration video instead.
+   */
+  prefer3D?: boolean;
+  /** When true and prefer3D is false, attempt video; otherwise force illustration. */
   preferVideo?: boolean;
   /**
-   * Drives muted video play/pause. Pass true for idle detail preview,
-   * and mirror narration play/pause once an explanation or guided cue starts
-   * so the clip feels tied to that pose's voice.
+   * Drives muted video play/pause and 3D “live” breath. Pass true for idle
+   * detail preview, and mirror narration play/pause once explanation starts.
    */
   playing?: boolean;
   /**
-   * Bump when narration starts (or pose instruction begins) so the demo clip
-   * seeks to 0 and restarts with the matching audio.
+   * Bump when narration starts (or pose instruction begins) so a video clip
+   * seeks to 0; 3D resets via slug/step props.
    */
   restartToken?: number;
   focusZone?: FocusZone | null;
+  /** Narration step index — advances the 3D camera / focus moment. */
+  stepIndex?: number;
+  stepCount?: number;
+  /** Per-step PoseSvg key when the shape changes mid-cue. */
+  stepPoseKey?: string;
+  stepMotion?: StepMotionKey | null;
+  /** Laterality for “each side” poses — mirrors the figurine on side 2. */
+  side?: 1 | 2;
   className?: string;
   /** Aspect / sizing: "detail" (rounded card) or "practice" (full contain). */
   variant?: "detail" | "practice";
-  onMediaModeChange?: (mode: "video" | "illustration") => void;
+  onMediaModeChange?: (mode: "3d" | "video" | "illustration") => void;
   "data-testid"?: string;
 };
 
@@ -59,10 +76,16 @@ export function PoseDemoStage({
   sanskrit,
   poseKey,
   media,
+  prefer3D = true,
   preferVideo = true,
   playing = false,
   restartToken = 0,
   focusZone = null,
+  stepIndex = 0,
+  stepCount = 1,
+  stepPoseKey,
+  stepMotion = null,
+  side = 1,
   className,
   variant = "detail",
   onMediaModeChange,
@@ -78,7 +101,8 @@ export function PoseDemoStage({
 
   const saveData = useMemo(() => prefersReducedData(), []);
   const reduceMotion = useMemo(() => prefersReducedMotion(), []);
-  const useVideo = preferVideo && !saveData && !videoFailed;
+  const use3D = prefer3D;
+  const useVideo = !use3D && preferVideo && !saveData && !videoFailed;
 
   useEffect(() => {
     setImgErrored(false);
@@ -88,11 +112,16 @@ export function PoseDemoStage({
   }, [slug]);
 
   useEffect(() => {
+    if (use3D) {
+      onMediaModeChange?.("3d");
+      return;
+    }
     onMediaModeChange?.(useVideo && videoReady ? "video" : "illustration");
-  }, [useVideo, videoReady, onMediaModeChange]);
+  }, [use3D, useVideo, videoReady, onMediaModeChange]);
 
   // Lazy-attach sources once the stage is in view (saves bandwidth on library).
   useEffect(() => {
+    if (use3D) return;
     const el = wrapRef.current;
     if (!el || typeof IntersectionObserver === "undefined") {
       setShowSources(true);
@@ -109,7 +138,7 @@ export function PoseDemoStage({
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [slug]);
+  }, [slug, use3D]);
 
   // Explicit load() after <source> children mount — required by HTMLMediaElement.
   useEffect(() => {
@@ -121,13 +150,13 @@ export function PoseDemoStage({
 
   // Measure for focus halo (object-contain letterboxing aware for practice).
   useEffect(() => {
+    if (use3D) return;
     const el = wrapRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const update = () => {
       const wrapW = el.clientWidth;
       const wrapH = el.clientHeight;
       if (variant === "practice") {
-        // Approximate contain box for ~1:2 portrait PNGs.
         const aspect = 887 / 1774;
         let w = wrapW;
         let h = w / aspect;
@@ -151,7 +180,7 @@ export function PoseDemoStage({
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [variant, slug]);
+  }, [variant, slug, use3D]);
 
   // Restart clip with narration (seek + play) when parent bumps restartToken.
   useEffect(() => {
@@ -164,23 +193,19 @@ export function PoseDemoStage({
     }
   }, [restartToken, useVideo, videoReady, slug]);
 
-  // Sync muted play/pause with parent. Voice comes from /voice/pose-{slug}.mp3 —
-  // never autoplay video with sound. Parent owns when the clip should run
-  // (idle preview vs narration-tied playback).
+  // Sync muted play/pause with parent.
   useEffect(() => {
     const v = videoRef.current;
     if (!v || !useVideo || !videoReady) return;
     v.muted = true;
     if (!reduceMotion && playing) {
       const p = v.play();
-      // Autoplay / gesture policy must not permanently kill the video layer.
       if (p) p.catch(() => undefined);
     } else {
       v.pause();
     }
   }, [playing, useVideo, reduceMotion, slug, videoReady, restartToken]);
 
-  // Graceful fallthrough if the clip never becomes ready.
   useEffect(() => {
     if (!useVideo || !showSources || videoReady || videoFailed) return;
     const t = window.setTimeout(() => setVideoFailed(true), 15000);
@@ -188,7 +213,28 @@ export function PoseDemoStage({
   }, [useVideo, showSources, videoReady, videoFailed]);
 
   const alt = `${english} (${sanskrit}) pose demonstration`;
-  const showIllustration = !useVideo || !videoReady || videoFailed;
+  const showIllustration = !use3D && (!useVideo || !videoReady || videoFailed);
+
+  if (use3D) {
+    return (
+      <PoseFigurine3D
+        slug={slug}
+        english={english}
+        poseKey={poseKey}
+        stepPoseKey={stepPoseKey}
+        focusZone={focusZone}
+        stepMotion={stepMotion}
+        stepIndex={stepIndex}
+        stepCount={stepCount}
+        side={side}
+        playing={playing}
+        variant={variant}
+        posterSrc={media.poster}
+        className={className}
+        data-testid={testId ?? `pose-demo-stage-${slug}`}
+      />
+    );
+  }
 
   return (
     <div
@@ -202,7 +248,6 @@ export function PoseDemoStage({
       data-testid={testId ?? `pose-demo-stage-${slug}`}
       data-media={useVideo && videoReady ? "video" : "illustration"}
     >
-      {/* Video layer */}
       {useVideo && showSources && (
         <video
           ref={videoRef}
@@ -231,7 +276,6 @@ export function PoseDemoStage({
         </video>
       )}
 
-      {/* Loading spinner while probing video — keep illustration visible underneath */}
       {useVideo && showSources && !videoReady && !videoFailed && (
         <div
           className={cn(
@@ -244,7 +288,6 @@ export function PoseDemoStage({
         </div>
       )}
 
-      {/* Illustration fallback */}
       {showIllustration &&
         (imgErrored ? (
           <div
@@ -273,7 +316,6 @@ export function PoseDemoStage({
           />
         ))}
 
-      {/* Focus halo — illustration teaching accent (hidden on live video) */}
       {showIllustration && focusZone && box.w > 0 && box.h > 0 && (
         (() => {
           const clampedCy = Math.min(0.8, Math.max(0.2, focusZone.cy));
@@ -330,7 +372,6 @@ export function PoseDemoStage({
         </span>
       )}
 
-      {/* Subtle badge when running on illustration because video isn't ready */}
       {preferVideo && videoFailed && variant === "detail" && (
         <span
           className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground backdrop-blur-sm"

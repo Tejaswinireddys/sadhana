@@ -22,5 +22,5 @@ npm i @splinetool/react-spline
 ```
 
 Lazy-load a thin wrapper, keep the PNG fallback, and never autoplay motion when
-`prefers-reduced-motion` or save-data is on. Prefer one decorative hero only —
-do not add R3F for Asana Detail unless it clarifies alignment better than DemoMode.
+`prefers-reduced-motion` or save-data is on. Do not add R3F for Asana Detail — pose teaching uses the procedural CSS
+`PoseFigurine3D` stage (see `poseMoments.ts`) instead of a heavy WebGL runtime.

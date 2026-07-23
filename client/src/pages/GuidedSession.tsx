@@ -2,8 +2,8 @@
 //
 // A single full-height screen with three vertical zones:
 //   Top    — session progress bar, session name, close (X).
-//   Middle — pose demonstration stage (video when available, else illustration
-//            + focus halo), prev/next thumbs, pose name.
+//   Middle — 3D pose figurine stage (narration-synced moments + focus),
+//            prev/next thumbs, pose name.
 //   Bottom — countdown, synced step / form cues, transport, pose-tips button.
 //
 // State machine per pose:
@@ -238,9 +238,15 @@ export default function GuidedSession() {
 
   const src = current ? poseNarrationSrc(current.slug) : "";
 
-  // Focus halo during instruction — PoseDemoStage draws it on the illustration.
+  // Focus + step metadata for 3D moments during instruction.
   const activeZone =
     phase === "instruction" ? steps[stepIndex]?.focusZone ?? null : null;
+  const activeStepPose =
+    phase === "instruction"
+      ? steps[stepIndex]?.pose || current?.pose
+      : current?.pose;
+  const activeStepMotion =
+    phase === "instruction" ? steps[stepIndex]?.stepMotion ?? null : null;
 
   // ---- session time estimate ------------------------------------------------
   const totalEstimateSeconds = useMemo(() => {
@@ -1044,10 +1050,16 @@ export default function GuidedSession() {
                 sanskrit={current.sanskrit}
                 poseKey={current.pose}
                 media={poseMedia}
+                prefer3D
                 preferVideo={poseHasVideo(current.slug)}
                 playing={!paused && (phase === "instruction" || phase === "hold")}
                 restartToken={videoRestartToken}
                 focusZone={activeZone}
+                stepIndex={phase === "instruction" ? stepIndex : Math.max(0, stepCount - 1)}
+                stepCount={stepCount}
+                stepPoseKey={activeStepPose}
+                stepMotion={activeStepMotion}
+                side={isEach ? (side as 1 | 2) : 1}
                 variant="practice"
                 data-testid="guided-hero"
               />

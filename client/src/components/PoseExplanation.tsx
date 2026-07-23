@@ -2,8 +2,8 @@
  * PoseExplanation — premium per-pose teaching experience (detail page).
  *
  * Better than a bare looping clip (Down Dog style):
- *   - Demonstration stage (video when available, illustrated guide + focus halo otherwise)
- *   - Narration-synced step walkthrough (/voice/pose-{slug}.mp3 with the demo clip)
+ *   - 3D figurine stage timed to narration steps (pose key, focus, stepMotion)
+ *   - Narration-synced step walkthrough (/voice/pose-{slug}.mp3)
  *   - Side teaching rail: Form · Breath · Alignment · Watch outs · Feel it
  *   - Smooth play/pause, progress, accessible captions / alt text
  *
@@ -58,7 +58,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const [audioFailed, setAudioFailed] = useState(false);
   const [restartToken, setRestartToken] = useState(0);
   const [tab, setTab] = useState<TeachTab>("form");
-  const [mediaMode, setMediaMode] = useState<"video" | "illustration">("illustration");
+  const [mediaMode, setMediaMode] = useState<"3d" | "video" | "illustration">("3d");
 
   const steps = asana?.steps ?? [];
   const stepCount = steps.length || 1;
@@ -72,9 +72,14 @@ export function PoseExplanation({ slug }: { slug: string }) {
   );
   const media = useMemo(() => poseMediaFor(slug), [slug]);
   const preferVideo = poseHasVideo(slug);
-  const activeZone = (started && !completed && steps[stepIndex]?.focusZone) || null;
-  // Idle: muted preview loop. Once started: video play/pause mirrors narration.
-  const videoPlaying = !started || (playing && !completed);
+  const activeStep = steps[stepIndex];
+  const activeZone =
+    (started && !completed && activeStep?.focusZone) ||
+    (!started ? steps[0]?.focusZone ?? null : null);
+  const activeStepPose = activeStep?.pose || asana?.pose;
+  const activeStepMotion = activeStep?.stepMotion ?? null;
+  // Idle + narration: 3D stage stays “live”; pause freezes breath when stopped mid-guide.
+  const stagePlaying = !started || (playing && !completed);
 
   useEffect(() => {
     const a = audioRef.current;
@@ -241,7 +246,11 @@ export function PoseExplanation({ slug }: { slug: string }) {
           <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
             <Sparkles className="h-3.5 w-3.5" />
             Pose explanation
-            {mediaMode === "video" ? " · Video" : " · Illustrated"}
+            {mediaMode === "3d"
+              ? " · 3D"
+              : mediaMode === "video"
+                ? " · Video"
+                : " · Illustrated"}
             {!voiceEnabled ? " · Voice off" : null}
           </span>
           <h2 className="font-serif text-2xl font-semibold tracking-tight">
@@ -257,10 +266,15 @@ export function PoseExplanation({ slug }: { slug: string }) {
             sanskrit={asana.sanskrit}
             poseKey={asana.pose}
             media={media}
+            prefer3D
             preferVideo={preferVideo}
-            playing={videoPlaying}
+            playing={stagePlaying}
             restartToken={restartToken}
             focusZone={activeZone}
+            stepIndex={started ? stepIndex : 0}
+            stepCount={stepCount}
+            stepPoseKey={activeStepPose}
+            stepMotion={activeStepMotion}
             variant="detail"
             onMediaModeChange={setMediaMode}
             data-testid={`demo-hero-${asana.slug}`}
