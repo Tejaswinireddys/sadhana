@@ -18,7 +18,14 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { resolveIcon } from "@/lib/icons";
 import type { Profile } from "@/data/profiles";
+import { PoseImage } from "@/components/PoseImage";
 import { Check, Clock, CalendarDays, ChevronDown, Info, Sparkles } from "lucide-react";
+
+const AUDIENCE_BADGE: Record<string, string> = {
+  "mens-strength": "For men",
+  "womens-wellness": "For women",
+  pregnancy: "Pregnancy",
+};
 
 export function ProfileCard({ profile, active }: { profile: Profile; active: boolean }) {
   const { toast } = useToast();
@@ -26,6 +33,7 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
   const Icon = resolveIcon(profile.icon);
   const previewSlugs = profile.recommendedAsanas.slice(0, 3);
   const outcome = profile.tagline;
+  const audience = AUDIENCE_BADGE[profile.id];
 
   const activate = useMutation({
     mutationFn: () => apiRequest("POST", "/api/profile/activate", { profileId: profile.id }),
@@ -60,11 +68,18 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
               >
                 {profile.name}
               </h3>
-              {active && (
-                <Badge className="shrink-0 gap-1" data-testid={`badge-active-${profile.id}`}>
-                  <Check className="h-3 w-3" /> Active
-                </Badge>
-              )}
+              <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                {audience && (
+                  <Badge variant="secondary" data-testid={`badge-audience-${profile.id}`}>
+                    {audience}
+                  </Badge>
+                )}
+                {active && (
+                  <Badge className="gap-1" data-testid={`badge-active-${profile.id}`}>
+                    <Check className="h-3 w-3" /> Active
+                  </Badge>
+                )}
+              </div>
             </div>
             <p
               className="mt-1 inline-flex items-start gap-1.5 text-sm font-medium text-foreground"
@@ -78,14 +93,16 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
 
         <div className="flex gap-2" aria-label="Sample poses in this path">
           {previewSlugs.map((slug) => (
-            <img
+            <PoseImage
               key={slug}
-              src={`${import.meta.env.BASE_URL}poses/${slug}.png`}
+              slug={slug}
               alt=""
-              className="h-16 w-16 rounded-xl object-cover shadow-soft"
-              loading="lazy"
-              decoding="async"
-              draggable={false}
+              className="h-16 w-16 shrink-0"
+              aspect="aspect-square"
+              rounded="rounded-xl"
+              breath={false}
+              shadow
+              sizes="64px"
             />
           ))}
         </div>

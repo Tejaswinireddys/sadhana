@@ -12,6 +12,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { todayISO } from "@/lib/sadhana";
 import { ArrowLeft, Check, Star } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { Pressable } from "@/components/motion";
 
 export default function KidsPose() {
   const { slug } = useParams();
@@ -122,15 +123,17 @@ export default function KidsPose() {
                 </Button>
               </div>
             ) : (
-              <Button
-                size="lg"
-                className="rounded-full bg-[hsl(16_72%_55%)] px-10 text-lg hover:bg-[hsl(16_72%_48%)]"
-                onClick={() => finish.mutate()}
-                disabled={finish.isPending}
-                data-testid="button-i-did-it"
-              >
-                <Check className="mr-2 h-6 w-6" /> I did it!
-              </Button>
+              <Pressable>
+                <Button
+                  size="lg"
+                  className="rounded-full bg-[hsl(16_72%_55%)] px-10 text-lg hover:bg-[hsl(16_72%_48%)]"
+                  onClick={() => finish.mutate()}
+                  disabled={finish.isPending}
+                  data-testid="button-i-did-it"
+                >
+                  <Check className="mr-2 h-6 w-6" /> I did it!
+                </Button>
+              </Pressable>
             )}
           </div>
         </div>

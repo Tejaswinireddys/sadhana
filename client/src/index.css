@@ -545,6 +545,35 @@ html.motion-off .animate-breathe {
 html.motion-off .photo-breath,
 html.motion-off .photo-breath-demo { animation: none !important; }
 
+/* Landing CSS/SVG “3D-ish” hero — perspective mat + breathing figure */
+@keyframes hero-figure-breath {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-6px) scale(1.02); }
+}
+@keyframes hero-mat-pulse {
+  0%, 100% { opacity: 0.85; transform: scaleX(1); }
+  50% { opacity: 1; transform: scaleX(1.03); }
+}
+.hero-scene {
+  transform: perspective(900px) rotateX(6deg) rotateY(-8deg);
+  transform-style: preserve-3d;
+}
+.hero-figure {
+  animation: hero-figure-breath 5.5s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+.hero-mat {
+  animation: hero-mat-pulse 5.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-figure,
+  .hero-mat { animation: none !important; }
+  .hero-scene { transform: none; }
+}
+html.motion-off .hero-figure,
+html.motion-off .hero-mat { animation: none !important; }
+html.motion-off .hero-scene { transform: none; }
+
 /* Demo "alive" brightness pulse on the pose image while the voice plays. */
 @keyframes photo-brightness-pulse {
   0%, 100% { filter: brightness(1); }

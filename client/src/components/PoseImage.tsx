@@ -1,13 +1,8 @@
-// PoseImage — renders an illustrated pose photo (/poses/<slug>.png).
-// Used as the asana detail hero AND, since v3.4, as the consistent illustrated
-// thumbnail/hero everywhere (library cards, pathway cards/heroes, warm-up).
-// Features:
-//   - soft css fade-in once loaded
-//   - a very subtle 4s "breath" scale animation (respects prefers-reduced-motion
-//     and the html.motion-off toggle via the .photo-breath class)
-//   - soft drop shadow, rounded corners, full-width responsive
-//   - skeleton placeholder while loading
-//   - PoseSvg fallback when the PNG is missing (no more "Illustration unavailable")
+/**
+ * PoseImage — illustrated pose photo (/poses/<slug>.png).
+ * Lazy decode, soft fade-in, optional breath scale, skeleton + SVG fallback.
+ * Blur-up uses a tiny same-asset preview (no separate WebP set required).
+ */
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PoseSvg } from "@/components/PoseSvg";
@@ -22,45 +17,67 @@ export function PoseImage({
   rounded = "rounded-2xl",
   aspect,
   shadow = true,
+  sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw",
+  priority = false,
   testId,
 }: {
   slug: string;
   alt: string;
   className?: string;
   breath?: boolean;
-  /** Tailwind rounding class applied to the wrapper + image. */
   rounded?: string;
-  /** Tailwind aspect class (e.g. "aspect-square", "aspect-[4/3]"). When set,
-   *  the image fills the box with object-cover. */
   aspect?: string;
   shadow?: boolean;
+  /** Hint for responsive layout; single PNG source until WebP variants exist. */
+  sizes?: string;
+  /** Eager load for LCP heroes */
+  priority?: boolean;
   testId?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
   const asana = asanaBySlug(slug);
   const poseKey = asana?.pose ?? "mountain";
+  const src = `${import.meta.env.BASE_URL}poses/${slug}.png`;
 
   return (
     <div
       className={cn("relative w-full overflow-hidden bg-accent/30", rounded, aspect, className)}
       data-testid={testId ?? `pose-image-${slug}`}
     >
-      {!loaded && !errored && <Skeleton className={cn("h-full w-full", aspect ?? "aspect-square", rounded)} />}
+      {!loaded && !errored && (
+        <>
+          <Skeleton className={cn("absolute inset-0 h-full w-full", rounded)} />
+          {/* LQIP-style blur layer from the same asset at tiny intrinsic size */}
+          <img
+            src={src}
+            alt=""
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl",
+              rounded,
+            )}
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
+          />
+        </>
+      )}
       {!errored && (
         <img
-          src={`${import.meta.env.BASE_URL}poses/${slug}.png`}
+          src={src}
           alt={alt}
-          loading="lazy"
+          sizes={sizes}
+          loading={priority ? "eager" : "lazy"}
           decoding="async"
+          fetchPriority={priority ? "high" : "auto"}
           onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
           className={cn(
-            "block select-none object-cover transition-opacity",
+            "relative z-[1] block select-none object-cover transition-opacity duration-300",
             rounded,
             aspect ? "h-full w-full" : "w-full",
             shadow ? "shadow-soft-lg" : "",
-            loaded ? "photo-fade-in" : "absolute inset-0 h-full w-full opacity-0",
+            loaded ? "photo-fade-in opacity-100" : "opacity-0",
             loaded && breath ? "photo-breath" : "",
           )}
           draggable={false}

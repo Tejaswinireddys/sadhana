@@ -11,6 +11,9 @@ import { FadeIn, Pressable, Reveal, motionTokens } from "@/components/motion";
 import { ProductDemoVideo } from "@/components/ProductDemoVideo";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { AlertCircle, CheckCircle2, Info } from "lucide-react";
+import { lazy, Suspense } from "react";
+
+const HeroBreathScene = lazy(() => import("@/components/HeroBreathScene"));
 
 export default function DesignSystem() {
   useDocumentTitle("Design system · Sadhana");
@@ -154,6 +157,19 @@ export default function DesignSystem() {
             <p className="text-sm text-muted-foreground">Hover lift + press scale feedback.</p>
           </Pressable>
         </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="font-serif text-xl">Hero breath scene (CSS/SVG 3D)</h2>
+        <p className="text-sm text-muted-foreground">
+          Decorative landing hero — pauses offscreen, falls back to a static pose on mobile and reduced-motion.
+          See docs/hero-3d.md.
+        </p>
+        <Suspense fallback={<Skeleton className="aspect-[3/4] w-full max-w-sm rounded-2xl" />}>
+          <div className="max-w-sm">
+            <HeroBreathScene />
+          </div>
+        </Suspense>
       </section>
 
       <section className="space-y-4">

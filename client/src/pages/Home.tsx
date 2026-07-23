@@ -27,6 +27,8 @@ import { QUICK_SESSIONS } from "@/data/quickSessions";
 import { EmptyState } from "@/components/EmptyState";
 import { ScrollRow } from "@/components/ScrollRow";
 import { ResponsiveDetails } from "@/components/ResponsiveDetails";
+import { HomeWelcomeHeader } from "@/components/home/HomeWelcomeHeader";
+import { Reveal } from "@/components/motion";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   Flame,
@@ -256,41 +258,13 @@ export default function Home() {
   }, [showReminder, reminderPrefs.notifications]);
 
   return (
-    <div className="animate-fade-in space-y-10">
-      <header className="grid gap-6 md:grid-cols-[1.2fr_0.8fr] md:items-end">
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground" data-testid="text-today-date">
-            {formatDate(todayISO())}
-          </p>
-          <h1 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl" data-testid="text-welcome">
-            {profile ? `Welcome back to your ${profile.name} practice` : "Welcome to your practice"}
-          </h1>
-          <p className="max-w-xl text-muted-foreground">
-            One clear next step below — then more ways to practice if you want them.
-          </p>
-        </div>
-        <div
-          className="relative hidden h-36 overflow-hidden rounded-2xl border border-card-border bg-card shadow-soft md:block"
-          aria-hidden
-        >
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,hsl(var(--primary)/0.12),transparent_55%)]" />
-          <div className="absolute inset-y-0 right-0 flex items-end gap-2 pr-3 pt-3">
-            {["tadasana", "balasana", "viparita-karani", "vrksasana"].map((slug, i) => (
-              <img
-                key={slug}
-                src={`${import.meta.env.BASE_URL}poses/${slug}.png`}
-                alt=""
-                className="h-[7.5rem] w-auto rounded-xl object-cover shadow-soft"
-                style={{ transform: `translateY(${(i % 2) * 10}px)` }}
-                loading="lazy"
-                draggable={false}
-              />
-            ))}
-          </div>
-        </div>
-      </header>
+    <div className="space-y-10">
+      <HomeWelcomeHeader
+        dateLabel={formatDate(todayISO())}
+        title={profile ? `Welcome back to your ${profile.name} practice` : "Welcome to your practice"}
+      />
 
-      <section className="space-y-4" aria-labelledby="primary-practice-heading">
+      <Reveal className="space-y-4" aria-labelledby="primary-practice-heading">
         <div className="flex items-center gap-2">
           <Play className="h-5 w-5 text-primary" />
           <h2 id="primary-practice-heading" className="font-serif text-xl">
@@ -523,7 +497,7 @@ export default function Home() {
           </CardContent>
         </Card>
       )}
-      </section>
+      </Reveal>
 
       {/* Favorited poses — one-tap practice */}
       {favoriteAsanas.length > 0 ? (

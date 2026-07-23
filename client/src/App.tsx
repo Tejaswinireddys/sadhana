@@ -15,6 +15,7 @@ import { ConnectivityBanner } from "@/components/ConnectivityBanner";
 import { Onboarding } from "@/components/Onboarding";
 import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageFade } from "@/components/motion";
 
 /** Eager: first paint + marketing entry. Everything else is route-split. */
 import Home from "@/pages/Home";
@@ -72,32 +73,35 @@ function WelcomeRedirect() {
 }
 
 function AppRouter() {
+  const [location] = useLocation();
   return (
-    <Suspense fallback={<RouteFallback />}>
-      <Switch>
-        <Route path="/welcome" component={Landing} />
-        <Route path="/" component={Home} />
-        <Route path="/asanas" component={Asanas} />
-        <Route path="/asanas/:slug" component={AsanaDetail} />
-        <Route path="/pathways" component={Pathways} />
-        <Route path="/pathways/:slug" component={PathwayDetail} />
-        <Route path="/practice" component={Practice} />
-        <Route path="/guided" component={GuidedSession} />
-        <Route path="/trainer" component={Trainer} />
-        <Route path="/breathing" component={Breathing} />
-        <Route path="/affirmations" component={Affirmations} />
-        <Route path="/journal" component={Journal} />
-        <Route path="/profiles" component={Profiles} />
-        <Route path="/builder" component={Builder} />
-        <Route path="/kids" component={Kids} />
-        <Route path="/kids/breath/:slug" component={KidsBreath} />
-        <Route path="/kids/:slug" component={KidsPose} />
-        <Route path="/search" component={Search} />
-        <Route path="/settings" component={Settings} />
-        <Route path="/design-system" component={DesignSystem} />
-        <Route component={NotFound} />
-      </Switch>
-    </Suspense>
+    <PageFade routeKey={location.split("?")[0] || "/"}>
+      <Suspense fallback={<RouteFallback />}>
+        <Switch>
+          <Route path="/welcome" component={Landing} />
+          <Route path="/" component={Home} />
+          <Route path="/asanas" component={Asanas} />
+          <Route path="/asanas/:slug" component={AsanaDetail} />
+          <Route path="/pathways" component={Pathways} />
+          <Route path="/pathways/:slug" component={PathwayDetail} />
+          <Route path="/practice" component={Practice} />
+          <Route path="/guided" component={GuidedSession} />
+          <Route path="/trainer" component={Trainer} />
+          <Route path="/breathing" component={Breathing} />
+          <Route path="/affirmations" component={Affirmations} />
+          <Route path="/journal" component={Journal} />
+          <Route path="/profiles" component={Profiles} />
+          <Route path="/builder" component={Builder} />
+          <Route path="/kids" component={Kids} />
+          <Route path="/kids/breath/:slug" component={KidsBreath} />
+          <Route path="/kids/:slug" component={KidsPose} />
+          <Route path="/search" component={Search} />
+          <Route path="/settings" component={Settings} />
+          <Route path="/design-system" component={DesignSystem} />
+          <Route component={NotFound} />
+        </Switch>
+      </Suspense>
+    </PageFade>
   );
 }
 

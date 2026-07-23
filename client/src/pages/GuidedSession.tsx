@@ -155,6 +155,7 @@ export default function GuidedSession() {
   const [phase, setPhase] = useState<Phase>("transitionIn");
   const [side, setSide] = useState<1 | 2>(1); // which side we're on for "each" poses
   const [phaseRemaining, setPhaseRemaining] = useState(TRANSITION_SECONDS); // seconds
+  const [holdBudget, setHoldBudget] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [elapsedTotal, setElapsedTotal] = useState(0);
@@ -497,6 +498,7 @@ export default function GuidedSession() {
     const remaining = Math.max(3, hold - vd) + pendingExtension.current;
     pendingExtension.current = 0;
     setPhaseRemaining(remaining);
+    setHoldBudget(remaining);
     setStepIndex(Math.max(0, stepCount - 1));
     setCueIndex(0);
     setPhase("hold");
@@ -634,6 +636,7 @@ export default function GuidedSession() {
   const handleAdd30 = () => {
     if (phase === "hold" || phase === "transitionIn" || phase === "sideSwitch") {
       setPhaseRemaining((r) => r + 30);
+      if (phase === "hold") setHoldBudget((b) => b + 30);
     } else {
       // During narration the countdown is audio-driven; bank the extension so
       // the upcoming hold actually gets the extra time.
@@ -1151,6 +1154,25 @@ export default function GuidedSession() {
           >
             {mmss(bottomCountdown)}
           </span>
+
+          {isHold && holdBudget > 0 && (
+            <div
+              className="h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-primary/15"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={holdBudget}
+              aria-valuenow={Math.max(0, holdBudget - phaseRemaining)}
+              aria-label="Hold progress"
+              data-testid="guided-hold-progress"
+            >
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-1000 ease-linear motion-reduce:transition-none"
+                style={{
+                  width: `${Math.min(100, Math.max(0, ((holdBudget - phaseRemaining) / holdBudget) * 100))}%`,
+                }}
+              />
+            </div>
+          )}
 
           <p
             key={`${phase}-${stepIndex}-${cueIndex}`}

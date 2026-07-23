@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
 import { KEYS, writeString } from "@/lib/localPrefs";
-import { Reveal } from "@/components/motion";
+import { FadeIn, Reveal } from "@/components/motion";
 import {
   ArrowRight,
   BookOpen,
@@ -20,6 +20,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 const ProductDemoVideo = lazy(() =>
   import("@/components/ProductDemoVideo").then((m) => ({ default: m.ProductDemoVideo })),
 );
+const HeroBreathScene = lazy(() => import("@/components/HeroBreathScene"));
 
 const FEATURES = [
   {
@@ -125,7 +126,7 @@ export default function Landing() {
             aria-hidden
           />
           <div className="relative mx-auto grid max-w-5xl gap-10 px-4 py-16 md:grid-cols-2 md:items-center md:px-6 md:py-24">
-            <div className="space-y-6">
+            <FadeIn className="space-y-6">
               <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">Sādhanā</p>
               <h1 className="font-serif text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
                 A calm, guided yoga practice — free, illustrated, and ready when you are.
@@ -155,37 +156,43 @@ export default function Landing() {
                   <Wind className="h-3.5 w-3.5 text-primary" /> Breath + journal
                 </li>
               </ul>
-            </div>
-            <div className="relative mx-auto w-full max-w-md">
-              <img
-                src={`${import.meta.env.BASE_URL}poses/tadasana.png`}
-                alt="Illustrated Mountain Pose from the Sadhana asana library"
-                className="w-full rounded-2xl border border-border/60 object-cover shadow-soft-lg"
-                width={600}
-                height={1200}
-              />
-            </div>
+            </FadeIn>
+            <FadeIn delay={0.08} className="relative mx-auto w-full max-w-md">
+              <Suspense
+                fallback={
+                  <img
+                    src={`${import.meta.env.BASE_URL}poses/tadasana.png`}
+                    alt="Illustrated Mountain Pose from the Sadhana asana library"
+                    className="w-full rounded-2xl border border-border/60 object-cover shadow-soft-lg"
+                    width={600}
+                    height={1200}
+                  />
+                }
+              >
+                <HeroBreathScene />
+              </Suspense>
+            </FadeIn>
           </div>
         </section>
 
         <section id="features" className="mx-auto max-w-5xl px-4 py-16 md:px-6">
-          <div className="mb-10 max-w-xl space-y-2">
+          <Reveal className="mb-10 max-w-xl space-y-2">
             <h2 className="font-serif text-3xl font-semibold tracking-tight">Built for real practice</h2>
             <p className="text-muted-foreground">
               Everything you need to show up for a few mindful minutes — or a longer journey.
             </p>
-          </div>
+          </Reveal>
           <div className="grid gap-6 sm:grid-cols-2">
-            {FEATURES.map((f) => {
+            {FEATURES.map((f, i) => {
               const Icon = f.icon;
               return (
-                <div key={f.title} className="surface p-5">
+                <Reveal key={f.title} delay={i * 0.05} className="surface p-5">
                   <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <Icon className="h-5 w-5" />
                   </span>
                   <h3 className="font-serif text-xl">{f.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
-                </div>
+                </Reveal>
               );
             })}
           </div>

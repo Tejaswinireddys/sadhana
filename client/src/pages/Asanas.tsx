@@ -14,7 +14,7 @@ import { useProgressiveList } from "@/hooks/useProgressiveList";
 import type { FavoriteAsana } from "@shared/schema";
 import { Heart, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FadeIn } from "@/components/motion";
+import { FadeIn, Pressable } from "@/components/motion";
 
 const diffColor: Record<string, string> = {
   Beginner: "bg-secondary/20 text-secondary-foreground border-secondary/30",
@@ -134,16 +134,20 @@ export default function Asanas() {
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <div className="flex flex-wrap gap-2" role="group" aria-label={label}>
         {options.map((o) => (
-          <Button
-            key={o}
-            variant={active === o ? "default" : "outline"}
-            onClick={() => onSelect(o)}
-            aria-pressed={active === o}
-            className="min-h-[44px] cursor-pointer px-3 transition-colors duration-200"
-            data-testid={`filter-${group}-${o.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-          >
-            {o}
-          </Button>
+          <Pressable key={o}>
+            <Button
+              variant={active === o ? "default" : "outline"}
+              onClick={() => onSelect(o)}
+              aria-pressed={active === o}
+              className={cn(
+                "min-h-[44px] cursor-pointer px-3 transition-colors duration-200",
+                active === o && "shadow-soft",
+              )}
+              data-testid={`filter-${group}-${o.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+            >
+              {o}
+            </Button>
+          </Pressable>
         ))}
       </div>
     </div>

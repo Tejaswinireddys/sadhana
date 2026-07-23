@@ -120,3 +120,30 @@ export function Pressable({
     </motion.div>
   );
 }
+
+/** Short route continuity fade — keep under 200ms; skip for fullscreen practice. */
+export function PageFade({
+  children,
+  className,
+  routeKey,
+}: {
+  children: ReactNode;
+  className?: string;
+  routeKey: string;
+}) {
+  const enabled = useMotionEnabled();
+  if (!enabled || routeKey.startsWith("/guided") || routeKey.startsWith("/practice")) {
+    return <div className={className}>{children}</div>;
+  }
+  return (
+    <motion.div
+      key={routeKey}
+      className={className}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: motionTokens.duration.fast, ease: motionTokens.ease }}
+    >
+      {children}
+    </motion.div>
+  );
+}
