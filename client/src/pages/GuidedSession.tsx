@@ -2,16 +2,15 @@
 //
 // A single full-height screen with three vertical zones:
 //   Top    — session progress bar, session name, close (X).
-//   Middle — the large illustrated pose (the star), prev/next thumbs,
-//            a focus-halo overlay tracking the active narration step.
-//   Bottom — the big countdown, the synced step caption, transport controls,
-//            and a "time remaining in session" estimate.
+//   Middle — pose demonstration stage (video when available, else illustration
+//            + focus halo), prev/next thumbs, pose name.
+//   Bottom — countdown, synced step / form cues, transport, pose-tips button.
 //
 // State machine per pose:
 //   transitionIn (5s, chime + speechSynthesis "Next: ...")  →
 //   instruction (pose-<slug>.mp3 plays, halo tracks steps)   →
 //   sideSwitch (2s "Switch sides", only when sides === "each") → instruction (side 2) →
-//   hold (silent countdown for holdSeconds - voiceDuration, soft breath cues) →
+//   hold (silent countdown, rotating form/breath cues) →
 //   next pose transitionIn … → complete.
 //
 // Honors the user's `voiceEnabled` preference: when OFF, no audio plays — the
@@ -57,7 +56,10 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
-import { PoseSvg } from "@/components/PoseSvg";
+import { PoseDemoStage } from "@/components/PoseDemoStage";
+import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
+import { poseMediaFor, poseHasVideo } from "@/data/poseMedia";
+import { practiceHoldCues } from "@/lib/poseExplanation";
 import { QUICK_SESSIONS } from "@/data/quickSessions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
@@ -89,7 +91,7 @@ function playChime() {
 
 const TRANSITION_SECONDS = 5;
 const SIDE_SWITCH_SECONDS = 2;
-const HOLD_CUES = [
+const FALLBACK_HOLD_CUES = [
   "Inhale…",
   "Exhale…",
   "Find your edge…",
@@ -161,7 +163,7 @@ export default function GuidedSession() {
   const [elapsedTotal, setElapsedTotal] = useState(0);
   const [imgVisible, setImgVisible] = useState(true); // crossfade toggle
   const [cueIndex, setCueIndex] = useState(0);
-  const [heroImgErrored, setHeroImgErrored] = useState(false);
+  const [tipsOpen, setTipsOpen] = useState(false);
 
   // ---- premium: breath cycle + image key for crossfade ----------------------
   const [confirmExit, setConfirmExit] = useState(false);
@@ -191,13 +193,24 @@ export default function GuidedSession() {
   // True when this pose's narration failed to load/play. The instruction phase
   // then runs on the silent countdown instead of waiting forever for audio.
   const audioBrokenRef = useRef(false);
-  const imgWrapRef = useRef<HTMLDivElement | null>(null);
-  const [box, setBox] = useState({ w: 0, h: 0, offsetX: 0, offsetY: 0, wrapW: 0, wrapH: 0 });
   const [voiceDuration, setVoiceDuration] = useState(0);
 
   const current = todays[index];
   const prev = index > 0 ? todays[index - 1] : null;
   const next = index + 1 < todays.length ? todays[index + 1] : null;
+  const poseMedia = useMemo(
+    () => (current ? poseMediaFor(current.slug) : null),
+    [current?.slug],
+  );
+  const holdCues = useMemo(
+    () => (current ? practiceHoldCues(current) : FALLBACK_HOLD_CUES),
+    [current],
+  );
+
+  // Close tips when advancing so the next pose starts clean.
+  useEffect(() => {
+    setTipsOpen(false);
+  }, [current?.slug]);
 
   // Prefetch the next pose narration during hold — one file, skip on save-data.
   useEffect(() => {
@@ -216,10 +229,6 @@ export default function GuidedSession() {
     };
   }, [phase, next, voiceEnabled]);
 
-  // Reset the "photo missing" fallback whenever the pose changes.
-  useEffect(() => {
-    setHeroImgErrored(false);
-  }, [current?.slug]);
   const steps = current?.steps ?? [];
   const stepCount = steps.length || 1;
   const isEach = current?.sides === "each";
@@ -228,49 +237,9 @@ export default function GuidedSession() {
     ? `${import.meta.env.BASE_URL}voice/pose-${current.slug}.mp3`
     : "";
 
-  // Active focus zone for the halo — only render halo when the current step has
-  // an explicit focusZone. If null/undefined we hide the overlay entirely.
-  const rawZone =
-    phase === "instruction" ? steps[stepIndex]?.focusZone : undefined;
-  const activeZone = rawZone
-    ? {
-        // clamp to inside the visible image so the halo never falls off
-        cx: Math.min(0.85, Math.max(0.15, rawZone.cx)),
-        cy: Math.min(0.85, Math.max(0.15, rawZone.cy)),
-        // cap radius so the halo can never blow up beyond a body-region hint
-        r: Math.min(0.15, Math.max(0.05, rawZone.r * 0.6)),
-        label: rawZone.label,
-      }
-    : null;
-
-  // Measure the rendered image box so the halo stays a true circle.
-  // Pose PNGs are portrait 3:4 or taller and use object-contain, so the
-  // visible image is much narrower than the wrapper on desktop. We compute
-  // the letterboxed image rectangle inside the wrapper.
-  useEffect(() => {
-    const el = imgWrapRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const update = () => {
-      const wrapW = el.clientWidth;
-      const wrapH = el.clientHeight;
-      // Approximate pose image aspect ratio (portrait ~3:4).
-      const imgAspect = 3 / 4;
-      // Fit the image inside the wrapper preserving aspect ratio.
-      let w = wrapH * imgAspect;
-      let h = wrapH;
-      if (w > wrapW) {
-        w = wrapW;
-        h = wrapW / imgAspect;
-      }
-      const offsetX = (wrapW - w) / 2;
-      const offsetY = (wrapH - h) / 2;
-      setBox({ w, h, offsetX, offsetY, wrapW, wrapH });
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  // Focus halo during instruction — PoseDemoStage draws it on the illustration.
+  const activeZone =
+    phase === "instruction" ? steps[stepIndex]?.focusZone ?? null : null;
 
   // ---- session time estimate ------------------------------------------------
   const totalEstimateSeconds = useMemo(() => {
@@ -575,12 +544,16 @@ export default function GuidedSession() {
     stepCount,
   ]);
 
-  // Slow-cycling breath cues during the hold phase (every 5s).
+  // Slow-cycling form + breath cues during the hold phase (every 5s).
   useEffect(() => {
     if (phase !== "hold" || paused || finished) return;
-    const t = setInterval(() => setCueIndex((c) => (c + 1) % HOLD_CUES.length), 5000);
+    setCueIndex(0);
+    const t = setInterval(
+      () => setCueIndex((c) => (c + 1) % Math.max(1, holdCues.length)),
+      5000,
+    );
     return () => clearInterval(t);
-  }, [phase, paused, finished]);
+  }, [phase, paused, finished, holdCues]);
 
   // Kick off the first transition once the session actually starts.
   useEffect(() => {
@@ -953,7 +926,7 @@ export default function GuidedSession() {
       : phase === "sideSwitch"
         ? "Switch sides"
         : isHold
-          ? HOLD_CUES[cueIndex]
+          ? holdCues[cueIndex % holdCues.length]
           : steps[stepIndex]?.text ?? "";
 
   return (
@@ -1055,82 +1028,26 @@ export default function GuidedSession() {
 
         <div className="flex w-full max-w-lg flex-col items-center">
           <div
-            ref={imgWrapRef}
-            className="relative flex h-[46vh] w-full items-center justify-center"
+            className={cn(
+              "relative flex h-[46vh] w-full items-center justify-center transition-opacity duration-500 ease-out",
+              imgVisible ? "opacity-100" : "opacity-0",
+            )}
           >
-            {heroImgErrored ? (
-              <div
-                className="flex h-full w-full items-center justify-center text-muted-foreground"
-                data-testid="guided-hero"
-              >
-                <PoseSvg pose={current?.pose ?? "mountain"} size={200} />
-              </div>
-            ) : (
-              <img
-                key={current?.slug}
-                src={`${import.meta.env.BASE_URL}poses/${current?.slug}.png`}
-                alt={`${current?.english} illustration`}
-                draggable={false}
-                onError={() => setHeroImgErrored(true)}
-                style={{ transition: "opacity 400ms ease" }}
-                className={cn(
-                  "block h-full w-full select-none object-contain",
-                  imgVisible ? "opacity-100" : "opacity-0",
-                  phase === "instruction" ? "photo-breath-demo" : "photo-breath",
-                )}
+            {current && poseMedia && (
+              <PoseDemoStage
+                key={current.slug}
+                slug={current.slug}
+                english={current.english}
+                sanskrit={current.sanskrit}
+                poseKey={current.pose}
+                media={poseMedia}
+                preferVideo={poseHasVideo(current.slug)}
+                playing={!paused && (phase === "instruction" || phase === "hold")}
+                focusZone={activeZone}
+                variant="practice"
                 data-testid="guided-hero"
               />
             )}
-
-            {/* Focus halo overlay — only when the current step has an explicit
-                focusZone. Positioned inside the actual visible image bounds
-                (imgWrapRef measures the image container, which uses aspect-ratio). */}
-            {phase === "instruction" && activeZone && box.w > 0 &&
-              (() => {
-                // Position halo relative to the visible image (letterboxed inside wrapper)
-                const cx = box.offsetX + activeZone.cx * box.w;
-                const cy = box.offsetY + activeZone.cy * box.h;
-                const r = activeZone.r * Math.min(box.w, box.h);
-                const tween = "cx 300ms ease, cy 300ms ease, r 300ms ease";
-                return (
-                  <svg
-                    viewBox={`0 0 ${box.wrapW || 1} ${box.wrapH || 1}`}
-                    preserveAspectRatio="none"
-                    className="pointer-events-none absolute inset-0 h-full w-full"
-                    aria-hidden
-                    data-testid="guided-focus-overlay"
-                  >
-                    <circle
-                      className="focus-halo-breath"
-                      cx={cx}
-                      cy={cy}
-                      r={r}
-                      fill="hsl(var(--primary))"
-                      fillOpacity={0.18}
-                      style={{ transition: tween }}
-                      data-testid="guided-focus-halo"
-                    />
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r={r}
-                      fill="none"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={Math.max(1.5, (box.w || 0) * 0.005)}
-                      strokeOpacity={0.6}
-                      style={{ transition: tween }}
-                    />
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r={Math.max(3, r * 0.12)}
-                      fill="hsl(var(--primary))"
-                      fillOpacity={0.9}
-                      style={{ transition: tween }}
-                    />
-                  </svg>
-                );
-              })()}
           </div>
 
           <h1 className="mt-3 font-serif text-3xl" data-testid="text-current-pose">
@@ -1224,6 +1141,7 @@ export default function GuidedSession() {
             >
               <Plus className="h-5 w-5" />
             </Button>
+            <PoseTipsTrigger onClick={() => setTipsOpen(true)} />
           </div>
 
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -1232,6 +1150,12 @@ export default function GuidedSession() {
           </p>
         </div>
       </div>
+
+      <PoseTipsSheet
+        asana={current}
+        open={tipsOpen}
+        onOpenChange={setTipsOpen}
+      />
 
       {/* Exit confirmation */}
       <AlertDialog open={confirmExit} onOpenChange={setConfirmExit}>

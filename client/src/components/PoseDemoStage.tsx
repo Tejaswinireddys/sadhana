@@ -1,0 +1,302 @@
+/**
+ * PoseDemoStage — the visual heart of pose explanation.
+ *
+ * Tries a looping demonstration video (WebM → MP4). When video assets are
+ * missing or reduced-data is on, falls back to the pose PNG illustration with
+ * an optional focus-halo overlay (same teaching accent as GuidedSession).
+ *
+ * Never invents external CDN URLs — callers pass sources from poseMediaFor().
+ */
+import { useEffect, useMemo, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
+import { PoseSvg } from "@/components/PoseSvg";
+import type { PoseMediaSources } from "@/data/poseMedia";
+import { AlertCircle, Loader2 } from "lucide-react";
+
+export type FocusZone = { cx: number; cy: number; r: number; label: string };
+
+type PoseDemoStageProps = {
+  slug: string;
+  english: string;
+  sanskrit: string;
+  poseKey: string;
+  media: PoseMediaSources;
+  /** When true, attempt video; otherwise force illustration. */
+  preferVideo?: boolean;
+  playing?: boolean;
+  focusZone?: FocusZone | null;
+  className?: string;
+  /** Aspect / sizing: "detail" (rounded card) or "practice" (full contain). */
+  variant?: "detail" | "practice";
+  onMediaModeChange?: (mode: "video" | "illustration") => void;
+  "data-testid"?: string;
+};
+
+function prefersReducedData(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+  return !!conn?.saveData;
+}
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+export function PoseDemoStage({
+  slug,
+  english,
+  sanskrit,
+  poseKey,
+  media,
+  preferVideo = true,
+  playing = false,
+  focusZone = null,
+  className,
+  variant = "detail",
+  onMediaModeChange,
+  "data-testid": testId,
+}: PoseDemoStageProps) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [box, setBox] = useState({ w: 0, h: 0, offsetX: 0, offsetY: 0, wrapW: 0, wrapH: 0 });
+  const [imgErrored, setImgErrored] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const [showSources, setShowSources] = useState(false);
+
+  const saveData = useMemo(() => prefersReducedData(), []);
+  const reduceMotion = useMemo(() => prefersReducedMotion(), []);
+  const useVideo = preferVideo && !saveData && !videoFailed;
+
+  useEffect(() => {
+    setImgErrored(false);
+    setVideoFailed(false);
+    setVideoReady(false);
+    setShowSources(false);
+  }, [slug]);
+
+  useEffect(() => {
+    onMediaModeChange?.(useVideo && videoReady ? "video" : "illustration");
+  }, [useVideo, videoReady, onMediaModeChange]);
+
+  // Lazy-attach sources once the stage is in view (saves bandwidth on library).
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setShowSources(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setShowSources(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.2 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [slug]);
+
+  // Measure for focus halo (object-contain letterboxing aware for practice).
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const update = () => {
+      const wrapW = el.clientWidth;
+      const wrapH = el.clientHeight;
+      if (variant === "practice") {
+        // Approximate contain box for ~1:2 portrait PNGs.
+        const aspect = 887 / 1774;
+        let w = wrapW;
+        let h = w / aspect;
+        if (h > wrapH) {
+          h = wrapH;
+          w = h * aspect;
+        }
+        setBox({
+          w,
+          h,
+          offsetX: (wrapW - w) / 2,
+          offsetY: (wrapH - h) / 2,
+          wrapW,
+          wrapH,
+        });
+      } else {
+        setBox({ w: wrapW, h: wrapH, offsetX: 0, offsetY: 0, wrapW, wrapH });
+      }
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [variant, slug]);
+
+  // Sync play/pause with parent (muted loop — never autoplay with sound).
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !useVideo) return;
+    v.muted = true;
+    if (playing && !reduceMotion) {
+      const p = v.play();
+      if (p) p.catch(() => setVideoFailed(true));
+    } else {
+      v.pause();
+    }
+  }, [playing, useVideo, reduceMotion, slug]);
+
+  const alt = `${english} (${sanskrit}) pose demonstration`;
+  const showIllustration = !useVideo || !videoReady || videoFailed;
+
+  return (
+    <div
+      ref={wrapRef}
+      className={cn(
+        "relative w-full overflow-hidden",
+        variant === "detail" && "rounded-2xl bg-accent/30",
+        variant === "practice" && "flex h-full w-full items-center justify-center",
+        className,
+      )}
+      data-testid={testId ?? `pose-demo-stage-${slug}`}
+      data-media={useVideo && videoReady ? "video" : "illustration"}
+    >
+      {/* Video layer */}
+      {useVideo && showSources && (
+        <video
+          ref={videoRef}
+          className={cn(
+            variant === "detail"
+              ? "block aspect-[4/5] w-full object-cover"
+              : "absolute inset-0 h-full w-full object-contain",
+            (!videoReady || videoFailed) && "invisible absolute",
+          )}
+          poster={media.poster}
+          playsInline
+          muted
+          loop
+          preload={saveData ? "none" : "metadata"}
+          aria-label={alt}
+          onLoadedData={() => setVideoReady(true)}
+          onError={() => setVideoFailed(true)}
+          data-testid={`pose-demo-video-${slug}`}
+        >
+          <source src={media.webm} type="video/webm" />
+          <source src={media.mp4} type="video/mp4" />
+          <track kind="captions" src={media.captions} srcLang="en" label="English" default />
+        </video>
+      )}
+
+      {/* Loading spinner while probing video */}
+      {useVideo && showSources && !videoReady && !videoFailed && (
+        <div
+          className={cn(
+            "absolute inset-0 z-10 flex items-center justify-center bg-accent/20",
+            variant === "detail" && "aspect-[4/5]",
+          )}
+          aria-hidden
+        >
+          <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Illustration fallback */}
+      {showIllustration &&
+        (imgErrored ? (
+          <div
+            className={cn(
+              "flex flex-col items-center justify-center gap-2 text-muted-foreground",
+              variant === "detail" ? "aspect-[4/5] w-full" : "h-full w-full",
+            )}
+          >
+            <PoseSvg pose={poseKey} size={variant === "practice" ? 200 : 180} />
+            <span className="text-xs">Illustration coming soon</span>
+          </div>
+        ) : (
+          <img
+            src={media.poster}
+            alt={alt}
+            draggable={false}
+            onError={() => setImgErrored(true)}
+            className={cn(
+              "block select-none",
+              variant === "detail" &&
+                "w-full rounded-2xl object-cover shadow-soft-lg",
+              variant === "practice" && "h-full w-full object-contain",
+              playing && !reduceMotion ? "photo-breath-demo photo-brightness-pulse" : "photo-breath",
+            )}
+            data-testid={`pose-demo-poster-${slug}`}
+          />
+        ))}
+
+      {/* Focus halo — illustration teaching accent (hidden on live video) */}
+      {showIllustration && focusZone && box.w > 0 && box.h > 0 && (
+        (() => {
+          const clampedCy = Math.min(0.8, Math.max(0.2, focusZone.cy));
+          const cx = box.offsetX + focusZone.cx * box.w;
+          const cy = box.offsetY + clampedCy * box.h;
+          const r = focusZone.r * (variant === "detail" ? 0.7 : 1) * Math.min(box.w, box.h);
+          const tween = "cx 300ms ease, cy 300ms ease, r 300ms ease";
+          return (
+            <svg
+              viewBox={`0 0 ${box.wrapW || 1} ${box.wrapH || 1}`}
+              preserveAspectRatio="none"
+              className="pointer-events-none absolute inset-0 h-full w-full"
+              aria-hidden
+              data-testid={`pose-demo-focus-${slug}`}
+            >
+              <circle
+                className="focus-halo-breath"
+                cx={cx}
+                cy={cy}
+                r={r}
+                fill="hsl(var(--primary))"
+                fillOpacity={0.18}
+                style={{ transition: tween }}
+              />
+              <circle
+                cx={cx}
+                cy={cy}
+                r={r}
+                fill="none"
+                stroke="hsl(var(--primary))"
+                strokeWidth={Math.max(2, box.w * 0.006)}
+                strokeOpacity={0.85}
+                style={{ transition: tween }}
+              />
+              <circle
+                className="focus-dot-pulse"
+                cx={cx}
+                cy={cy}
+                r={Math.max(3, box.w * 0.012)}
+                fill="hsl(var(--primary))"
+                style={{ transition: tween }}
+              />
+            </svg>
+          );
+        })()
+      )}
+
+      {showIllustration && focusZone?.label && (
+        <span
+          className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full bg-background/85 px-3 py-1 text-xs font-medium text-primary shadow-soft backdrop-blur-sm"
+          data-testid={`pose-demo-focus-label-${slug}`}
+        >
+          {focusZone.label}
+        </span>
+      )}
+
+      {/* Subtle badge when running on illustration because video isn't ready */}
+      {preferVideo && videoFailed && variant === "detail" && (
+        <span
+          className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-background/80 px-2 py-1 text-[10px] font-medium text-muted-foreground backdrop-blur-sm"
+          title="Add clips under public/videos/poses — see docs/pose-videos.md"
+        >
+          <AlertCircle className="h-3 w-3" aria-hidden />
+          Illustrated guide
+        </span>
+      )}
+    </div>
+  );
+}

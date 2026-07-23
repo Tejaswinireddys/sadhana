@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { type Level } from "@/components/AnimatedAsana";
 import { StepMotion } from "@/components/StepMotion";
 import { VoicePlayer } from "@/components/VoicePlayer";
-import { DemoMode } from "@/components/DemoMode";
+import { PoseExplanation } from "@/components/PoseExplanation";
 import { asanaBySlug, type Severity } from "@/data/content";
 import { usagesForAsana } from "@/data/asanaUsage";
 import { QUICK_SESSIONS } from "@/data/quickSessions";
@@ -203,8 +203,8 @@ export default function AsanaDetail() {
         <ArrowLeft className="h-4 w-4" /> Library
       </button>
 
-      {/* Instructor-led guided demo — the prominent hero experience */}
-      <DemoMode slug={asana.slug} />
+      {/* Premium pose explanation — video when available, illustrated guide otherwise */}
+      <PoseExplanation slug={asana.slug} />
 
       <header className="space-y-4">
         <div className="space-y-3">
