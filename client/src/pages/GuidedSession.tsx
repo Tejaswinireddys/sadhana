@@ -58,7 +58,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
 import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
-import { poseMediaFor, poseHasVideo } from "@/data/poseMedia";
+import { poseMediaFor, poseHasVideo, poseNarrationSrc } from "@/data/poseMedia";
 import { practiceHoldCues } from "@/lib/poseExplanation";
 import { QUICK_SESSIONS } from "@/data/quickSessions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -194,6 +194,9 @@ export default function GuidedSession() {
   // then runs on the silent countdown instead of waiting forever for audio.
   const audioBrokenRef = useRef(false);
   const [voiceDuration, setVoiceDuration] = useState(0);
+  // Bumped when instruction (narration) starts so the muted demo clip restarts
+  // in sync with this pose's /voice/pose-{slug}.mp3.
+  const [videoRestartToken, setVideoRestartToken] = useState(0);
 
   const current = todays[index];
   const prev = index > 0 ? todays[index - 1] : null;
@@ -217,7 +220,7 @@ export default function GuidedSession() {
     if (phase !== "hold" || !next || !voiceEnabled) return;
     const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
     if (conn?.saveData) return;
-    const href = `${import.meta.env.BASE_URL}voice/pose-${next.slug}.mp3`;
+    const href = poseNarrationSrc(next.slug);
     const link = document.createElement("link");
     link.rel = "prefetch";
     link.as = "fetch";
@@ -233,9 +236,7 @@ export default function GuidedSession() {
   const stepCount = steps.length || 1;
   const isEach = current?.sides === "each";
 
-  const src = current
-    ? `${import.meta.env.BASE_URL}voice/pose-${current.slug}.mp3`
-    : "";
+  const src = current ? poseNarrationSrc(current.slug) : "";
 
   // Focus halo during instruction — PoseDemoStage draws it on the illustration.
   const activeZone =
@@ -436,6 +437,8 @@ export default function GuidedSession() {
       setPhase("instruction");
       setSide(whichSide);
       setStepIndex(0);
+      // Restart muted pose video with this pose's narration (or silent guide).
+      setVideoRestartToken((n) => n + 1);
       const a = audioRef.current;
       if (!voiceEnabled || audioBrokenRef.current || !a) {
         // Timer-driven walkthrough: the master tick counts this down and the
@@ -1043,6 +1046,7 @@ export default function GuidedSession() {
                 media={poseMedia}
                 preferVideo={poseHasVideo(current.slug)}
                 playing={!paused && (phase === "instruction" || phase === "hold")}
+                restartToken={videoRestartToken}
                 focusZone={activeZone}
                 variant="practice"
                 data-testid="guided-hero"

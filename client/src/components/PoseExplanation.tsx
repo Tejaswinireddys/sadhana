@@ -3,18 +3,23 @@
  *
  * Better than a bare looping clip (Down Dog style):
  *   - Demonstration stage (video when available, illustrated guide + focus halo otherwise)
- *   - Narration-synced step walkthrough
+ *   - Narration-synced step walkthrough (/voice/pose-{slug}.mp3 with the demo clip)
  *   - Side teaching rail: Form · Breath · Alignment · Watch outs · Feel it
  *   - Smooth play/pause, progress, accessible captions / alt text
+ *
+ * Honors voiceEnabled: when OFF, silent step countdown still drives the guide.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { asanaBySlug } from "@/data/content";
-import { poseMediaFor, poseHasVideo } from "@/data/poseMedia";
+import { poseMediaFor, poseHasVideo, poseNarrationSrc } from "@/data/poseMedia";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
+import { unlockAudio } from "@/lib/audioUnlock";
 import { cn } from "@/lib/utils";
+import type { Preferences } from "@shared/schema";
 import {
   Play,
   Pause,
@@ -40,6 +45,8 @@ const TABS: { id: TeachTab; label: string; icon: typeof Target }[] = [
 export function PoseExplanation({ slug }: { slug: string }) {
   const asana = asanaBySlug(slug);
   const { toast } = useToast();
+  const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
+  const voiceEnabled = prefs ? prefs.voiceEnabled !== 0 : true;
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [playing, setPlaying] = useState(false);
@@ -49,6 +56,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const [duration, setDuration] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
   const [audioFailed, setAudioFailed] = useState(false);
+  const [restartToken, setRestartToken] = useState(0);
   const [tab, setTab] = useState<TeachTab>("form");
   const [mediaMode, setMediaMode] = useState<"video" | "illustration">("illustration");
 
@@ -56,7 +64,8 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const stepCount = steps.length || 1;
   const SILENT_SECONDS_PER_STEP = 6;
   const silentDuration = stepCount * SILENT_SECONDS_PER_STEP;
-  const effectiveDuration = audioFailed ? silentDuration : duration;
+  const useSilentGuide = !voiceEnabled || audioFailed;
+  const effectiveDuration = useSilentGuide ? silentDuration : duration;
   const expl = useMemo(
     () => (asana ? buildPoseExplanation(asana) : null),
     [asana],
@@ -64,6 +73,8 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const media = useMemo(() => poseMediaFor(slug), [slug]);
   const preferVideo = poseHasVideo(slug);
   const activeZone = (started && !completed && steps[stepIndex]?.focusZone) || null;
+  // Idle: muted preview loop. Once started: video play/pause mirrors narration.
+  const videoPlaying = !started || (playing && !completed);
 
   useEffect(() => {
     const a = audioRef.current;
@@ -77,11 +88,22 @@ export function PoseExplanation({ slug }: { slug: string }) {
     setCurrent(0);
     setStepIndex(0);
     setAudioFailed(false);
+    setRestartToken(0);
     setTab("form");
   }, [slug]);
 
+  // If voice is turned off mid-explanation, drop into the silent walkthrough.
   useEffect(() => {
-    if (!audioFailed || !started || !playing || completed) return;
+    if (!voiceEnabled && audioRef.current) {
+      audioRef.current.pause();
+      if (started && !completed && playing) {
+        setAudioFailed(true);
+      }
+    }
+  }, [voiceEnabled, started, completed, playing]);
+
+  useEffect(() => {
+    if (!useSilentGuide || !started || !playing || completed) return;
     const t = setInterval(() => {
       setCurrent((c) => {
         const nc = c + 0.5;
@@ -96,7 +118,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
       });
     }, 500);
     return () => clearInterval(t);
-  }, [audioFailed, started, playing, completed, stepCount, silentDuration]);
+  }, [useSilentGuide, started, playing, completed, stepCount, silentDuration]);
 
   // Auto-rotate teaching tabs while playing so the rail feels alive.
   useEffect(() => {
@@ -113,22 +135,31 @@ export function PoseExplanation({ slug }: { slug: string }) {
 
   if (!asana || !expl) return null;
 
-  const src = `${import.meta.env.BASE_URL}voice/pose-${asana.slug}.mp3`;
+  const src = poseNarrationSrc(asana.slug);
   const progress =
     effectiveDuration > 0 ? Math.min(100, (current / effectiveDuration) * 100) : 0;
 
   const start = () => {
-    const a = audioRef.current;
-    if (!a) return;
+    void unlockAudio();
     setStarted(true);
     setCompleted(false);
     setCurrent(0);
     setStepIndex(0);
     setTab("form");
-    if (audioFailed) {
+    // Restart the muted demo clip with this pose's narration.
+    setRestartToken((n) => n + 1);
+
+    if (!voiceEnabled || audioFailed) {
       setPlaying(true);
       return;
     }
+    const a = audioRef.current;
+    if (!a) {
+      setAudioFailed(true);
+      setPlaying(true);
+      return;
+    }
+    a.currentTime = 0;
     const p = a.play();
     if (p && typeof p.then === "function") {
       p.then(() => setPlaying(true)).catch(() => {
@@ -146,7 +177,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
   };
 
   const resume = () => {
-    if (audioFailed) {
+    if (useSilentGuide) {
       setPlaying(true);
       return;
     }
@@ -211,6 +242,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
             <Sparkles className="h-3.5 w-3.5" />
             Pose explanation
             {mediaMode === "video" ? " · Video" : " · Illustrated"}
+            {!voiceEnabled ? " · Voice off" : null}
           </span>
           <h2 className="font-serif text-2xl font-semibold tracking-tight">
             {asana.english}
@@ -226,7 +258,8 @@ export function PoseExplanation({ slug }: { slug: string }) {
             poseKey={asana.pose}
             media={media}
             preferVideo={preferVideo}
-            playing={playing}
+            playing={videoPlaying}
+            restartToken={restartToken}
             focusZone={activeZone}
             variant="detail"
             onMediaModeChange={setMediaMode}
@@ -367,11 +400,12 @@ export function PoseExplanation({ slug }: { slug: string }) {
 
         <audio
           ref={audioRef}
-          src={src}
+          src={voiceEnabled ? src : undefined}
           preload="none"
           data-testid={`demo-audio-${asana.slug}`}
           onLoadedMetadata={(e) => setDuration((e.target as HTMLAudioElement).duration)}
           onTimeUpdate={(e) => {
+            if (useSilentGuide) return;
             const a = e.target as HTMLAudioElement;
             setCurrent(a.currentTime);
             if (a.duration > 0) {
@@ -388,8 +422,9 @@ export function PoseExplanation({ slug }: { slug: string }) {
             setStepIndex(stepCount - 1);
           }}
           onError={() => {
+            // Missing / broken narration — keep video + silent step guide.
             setAudioFailed(true);
-            if (started && !completed) {
+            if (started && !completed && voiceEnabled) {
               setPlaying(true);
               toast({
                 title: "Narration unavailable",

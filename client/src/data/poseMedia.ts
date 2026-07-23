@@ -5,10 +5,13 @@
  *   client/public/videos/poses/{slug}.webm
  *   client/public/videos/poses/{slug}.mp4
  *   client/public/captions/poses/{slug}.vtt
+ *   client/public/voice/pose-{slug}.mp3   (guided / explanation narration)
  * Poster falls back to the existing illustration: /poses/{slug}.png
  *
  * Video is only requested for slugs listed in POSE_VIDEOS_READY or that have
  * an entry in POSE_MEDIA_OVERRIDES — so missing files never spam 404s.
+ * Narration uses the convention path; players treat load/play errors as
+ * silent walkthrough (no invented CDN URLs, no broken-audio spam).
  *
  * Regenerate illustration-based clips with:
  *   npx tsx script/gen-pose-videos.ts
@@ -68,4 +71,13 @@ export function poseMediaFor(slug: string): PoseMediaSources {
     // Only attach a track when an override provides captions — convention VTTs are not shipped yet.
     ...(override.captions ? { captions: override.captions } : {}),
   };
+}
+
+/**
+ * Canonical narration URL for a pose explanation / guided instruction.
+ * Always returns the local convention path — callers must handle missing files
+ * via audio onError / play() rejection (silent fallback).
+ */
+export function poseNarrationSrc(slug: string): string {
+  return `${import.meta.env.BASE_URL}voice/pose-${slug}.mp3`;
 }

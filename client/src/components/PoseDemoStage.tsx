@@ -23,7 +23,17 @@ type PoseDemoStageProps = {
   media: PoseMediaSources;
   /** When true, attempt video; otherwise force illustration. */
   preferVideo?: boolean;
+  /**
+   * Drives muted video play/pause. Pass true for idle detail preview,
+   * and mirror narration play/pause once an explanation or guided cue starts
+   * so the clip feels tied to that pose's voice.
+   */
   playing?: boolean;
+  /**
+   * Bump when narration starts (or pose instruction begins) so the demo clip
+   * seeks to 0 and restarts with the matching audio.
+   */
+  restartToken?: number;
   focusZone?: FocusZone | null;
   className?: string;
   /** Aspect / sizing: "detail" (rounded card) or "practice" (full contain). */
@@ -51,6 +61,7 @@ export function PoseDemoStage({
   media,
   preferVideo = true,
   playing = false,
+  restartToken = 0,
   focusZone = null,
   className,
   variant = "detail",
@@ -142,22 +153,32 @@ export function PoseDemoStage({
     return () => ro.disconnect();
   }, [variant, slug]);
 
-  // Sync play/pause with parent (muted loop — never autoplay with sound).
-  // Detail pages loop muted once ready so demos are visible without starting narration.
+  // Restart clip with narration (seek + play) when parent bumps restartToken.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !useVideo || !videoReady || restartToken <= 0) return;
+    try {
+      v.currentTime = 0;
+    } catch {
+      /* ignore seek errors on unloaded media */
+    }
+  }, [restartToken, useVideo, videoReady, slug]);
+
+  // Sync muted play/pause with parent. Voice comes from /voice/pose-{slug}.mp3 —
+  // never autoplay video with sound. Parent owns when the clip should run
+  // (idle preview vs narration-tied playback).
   useEffect(() => {
     const v = videoRef.current;
     if (!v || !useVideo || !videoReady) return;
     v.muted = true;
-    const shouldPlay =
-      !reduceMotion && (playing || (variant === "detail" && videoReady));
-    if (shouldPlay) {
+    if (!reduceMotion && playing) {
       const p = v.play();
       // Autoplay / gesture policy must not permanently kill the video layer.
       if (p) p.catch(() => undefined);
     } else {
       v.pause();
     }
-  }, [playing, useVideo, reduceMotion, slug, videoReady, variant]);
+  }, [playing, useVideo, reduceMotion, slug, videoReady, restartToken]);
 
   // Graceful fallthrough if the clip never becomes ready.
   useEffect(() => {

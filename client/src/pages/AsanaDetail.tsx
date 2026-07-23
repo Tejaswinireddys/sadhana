@@ -13,6 +13,7 @@ import { StepMotion } from "@/components/StepMotion";
 import { VoicePlayer } from "@/components/VoicePlayer";
 import { PoseExplanation } from "@/components/PoseExplanation";
 import { asanaBySlug, type Severity } from "@/data/content";
+import { poseNarrationSrc } from "@/data/poseMedia";
 import { usagesForAsana } from "@/data/asanaUsage";
 import { QUICK_SESSIONS } from "@/data/quickSessions";
 import { usePractice } from "@/context/PracticeContext";
@@ -246,7 +247,7 @@ export default function AsanaDetail() {
         </div>
         {/* Quick "listen again" affordance below the headline */}
         <VoicePlayer
-          src={`${import.meta.env.BASE_URL}voice/pose-${asana.slug}.mp3`}
+          src={poseNarrationSrc(asana.slug)}
           slug={asana.slug}
           label="Listen again — guided audio"
         />
