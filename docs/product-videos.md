@@ -2,18 +2,17 @@
 
 Sadhana ships a reusable `ProductDemoVideo` component for real product walkthroughs.
 
-## Placeholder paths
-
-Replace these files with real captures (do not invent fake demos):
+## Shipped assets
 
 | Asset | Path |
 |-------|------|
+| MP4 (primary) | `client/public/videos/product-overview.mp4` |
 | WebM | `client/public/videos/product-overview.webm` |
-| MP4 fallback | `client/public/videos/product-overview.mp4` |
-| Poster | `client/public/images/product-overview-poster.webp` |
+| Poster | `client/public/images/product-overview-poster.png` |
 | Captions | `client/public/captions/product-overview.vtt` |
 
-Until real files exist, the player shows the poster (when available) and a clear fallback message.
+The overview montage is built from local pose demo clips (muted). Replace with a live
+app capture anytime — keep the same filenames.
 
 ## Capture guidelines
 
@@ -21,7 +20,7 @@ Until real files exist, the player shows the poster (when available) and a clear
 2. Export muted-friendly audio (or silent) — the component never autoplays with sound.
 3. Keep overview clips to **45–90 seconds**.
 4. Provide English captions in WebVTT for any spoken guidance.
-5. Optimize: WebM (VP9) primary + H.264 MP4 fallback; poster as WebP.
+5. Optimize: H.264 MP4 primary + optional WebM (VP9); poster as PNG (or WebP if tooling is available).
 
 ## Usage
 

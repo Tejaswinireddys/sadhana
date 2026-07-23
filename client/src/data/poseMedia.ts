@@ -25,8 +25,8 @@ export type PoseMediaSources = {
   mp4: string;
   /** Poster / still fallback (defaults to pose PNG) */
   poster: string;
-  /** WebVTT captions for the demo clip */
-  captions: string;
+  /** WebVTT captions when a real caption file exists (omit otherwise — avoids 404 tracks) */
+  captions?: string;
 };
 
 export type PoseMediaOverride = Partial<PoseMediaSources>;
@@ -65,6 +65,7 @@ export function poseMediaFor(slug: string): PoseMediaSources {
     webm: override.webm ?? `${base}videos/poses/${slug}.webm`,
     mp4: override.mp4 ?? `${base}videos/poses/${slug}.mp4`,
     poster: override.poster ?? `${base}poses/${slug}.png`,
-    captions: override.captions ?? `${base}captions/poses/${slug}.vtt`,
+    // Only attach a track when an override provides captions — convention VTTs are not shipped yet.
+    ...(override.captions ? { captions: override.captions } : {}),
   };
 }

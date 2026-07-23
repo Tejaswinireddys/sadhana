@@ -29,7 +29,7 @@ function prefersReducedMotion(): boolean {
 
 /**
  * Reusable product walkthrough player.
- * Supports WebM + MP4 fallback, poster, captions, lazy load, and reduced-data mode.
+ * Supports MP4 (+ optional WebM), poster, captions, lazy load, and reduced-data mode.
  * Never autoplays with sound.
  */
 export function ProductDemoVideo({
@@ -43,12 +43,11 @@ export function ProductDemoVideo({
   captionsSrc,
 }: ProductDemoVideoProps) {
   const base = import.meta.env.BASE_URL;
-  const poster = posterSrc ?? `${base}images/${name}-poster.webp`;
-  const posterFallback = `${base}images/${name}-poster.png`;
+  // PNG is the shipped poster (WebP optional). Prefer real PNG over a missing .webp.
+  const poster = posterSrc ?? `${base}images/${name}-poster.png`;
   const webm = webmSrc ?? `${base}videos/${name}.webm`;
   const mp4 = mp4Src ?? `${base}videos/${name}.mp4`;
   const captions = captionsSrc ?? `${base}captions/${name}.vtt`;
-  const [posterUrl, setPosterUrl] = useState(poster);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [inView, setInView] = useState(false);
@@ -84,6 +83,24 @@ export function ProductDemoVideo({
     setShowSources(true);
   }, [inView]);
 
+  // After React attaches <source> children, browsers require an explicit load().
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !showSources || failed) return;
+    setReady(false);
+    el.load();
+  }, [showSources, failed, mp4, webm]);
+
+  // Don't spin forever if metadata never arrives (offline / blocked).
+  useEffect(() => {
+    if (!showSources || ready || failed) return;
+    const t = window.setTimeout(() => {
+      if (!videoRef.current || videoRef.current.readyState >= 2) return;
+      setFailed(true);
+    }, 12000);
+    return () => window.clearTimeout(t);
+  }, [showSources, ready, failed]);
+
   useEffect(() => {
     const el = videoRef.current;
     if (!el || !showSources || !canAutoplay || !inView || failed) return;
@@ -94,7 +111,7 @@ export function ProductDemoVideo({
         /* autoplay blocked — user can press play */
       });
     }
-  }, [showSources, canAutoplay, inView, failed]);
+  }, [showSources, canAutoplay, inView, failed, ready]);
 
   const toggle = async () => {
     const el = videoRef.current;
@@ -105,7 +122,7 @@ export function ProductDemoVideo({
         await el.play();
         setPlaying(true);
       } catch {
-        setFailed(true);
+        /* Keep poster + play control; do not treat gesture-blocked play as a media failure */
       }
     } else {
       el.pause();
@@ -115,14 +132,11 @@ export function ProductDemoVideo({
 
   return (
     <figure
-      className={cn(
-        "surface relative overflow-hidden",
-        className,
-      )}
+      className={cn("surface relative overflow-hidden", className)}
       data-testid="product-demo-video"
     >
       <div className="relative aspect-video bg-muted/40">
-        {!ready && !failed && (
+        {!ready && !failed && showSources && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
             <span className="sr-only">Loading video</span>
@@ -132,38 +146,41 @@ export function ProductDemoVideo({
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-card/90 p-6 text-center">
             <AlertCircle className="h-8 w-8 text-muted-foreground" aria-hidden />
             <p className="max-w-sm text-sm text-muted-foreground">
-              Demo video isn’t available yet. Replace the placeholder files under{" "}
-              <code className="text-xs">public/videos</code> — see{" "}
-              <code className="text-xs">docs/product-videos.md</code>.
+              Demo video couldn’t load. Check your connection, then try Play again.
             </p>
             <img
-              src={posterUrl}
+              src={poster}
               alt=""
               className="mt-2 max-h-40 rounded-xl object-cover opacity-80"
-              onError={() => {
-                if (posterUrl !== posterFallback) setPosterUrl(posterFallback);
-              }}
             />
           </div>
         )}
         <video
           ref={videoRef}
           className={cn("h-full w-full object-cover", failed && "invisible")}
-          poster={posterUrl}
+          poster={poster}
           playsInline
           muted
           loop
           preload={saveData || !inView ? "none" : "metadata"}
           aria-label={title}
-          onLoadedData={() => setReady(true)}
-          onError={() => setFailed(true)}
+          onLoadedData={() => {
+            setReady(true);
+            setFailed(false);
+          }}
+          onError={() => {
+            // Ignore transient errors before sources are attached.
+            if (!showSources) return;
+            setFailed(true);
+          }}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
         >
           {showSources && (
             <>
-              <source src={webm} type="video/webm" />
+              {/* MP4 first — Safari / iOS; WebM as progressive enhancement */}
               <source src={mp4} type="video/mp4" />
+              <source src={webm} type="video/webm" />
               <track kind="captions" src={captions} srcLang="en" label="English" default />
             </>
           )}

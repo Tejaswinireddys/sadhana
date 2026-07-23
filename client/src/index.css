@@ -545,7 +545,7 @@ html.motion-off .animate-breathe {
 html.motion-off .photo-breath,
 html.motion-off .photo-breath-demo { animation: none !important; }
 
-/* Landing CSS/SVG “3D-ish” hero — perspective mat + breathing figure */
+/* Landing CSS/SVG “3D-ish” hero — perspective on the real pose photo */
 @keyframes hero-figure-breath {
   0%, 100% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-6px) scale(1.02); }
@@ -554,9 +554,15 @@ html.motion-off .photo-breath-demo { animation: none !important; }
   0%, 100% { opacity: 0.85; transform: scaleX(1); }
   50% { opacity: 1; transform: scaleX(1.03); }
 }
+@keyframes hero-photo-breath {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
+}
 .hero-scene {
-  transform: perspective(900px) rotateX(6deg) rotateY(-8deg);
   transform-style: preserve-3d;
+}
+.hero-scene-depth {
+  transform: perspective(900px) rotateX(5deg) rotateY(-7deg);
 }
 .hero-figure {
   animation: hero-figure-breath 5.5s ease-in-out infinite;
@@ -565,14 +571,20 @@ html.motion-off .photo-breath-demo { animation: none !important; }
 .hero-mat {
   animation: hero-mat-pulse 5.5s ease-in-out infinite;
 }
+.hero-photo-breath {
+  animation: hero-photo-breath 5.5s ease-in-out infinite;
+  transform-origin: center center;
+}
 @media (prefers-reduced-motion: reduce) {
   .hero-figure,
-  .hero-mat { animation: none !important; }
-  .hero-scene { transform: none; }
+  .hero-mat,
+  .hero-photo-breath { animation: none !important; }
+  .hero-scene-depth { transform: none; }
 }
 html.motion-off .hero-figure,
-html.motion-off .hero-mat { animation: none !important; }
-html.motion-off .hero-scene { transform: none; }
+html.motion-off .hero-mat,
+html.motion-off .hero-photo-breath { animation: none !important; }
+html.motion-off .hero-scene-depth { transform: none; }
 
 /* Demo "alive" brightness pulse on the pose image while the voice plays. */
 @keyframes photo-brightness-pulse {

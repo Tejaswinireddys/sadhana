@@ -174,7 +174,7 @@ export default function DesignSystem() {
 
       <section className="space-y-4">
         <h2 className="font-serif text-xl">Product demo video</h2>
-        <ProductDemoVideo title="Sadhana product overview (placeholder until real capture)" />
+        <ProductDemoVideo title="Sadhana product overview" />
       </section>
 
       <CardHeader className="px-0">

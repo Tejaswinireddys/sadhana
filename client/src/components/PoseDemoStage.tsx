@@ -1,7 +1,7 @@
 /**
  * PoseDemoStage — the visual heart of pose explanation.
  *
- * Tries a looping demonstration video (WebM → MP4). When video assets are
+ * Tries a looping demonstration video (MP4 → WebM). When video assets are
  * missing or reduced-data is on, falls back to the pose PNG illustration with
  * an optional focus-halo overlay (same teaching accent as GuidedSession).
  *
@@ -100,6 +100,14 @@ export function PoseDemoStage({
     return () => io.disconnect();
   }, [slug]);
 
+  // Explicit load() after <source> children mount — required by HTMLMediaElement.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !useVideo || !showSources) return;
+    setVideoReady(false);
+    v.load();
+  }, [useVideo, showSources, slug, media.mp4, media.webm]);
+
   // Measure for focus halo (object-contain letterboxing aware for practice).
   useEffect(() => {
     const el = wrapRef.current;
@@ -135,17 +143,28 @@ export function PoseDemoStage({
   }, [variant, slug]);
 
   // Sync play/pause with parent (muted loop — never autoplay with sound).
+  // Detail pages loop muted once ready so demos are visible without starting narration.
   useEffect(() => {
     const v = videoRef.current;
-    if (!v || !useVideo) return;
+    if (!v || !useVideo || !videoReady) return;
     v.muted = true;
-    if (playing && !reduceMotion) {
+    const shouldPlay =
+      !reduceMotion && (playing || (variant === "detail" && videoReady));
+    if (shouldPlay) {
       const p = v.play();
-      if (p) p.catch(() => setVideoFailed(true));
+      // Autoplay / gesture policy must not permanently kill the video layer.
+      if (p) p.catch(() => undefined);
     } else {
       v.pause();
     }
-  }, [playing, useVideo, reduceMotion, slug]);
+  }, [playing, useVideo, reduceMotion, slug, videoReady, variant]);
+
+  // Graceful fallthrough if the clip never becomes ready.
+  useEffect(() => {
+    if (!useVideo || !showSources || videoReady || videoFailed) return;
+    const t = window.setTimeout(() => setVideoFailed(true), 10000);
+    return () => window.clearTimeout(t);
+  }, [useVideo, showSources, videoReady, videoFailed]);
 
   const alt = `${english} (${sanskrit}) pose demonstration`;
   const showIllustration = !useVideo || !videoReady || videoFailed;
@@ -182,17 +201,19 @@ export function PoseDemoStage({
           onError={() => setVideoFailed(true)}
           data-testid={`pose-demo-video-${slug}`}
         >
-          <source src={media.webm} type="video/webm" />
           <source src={media.mp4} type="video/mp4" />
-          <track kind="captions" src={media.captions} srcLang="en" label="English" default />
+          <source src={media.webm} type="video/webm" />
+          {media.captions ? (
+            <track kind="captions" src={media.captions} srcLang="en" label="English" />
+          ) : null}
         </video>
       )}
 
-      {/* Loading spinner while probing video */}
+      {/* Loading spinner while probing video — keep illustration visible underneath */}
       {useVideo && showSources && !videoReady && !videoFailed && (
         <div
           className={cn(
-            "absolute inset-0 z-10 flex items-center justify-center bg-accent/20",
+            "pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-accent/10",
             variant === "detail" && "aspect-[4/5]",
           )}
           aria-hidden
