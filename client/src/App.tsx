@@ -17,6 +17,19 @@ import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageFade } from "@/components/motion";
 
+/**
+ * Hash routing with query support (`#/search?q=tree`).
+ * wouter's useHashLocation includes `?…` in the path, which breaks <Route path="/search" />.
+ * Strip the query for matching; pages still read `window.location.hash` / `location.search` for params.
+ */
+function useAppHashLocation(options?: { ssrPath?: string }): [string, ReturnType<typeof useHashLocation>[1]] {
+  const [loc, navigate] = useHashLocation(options);
+  return [loc.split("?")[0] || "/", navigate];
+}
+// Preserve hash Link formatting used by wouter's hash location hook.
+(useAppHashLocation as { hrefs?: (href: string) => string }).hrefs = (href) =>
+  "#" + href;
+
 /** Eager: first paint + marketing / registration entry. Everything else is route-split. */
 import Home from "@/pages/Home";
 import Landing from "@/pages/Landing";
@@ -147,7 +160,7 @@ function App() {
               <RecentSearchesProvider>
                 <Toaster />
                 <ConnectivityBanner />
-                <Router hook={useHashLocation}>
+                <Router hook={useAppHashLocation}>
                   <AppShell />
                 </Router>
               </RecentSearchesProvider>
