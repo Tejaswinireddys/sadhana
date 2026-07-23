@@ -128,7 +128,8 @@ function AppShell() {
         <Onboarding open={showOnboarding} onDone={() => setShowOnboarding(false)} />
       )}
       <AppLayout>
-        <ErrorBoundary>
+        {/* Key by route so a page crash does not trap every subsequent nav click. */}
+        <ErrorBoundary key={location.split("?")[0] || "/"}>
           <AppRouter />
         </ErrorBoundary>
       </AppLayout>

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FadeIn, Pressable, Reveal, motionTokens } from "@/components/motion";
 import { ProductDemoVideo } from "@/components/ProductDemoVideo";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -93,6 +94,32 @@ export default function DesignSystem() {
       </section>
 
       <section className="space-y-4">
+        <h2 className="font-serif text-xl">Tabs</h2>
+        <Tabs defaultValue="form">
+          <TabsList className="flex h-auto w-full flex-wrap gap-1" data-testid="ds-tabs">
+            <TabsTrigger value="form" className="min-h-11 flex-1" data-testid="ds-tab-form">
+              Form
+            </TabsTrigger>
+            <TabsTrigger value="breath" className="min-h-11 flex-1" data-testid="ds-tab-breath">
+              Breath
+            </TabsTrigger>
+            <TabsTrigger value="align" className="min-h-11 flex-1" data-testid="ds-tab-align">
+              Align
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="form" className="mt-3 text-sm text-muted-foreground">
+            Same Radix tabs pattern used on Asana Detail and Affirmations.
+          </TabsContent>
+          <TabsContent value="breath" className="mt-3 text-sm text-muted-foreground">
+            Pair each trigger with a matching TabsContent value.
+          </TabsContent>
+          <TabsContent value="align" className="mt-3 text-sm text-muted-foreground">
+            Keep triggers min-h-11 for touch targets.
+          </TabsContent>
+        </Tabs>
+      </section>
+
+      <section className="space-y-4">
         <h2 className="font-serif text-xl">Alerts & loading</h2>
         <div className="grid gap-3">
           <Alert>
@@ -162,7 +189,7 @@ export default function DesignSystem() {
       <section className="space-y-4">
         <h2 className="font-serif text-xl">Hero breath scene (CSS/SVG 3D)</h2>
         <p className="text-sm text-muted-foreground">
-          Decorative landing hero — pauses offscreen, falls back to a static pose on mobile and reduced-motion.
+          Decorative landing hero — pose photo stays visible with soft depth when motion is on.
           See docs/hero-3d.md.
         </p>
         <Suspense fallback={<Skeleton className="aspect-[3/4] w-full max-w-sm rounded-2xl" />}>
@@ -183,7 +210,8 @@ export default function DesignSystem() {
       <div className="flex flex-wrap gap-3">
         <Button asChild variant="outline" className="min-h-11 cursor-pointer">
           <Link href="/welcome">Landing</Link>
-          {" · "}
+        </Button>
+        <Button asChild variant="outline" className="min-h-11 cursor-pointer">
           <Link href="/register">Register</Link>
         </Button>
         <Button asChild variant="outline" className="min-h-11 cursor-pointer">
