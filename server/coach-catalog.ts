@@ -5292,6 +5292,505 @@ export const COACH_CATALOG: CoachPose[] = [
     "stretchZones": [
       "Full body"
     ]
+  },
+  {
+    "slug": "ardha-chandra-chapasana",
+    "english": "Sugarcane Pose",
+    "sanskrit": "Ardha Chandra Chapasana",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 25,
+    "benefits": [
+      "Opens the hip flexors and chest",
+      "Builds standing balance",
+      "Strengthens the standing leg"
+    ],
+    "contraindications": [
+      "Hamstring strain on the standing leg",
+      "Low-back flare — keep the kick mild",
+      "Ankle instability — use a block"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "svarga-dvijasana",
+    "english": "Bird of Paradise",
+    "sanskrit": "Svarga Dvijasana",
+    "category": "Standing",
+    "level": "Advanced",
+    "holdSeconds": 10,
+    "benefits": [
+      "Opens hamstrings and hips",
+      "Builds leg and core strength",
+      "Trains balance and confidence"
+    ],
+    "contraindications": [
+      "Hamstring tear",
+      "Low-back pain — keep the lift modest",
+      "Shoulder issues in the bind"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "ragdoll",
+    "english": "Ragdoll Fold",
+    "sanskrit": "Ragdoll",
+    "category": "Forward Bends",
+    "level": "Beginner",
+    "holdSeconds": 45,
+    "benefits": [
+      "Releases the low back and hamstrings",
+      "Calms the nervous system",
+      "Softens the neck and shoulders"
+    ],
+    "contraindications": [
+      "Disc injury — bend the knees deeply",
+      "Glaucoma — keep the head above the heart if advised",
+      "Dizziness — come up slowly"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "prasarita-padottanasana-b",
+    "english": "Wide-Legged Forward Fold B",
+    "sanskrit": "Prasarita Padottanasana B",
+    "category": "Forward Bends",
+    "level": "Intermediate",
+    "holdSeconds": 40,
+    "benefits": [
+      "Stretches hamstrings and adductors",
+      "Strengthens the back body",
+      "Builds fold endurance"
+    ],
+    "contraindications": [
+      "Low-back pain — keep a long spine",
+      "Hamstring strain",
+      "Neck issues — look at the floor"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "forearm-plank",
+    "english": "Forearm Plank",
+    "sanskrit": "Forearm Plank",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 30,
+    "benefits": [
+      "Strengthens core, shoulders, and legs",
+      "Builds posture endurance",
+      "Wrist-friendly plank option"
+    ],
+    "contraindications": [
+      "Shoulder injury — drop knees",
+      "Low-back pain — keep ribs knitted",
+      "Elbow discomfort — pad the forearms"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "salamba-sarvangasana",
+    "english": "Supported Shoulderstand",
+    "sanskrit": "Salamba Sarvangasana",
+    "category": "Inversions",
+    "level": "Intermediate",
+    "holdSeconds": 60,
+    "benefits": [
+      "Calms the mind",
+      "Stimulates circulation",
+      "Strengthens the upper back and core"
+    ],
+    "contraindications": [
+      "Neck injury",
+      "High blood pressure",
+      "Glaucoma",
+      "Menstruation (optional skip)"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "urdhva-mukha-paschimottanasana",
+    "english": "Upward-Facing Forward Bend",
+    "sanskrit": "Urdhva Mukha Paschimottanasana",
+    "category": "Forward Bends",
+    "level": "Intermediate",
+    "holdSeconds": 40,
+    "benefits": [
+      "Stretches hamstrings and calves",
+      "Lengthens the spine",
+      "Opens the chest while folding"
+    ],
+    "contraindications": [
+      "Hamstring tear",
+      "Acute low-back pain",
+      "Tight shoulders — use a strap"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "sukhasana-twist",
+    "english": "Easy Seat Twist",
+    "sanskrit": "Sukhasana Parivartanasana",
+    "category": "Seated",
+    "level": "Beginner",
+    "holdSeconds": 40,
+    "benefits": [
+      "Mobilizes the spine",
+      "Eases desk stiffness",
+      "Softens the waist and breath"
+    ],
+    "contraindications": [
+      "Disc injury — keep mild",
+      "Pregnancy — use open twists",
+      "SI discomfort — reduce range"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "seated-cat-cow",
+    "english": "Seated Cat-Cow",
+    "sanskrit": "Seated Cat-Cow",
+    "category": "Seated",
+    "level": "Beginner",
+    "holdSeconds": 60,
+    "benefits": [
+      "Warms the spine",
+      "Improves breath awareness",
+      "Accessible mobility for any time of day"
+    ],
+    "contraindications": [
+      "Acute neck pain — keep the gaze neutral",
+      "Vertigo — move slowly"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "wrist-stretch-tabletop",
+    "english": "Tabletop Wrist Stretch",
+    "sanskrit": "Tabletop Wrist Stretch",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 30,
+    "benefits": [
+      "Mobilizes the wrists and forearms",
+      "Prepares hands for weight-bearing",
+      "Reduces wrist stiffness"
+    ],
+    "contraindications": [
+      "Acute wrist injury — skip",
+      "Carpal tunnel flare — keep pressure light"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "baddha-trikonasana",
+    "english": "Bound Triangle Pose",
+    "sanskrit": "Baddha Trikonasana",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 40,
+    "benefits": [
+      "Opens shoulders and chest",
+      "Stretches hamstrings and side body",
+      "Builds focus in standing shapes"
+    ],
+    "contraindications": [
+      "Shoulder injury — skip the bind",
+      "Hamstring strain",
+      "Neck issues — look down"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "anjaneyasana-backbend",
+    "english": "Crescent Lunge Backbend",
+    "sanskrit": "Anjaneyasana Backbend",
+    "category": "Backbends",
+    "level": "Intermediate",
+    "holdSeconds": 40,
+    "benefits": [
+      "Opens hip flexors and chest",
+      "Strengthens the legs",
+      "Energizing standing backbend prep"
+    ],
+    "contraindications": [
+      "Low-back pain — keep the arch mild",
+      "Knee discomfort — pad the back knee",
+      "Neck issues — keep gaze forward"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "utthan-pristhasana-forearms",
+    "english": "Lizard Pose on Forearms",
+    "sanskrit": "Utthan Pristhasana",
+    "category": "Hip Openers",
+    "level": "Intermediate",
+    "holdSeconds": 45,
+    "benefits": [
+      "Deepens hip opening",
+      "Stretches hamstrings and groin",
+      "Builds patience in low shapes"
+    ],
+    "contraindications": [
+      "Hip impingement — stay on hands",
+      "Knee pain — pad under the back knee",
+      "Wrist-free option already (forearms)"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "sleeping-swan",
+    "english": "Sleeping Swan Pose",
+    "sanskrit": "Sleeping Swan",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 180,
+    "benefits": [
+      "Releases outer hips and glutes",
+      "Settles the nervous system",
+      "Supports hip mobility over time"
+    ],
+    "contraindications": [
+      "Knee pain — elevate the hip",
+      "SI irritation — stay more upright",
+      "Acute sciatica — use Reclined Figure-Four"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "deer-twist",
+    "english": "Deer Pose Twist",
+    "sanskrit": "Deer Twist",
+    "category": "Seated",
+    "level": "Beginner",
+    "holdSeconds": 120,
+    "benefits": [
+      "Opens hips in two directions",
+      "Gentle spinal mobility",
+      "Comfortable yin-style seat"
+    ],
+    "contraindications": [
+      "Knee discomfort — reduce the bend",
+      "SI pain — keep the twist small"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "parivrtta-prasarita-padottanasana",
+    "english": "Revolved Wide-Legged Forward Fold",
+    "sanskrit": "Parivrtta Prasarita Padottanasana",
+    "category": "Forward Bends",
+    "level": "Intermediate",
+    "holdSeconds": 40,
+    "benefits": [
+      "Stretches hamstrings and adductors",
+      "Twists the spine safely with a wide base",
+      "Opens the chest and shoulders"
+    ],
+    "contraindications": [
+      "Low-back pain — keep knees soft",
+      "Disc injury — reduce the twist",
+      "Neck issues — look down"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "bakasana-prep",
+    "english": "Crow Pose Prep",
+    "sanskrit": "Bakasana Prep",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 30,
+    "benefits": [
+      "Builds arm-balance confidence",
+      "Strengthens core and hips",
+      "Teaches the crow shape safely"
+    ],
+    "contraindications": [
+      "Wrist pain — use fists or skip",
+      "Shoulder instability"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "hollow-body-hold",
+    "english": "Hollow Body Hold",
+    "sanskrit": "Hollow Body Hold",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 30,
+    "benefits": [
+      "Strengthens deep core",
+      "Improves posture control",
+      "Supports handstands and crow"
+    ],
+    "contraindications": [
+      "Acute low-back pain",
+      "Neck strain — keep the head down",
+      "Pregnancy — choose Bird Dog"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "shoulder-opener-interlace",
+    "english": "Interlaced Shoulder Opener",
+    "sanskrit": "Interlaced Shoulder Opener",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Opens chest and shoulders",
+      "Counters rounded posture",
+      "Pairs well with forward folds"
+    ],
+    "contraindications": [
+      "Shoulder injury — hold a strap",
+      "Wrist discomfort — keep a soft grip"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "viparita-karani-baddha",
+    "english": "Legs-Up-Wall Butterfly",
+    "sanskrit": "Viparita Karani Baddha Konasana",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 180,
+    "benefits": [
+      "Relaxes the nervous system",
+      "Gentle hip opening",
+      "Eases tired legs"
+    ],
+    "contraindications": [
+      "Glaucoma",
+      "Serious neck issues — keep the head supported",
+      "Pregnancy — use a bolster propped side-lying alternative if advised"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "supine-figure-four-twist",
+    "english": "Figure-Four Spinal Twist",
+    "sanskrit": "Supine Figure-Four Twist",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 50,
+    "benefits": [
+      "Releases outer hips",
+      "Gentle spinal twist",
+      "Great cool-down after standing work"
+    ],
+    "contraindications": [
+      "Knee pain — reduce the cross",
+      "SI flare — keep both shoulders heavy and range small"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "baby-cobra",
+    "english": "Baby Cobra",
+    "sanskrit": "Ardha Bhujangasana",
+    "category": "Backbends",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Strengthens the upper back",
+      "Gentle chest opening",
+      "Safer entry to deeper backbends"
+    ],
+    "contraindications": [
+      "Acute low-back pain",
+      "Pregnancy — choose a seated opener",
+      "Wrist issues — use fists or forearms (Sphinx)"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "ustrasana-hands-hips",
+    "english": "Camel Pose Prep",
+    "sanskrit": "Ustrasana Prep",
+    "category": "Backbends",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Opens the chest safely",
+      "Strengthens the back body",
+      "Prepares for full Camel"
+    ],
+    "contraindications": [
+      "Acute low-back pain",
+      "Neck issues — keep the chin tucked slightly",
+      "Knee pain — pad the knees"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "janu-sirsasana-c",
+    "english": "Head-to-Knee Pose C",
+    "sanskrit": "Janu Sirsasana C",
+    "category": "Forward Bends",
+    "level": "Advanced",
+    "holdSeconds": 40,
+    "benefits": [
+      "Deep ankle and hip mobility",
+      "Hamstring length on the extended leg",
+      "Builds careful flexibility"
+    ],
+    "contraindications": [
+      "Knee injury — skip this variation",
+      "Ankle pain",
+      "Hamstring tear"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
   }
 ];
 
