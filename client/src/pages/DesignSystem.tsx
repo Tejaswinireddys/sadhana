@@ -64,8 +64,8 @@ export default function DesignSystem() {
         <h2 className="font-serif text-xl">Typography</h2>
         <Card>
           <CardContent className="space-y-3 p-5">
-            <p className="font-serif text-3xl font-semibold tracking-tight">Fraunces display</p>
-            <p className="text-base">Figtree body — readable UI copy at 16px+.</p>
+            <p className="font-serif text-3xl font-semibold tracking-tight">Lora display</p>
+            <p className="text-base">Raleway body — readable UI copy at 16px+.</p>
             <p className="text-sm text-muted-foreground">Muted supporting text for captions and hints.</p>
           </CardContent>
         </Card>

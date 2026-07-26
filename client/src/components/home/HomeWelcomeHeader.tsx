@@ -63,10 +63,6 @@ export function HomeWelcomeHeader({
           })}
         </div>
 
-        {/* Quiet caption chip */}
-        <span className="absolute bottom-3 left-4 rounded-full bg-background/75 px-3 py-1 text-xs font-medium text-primary shadow-soft backdrop-blur-sm">
-          Your practice, today
-        </span>
       </div>
     </header>
   );
