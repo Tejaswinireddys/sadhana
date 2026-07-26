@@ -15,7 +15,7 @@ custom sequence builder.
 
 ## What's inside
 
-- **208 illustrated poses**, each with:
+- **230+ illustrated poses**, each with:
   - a warm illustrated instructor (consistent character across every pose)
   - calm female voice narration (pre-generated, no runtime AI cost)
   - Beginner / Intermediate / Advanced variations with props and cues

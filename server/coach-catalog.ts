@@ -4787,6 +4787,511 @@ export const COACH_CATALOG: CoachPose[] = [
       "Breath",
       "Support"
     ]
+  },
+  {
+    "slug": "lolasana",
+    "english": "Pendant Pose",
+    "sanskrit": "Lolasana",
+    "category": "Seated",
+    "level": "Advanced",
+    "holdSeconds": 10,
+    "benefits": [
+      "Strengthens arms, wrists, and deep core",
+      "Prepares for crow and other arm balances",
+      "Builds concentrated lift"
+    ],
+    "contraindications": [
+      "Wrist or shoulder injury",
+      "Recent abdominal surgery",
+      "Neck strain — keep gaze soft and low"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "marichyasana-b",
+    "english": "Marichi's Pose B",
+    "sanskrit": "Marichyasana B",
+    "category": "Seated",
+    "level": "Advanced",
+    "holdSeconds": 40,
+    "benefits": [
+      "Deep hip opening",
+      "Lengthens the back body",
+      "Improves seated focus and digestion"
+    ],
+    "contraindications": [
+      "Knee injury — skip Half Lotus",
+      "Lower-back flare-ups",
+      "Tight hips — use a strap"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "marichyasana-c",
+    "english": "Marichi's Pose C",
+    "sanskrit": "Marichyasana C",
+    "category": "Seated",
+    "level": "Intermediate",
+    "holdSeconds": 40,
+    "benefits": [
+      "Increases spinal mobility",
+      "Stimulates digestion",
+      "Strengthens the oblique core"
+    ],
+    "contraindications": [
+      "Disc injury — keep the twist mild",
+      "Pregnancy — choose open twists",
+      "Recent abdominal surgery"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "marichyasana-d",
+    "english": "Marichi's Pose D",
+    "sanskrit": "Marichyasana D",
+    "category": "Seated",
+    "level": "Advanced",
+    "holdSeconds": 40,
+    "benefits": [
+      "Combines deep hip opening with spinal rotation",
+      "Builds patience and precision",
+      "Strengthens the waist"
+    ],
+    "contraindications": [
+      "Knee issues — avoid Half Lotus",
+      "Acute back pain",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "eka-pada-koundinyasana-i",
+    "english": "Pose Dedicated to Sage Koundinya I",
+    "sanskrit": "Eka Pada Koundinyasana I",
+    "category": "Standing",
+    "level": "Advanced",
+    "holdSeconds": 8,
+    "benefits": [
+      "Builds arm and core strength",
+      "Trains twisting balance",
+      "Develops confidence in flight"
+    ],
+    "contraindications": [
+      "Wrist or shoulder injury",
+      "Elbow hypermobility without engagement",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "dwi-pada-koundinyasana",
+    "english": "Two-Legged Koundinya Pose",
+    "sanskrit": "Dwi Pada Koundinyasana",
+    "category": "Standing",
+    "level": "Advanced",
+    "holdSeconds": 8,
+    "benefits": [
+      "Strengthens wrists, arms, and core",
+      "Improves balance and focus",
+      "Bridges crow to more advanced arm balances"
+    ],
+    "contraindications": [
+      "Wrist pain",
+      "Shoulder instability",
+      "Recent elbow injury"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "parivrtta-surya-yantrasana",
+    "english": "Compass Pose",
+    "sanskrit": "Parivrtta Surya Yantrasana",
+    "category": "Seated",
+    "level": "Advanced",
+    "holdSeconds": 35,
+    "benefits": [
+      "Deep hamstring and shoulder opening",
+      "Lengthens the side waist",
+      "Builds hip mobility"
+    ],
+    "contraindications": [
+      "Hamstring tear",
+      "Rotator-cuff issues",
+      "SI joint pain — keep the lift modest"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "yoganidrasana",
+    "english": "Yogic Sleep Pose",
+    "sanskrit": "Yoganidrasana",
+    "category": "Forward Bends",
+    "level": "Advanced",
+    "holdSeconds": 45,
+    "benefits": [
+      "Intense hamstring and back-body release",
+      "Calms the nervous system",
+      "Opens the hips and shoulders"
+    ],
+    "contraindications": [
+      "Herniated disc",
+      "Neck injury — support the head",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "vatayanasana",
+    "english": "Horse Pose",
+    "sanskrit": "Vatayanasana",
+    "category": "Standing",
+    "level": "Intermediate",
+    "holdSeconds": 25,
+    "benefits": [
+      "Strengthens thighs and ankles",
+      "Opens the hips",
+      "Improves balance and focus"
+    ],
+    "contraindications": [
+      "Knee injury — pad the kneeling knee",
+      "Ankle instability",
+      "Recent hip surgery"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "swastikasana",
+    "english": "Auspicious Pose",
+    "sanskrit": "Swastikasana",
+    "category": "Seated",
+    "level": "Beginner",
+    "holdSeconds": 120,
+    "benefits": [
+      "Creates a stable meditation seat",
+      "Gently opens the hips",
+      "Lengthens the spine with less knee strain than Lotus"
+    ],
+    "contraindications": [
+      "Acute knee pain — sit on a chair",
+      "Ankle injury",
+      "Numb feet — change cross often"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "mukta-hasta-sirsasana",
+    "english": "Tripod Headstand",
+    "sanskrit": "Mukta Hasta Sirsasana",
+    "category": "Inversions",
+    "level": "Advanced",
+    "holdSeconds": 20,
+    "benefits": [
+      "Builds upper-body and core strength",
+      "Improves balance upside down",
+      "Increases focus and circulation"
+    ],
+    "contraindications": [
+      "Neck injury",
+      "High blood pressure",
+      "Glaucoma or eye pressure concerns",
+      "Menstruation (optional skip)"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "eka-pada-setu-bandhasana",
+    "english": "One-Legged Bridge Pose",
+    "sanskrit": "Eka Pada Setu Bandhasana",
+    "category": "Backbends",
+    "level": "Intermediate",
+    "holdSeconds": 25,
+    "benefits": [
+      "Strengthens glutes and hamstrings",
+      "Opens the chest and hip flexors",
+      "Builds single-leg stability"
+    ],
+    "contraindications": [
+      "Acute neck pain — keep the chin slightly tucked",
+      "Hamstring strain on the lifted leg",
+      "Late pregnancy"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "anuvittasana",
+    "english": "Standing Backbend",
+    "sanskrit": "Anuvittasana",
+    "category": "Backbends",
+    "level": "Beginner",
+    "holdSeconds": 20,
+    "benefits": [
+      "Opens the chest and shoulders",
+      "Counters desk posture",
+      "Energizes without leaving the feet"
+    ],
+    "contraindications": [
+      "Acute low-back pain",
+      "Vertigo — keep the gaze forward",
+      "High blood pressure — keep the arch mild"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "viparita-salabhasana",
+    "english": "Superman Pose",
+    "sanskrit": "Viparita Salabhasana",
+    "category": "Backbends",
+    "level": "Beginner",
+    "holdSeconds": 30,
+    "benefits": [
+      "Strengthens the back body and glutes",
+      "Improves posture endurance",
+      "Prepares for Locust and Bow"
+    ],
+    "contraindications": [
+      "Acute lumbar pain",
+      "Pregnancy — choose a seated chest opener",
+      "Wrist issues if hands press — keep arms forward"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "ardha-kapotasana",
+    "english": "Half Pigeon Pose",
+    "sanskrit": "Ardha Kapotasana",
+    "category": "Hip Openers",
+    "level": "Beginner",
+    "holdSeconds": 90,
+    "benefits": [
+      "Releases outer hips and glutes",
+      "Prepares for full Pigeon",
+      "Settles restless legs after sitting"
+    ],
+    "contraindications": [
+      "Knee pain in the front leg — elevate the hip",
+      "SI joint irritation — keep the fold upright",
+      "Acute sciatica — move gently"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "baddha-padmasana",
+    "english": "Bound Lotus Pose",
+    "sanskrit": "Baddha Padmasana",
+    "category": "Seated",
+    "level": "Advanced",
+    "holdSeconds": 45,
+    "benefits": [
+      "Opens shoulders and chest",
+      "Deepens hip flexibility",
+      "Sharpens meditative steadiness"
+    ],
+    "contraindications": [
+      "Knee injury — never force Lotus",
+      "Shoulder injury",
+      "Wrist discomfort in the bind"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "utthita-hasta-padasana",
+    "english": "Five-Pointed Star Pose",
+    "sanskrit": "Utthita Hasta Padasana",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 45,
+    "benefits": [
+      "Opens the chest and hips",
+      "Builds standing stamina",
+      "Transitions smoothly into Triangle and Warrior II"
+    ],
+    "contraindications": [
+      "Dizziness — shorten the stance",
+      "Inner-thigh strain",
+      "Shoulder pain — keep arms lower"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "parsva-halasana",
+    "english": "Side Plow Pose",
+    "sanskrit": "Parsva Halasana",
+    "category": "Inversions",
+    "level": "Intermediate",
+    "holdSeconds": 35,
+    "benefits": [
+      "Twists the spine with support",
+      "Stretches the back body",
+      "Settles the nervous system"
+    ],
+    "contraindications": [
+      "Neck injury",
+      "Glaucoma",
+      "High blood pressure",
+      "Menstruation (optional skip)"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "pindasana",
+    "english": "Embryo Pose",
+    "sanskrit": "Pindasana",
+    "category": "Inversions",
+    "level": "Advanced",
+    "holdSeconds": 30,
+    "benefits": [
+      "Deep inversion calm",
+      "Hip opening while inverted",
+      "Cultivates introspection"
+    ],
+    "contraindications": [
+      "Neck injury",
+      "Knee issues in Lotus",
+      "High blood pressure",
+      "Pregnancy"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "visvamitrasana",
+    "english": "Pose Dedicated to Sage Visvamitra",
+    "sanskrit": "Visvamitrasana",
+    "category": "Standing",
+    "level": "Advanced",
+    "holdSeconds": 8,
+    "benefits": [
+      "Strengthens arms and oblique core",
+      "Opens hamstrings and hips",
+      "Builds advanced side-body balance"
+    ],
+    "contraindications": [
+      "Wrist injury",
+      "Hamstring tear",
+      "Shoulder instability"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "bhairavasana",
+    "english": "Formidable Pose",
+    "sanskrit": "Bhairavasana",
+    "category": "Hip Openers",
+    "level": "Advanced",
+    "holdSeconds": 8,
+    "benefits": [
+      "Deep hip and hamstring opening",
+      "Strengthens the supporting shoulder",
+      "Trains patient flexibility"
+    ],
+    "contraindications": [
+      "Hamstring injury",
+      "Shoulder pain",
+      "SI joint instability"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "open-book-twist",
+    "english": "Open Book Twist",
+    "sanskrit": "Open Book",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 50,
+    "benefits": [
+      "Mobilizes the mid-back",
+      "Opens the chest after desk work",
+      "Softens shoulders and breath"
+    ],
+    "contraindications": [
+      "Acute shoulder injury — reduce range",
+      "Recent rib injury",
+      "Vertigo — move slowly"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "windshield-wipers",
+    "english": "Windshield Wiper Twist",
+    "sanskrit": "Windshield Wipers",
+    "category": "Restorative",
+    "level": "Beginner",
+    "holdSeconds": 60,
+    "benefits": [
+      "Releases the low back and outer hips",
+      "Gentle spinal mobility",
+      "Easy cool-down after stronger practice"
+    ],
+    "contraindications": [
+      "Acute disc pain — keep the range small",
+      "Hip replacement — follow clinician limits"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
+  },
+  {
+    "slug": "standing-quad-stretch",
+    "english": "Standing Quad Stretch",
+    "sanskrit": "Standing Quad Stretch",
+    "category": "Standing",
+    "level": "Beginner",
+    "holdSeconds": 35,
+    "benefits": [
+      "Stretches the quadriceps and hip flexors",
+      "Improves standing balance",
+      "Prepares legs for deeper backbends"
+    ],
+    "contraindications": [
+      "Knee pain — use a strap around the foot",
+      "Ankle balance issues — hold a wall"
+    ],
+    "stretchZones": [
+      "Full body"
+    ]
   }
 ];
 

@@ -22,7 +22,7 @@ const HeroBreathScene = lazy(() => import("@/components/HeroBreathScene"));
 const FEATURES = [
   {
     icon: BookOpen,
-    title: "208 illustrated poses",
+    title: "230+ illustrated poses",
     body: "English-first guides with Sanskrit names, step-by-step cues, variations, and contraindications.",
   },
   {
