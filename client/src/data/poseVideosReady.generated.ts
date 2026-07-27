@@ -75,7 +75,6 @@ export const POSE_VIDEOS_READY_LIST = [
   "kumbhakasana",
   "kurmasana",
   "legs-up-bolster",
-  "makara-adho-mukha-svanasana",
   "makarasana",
   "malasana",
   "mandukasana",

@@ -133,7 +133,6 @@ export const BEST_FOR: Record<string, string[]> = {
   "salamba-setu-bandhasana": ["Restorative heart opening", "Before bed chest release", "Tired-day backbends"],
   "parivrtta-upavistha-konasana": ["Wide-leg flexibility days", "Side-waist opening", "Calm seated practice"],
   "camatkarasana": ["Playful heart opening", "Energizing side-plank progressions", "Creative flow peaks"],
-  "makara-adho-mukha-svanasana": ["Shoulder strength for inversions", "Prep for Forearm Stand", "Building upside-down confidence"],
   "standing-figure-four": ["Desk-day hip relief", "Single-leg strength for sports", "Warm-up before lower-body training"],
   "runner-lunge-twist": ["Athletic mobility sessions", "Hip flexor + spine combo", "Building heat with purpose"],
   "dolphin-plank": ["Wrist-friendly core strength", "Shoulder endurance for men who press", "Inversion prep without handstands"],

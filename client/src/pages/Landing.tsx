@@ -22,7 +22,7 @@ const HeroBreathScene = lazy(() => import("@/components/HeroBreathScene"));
 const FEATURES = [
   {
     icon: BookOpen,
-    title: "250+ illustrated poses",
+    title: "207 illustrated poses",
     body: "English-first guides with Sanskrit names, step-by-step cues, variations, and contraindications.",
   },
   {
@@ -192,7 +192,7 @@ export default function Landing() {
             <h2 className="mb-6 font-serif text-3xl font-semibold tracking-tight">See it in practice</h2>
             <p className="mb-8 max-w-xl text-muted-foreground">
               A real one-minute walkthrough: answer four questions, flow through a guided voice
-              session, then browse pathways, 256 illustrated poses, and breathing — light or dark.
+              session, then browse pathways, the illustrated pose library, and breathing — light or dark.
             </p>
             <Reveal>
               <Suspense

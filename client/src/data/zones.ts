@@ -808,11 +808,6 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Supporting arm", sensation: "Strong press into the floor", intensity: "strong", primary: true },
     { region: "Hip flexors", sensation: "Stretch as the hips lift", intensity: "medium", primary: false },
   ],
-  "makara-adho-mukha-svanasana": [
-    { region: "Shoulders", sensation: "Building strength on the forearms", intensity: "strong", primary: true },
-    { region: "Hamstrings", sensation: "Stretch as the hips lift", intensity: "medium", primary: true },
-    { region: "Core", sensation: "Engaging to support the inverted V", intensity: "medium", primary: false },
-  ],
   "standing-figure-four": [
     { region: "Hips", sensation: "Opening through the hip complex", intensity: "strong", primary: true },
     { region: "Thighs", sensation: "Steady muscular engagement", intensity: "medium", primary: true },

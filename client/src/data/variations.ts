@@ -3706,19 +3706,6 @@ export const EXTRAS: Record<string, AsanaExtras> = {
     },
     stepMotions: ["ground", "lift", "arm-extend", "balance", "settle"],
   },
-  "makara-adho-mukha-svanasana": {
-    avoidIf: [
-      { condition: "Shoulder injury", severity: "avoid" },
-      { condition: "Neck issues — keep the head off the floor", severity: "modify" },
-      { condition: "High blood pressure — come down if dizzy", severity: "caution" },
-    ],
-    variations: {
-      beginner: { description: "Generous knee bend with forearms on a blanket.", props: ["blanket"], cues: ["Hips lift", "Knees soft", "Head hangs free"], holdSeconds: 15 },
-      intermediate: { description: "Classic Dolphin with active legs and steady forearms.", props: ["none"], cues: ["Elbows under shoulders", "Press forearms down", "Heels reach back"], holdSeconds: 30 },
-      advanced: { description: "Longer hold with straighter legs as preparation for Forearm Stand.", props: ["none"], cues: ["Shoulders strong", "Core draws in", "Calm breath"], holdSeconds: 40 },
-    },
-    stepMotions: ["ground", "lift", "leg-extend", "settle", "settle"],
-  },
   "standing-figure-four": {
     avoidIf: [
       { condition: "Move slowly and skip if pain appears", severity: "caution" },

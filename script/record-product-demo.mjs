@@ -231,7 +231,7 @@ await scene("Quick flows and multi-week paths", async () => {
   await wait(1600);
 });
 
-await scene("256 illustrated poses", async () => {
+await scene("Every pose, illustrated", async () => {
   await goto("/asanas");
   await wait(1400);
   await smoothScroll(760, 1800);

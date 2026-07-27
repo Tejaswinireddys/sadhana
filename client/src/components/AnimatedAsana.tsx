@@ -431,6 +431,99 @@ const POSES: Record<string, (level: Level) => JSX.Element> = {
       {level === "beginner" && <Block x={18} y={74} />}
     </>
   ),
+
+  // Goddess — knees pulse wider on the exhale
+  goddess: (level) => (
+    <>
+      <g className="anim-breath">
+        <circle cx="50" cy="20" r="7" />
+        <line x1="50" y1="27" x2="50" y2="52" />
+        <path d="M50 34 L36 34 L34 20 M50 34 L64 34 L66 20" />
+      </g>
+      <g className="anim-widen">
+        <path
+          d={level === "beginner" ? "M50 52 L34 66 L33 88 M50 52 L66 66 L67 88" : "M50 52 L30 68 L28 88 M50 52 L70 68 L72 88"}
+        />
+      </g>
+    </>
+  ),
+
+  // Side angle — top arm reaches longer through the breath
+  "side-angle": (level) => (
+    <>
+      <circle cx="34" cy="52" r="6.5" />
+      <path d="M42 54 L62 64" />
+      <path d="M62 64 L38 76 L38 88" />
+      <path d="M62 64 L86 88" />
+      <path d={level === "beginner" ? "M42 57 L40 72" : "M42 57 L39 75"} />
+      <g className="anim-extend">
+        <path d="M44 48 L30 20" />
+      </g>
+      {level === "beginner" && <Block x={32} y={74} />}
+    </>
+  ),
+
+  // Side bend — the curve deepens and releases
+  "side-bend": () => (
+    <g className="anim-sway">
+      <circle cx="44" cy="20" r="6.5" />
+      <path d="M46 27 Q56 44 50 60" />
+      <path d="M47 33 Q62 27 68 16" />
+      <path d="M47 35 L38 52" />
+      <path d="M50 60 L44 88 M50 60 L58 88" />
+    </g>
+  ),
+
+  // Side plank — top arm lifts, hips float
+  "side-plank": (level) => (
+    <>
+      <g className="anim-lift">
+        <path d="M20 84 L74 46" />
+        <circle cx="80" cy="42" r="6" />
+        <path d="M74 46 L82 20" />
+      </g>
+      <path d="M74 46 L70 84" />
+      <path d={level === "beginner" ? "M40 74 L36 86" : "M20 84 L13 86"} />
+    </>
+  ),
+
+  // Squat — settle a little deeper each breath
+  squat: (level) => (
+    <>
+      <g className="anim-rise">
+        <circle cx="50" cy="30" r="7" />
+        <line x1="50" y1="37" x2="50" y2="60" />
+        <path d="M50 44 L34 62 M50 44 L66 62" />
+      </g>
+      <path d="M50 60 L28 70 L34 88 M50 60 L72 70 L66 88" />
+      {level === "beginner" && <Block x={44} y={78} />}
+    </>
+  ),
+
+  // Standing goal-post arms — slow chest opening
+  standing: () => (
+    <>
+      <circle cx="50" cy="20" r="7" />
+      <line x1="50" y1="27" x2="50" y2="60" />
+      <g className="anim-extend">
+        <path d="M50 34 L36 34 L36 18 M50 34 L64 34 L64 18" />
+      </g>
+      <path d="M50 60 L44 88 M50 60 L56 88" />
+    </>
+  ),
+
+  // Supine — knee draws in and releases
+  supine: () => (
+    <>
+      <path d="M18 80 L58 80" />
+      <circle cx="22" cy="74" r="5.5" />
+      <g className="anim-fold">
+        <path d="M58 80 L64 60 L76 64" />
+        <path d="M32 78 L36 58" />
+      </g>
+      <path d="M58 80 L72 84" />
+    </>
+  ),
 };
 
 export function AnimatedAsana({ slug, level = "intermediate", size = 120, className }: Props) {
