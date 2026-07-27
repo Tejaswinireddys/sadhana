@@ -181,7 +181,9 @@ export function ProductDemoVideo({
               {/* MP4 first — Safari / iOS; WebM as progressive enhancement */}
               <source src={mp4} type="video/mp4" />
               <source src={webm} type="video/webm" />
-              <track kind="captions" src={captions} srcLang="en" label="English" default />
+              {/* Not default: the montage burns its scene labels into the frame, so an
+                  always-on track would render the same words twice. */}
+              <track kind="captions" src={captions} srcLang="en" label="English" />
             </>
           )}
         </video>

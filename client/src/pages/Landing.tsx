@@ -191,8 +191,8 @@ export default function Landing() {
           <div className="mx-auto max-w-5xl px-4 py-16 md:px-6">
             <h2 className="mb-6 font-serif text-3xl font-semibold tracking-tight">See it in practice</h2>
             <p className="mb-8 max-w-xl text-muted-foreground">
-              A short montage of Sadhana poses — Trainer, balance, and restorative shapes in one calm
-              walkthrough.
+              A real one-minute walkthrough: answer four questions, flow through a guided voice
+              session, then browse pathways, 256 illustrated poses, and breathing — light or dark.
             </p>
             <Reveal>
               <Suspense
@@ -200,7 +200,7 @@ export default function Landing() {
                   <div className="surface aspect-video animate-pulse bg-muted/40" aria-hidden />
                 }
               >
-                <ProductDemoVideo title="Sadhana product overview" />
+                <ProductDemoVideo title="A real walkthrough of the Sadhana app" />
               </Suspense>
             </Reveal>
           </div>
