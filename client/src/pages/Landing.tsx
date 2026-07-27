@@ -22,7 +22,7 @@ const HeroBreathScene = lazy(() => import("@/components/HeroBreathScene"));
 const FEATURES = [
   {
     icon: BookOpen,
-    title: "207 illustrated poses",
+    title: "200+ illustrated poses",
     body: "English-first guides with Sanskrit names, step-by-step cues, variations, and contraindications.",
   },
   {
@@ -51,7 +51,11 @@ const STEPS = [
 const FAQ = [
   {
     q: "Is Sadhana free?",
-    a: "Yes. Sadhana is free and open source. The create-practice flow saves your intent, name, path, and preferences on this device — no email or password required.",
+    a: "Yes. Sadhana is free and open source. Practise as a guest and everything stays on this device, or create a free account to sync your streak, journal, and sequences across browsers.",
+  },
+  {
+    q: "Do I need an account?",
+    a: "No. Accounts are optional. If you make one later, the practice already saved on this device moves across with you.",
   },
   {
     q: "Do I need yoga experience?",

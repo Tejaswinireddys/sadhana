@@ -31,8 +31,9 @@ import {
 } from "@/lib/dataPortability";
 import { KEYS, readJson, readString, removeKey, writeJson, writeString, type ReminderPrefs } from "@/lib/localPrefs";
 import type { Session } from "@shared/schema";
-import { Moon, Sun, Download, Upload, Trash2, Bell, CalendarPlus, Info } from "lucide-react";
+import { Moon, Sun, Download, Upload, Trash2, Bell, CalendarPlus, Info, UserRound } from "lucide-react";
 import { Link } from "wouter";
+import { useAuth } from "@/lib/auth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const DEFAULT_REMINDER: ReminderPrefs = { enabled: true, hour: 18, notifications: false };
@@ -41,6 +42,7 @@ export default function Settings() {
   useDocumentTitle("Settings · Sadhana");
   const { theme, toggle } = useTheme();
   const { toast } = useToast();
+  const { user, isSignedIn } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [reminder, setReminder] = useState<ReminderPrefs>(() =>
@@ -153,6 +155,25 @@ export default function Settings() {
           Preferences, reminders, and a backup of your practice on this device.
         </p>
       </header>
+
+      <Card className="surface-inset border-0 shadow-none">
+        <CardHeader>
+          <CardTitle className="font-serif text-xl">Account</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground" data-testid="settings-account-status">
+            {isSignedIn
+              ? `Signed in as ${user?.displayName || user?.email}. Your practice syncs to this account.`
+              : "Practising as a guest — this device holds your history. An account keeps it when you switch browsers."}
+          </p>
+          <Button variant="outline" className="min-h-11 w-full cursor-pointer justify-start gap-2" asChild>
+            <Link href="/account" data-testid="settings-account">
+              <UserRound className="h-4 w-4" />
+              {isSignedIn ? "Manage account" : "Sign in or create an account"}
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card className="surface-inset border-0 shadow-none">
         <CardHeader>

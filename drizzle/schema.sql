@@ -123,3 +123,23 @@ ALTER TABLE pose_notes DROP CONSTRAINT IF EXISTS pose_notes_slug_key;
 CREATE UNIQUE INDEX IF NOT EXISTS pose_notes_owner_slug_idx ON pose_notes (owner_id, slug);
 CREATE INDEX IF NOT EXISTS sessions_owner_idx ON sessions (owner_id);
 CREATE INDEX IF NOT EXISTS preferences_owner_idx ON preferences (owner_id);
+
+-- Optional accounts (v6). Guests keep using an anonymous device owner id.
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  email TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  display_name TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (email);
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id SERIAL PRIMARY KEY,
+  token TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS auth_sessions_token_idx ON auth_sessions (token);
+CREATE INDEX IF NOT EXISTS auth_sessions_user_idx ON auth_sessions (user_id);

@@ -8,7 +8,7 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
-    "test": "tsx --test server/owner.test.ts server/storage.isolation.test.ts server/pathwayProgress.test.ts client/src/lib/practicePersist.test.ts client/src/lib/poseMoments.test.ts client/src/data/catalog.test.ts",
+    "test": "tsx --test server/owner.test.ts server/auth.test.ts server/storage.isolation.test.ts server/pathwayProgress.test.ts client/src/lib/practicePersist.test.ts client/src/lib/poseMoments.test.ts client/src/data/catalog.test.ts",
     "gen:pose-videos": "tsx script/gen-pose-videos.ts",
     "demo:record": "node script/record-product-demo.mjs",
     "demo:encode": "node script/encode-product-demo.mjs --in /tmp/demo",

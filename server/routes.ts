@@ -10,7 +10,21 @@ import {
   insertPreferencesSchema,
   insertMobilityCheckInSchema,
   insertCustomFlowSchema,
+  credentialsSchema,
+  type PublicUser,
+  type User,
 } from "@shared/schema";
+import {
+  authCookie,
+  clearedAuthCookie,
+  hashPassword,
+  newSessionToken,
+  ownerIdForUser,
+  sessionExpiry,
+  verifyPassword,
+  AUTH_COOKIE,
+  readCookie,
+} from "./auth";
 import { z } from "zod";
 
 // Normalize an ISO string / date string to YYYY-MM-DD
@@ -98,8 +112,88 @@ export function computeStats(
   };
 }
 
+function publicUser(user: User): PublicUser {
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    createdAt: user.createdAt,
+  };
+}
+
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   app.use("/api", ownerMiddleware);
+
+  // ---- Accounts (optional — guests keep practising on the device owner) ----
+  const isSecure = (req: { protocol: string; get(name: string): string | undefined }) =>
+    req.protocol === "https" || req.get("x-forwarded-proto") === "https";
+
+  app.get("/api/auth/me", async (req, res) => {
+    const user = req.userId ? await storage.getUserById(req.userId) : undefined;
+    // Guests see 0; signed-in users see what is still parked on this device so
+    // the UI can offer to merge it rather than silently claiming it.
+    const deviceRows = user ? await storage.countOwnerData(req.deviceOwnerId) : 0;
+    res.json({ user: user ? publicUser(user) : null, deviceRows });
+  });
+
+  app.post("/api/auth/signup", async (req, res) => {
+    const parsed = credentialsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid details" });
+    }
+    const { email, password, displayName } = parsed.data;
+    if (await storage.getUserByEmail(email)) {
+      return res.status(409).json({ error: "That email already has an account. Sign in instead." });
+    }
+
+    const user = await storage.createUser(email, await hashPassword(password), displayName);
+    // A brand-new account can safely adopt this device's practice — nobody else
+    // could own it, and losing a guest streak on signup would be cruel.
+    const claimed = await storage.transferOwnerData(req.deviceOwnerId, ownerIdForUser(user.id));
+
+    const token = newSessionToken();
+    await storage.createAuthSession(user.id, token, sessionExpiry());
+    res.setHeader("Set-Cookie", authCookie(token, isSecure(req)));
+    res.status(201).json({ user: publicUser(user), claimed });
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    const parsed = credentialsSchema
+      .pick({ email: true, password: true })
+      .safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Enter your email and password" });
+    }
+    const user = await storage.getUserByEmail(parsed.data.email);
+    if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+      return res.status(401).json({ error: "Email or password is incorrect" });
+    }
+
+    const token = newSessionToken();
+    await storage.createAuthSession(user.id, token, sessionExpiry());
+    res.setHeader("Set-Cookie", authCookie(token, isSecure(req)));
+    res.json({
+      user: publicUser(user),
+      // Reported, never merged automatically — this device may belong to someone else.
+      deviceRows: await storage.countOwnerData(req.deviceOwnerId),
+    });
+  });
+
+  app.post("/api/auth/logout", async (req, res) => {
+    const token = readCookie(req.headers.cookie, AUTH_COOKIE);
+    if (token) await storage.deleteAuthSession(token);
+    res.setHeader("Set-Cookie", clearedAuthCookie(isSecure(req)));
+    res.status(204).end();
+  });
+
+  app.post("/api/auth/claim-device", async (req, res) => {
+    if (!req.userId) return res.status(401).json({ error: "Sign in first" });
+    const claimed = await storage.transferOwnerData(
+      req.deviceOwnerId,
+      ownerIdForUser(req.userId),
+    );
+    res.json({ claimed });
+  });
 
   // ---- Sessions ----
   app.get("/api/sessions", async (req, res) => {

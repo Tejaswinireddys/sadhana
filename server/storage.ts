@@ -11,6 +11,8 @@ import {
   poseNotes,
   mobilityCheckIns,
   customFlows,
+  users,
+  authSessions,
 } from "@shared/schema";
 import type {
   Session,
@@ -34,12 +36,24 @@ import type {
   InsertMobilityCheckIn,
   CustomFlow,
   InsertCustomFlow,
+  User,
+  AuthSession,
 } from "@shared/schema";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, and, desc } from "drizzle-orm";
 
 export interface IStorage {
+  createUser(email: string, passwordHash: string, displayName?: string): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserById(id: number): Promise<User | undefined>;
+  createAuthSession(userId: number, token: string, expiresAt: string): Promise<AuthSession>;
+  getAuthSession(token: string): Promise<AuthSession | undefined>;
+  deleteAuthSession(token: string): Promise<void>;
+  /** Row counts per table for an owner — powers the "merge this device" prompt. */
+  countOwnerData(ownerId: string): Promise<number>;
+  /** Re-key every row from one owner to another (guest practice → account). */
+  transferOwnerData(fromOwnerId: string, toOwnerId: string): Promise<number>;
   getSessions(ownerId: string): Promise<Session[]>;
   createSession(ownerId: string, data: InsertSession): Promise<Session>;
   deleteSession(ownerId: string, id: number): Promise<boolean>;
@@ -86,8 +100,87 @@ export interface IStorage {
   deleteCustomFlow(ownerId: string, id: number): Promise<void>;
 }
 
+/** Every table that is scoped by ownerId, in one place so account merges can't miss one. */
+const OWNED_TABLES = [
+  sessions,
+  pathwayEnrollments,
+  favoriteAffirmations,
+  journalEntries,
+  preferences,
+  userProfiles,
+  kidsStickers,
+  favoriteAsanas,
+  milestones,
+  poseNotes,
+  mobilityCheckIns,
+  customFlows,
+] as const;
+
 export class DatabaseStorage implements IStorage {
   constructor(private readonly db: ReturnType<typeof drizzle>) {}
+
+  async createUser(email: string, passwordHash: string, displayName?: string): Promise<User> {
+    const [row] = await this.db
+      .insert(users)
+      .values({ email, passwordHash, displayName, createdAt: new Date().toISOString() })
+      .returning();
+    return row;
+  }
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [row] = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
+    return row;
+  }
+  async getUserById(id: number): Promise<User | undefined> {
+    const [row] = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
+    return row;
+  }
+  async createAuthSession(userId: number, token: string, expiresAt: string): Promise<AuthSession> {
+    const [row] = await this.db
+      .insert(authSessions)
+      .values({ userId, token, expiresAt, createdAt: new Date().toISOString() })
+      .returning();
+    return row;
+  }
+  async getAuthSession(token: string): Promise<AuthSession | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(authSessions)
+      .where(eq(authSessions.token, token))
+      .limit(1);
+    return row;
+  }
+  async deleteAuthSession(token: string): Promise<void> {
+    await this.db.delete(authSessions).where(eq(authSessions.token, token));
+  }
+  async countOwnerData(ownerId: string): Promise<number> {
+    const counts = await Promise.all(
+      OWNED_TABLES.map(async (table) => {
+        const rows = await this.db.select().from(table).where(eq(table.ownerId, ownerId));
+        return rows.length;
+      }),
+    );
+    return counts.reduce((sum, n) => sum + n, 0);
+  }
+  async transferOwnerData(fromOwnerId: string, toOwnerId: string): Promise<number> {
+    if (fromOwnerId === toOwnerId) return 0;
+    let moved = 0;
+    for (const table of OWNED_TABLES) {
+      // Preferences and the active profile are single-row-per-owner, so drop the
+      // account's existing row first rather than ending up with two.
+      if (table === preferences || table === userProfiles || table === poseNotes) {
+        const incoming = await this.db.select().from(table).where(eq(table.ownerId, fromOwnerId));
+        if (incoming.length === 0) continue;
+        await this.db.delete(table).where(eq(table.ownerId, toOwnerId));
+      }
+      const rows = await this.db
+        .update(table)
+        .set({ ownerId: toOwnerId })
+        .where(eq(table.ownerId, fromOwnerId))
+        .returning();
+      moved += rows.length;
+    }
+    return moved;
+  }
 
   async getSessions(ownerId: string): Promise<Session[]> {
     return this.db
@@ -419,9 +512,102 @@ export class MemoryStorage implements IStorage {
   private notes: PoseNote[] = [];
   private mobility: MobilityCheckIn[] = [];
   private flows: CustomFlow[] = [];
+  private users: User[] = [];
+  private authSessions: AuthSession[] = [];
 
   private nextId() {
     return this.seq++;
+  }
+
+  /** Every owner-scoped array, so merges and counts stay exhaustive. */
+  private ownedRows(): { ownerId: string }[][] {
+    return [
+      this.sessions,
+      this.enrollments,
+      this.favorites,
+      this.journal,
+      this.profiles,
+      this.stickers,
+      this.favAsanas,
+      this.milestones,
+      this.notes,
+      this.mobility,
+      this.flows,
+    ];
+  }
+
+  async createUser(email: string, passwordHash: string, displayName?: string) {
+    const row: User = {
+      id: this.nextId(),
+      email,
+      passwordHash,
+      displayName: displayName ?? null,
+      createdAt: new Date().toISOString(),
+    };
+    this.users.push(row);
+    return row;
+  }
+  async getUserByEmail(email: string) {
+    return this.users.find((u) => u.email === email);
+  }
+  async getUserById(id: number) {
+    return this.users.find((u) => u.id === id);
+  }
+  async createAuthSession(userId: number, token: string, expiresAt: string) {
+    const row: AuthSession = {
+      id: this.nextId(),
+      userId,
+      token,
+      expiresAt,
+      createdAt: new Date().toISOString(),
+    };
+    this.authSessions.push(row);
+    return row;
+  }
+  async getAuthSession(token: string) {
+    return this.authSessions.find((s) => s.token === token);
+  }
+  async deleteAuthSession(token: string) {
+    this.authSessions = this.authSessions.filter((s) => s.token !== token);
+  }
+  async countOwnerData(ownerId: string) {
+    const rows = this.ownedRows().reduce(
+      (sum, list) => sum + list.filter((r) => r.ownerId === ownerId).length,
+      0,
+    );
+    return rows + (this.prefs.has(ownerId) ? 1 : 0);
+  }
+  async transferOwnerData(fromOwnerId: string, toOwnerId: string) {
+    if (fromOwnerId === toOwnerId) return 0;
+    let moved = 0;
+
+    // Notes are unique per (owner, slug) and only one profile may be active, so
+    // the incoming rows replace the account's on collision.
+    const incomingSlugs = new Set(
+      this.notes.filter((n) => n.ownerId === fromOwnerId).map((n) => n.slug),
+    );
+    this.notes = this.notes.filter(
+      (n) => !(n.ownerId === toOwnerId && incomingSlugs.has(n.slug)),
+    );
+    if (this.profiles.some((p) => p.ownerId === fromOwnerId)) {
+      this.profiles = this.profiles.filter((p) => p.ownerId !== toOwnerId);
+    }
+
+    for (const list of this.ownedRows()) {
+      for (const row of list) {
+        if (row.ownerId !== fromOwnerId) continue;
+        row.ownerId = toOwnerId;
+        moved++;
+      }
+    }
+
+    const prefs = this.prefs.get(fromOwnerId);
+    if (prefs) {
+      this.prefs.delete(fromOwnerId);
+      this.prefs.set(toOwnerId, { ...prefs, ownerId: toOwnerId });
+      moved++;
+    }
+    return moved;
   }
 
   async getSessions(ownerId: string) {

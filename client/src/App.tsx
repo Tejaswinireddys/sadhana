@@ -67,6 +67,7 @@ const Trainer = lazyPage(() => import("@/pages/Trainer"));
 const Search = lazyPage(() => import("@/pages/Search"));
 const DesignSystem = lazyPage(() => import("@/pages/DesignSystem"));
 const Settings = lazyPage(() => import("@/pages/Settings"));
+const Account = lazyPage(() => import("@/pages/Account"));
 
 function RouteFallback() {
   return (
@@ -121,6 +122,7 @@ function AppRouter() {
           <Route path="/kids/:slug" component={KidsPose} />
           <Route path="/search" component={Search} />
           <Route path="/settings" component={Settings} />
+          <Route path="/account" component={Account} />
           <Route path="/design-system" component={DesignSystem} />
           <Route component={NotFound} />
         </Switch>

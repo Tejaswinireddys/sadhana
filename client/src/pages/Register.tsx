@@ -691,7 +691,11 @@ export default function Register() {
                         </li>
                       </ul>
                       <p className="text-xs text-muted-foreground">
-                        No account email — practice data stays with this browser via device identity.
+                        This setup stays on this browser.{" "}
+                        <Link href="/account" className="cursor-pointer underline underline-offset-2">
+                          Create a free account
+                        </Link>{" "}
+                        anytime to sync your practice across devices.
                       </p>
                     </div>
 

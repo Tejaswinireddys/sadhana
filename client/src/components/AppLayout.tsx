@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Logo } from "./Logo";
 import { useTheme } from "./ThemeProvider";
+import { useAuth } from "@/lib/auth";
 import { useRecentSearches } from "@/context/RecentSearchesContext";
 import { cn } from "@/lib/utils";
 import {
@@ -244,6 +245,7 @@ function MobileBottomNav() {
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
   const [location] = useLocation();
+  const { user, isSignedIn } = useAuth();
   const isChromeFree = location === "/welcome" || location === "/register";
 
   if (isChromeFree) {
@@ -273,6 +275,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <NavMenu />
         </SidebarContent>
         <SidebarFooter className="px-3 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full cursor-pointer justify-start gap-2"
+            asChild
+            data-testid="sidebar-account"
+          >
+            <Link href="/account">
+              <UserRound className="h-4 w-4" />
+              <span className="truncate">
+                {isSignedIn ? (user?.displayName || user?.email) : "Sign in"}
+              </span>
+            </Link>
+          </Button>
           <Button
             variant="ghost"
             size="sm"

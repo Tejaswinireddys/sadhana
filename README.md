@@ -50,6 +50,10 @@ custom sequence builder.
 - **Six breathing techniques** with animated visualizers: Box, 4-7-8, Ujjayi,
   Nadi Shodhana, Bhramari, Kapalabhati
 
+- **Optional accounts**: practise as a guest (everything stays on the device)
+  or create a free account to sync streaks, journal, and saved sequences across
+  browsers — guest practice moves into the account when you sign up
+
 - **Practice tracking**: streaks, longest streak, total minutes, a 12-week
   heatmap, milestone celebrations (7, 30, 100 days…), mood check-ins before
   and after every session
@@ -89,7 +93,9 @@ npm run dev
 Then open http://localhost:5000
 
 Practice data is scoped per browser via an anonymous device id (`X-Device-Id`).
-Refreshing mid-session restores your queued poses and progress.
+Signing in switches that scope to the account, and the practice already on the
+device is carried over. Refreshing mid-session restores your queued poses and
+progress.
 
 First-run onboarding, Settings (export/import, reminders, wipe), and an offline
 banner are included. Pathway week progress advances only when sessions are logged.

@@ -9,6 +9,7 @@ import { Heatmap } from "@/components/Heatmap";
 import { PoseSvg } from "@/components/PoseSvg";
 import { usePractice } from "@/context/PracticeContext";
 import {
+  ASANAS,
   asanaBySlug,
   breathBySlug,
   dailyAffirmation,
@@ -22,7 +23,8 @@ import { profileById } from "@/data/profiles";
 import { resolveIcon } from "@/lib/icons";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
 import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/lib/localPrefs";
-import type { UserProfile, Enrollment, FavoriteAsana } from "@shared/schema";
+import type { UserProfile, Enrollment, FavoriteAsana, CustomFlow, Journal } from "@shared/schema";
+import { useAuth } from "@/lib/auth";
 import { QUICK_SESSIONS } from "@/data/quickSessions";
 import { EmptyState } from "@/components/EmptyState";
 import { ScrollRow } from "@/components/ScrollRow";
@@ -49,6 +51,13 @@ import {
   NotebookPen,
   Smile,
   PlusCircle,
+  LayoutGrid,
+  Route as RouteIcon,
+  UserRound,
+  Search as SearchIcon,
+  Settings as SettingsIcon,
+  LogIn,
+  BookMarked,
 } from "lucide-react";
 
 const MS_PER_DAY = 86400000;
@@ -109,6 +118,9 @@ export default function Home() {
   const { data: favoriteAsanas = [] } = useQuery<FavoriteAsana[]>({
     queryKey: ["/api/favorites/asanas"],
   });
+  const { data: customFlows = [] } = useQuery<CustomFlow[]>({ queryKey: ["/api/custom-flows"] });
+  const { data: journalEntries = [] } = useQuery<Journal[]>({ queryKey: ["/api/journal"] });
+  const { user, isSignedIn } = useAuth();
   const breath = breathOfTheDay();
   const reminderPrefs = readJson<ReminderPrefs>(KEYS.reminder, {
     enabled: true,
@@ -169,6 +181,35 @@ export default function Home() {
   const scrollToQuickStart = () => {
     document.getElementById("quick-start")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  /** Run a sequence saved in the Builder without a detour through its page. */
+  const startCustomFlow = (flow: CustomFlow) => {
+    const parsed = JSON.parse(flow.poseSequence || "[]") as {
+      slug: string;
+      holdSeconds?: number;
+      sides?: "once" | "each";
+    }[];
+    const poses = parsed
+      .map((p) => {
+        const asana = asanaBySlug(p.slug);
+        return asana
+          ? { asana, holdSeconds: p.holdSeconds ?? asana.holdSeconds, sides: p.sides ?? "once" }
+          : null;
+      })
+      .filter(
+        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
+          x != null,
+      );
+    if (poses.length === 0) return;
+    loadSession(poses, { label: flow.name });
+    navigate("/guided");
+  };
+
+  const activeEnrollments = enrollments
+    .filter((e) => e.active)
+    .map((e) => ({ enrollment: e, pathway: pathwayBySlug(e.pathwaySlug) }))
+    .filter((x): x is { enrollment: Enrollment; pathway: Pathway } => !!x.pathway);
+  const recentJournal = journalEntries.slice(0, 2);
 
   // ---- 60-Day Full Splits Program awareness (v3.5) ----
   const splitsEnrollment = enrollments.find(
@@ -652,6 +693,88 @@ export default function Home() {
         </ScrollRow>
       </section>
 
+      {/* Sequences saved in the Builder — the user's own flows, one tap to run */}
+      {customFlows.length > 0 && (
+        <section className="space-y-3" data-testid="section-your-sequences">
+          <div className="flex items-center gap-2">
+            <BookMarked className="h-5 w-5 text-primary" />
+            <h3 className="font-serif text-lg">Your sequences</h3>
+            <span className="text-sm text-muted-foreground">— saved in Builder</span>
+            <Link
+              href="/builder"
+              className="ml-auto cursor-pointer text-sm text-primary hover:underline"
+              data-testid="link-all-sequences"
+            >
+              Manage
+            </Link>
+          </div>
+          <ScrollRow label="Your sequences" testId="scroll-custom-flows">
+            {customFlows.slice(0, 8).map((flow) => {
+              const count = (JSON.parse(flow.poseSequence || "[]") as unknown[]).length;
+              return (
+                <Card
+                  key={flow.id}
+                  className="flex w-56 shrink-0 snap-start flex-col border-border shadow-soft"
+                  data-testid={`custom-flow-${flow.id}`}
+                >
+                  <CardContent className="flex flex-1 flex-col gap-3 p-4">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                      <BookMarked className="h-5 w-5" />
+                    </span>
+                    <div className="space-y-0.5">
+                      <p className="font-serif text-lg leading-tight">{flow.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {count} {count === 1 ? "pose" : "poses"}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="mt-auto min-h-11 w-full cursor-pointer"
+                      onClick={() => startCustomFlow(flow)}
+                      data-testid={`button-start-custom-${flow.id}`}
+                    >
+                      <Play className="mr-1.5 h-4 w-4" /> Start sequence
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </ScrollRow>
+        </section>
+      )}
+
+      {/* Programs already joined — progress lives on the pathway page */}
+      {activeEnrollments.length > 0 && (
+        <section className="space-y-3" data-testid="section-your-programs">
+          <div className="flex items-center gap-2">
+            <RouteIcon className="h-5 w-5 text-primary" />
+            <h3 className="font-serif text-lg">Your programs</h3>
+            <span className="text-sm text-muted-foreground">— continue where you left off</span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {activeEnrollments.map(({ enrollment, pathway }) => (
+              <Link
+                key={enrollment.id}
+                href={`/pathways/${pathway.slug}`}
+                className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid={`home-program-${pathway.slug}`}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <CalendarDays className="h-5 w-5" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{pathway.name}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Started {formatDate(enrollment.startDate.slice(0, 10))}
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Quick Flows on-ramp (v5) — only for users not enrolled in any program */}
       {!hasAnyEnrollment && featuredFlows.length > 0 && (
         <section id="quick-flows" className="space-y-3" data-testid="section-quick-flows">
@@ -913,25 +1036,95 @@ export default function Home() {
       </Card>
       </ResponsiveDetails>
 
+      {recentJournal.length > 0 && (
+        <section className="space-y-3" data-testid="section-recent-journal">
+          <div className="flex items-center gap-2">
+            <NotebookPen className="h-5 w-5 text-primary" />
+            <h3 className="font-serif text-lg">Recent reflections</h3>
+            <Link
+              href="/journal"
+              className="ml-auto cursor-pointer text-sm text-primary hover:underline"
+              data-testid="link-all-journal"
+            >
+              Open journal
+            </Link>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {recentJournal.map((entry) => (
+              <Link
+                key={entry.id}
+                href="/journal"
+                className="cursor-pointer rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid={`home-journal-${entry.id}`}
+              >
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {formatDate(entry.date.slice(0, 10))}
+                  {entry.mood && <Badge variant="secondary">{entry.mood}</Badge>}
+                </p>
+                <p className="mt-1 line-clamp-2 text-sm">
+                  {entry.title || entry.body || "Untitled entry"}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <Card className="surface-inset" data-testid="home-account">
+        <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              {isSignedIn ? <UserRound className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
+            </span>
+            <div className="min-w-0">
+              <p className="font-serif text-lg leading-tight">
+                {isSignedIn ? `Signed in as ${user?.displayName || user?.email}` : "Keep your practice safe"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {isSignedIn
+                  ? "Your streak, journal, and sequences sync to any browser you sign in from."
+                  : "Practising as a guest — create a free account to sync across devices."}
+              </p>
+            </div>
+          </div>
+          <Button
+            asChild
+            variant={isSignedIn ? "ghost" : "default"}
+            className="min-h-11 shrink-0 cursor-pointer"
+            data-testid="home-account-cta"
+          >
+            <Link href="/account">{isSignedIn ? "Manage account" : "Sign in or sign up"}</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
       <section className="space-y-3" aria-labelledby="explore-more-heading" data-testid="home-explore-more">
         <h2 id="explore-more-heading" className="font-serif text-xl font-semibold tracking-tight">
-          Explore more
+          Everything in Sadhana
         </h2>
         <p className="text-sm text-muted-foreground">
-          Features that live beyond the main practice loop — always a tap away.
+          Every part of the app, always a tap away.
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
           {[
-            { href: "/journal", label: "Journal", hint: "Reflect after practice", icon: NotebookPen },
-            { href: "/kids", label: "Kids", hint: "Stories and breath games", icon: Smile },
+            { href: "/asanas", label: "Asana library", hint: `${ASANAS.length} illustrated poses`, icon: LayoutGrid },
+            { href: "/pathways", label: "Pathways", hint: "Quick flows and programs", icon: RouteIcon },
+            { href: "/trainer", label: "Yoga Trainer", hint: "A practice for today", icon: UserRound },
             { href: "/builder", label: "Builder", hint: "Craft your own sequence", icon: PlusCircle },
             { href: "/breathing", label: "Breathing", hint: "Guided pranayama", icon: Wind },
+            { href: "/affirmations", label: "Affirmations", hint: "65 daily intentions", icon: Sparkles },
+            { href: "/journal", label: "Journal", hint: "Reflect after practice", icon: NotebookPen },
+            { href: "/kids", label: "Kids", hint: "Stories and breath games", icon: Smile },
+            { href: "/profiles", label: "My path", hint: "Switch your focus", icon: Compass },
+            { href: "/search", label: "Search", hint: "Find any pose or flow", icon: SearchIcon },
+            { href: "/account", label: "Account", hint: "Sync across devices", icon: UserRound },
+            { href: "/settings", label: "Settings", hint: "Reminders, backup, data", icon: SettingsIcon },
           ].map(({ href, label, hint, icon: Icon }) => (
             <Link
               key={href}
               href={href}
               className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              data-testid={`home-explore-${label.toLowerCase()}`}
+              data-testid={`home-explore-${label.toLowerCase().replace(/[^a-z]+/g, "-")}`}
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <Icon className="h-5 w-5" aria-hidden />

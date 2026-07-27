@@ -2,6 +2,46 @@ import { pgTable, text, integer, serial, boolean, uniqueIndex } from "drizzle-or
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Optional accounts. Practice data stays keyed by ownerId — an anonymous device
+// id for guests, or `user:<id>` once someone signs in — so guest mode keeps
+// working exactly as before and signing in simply changes which owner is active.
+export const users = pgTable(
+  "users",
+  {
+    id: serial("id").primaryKey(),
+    email: text("email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    displayName: text("display_name"),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("users_email_idx").on(t.email)],
+);
+
+export type User = typeof users.$inferSelect;
+/** Never leaves the server with the hash attached. */
+export type PublicUser = Pick<User, "id" | "email" | "displayName" | "createdAt">;
+
+export const authSessions = pgTable(
+  "auth_sessions",
+  {
+    id: serial("id").primaryKey(),
+    token: text("token").notNull(),
+    userId: integer("user_id").notNull(),
+    createdAt: text("created_at").notNull(),
+    expiresAt: text("expires_at").notNull(),
+  },
+  (t) => [uniqueIndex("auth_sessions_token_idx").on(t.token)],
+);
+
+export type AuthSession = typeof authSessions.$inferSelect;
+
+export const credentialsSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email address"),
+  password: z.string().min(8, "Use at least 8 characters"),
+  displayName: z.string().trim().min(1).max(48).optional(),
+});
+export type Credentials = z.infer<typeof credentialsSchema>;
+
 // Practice sessions logged after completing a timed practice
 export const sessions = pgTable("sessions", {
   id: serial("id").primaryKey(),
