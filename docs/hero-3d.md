@@ -22,5 +22,26 @@ npm i @splinetool/react-spline
 ```
 
 Lazy-load a thin wrapper, keep the PNG fallback, and never autoplay motion when
-`prefers-reduced-motion` or save-data is on. Do not add R3F for Asana Detail — pose teaching uses the procedural CSS
-`PoseFigurine3D` stage (see `poseMoments.ts`) instead of a heavy WebGL runtime.
+`prefers-reduced-motion` or save-data is on.
+
+## Asana Detail — amended
+
+This doc previously said "do not add WebGL to Asana Detail". That still holds
+for **React Three Fiber**: R3F's reconciler is a large always-loaded dependency
+for what is a single non-interactive scene.
+
+It no longer holds for raw three.js. Five pilot poses now render through
+`PoseFigurineGL`, a procedurally-built jointed humanoid driven by
+narration-step keyframes. The constraints that made the original ruling right
+are all still respected:
+
+- dynamically imported, so it never enters `index.js` (own ~131 kB gzip chunk)
+- only loads for poses that have authored keyframes
+- skipped entirely when WebGL is unavailable or Save-Data is on
+- falls back to the CSS `PoseFigurine3D` stage in every one of those cases
+- renders only while onscreen; obeys `prefers-reduced-motion` / `html.motion-off`
+
+No model is downloaded — the figure is built from three.js primitives, so there
+is no glTF/draco/ktx pipeline and no external asset host.
+
+See `docs/pose-videos.md` for the pilot list and how to extend it.

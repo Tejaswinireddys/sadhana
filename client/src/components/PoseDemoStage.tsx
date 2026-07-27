@@ -13,6 +13,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { PoseSvg } from "@/components/PoseSvg";
 import { PoseFigurine3D } from "@/components/PoseFigurine3D";
+import { PoseStageGL } from "@/components/PoseStageGL";
+import { hasRigSequence } from "@/data/poseKeyframes";
 import type { StepMotionKey } from "@/components/StepMotion";
 import type { PoseMediaSources } from "@/data/poseMedia";
 import type { FocusZone } from "@/lib/poseMoments";
@@ -46,6 +48,11 @@ type PoseDemoStageProps = {
   focusZone?: FocusZone | null;
   /** Narration step index — advances the 3D camera / focus moment. */
   stepIndex?: number;
+  /**
+   * 0–1 progress through the current narration step. Drives limb interpolation
+   * on rigged poses; ignored by the CSS stage. Defaults to 1 (settled).
+   */
+  stepProgress?: number;
   stepCount?: number;
   /** Per-step PoseSvg key when the shape changes mid-cue. */
   stepPoseKey?: string;
@@ -82,6 +89,7 @@ export function PoseDemoStage({
   restartToken = 0,
   focusZone = null,
   stepIndex = 0,
+  stepProgress = 1,
   stepCount = 1,
   stepPoseKey,
   stepMotion = null,
@@ -214,6 +222,28 @@ export function PoseDemoStage({
 
   const alt = `${english} (${sanskrit}) pose demonstration`;
   const showIllustration = !use3D && (!useVideo || !videoReady || videoFailed);
+
+  if (use3D && hasRigSequence(slug)) {
+    return (
+      <PoseStageGL
+        slug={slug}
+        english={english}
+        poseKey={poseKey}
+        stepPoseKey={stepPoseKey}
+        focusZone={focusZone}
+        stepMotion={stepMotion}
+        stepIndex={stepIndex}
+        stepProgress={stepProgress}
+        stepCount={stepCount}
+        side={side}
+        playing={playing}
+        variant={variant}
+        posterSrc={media.poster}
+        className={className}
+        data-testid={testId ?? `pose-demo-stage-${slug}`}
+      />
+    );
+  }
 
   if (use3D) {
     return (

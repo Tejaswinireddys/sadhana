@@ -94,3 +94,103 @@ Optional looping WebM/MP4 clips remain supported via `prefer3D={false}` on
 - `client/src/components/PoseDemoStage.tsx` — 3D (default) + optional video stage
 - `client/src/components/PoseExplanation.tsx` — detail-page experience
 - `client/src/components/PoseTipsSheet.tsx` — in-practice tips
+
+---
+
+## Rigged 3D stage (pilot)
+
+Five poses now render through a **real WebGL humanoid** whose joints are driven
+by per-narration-step keyframes, rather than a flat SVG on a rotated plane:
+
+    tadasana · virabhadrasana-ii · adho-mukha-svanasana · bhujangasana · trikonasana
+
+As a step is spoken, the limbs tween from the previous keyframe into that step's
+shape and settle before the sentence ends. Everything outside this list still
+uses the CSS `PoseFigurine3D` stage, and so does any device without WebGL or
+with Save-Data on.
+
+### Why it works now
+
+Step boundaries used to be `floor(currentTime / duration * stepCount)` — an
+even split that ignored how long each sentence actually takes to speak. That is
+replaced by `useNarrationTiming`, which prefers a generated timing file and
+falls back to a syllable-weighted estimate:
+
+```bash
+npm run gen:voice-timings                # all poses, skips existing
+npm run gen:voice-timings -- --force     # regenerate
+```
+
+Writes `client/public/voice/timings/{slug}.timing.json` from edge-tts
+WordBoundary events. Offline, free, and must use the same voice/rate/pitch as
+`script/gen-missing-voices.py` or the boundaries won't match the shipped mp3s.
+
+### Reviewing keyframes
+
+Joint angles are unreadable as text. Render them:
+
+```bash
+npm run rig:preview                          # contact sheet of every keyframe
+npm run rig:preview -- --slug trikonasana
+npm run rig:preview -- --tween               # include mid-transition frames
+```
+
+Writes `rig-preview.png` — front and side view per (pose, step). This runs the
+same forward kinematics as the WebGL stage with no browser or GPU, so it works
+in CI. **Look at the sheet before trusting new angles**; the first pass of
+Down Dog rendered as a tabletop and Triangle floated off the floor.
+
+### Adding a pose to the pilot
+
+1. Add a `PoseSequence` to `client/src/data/poseKeyframes.ts` with exactly one
+   frame per narration step in `content.ts` (a test enforces this).
+2. Run `npm run rig:preview -- --slug <slug>` and check both views.
+3. Nothing else — `PoseDemoStage` picks it up via `hasRigSequence()`.
+
+### Body shape
+
+The figure is built from three.js primitives — no glTF, no download. What makes
+it read as a person rather than plumbing is in `SKELETON` (`poseRig.ts`):
+
+- **Standard 7.5-head proportions** for a 1.72 m adult. Quickest eye check: with
+  the arms hanging, the fingertips should land at mid-thigh.
+- **Tapered segments.** Each bone has `r0` (at the joint) and `r1` (at the far
+  end), so a thigh thins toward the knee and a forearm toward the wrist.
+- **Elliptical cross-sections.** `sx`/`sz` make the torso ~1.35× wider than deep
+  and flatten the hands and feet. Uniform circular capsules were the single
+  biggest reason the first version looked like tubing.
+- **Shapes.** `torso` (broad frustum), `limb` (tapered, rounded ends), `slab`
+  (hands and feet), `head` (ovoid skull + jaw + nose — the nose is small but it
+  is what makes the facing direction unmistakable in a still frame).
+
+`script/rig-preview.mjs` mirrors this shading so the contact sheet and the app
+agree; if you change a radius in one, change it in both.
+
+### Conventions and gotchas
+
+See the header of `client/src/lib/poseRig.ts` for rotation signs. Two that
+cost real time:
+
+- **Put standing side-bends in `spine`/`chest`, never `root`.** The leg chains
+  are children of the root, so rotating it lifts the feet off the floor.
+- Composed X-rotations are additive down a chain. A limb's world angle is the
+  sum of its ancestors' `x` values, which is how Down Dog's `shoulder.x: 172`
+  is derived: the arm has to continue the torso line, not hang from it.
+
+### Cost
+
+three.js is dynamically imported, so it lands in its own chunk
+(`PoseFigurineGL-*.js`, ~131 kB gzip) that is only fetched when a rigged pose
+opens. `index.js` is unchanged. Verify with `npm run build` before shipping
+more poses.
+
+### Related code
+
+- `client/src/lib/poseRig.ts` — skeleton, pose interpolation, mirroring, breath
+- `client/src/data/poseKeyframes.ts` — per-step keyframes for the pilot poses
+- `client/src/components/PoseFigurineGL.tsx` — three.js scene + animation loop
+- `client/src/components/PoseStageGL.tsx` — lazy loader, chrome, CSS fallback
+- `client/src/lib/narrationTiming.ts` — step boundaries from text or timing file
+- `client/src/hooks/use-narration-timing.ts` — the hook the players call
+- `script/gen-voice-timings.py` — WordBoundary → timing JSON
+- `script/rig-preview.mjs` — keyframe contact sheet

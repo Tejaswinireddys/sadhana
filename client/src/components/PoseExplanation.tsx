@@ -17,6 +17,7 @@ import { asanaBySlug } from "@/data/content";
 import { poseMediaFor, poseHasVideo, poseNarrationSrc } from "@/data/poseMedia";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
+import { useNarrationTiming } from "@/hooks/use-narration-timing";
 import { unlockAudio } from "@/lib/audioUnlock";
 import { cn } from "@/lib/utils";
 import type { Preferences } from "@shared/schema";
@@ -55,6 +56,9 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
+  // 0–1 through the spoken step. Rigged poses interpolate limbs across this, so
+  // the body is mid-transition while the sentence plays.
+  const [stepProgress, setStepProgress] = useState(1);
   const [audioFailed, setAudioFailed] = useState(false);
   const [restartToken, setRestartToken] = useState(0);
   const [tab, setTab] = useState<TeachTab>("form");
@@ -72,6 +76,10 @@ export function PoseExplanation({ slug }: { slug: string }) {
   );
   const media = useMemo(() => poseMediaFor(slug), [slug]);
   const preferVideo = poseHasVideo(slug);
+  // Real per-step boundaries (generated file when present, syllable-weighted
+  // estimate otherwise) instead of dividing the audio into equal slices.
+  const stepTexts = useMemo(() => steps.map((s) => s.text), [steps]);
+  const { resolve: resolveStep } = useNarrationTiming(slug, stepTexts, effectiveDuration);
   const activeStep = steps[stepIndex];
   const activeZone =
     (started && !completed && activeStep?.focusZone) ||
@@ -112,18 +120,21 @@ export function PoseExplanation({ slug }: { slug: string }) {
     const t = setInterval(() => {
       setCurrent((c) => {
         const nc = c + 0.5;
-        setStepIndex(Math.min(stepCount - 1, Math.floor((nc / silentDuration) * stepCount)));
+        const { index, progress } = resolveStep(nc);
+        setStepIndex(index);
+        setStepProgress(progress);
         if (nc >= silentDuration) {
           setPlaying(false);
           setCompleted(true);
           setStepIndex(stepCount - 1);
+          setStepProgress(1);
           return silentDuration;
         }
         return nc;
       });
     }, 500);
     return () => clearInterval(t);
-  }, [useSilentGuide, started, playing, completed, stepCount, silentDuration]);
+  }, [useSilentGuide, started, playing, completed, stepCount, silentDuration, resolveStep]);
 
   // Auto-rotate teaching tabs while playing so the rail feels alive.
   useEffect(() => {
@@ -272,6 +283,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
             restartToken={restartToken}
             focusZone={activeZone}
             stepIndex={started ? stepIndex : 0}
+            stepProgress={started ? stepProgress : 1}
             stepCount={stepCount}
             stepPoseKey={activeStepPose}
             stepMotion={activeStepMotion}
@@ -423,17 +435,16 @@ export function PoseExplanation({ slug }: { slug: string }) {
             const a = e.target as HTMLAudioElement;
             setCurrent(a.currentTime);
             if (a.duration > 0) {
-              const idx = Math.min(
-                stepCount - 1,
-                Math.floor((a.currentTime / a.duration) * stepCount),
-              );
-              setStepIndex(idx);
+              const { index, progress } = resolveStep(a.currentTime);
+              setStepIndex(index);
+              setStepProgress(progress);
             }
           }}
           onEnded={() => {
             setPlaying(false);
             setCompleted(true);
             setStepIndex(stepCount - 1);
+            setStepProgress(1);
           }}
           onError={() => {
             // Missing / broken narration — keep video + silent step guide.

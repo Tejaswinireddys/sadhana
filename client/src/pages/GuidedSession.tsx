@@ -62,6 +62,7 @@ import { poseMediaFor, poseHasVideo, poseNarrationSrc } from "@/data/poseMedia";
 import { practiceHoldCues } from "@/lib/poseExplanation";
 import { QUICK_SESSIONS } from "@/data/quickSessions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useNarrationTiming } from "@/hooks/use-narration-timing";
 
 // ---- soft chime (shared with Practice) --------------------------------------
 function playChime() {
@@ -90,6 +91,8 @@ function playChime() {
 }
 
 const TRANSITION_SECONDS = 5;
+/** Reading window used when narration is off or unavailable. */
+const SILENT_INSTRUCTION_SECONDS = 12;
 const SIDE_SWITCH_SECONDS = 2;
 const FALLBACK_HOLD_CUES = [
   "Inhale…",
@@ -159,6 +162,8 @@ export default function GuidedSession() {
   const [phaseRemaining, setPhaseRemaining] = useState(TRANSITION_SECONDS); // seconds
   const [holdBudget, setHoldBudget] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
+  // 0–1 through the spoken step — drives limb interpolation on rigged poses.
+  const [stepProgress, setStepProgress] = useState(1);
   const [paused, setPaused] = useState(false);
   const [elapsedTotal, setElapsedTotal] = useState(0);
   const [imgVisible, setImgVisible] = useState(true); // crossfade toggle
@@ -237,6 +242,15 @@ export default function GuidedSession() {
   const isEach = current?.sides === "each";
 
   const src = current ? poseNarrationSrc(current.slug) : "";
+
+  // Per-step narration boundaries — replaces dividing the audio evenly, which
+  // put the focus halo and camera on the wrong words for uneven step texts.
+  const stepTexts = useMemo(() => steps.map((s) => s.text), [steps]);
+  const { resolve: resolveStep } = useNarrationTiming(
+    current?.slug ?? "",
+    stepTexts,
+    voiceEnabled && !audioBrokenRef.current ? voiceDuration : SILENT_INSTRUCTION_SECONDS,
+  );
 
   // Focus + step metadata for 3D moments during instruction.
   const activeZone =
@@ -436,7 +450,7 @@ export default function GuidedSession() {
 
   // Silent narration window (seconds of on-screen step reading) used when
   // voice is off OR this pose's narration failed to load.
-  const SILENT_INSTRUCTION = 12;
+  const SILENT_INSTRUCTION = SILENT_INSTRUCTION_SECONDS;
 
   const startInstruction = useCallback(
     (whichSide: 1 | 2) => {
@@ -531,8 +545,9 @@ export default function GuidedSession() {
         // silent instruction phase (voice off or narration missing): cycle steps
         if (phase === "instruction" && (!voiceEnabled || audioBrokenRef.current)) {
           const elapsed = SILENT_INSTRUCTION - (r - 1);
-          const idx = Math.min(stepCount - 1, Math.floor((elapsed / SILENT_INSTRUCTION) * stepCount));
+          const { index: idx, progress } = resolveStep(elapsed);
           setStepIndex(idx);
+          setStepProgress(progress);
         }
         return r - 1;
       });
@@ -551,6 +566,7 @@ export default function GuidedSession() {
     goToPose,
     finish,
     stepCount,
+    resolveStep,
   ]);
 
   // Slow-cycling form + breath cues during the hold phase (every 5s).
@@ -953,8 +969,9 @@ export default function GuidedSession() {
           if (phase !== "instruction") return;
           const a = e.target as HTMLAudioElement;
           if (a.duration > 0) {
-            const idx = Math.min(stepCount - 1, Math.floor((a.currentTime / a.duration) * stepCount));
+            const { index: idx, progress } = resolveStep(a.currentTime);
             setStepIndex(idx);
+            setStepProgress(progress);
           }
         }}
         onEnded={onVoiceEnded}
@@ -1056,6 +1073,7 @@ export default function GuidedSession() {
                 restartToken={videoRestartToken}
                 focusZone={activeZone}
                 stepIndex={phase === "instruction" ? stepIndex : Math.max(0, stepCount - 1)}
+                stepProgress={phase === "instruction" ? stepProgress : 1}
                 stepCount={stepCount}
                 stepPoseKey={activeStepPose}
                 stepMotion={activeStepMotion}
