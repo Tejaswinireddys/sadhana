@@ -28,19 +28,51 @@ declare global {
   }
 }
 
-/** The device identity for this request, minting and setting one when absent. */
-function resolveDeviceOwner(req: Request, res: Response): string {
-  const fromHeader = req.get(HEADER)?.trim();
-  if (fromHeader && isValidDeviceId(fromHeader)) return fromHeader;
+/** Response header the client mirrors back into localStorage. */
+export const DEVICE_ECHO_HEADER = "X-Device-Id";
 
+// Browsers cap persistent cookies at 400 days (chromium); ask for exactly that.
+const COOKIE_MAX_AGE = 400 * 24 * 60 * 60;
+
+function deviceCookie(id: string): string {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${COOKIE}=${encodeURIComponent(id)}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax; HttpOnly${secure}`;
+}
+
+/**
+ * The device identity for this request.
+ *
+ * The cookie is the identity of record: it is the copy that survives a
+ * localStorage eviction (Safari ITP, "clear site data", storage pressure), and
+ * losing it used to orphan every session, journal entry and streak on the
+ * server with no way back.
+ *
+ * Reconciliation rules, in order:
+ *   1. A header id wins, because that is where existing data already lives —
+ *      preferring the cookie outright would strand every current user whose two
+ *      ids diverged. The cookie is (re)written to match, so the two agree from
+ *      now on.
+ *   2. No header but a valid cookie: this is the recovery path. The browser lost
+ *      localStorage; the cookie hands the same owner id straight back.
+ *   3. Neither: mint one and set it.
+ *
+ * The client only sends the header when it *already* has an id, so a wiped
+ * localStorage can never overwrite a good cookie with a freshly minted id.
+ */
+export function resolveDeviceOwner(req: Request, res: Response): string {
+  const fromHeader = req.get(HEADER)?.trim();
   const fromCookie = parseCookie(req.headers.cookie, COOKIE);
-  if (fromCookie && isValidDeviceId(fromCookie)) return fromCookie;
+  const cookieOk = !!fromCookie && isValidDeviceId(fromCookie);
+
+  if (fromHeader && isValidDeviceId(fromHeader)) {
+    if (fromCookie !== fromHeader) res.append("Set-Cookie", deviceCookie(fromHeader));
+    return fromHeader;
+  }
+
+  if (cookieOk) return fromCookie!;
 
   const id = randomUUID();
-  res.append(
-    "Set-Cookie",
-    `${COOKIE}=${encodeURIComponent(id)}; Path=/; Max-Age=31536000; SameSite=Lax`,
-  );
+  res.append("Set-Cookie", deviceCookie(id));
   return id;
 }
 
@@ -53,6 +85,11 @@ function resolveDeviceOwner(req: Request, res: Response): string {
 export async function ownerMiddleware(req: Request, res: Response, next: NextFunction) {
   req.deviceOwnerId = resolveDeviceOwner(req, res);
   req.ownerId = req.deviceOwnerId;
+
+  // Hand the resolved id back so a client that lost localStorage can re-seed it
+  // from the cookie it can no longer read itself.
+  res.setHeader(DEVICE_ECHO_HEADER, req.deviceOwnerId);
+  res.append("Access-Control-Expose-Headers", DEVICE_ECHO_HEADER);
 
   const token = parseCookie(req.headers.cookie, AUTH_COOKIE);
   if (token) {

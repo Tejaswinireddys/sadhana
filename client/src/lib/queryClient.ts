@@ -1,13 +1,27 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { getDeviceId } from "./deviceId";
+import { peekDeviceId, syncDeviceId } from "./deviceId";
 
 const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
+const DEVICE_ECHO_HEADER = "X-Device-Id";
+
+/**
+ * Send the device id only when we actually have one. If localStorage was
+ * evicted we stay silent so the server can recover our identity from its
+ * `sadhana_device` cookie — minting a fresh id here would orphan the data.
+ */
 function deviceHeaders(extra?: HeadersInit): HeadersInit {
+  const id = peekDeviceId();
   return {
-    "X-Device-Id": getDeviceId(),
+    ...(id ? { [DEVICE_ECHO_HEADER]: id } : {}),
     ...(extra ?? {}),
   };
+}
+
+/** Mirror the server-resolved identity back into localStorage. */
+function adoptDeviceId(res: Response): Response {
+  syncDeviceId(res.headers.get(DEVICE_ECHO_HEADER));
+  return res;
 }
 
 async function throwIfResNotOk(res: Response) {
@@ -22,11 +36,14 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(`${API_BASE}${url}`, {
-    method,
-    headers: deviceHeaders(data ? { "Content-Type": "application/json" } : undefined),
-    body: data ? JSON.stringify(data) : undefined,
-  });
+  const res = adoptDeviceId(
+    await fetch(`${API_BASE}${url}`, {
+      method,
+      headers: deviceHeaders(data ? { "Content-Type": "application/json" } : undefined),
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+    }),
+  );
 
   await throwIfResNotOk(res);
   return res;
@@ -38,9 +55,12 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(`${API_BASE}${queryKey.join("/")}`, {
-      headers: deviceHeaders(),
-    });
+    const res = adoptDeviceId(
+      await fetch(`${API_BASE}${queryKey.join("/")}`, {
+        headers: deviceHeaders(),
+        credentials: "include",
+      }),
+    );
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;

@@ -42,12 +42,34 @@ export const credentialsSchema = z.object({
 });
 export type Credentials = z.infer<typeof credentialsSchema>;
 
+/**
+ * Sign-in accepts any shape a stored password could have had — including ones
+ * that predate the current rules. Enforcing signup constraints here turns a
+ * failed login into a policy disclosure, and rejects legitimate old passwords.
+ */
+export const loginSchema = z.object({
+  email: z.string().trim().toLowerCase().min(1),
+  password: z.string().min(1),
+});
+export type LoginCredentials = z.infer<typeof loginSchema>;
+
 // Practice sessions logged after completing a timed practice
 export const sessions = pgTable("sessions", {
   id: serial("id").primaryKey(),
   ownerId: text("owner_id").notNull(),
   date: text("date").notNull(), // ISO date string (YYYY-MM-DD or full ISO)
+  /**
+   * Minutes ACTUALLY practiced (wall-clock elapsed). This is the single
+   * definition of a session's duration — stats, the journal and the completion
+   * screen all read it. What the user *planned* lives in `plannedMinutes` and
+   * is never mixed into totals.
+   */
   durationMinutes: integer("duration_minutes").notNull(),
+  /** Minutes the session was designed to take. Nullable for legacy rows. */
+  plannedMinutes: integer("planned_minutes"),
+  /** Poses held to completion, and poses skipped past. Nullable for legacy rows. */
+  posesCompleted: integer("poses_completed"),
+  posesSkipped: integer("poses_skipped"),
   asanas: text("asanas").notNull().default("[]"), // JSON array of asana slugs/names
   pathwaySlug: text("pathway_slug"),
   notes: text("notes"),
@@ -220,11 +242,60 @@ export const customFlows = pgTable("custom_flows", {
   lastUsedAt: text("last_used_at"),
 });
 
+/**
+ * Hold-duration bounds, shared by the client input and the server.
+ *
+ * Under 5s nothing has time to happen; over 300s is not a hold, it's a nap with
+ * a timer. The server previously accepted anything a number could hold, so a
+ * mangled input persisted a 33-minute Mountain Pose end to end.
+ */
+export const MIN_HOLD_SECONDS = 5;
+export const MAX_HOLD_SECONDS = 300;
+
+export const posePlanSchema = z.object({
+  slug: z.string().min(1),
+  holdSeconds: z
+    .number({ invalid_type_error: "Hold must be a number of seconds" })
+    .int("Hold must be a whole number of seconds")
+    .min(MIN_HOLD_SECONDS, `Hold at least ${MIN_HOLD_SECONDS} seconds`)
+    .max(MAX_HOLD_SECONDS, `Hold at most ${MAX_HOLD_SECONDS} seconds (5 minutes)`),
+  sides: z.enum(["once", "each"]).optional(),
+});
+export type PosePlan = z.infer<typeof posePlanSchema>;
+
+/** Clamp a possibly-hostile number into the allowed hold range. */
+export function clampHoldSeconds(value: unknown): number {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return 30;
+  return Math.min(MAX_HOLD_SECONDS, Math.max(MIN_HOLD_SECONDS, n));
+}
+
 export const insertCustomFlowSchema = createInsertSchema(customFlows)
   .omit({ id: true, ownerId: true })
   .extend({
-    name: z.string().min(1, "Name is required"),
-    poseSequence: z.string(), // JSON-serialized array
+    name: z.string().min(1, "Name is required").max(80, "Keep the name under 80 characters"),
+    // Validated as JSON *content*, not just as a string — the column stores
+    // text, but what goes in it drives a timer a person follows with their body.
+    poseSequence: z
+      .string()
+      .superRefine((raw, ctx) => {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Pose sequence must be valid JSON" });
+          return;
+        }
+        const result = z.array(posePlanSchema).min(1, "Add at least one pose").safeParse(parsed);
+        if (!result.success) {
+          for (const issue of result.error.issues) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Pose ${issue.path[0] !== undefined ? Number(issue.path[0]) + 1 : "?"}: ${issue.message}`,
+            });
+          }
+        }
+      }),
   });
 export type InsertCustomFlow = z.infer<typeof insertCustomFlowSchema>;
 export type CustomFlow = typeof customFlows.$inferSelect;

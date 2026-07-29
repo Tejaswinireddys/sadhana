@@ -32,6 +32,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { MoodCheckIn } from "@/components/MoodCheckIn";
 import { Confetti } from "@/components/Confetti";
+import { FullScreenOverlay } from "@/components/FullScreenOverlay";
+import { SavePracticeDialog } from "@/components/SavePracticePrompt";
+import { declineBlocking, savePromptLevel } from "@/lib/savePracticePrompt";
+import { useAuth } from "@/lib/auth";
+import { todayISO, type Stats } from "@/lib/sadhana";
 import { usePractice } from "@/context/PracticeContext";
 import { useToast } from "@/hooks/use-toast";
 import { useWakeLock } from "@/hooks/use-wake-lock";
@@ -40,6 +45,7 @@ import { unlockAudio } from "@/lib/audioUnlock";
 import { type Mood } from "@/data/content";
 import type { Preferences } from "@shared/schema";
 import { cn } from "@/lib/utils";
+import { formatClock } from "@/lib/formatDuration";
 import {
   Play,
   Pause,
@@ -59,11 +65,13 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
+import { PoseImage } from "@/components/PoseImage";
 import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
 import { poseMediaFor, poseHasVideo, poseNarrationSrc } from "@/data/poseMedia";
 import { practiceHoldCues } from "@/lib/poseExplanation";
 import {
   QUICK_SESSIONS,
+  sessionMinutes,
   sessionTimeLabel,
   TRANSITION_SECONDS,
   SIDE_SWITCH_SECONDS,
@@ -109,10 +117,8 @@ const FALLBACK_HOLD_CUES = [
 
 type Phase = "transitionIn" | "instruction" | "sideSwitch" | "hold" | "complete";
 
-const mmss = (s: number) => {
-  const v = Math.max(0, Math.round(s));
-  return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, "0")}`;
-};
+/** Live countdown uses clock notation; everything else uses formatDuration. */
+const mmss = formatClock;
 
 export default function GuidedSession() {
   useDocumentTitle("Guided practice · Sadhana");
@@ -139,7 +145,11 @@ export default function GuidedSession() {
         (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
           x != null,
       );
-    loadSession(poses, { label: `${sessionTimeLabel(q.poses)} · ${q.label}`, breathSlug: q.breathSlug ?? null });
+    loadSession(poses, {
+      label: q.label,
+      plannedMinutes: sessionMinutes(q.poses),
+      breathSlug: q.breathSlug ?? null,
+    });
   };
 
   const startWarmup = () => {
@@ -158,6 +168,12 @@ export default function GuidedSession() {
   };
 
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
+  // The gate is evaluated at the session boundary only — never mid-practice.
+  const { isSignedIn } = useAuth();
+  const { data: guestStats } = useQuery<Stats>({
+    queryKey: ["/api/sessions/stats", todayISO()],
+  });
+  const [guestAcknowledged, setGuestAcknowledged] = useState(false);
   const voiceEnabled = prefs ? prefs.voiceEnabled !== 0 : true;
 
   // ---- flow state -----------------------------------------------------------
@@ -184,9 +200,10 @@ export default function GuidedSession() {
 
   // ---- completion / mood state ----------------------------------------------
   const [finished, setFinished] = useState(false);
-  const [showPreMood, setShowPreMood] = useState(true);
+  // Suppressed when an upstream flow (the Trainer) already collected it.
+  const [showPreMood, setShowPreMood] = useState(!meta.preMood);
   const [showPostMood, setShowPostMood] = useState(false);
-  const [preMood, setPreMood] = useState<Mood | null>(null);
+  const [preMood, setPreMood] = useState<Mood | null>(meta.preMood ?? null);
   const [postMood, setPostMood] = useState<Mood | null>(null);
   const [started, setStarted] = useState(false);
   const [confetti, setConfetti] = useState(false);
@@ -197,6 +214,9 @@ export default function GuidedSession() {
   const sessionLogged = useRef(false);
   useWakeLock(started && !paused && !finished);
   const posesCompleted = useRef(0);
+  // Indices the practitioner skipped past rather than held. Logging a
+  // skipped-through session as "8 poses" was a lie the journal couldn't undo.
+  const skippedIndices = useRef<Set<number>>(new Set());
   // Seconds already attributed to a logged session — lets "Do one more pose"
   // log only the *additional* time instead of double-counting the whole run.
   const loggedSeconds = useRef(0);
@@ -379,7 +399,10 @@ export default function GuidedSession() {
 
       const result = await logPracticeSession({
         minutes,
+        plannedMinutes: meta.plannedMinutes ?? null,
         poseNames,
+        posesCompleted: posesCompleted.current,
+        posesSkipped: skippedIndices.current.size,
         label: sessionLabel,
         pathwaySlug: meta.pathwaySlug ?? null,
         preMood,
@@ -422,7 +445,7 @@ export default function GuidedSession() {
     }
     setPhase("complete");
     setFinished(true);
-    posesCompleted.current = todays.length;
+    posesCompleted.current = Math.max(0, todays.length - skippedIndices.current.size);
     const newSeconds = Math.max(0, elapsedTotal - loggedSeconds.current);
     loggedSeconds.current = elapsedTotal;
     const minutes = Math.max(1, Math.round(newSeconds / 60));
@@ -430,7 +453,10 @@ export default function GuidedSession() {
     setConfetti(true);
     setTimeout(() => setConfetti(false), 2800);
     playChime();
-    setShowPostMood(true);
+    // Let the summary land first. Opening the mood dialog immediately covered
+    // "Beautiful practice / 5 minutes / 8 poses" — the thing they just earned —
+    // with another question.
+    setTimeout(() => setShowPostMood(true), 2200);
   }, [elapsedTotal, todays.length]);
 
   // ---- advance to the next pose (or finish) ---------------------------------
@@ -633,6 +659,7 @@ export default function GuidedSession() {
   };
 
   const handleSkip = () => {
+    skippedIndices.current.add(index);
     if (index + 1 >= todays.length) finish();
     else goToPose(index + 1);
   };
@@ -767,7 +794,7 @@ export default function GuidedSession() {
     const reflection =
       preMood && postMood ? `You moved from ${preMood} → ${postMood}. Beautiful.` : null;
     return (
-      <>
+      <FullScreenOverlay label="Practice complete">
         <Confetti active={confetti} />
         <MoodCheckIn
           open={showPostMood}
@@ -789,7 +816,21 @@ export default function GuidedSession() {
           className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background px-6 text-center"
           data-testid="guided-complete"
         >
-          <div className="text-6xl">🙏</div>
+          {/* Was a 🙏 emoji — a third visual language in a flow that already
+              had watercolour illustrations and the player's wireframes. Close
+              on the same illustration the rest of the app uses. */}
+          <div className="h-28 w-28 overflow-hidden rounded-full bg-accent/30">
+            <PoseImage
+              slug="savasana"
+              alt=""
+              aspect="aspect-square"
+              rounded="rounded-full"
+              breath={false}
+              shadow={false}
+              thumb
+              testId="complete-illustration"
+            />
+          </div>
           <h1 className="font-serif text-4xl">Beautiful practice</h1>
           <div className="flex gap-8 text-center">
             <div>
@@ -802,9 +843,15 @@ export default function GuidedSession() {
             </div>
             <div>
               <p className="font-serif text-3xl tabular-nums text-primary" data-testid="text-complete-poses">
-                {posesCompleted.current}
+                {skippedIndices.current.size > 0
+                  ? `${posesCompleted.current}/${todays.length}`
+                  : posesCompleted.current}
               </p>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">poses</p>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                {skippedIndices.current.size > 0
+                  ? `poses · ${skippedIndices.current.size} skipped`
+                  : "poses"}
+              </p>
             </div>
           </div>
           {meta.pathwaySlug && (
@@ -881,16 +928,32 @@ export default function GuidedSession() {
             </Button>
           </div>
         </div>
-      </>
+      </FullScreenOverlay>
     );
   }
 
   // ---- pre-start: pre-mood check-in, then auto-begin ------------------------
   if (!started) {
+    const totalSessions = guestStats?.totalSessions ?? 0;
+    const gate =
+      guestAcknowledged
+        ? "none"
+        : savePromptLevel({ isSignedIn, totalSessions, atSessionBoundary: true });
+    const blocked = gate === "blocking";
+
     return (
       <>
+        <SavePracticeDialog
+          open={blocked}
+          totalSessions={totalSessions}
+          currentStreak={guestStats?.currentStreak ?? 0}
+          onContinueAsGuest={() => {
+            declineBlocking(totalSessions);
+            setGuestAcknowledged(true);
+          }}
+        />
         <MoodCheckIn
-          open={showPreMood}
+          open={showPreMood && !blocked}
           title="How are you feeling?"
           description="Optional — a quick check-in before your guided flow."
           confirmLabel="Skip"
@@ -966,6 +1029,7 @@ export default function GuidedSession() {
           : steps[stepIndex]?.text ?? "";
 
   return (
+    <FullScreenOverlay label="Guided practice session">
     <div
       className="fixed inset-0 z-50 flex flex-col bg-background"
       data-testid="guided-session"
@@ -1248,5 +1312,6 @@ export default function GuidedSession() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </FullScreenOverlay>
   );
 }

@@ -25,11 +25,13 @@ import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
 import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/lib/localPrefs";
 import type { UserProfile, Enrollment, FavoriteAsana, CustomFlow, Journal } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
-import { QUICK_SESSIONS, sessionTimeLabel } from "@/data/quickSessions";
+import { QUICK_SESSIONS, sessionMinutes, sessionTimeLabel } from "@/data/quickSessions";
 import { EmptyState } from "@/components/EmptyState";
 import { ScrollRow } from "@/components/ScrollRow";
 import { ResponsiveDetails } from "@/components/ResponsiveDetails";
 import { HomeWelcomeHeader } from "@/components/home/HomeWelcomeHeader";
+import { SavePracticeBanner } from "@/components/SavePracticePrompt";
+import { dismissBanner, savePromptLevel } from "@/lib/savePracticePrompt";
 import { Reveal } from "@/components/motion";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
@@ -174,7 +176,11 @@ export default function Home() {
         return asana ? { asana, holdSeconds: p.holdSeconds } : null;
       })
       .filter((x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } => x != null);
-    loadSession(poses, { label: `${sessionTimeLabel(q.poses)} · ${q.label}`, breathSlug: q.breathSlug ?? null });
+    loadSession(poses, {
+      label: q.label,
+      plannedMinutes: sessionMinutes(q.poses),
+      breathSlug: q.breathSlug ?? null,
+    });
     navigate("/guided");
   };
 
@@ -309,12 +315,30 @@ export default function Home() {
     }
   }, [showReminder, reminderPrefs.notifications]);
 
+  // Guest data lives under a device id that a browser can drop at any time.
+  const [savePromptDismissed, setSavePromptDismissed] = useState(false);
+  const savePrompt = savePromptDismissed
+    ? "none"
+    : savePromptLevel({ isSignedIn, totalSessions: stats?.totalSessions ?? 0 });
+
   return (
     <div className="space-y-10">
       <HomeWelcomeHeader
         dateLabel={formatDate(todayISO())}
         title={welcomeTitle}
       />
+
+      {/* Guests with practice on the line get one honest heads-up per day. */}
+      {savePrompt === "banner" && (
+        <SavePracticeBanner
+          totalSessions={stats?.totalSessions ?? 0}
+          currentStreak={stats?.currentStreak ?? 0}
+          onDismiss={() => {
+            dismissBanner();
+            setSavePromptDismissed(true);
+          }}
+        />
+      )}
 
       <Reveal className="space-y-4" aria-labelledby="primary-practice-heading">
         <div className="flex items-center gap-2">

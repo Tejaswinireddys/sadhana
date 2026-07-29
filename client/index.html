@@ -10,6 +10,26 @@
       content="Sadhana is a free yoga practice companion with 200+ illustrated poses, guided voice sessions, pathways, kids stories, and profiles for men, women, and pregnancy."
     />
     <meta name="theme-color" content="#C56A3A" />
+
+    <!-- Resolve the theme before first paint. Without this, every load renders
+         one light frame before React mounts. Keep in sync with ThemeProvider. -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("sadhana.theme");
+          var pref = saved === "light" || saved === "dark" ? saved : "system";
+          var dark =
+            pref === "dark" ||
+            (pref === "system" &&
+              window.matchMedia &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", dark);
+          document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        } catch (e) {
+          /* storage blocked — fall back to the stylesheet default */
+        }
+      })();
+    </script>
     <link rel="canonical" href="https://sadhana-yoga.onrender.com/" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icon-192.png" />

@@ -40,6 +40,7 @@ export default function Account() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -172,16 +173,18 @@ export default function Account() {
   }
 
   return (
-    <FadeIn className="space-y-6">
-      <header className="space-y-2">
+    // A 400px card pinned to the left of a 1050px viewport leaves ~650px of
+    // dead space and reads as a layout bug. A single-purpose form centres.
+    <FadeIn className="mx-auto w-full max-w-md space-y-6">
+      <header className="space-y-2 text-center">
         <h1 className="font-serif text-3xl font-semibold tracking-tight">Sign in to Sadhana</h1>
-        <p className="max-w-xl text-muted-foreground">
+        <p className="text-muted-foreground">
           An account is optional. It keeps your streaks, journal, and saved sequences when you
           switch browsers or clear this one.
         </p>
       </header>
 
-      <Card className="max-w-md">
+      <Card>
         <CardContent className="p-5">
           <Tabs defaultValue="signin" onValueChange={() => setError(null)}>
             <TabsList className="mb-4 grid w-full grid-cols-2">
@@ -209,10 +212,22 @@ export default function Account() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
+                  <div className="flex items-baseline justify-between">
+                    <Label htmlFor="signin-password">Password</Label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                      data-testid="signin-toggle-password"
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
                   <Input
                     id="signin-password"
-                    type="password"
+                    // A reveal toggle is the single highest-value thing you can
+                    // add to a sign-in form: most failures are typos.
+                    type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     required
                     value={password}
@@ -232,6 +247,20 @@ export default function Account() {
                   {signIn.isPending ? "Signing in…" : "Sign in"}
                   <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Button>
+                {/* No reset flow exists yet. Saying so is better than an empty
+                    space where every user expects a link — and the export
+                    route is the honest recovery path we actually have. */}
+                <p className="text-center text-xs text-muted-foreground">
+                  Forgotten your password? Password reset isn't available yet — email{" "}
+                  <a
+                    className="underline underline-offset-2"
+                    href="mailto:hello@sadhana.app?subject=Password%20reset"
+                    data-testid="signin-forgot-password"
+                  >
+                    hello@sadhana.app
+                  </a>{" "}
+                  and we'll sort it out.
+                </p>
               </form>
             </TabsContent>
 
@@ -267,7 +296,7 @@ export default function Account() {
                   <Label htmlFor="signup-password">Password</Label>
                   <Input
                     id="signup-password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     autoComplete="new-password"
                     required
                     minLength={8}
@@ -297,7 +326,7 @@ export default function Account() {
         </CardContent>
       </Card>
 
-      <Card className="max-w-md surface-inset">
+      <Card className="surface-inset">
         <CardContent className="flex items-start gap-3 p-5">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
           <div className="space-y-1 text-sm text-muted-foreground">

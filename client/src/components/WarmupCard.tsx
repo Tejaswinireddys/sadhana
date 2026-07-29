@@ -51,12 +51,13 @@ export function WarmupCard() {
               key={s.asanaSlug}
               className="flex items-center gap-3 rounded-md border border-border bg-background px-3 py-2"
             >
-              <span className="h-12 w-12 shrink-0">
+              <span className="h-16 w-16 shrink-0">
                 <PoseImage
                   slug={s.asanaSlug}
                   alt={s.name}
                   rounded="rounded-lg"
                   aspect="aspect-square"
+                        thumb
                   breath={false}
                   shadow={false}
                   testId={`warmup-img-${s.asanaSlug}`}

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import type { Asana } from "@/data/content";
+import type { Asana, Mood } from "@/data/content";
 import { asanaBySlug } from "@/data/content";
 import {
   loadPersistedPractice,
@@ -18,9 +18,23 @@ export type QueuedAsana = Asana & {
 // Metadata describing the current queued session — used for journaling tags,
 // mood check-ins, and milestone attribution (v3.4).
 export type SessionMeta = {
-  label: string | null; // e.g. "5 min · I'm tense", "Front Splits — Week 2", or null
+  /**
+   * A name only — e.g. "I'm tense", "Front Splits — Week 2". Never bake a
+   * duration in here: labels used to read "5 min · I'm tense" and ended up as
+   * the journal title, so the journal claimed 5 minutes while the stats counted
+   * the 1 minute actually practiced. Planned time goes in `plannedMinutes`.
+   */
+  label: string | null;
   pathwaySlug: string | null;
   breathSlug?: string | null; // optional suggested breath technique
+  /** Minutes the session is designed to take. Displayed, never summed. */
+  plannedMinutes?: number | null;
+  /**
+   * A mood already collected upstream (the Trainer asks about body and energy
+   * before it composes). Set this and the guided player skips its own pre-mood
+   * modal — four check-ins in one flow is an interrogation, not a practice.
+   */
+  preMood?: Mood | null;
 };
 
 type PracticeContextType = {
@@ -48,6 +62,8 @@ const DEFAULT_META: SessionMeta = {
   label: null,
   pathwaySlug: null,
   breathSlug: null,
+  plannedMinutes: null,
+  preMood: null,
 };
 
 function hydrateFromStorage(): {

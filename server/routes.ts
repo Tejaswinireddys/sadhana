@@ -11,6 +11,7 @@ import {
   insertMobilityCheckInSchema,
   insertCustomFlowSchema,
   credentialsSchema,
+  loginSchema,
   type PublicUser,
   type User,
 } from "@shared/schema";
@@ -130,10 +131,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/auth/me", async (req, res) => {
     const user = req.userId ? await storage.getUserById(req.userId) : undefined;
-    // Guests see 0; signed-in users see what is still parked on this device so
-    // the UI can offer to merge it rather than silently claiming it.
-    const deviceRows = user ? await storage.countOwnerData(req.deviceOwnerId) : 0;
-    res.json({ user: user ? publicUser(user) : null, deviceRows });
+    if (!user) {
+      // A guest has no account to merge into, so `deviceRows` told them nothing
+      // and only advertised an internal concept. Don't emit it at all.
+      return res.json({ user: null });
+    }
+    // Signed in: report what is still parked on this device so the UI can offer
+    // to merge it rather than silently claiming it.
+    res.json({ user: publicUser(user), deviceRows: await storage.countOwnerData(req.deviceOwnerId) });
   });
 
   app.post("/api/auth/signup", async (req, res) => {
@@ -158,11 +163,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.post("/api/auth/login", async (req, res) => {
-    const parsed = credentialsSchema
-      .pick({ email: true, password: true })
-      .safeParse(req.body);
+    // Login must NOT reuse the signup schema. Its `password.min(8)` rejected a
+    // wrong-but-short password with "Enter your email and password" — untrue
+    // (both were supplied) and it leaked the length rule to anyone unauthed.
+    // Sign-in validates shape only; every failure past that is one answer.
+    const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: "Enter your email and password" });
+      return res.status(401).json({ error: "Email or password is incorrect" });
     }
     const user = await storage.getUserByEmail(parsed.data.email);
     if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
@@ -220,6 +227,55 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // ---- Account export / import / wipe (per device owner) ----
+  // Everything this owner has, in exactly the shape /api/account/import takes.
+  // Guest practice used to be unrecoverable the moment a browser dropped
+  // localStorage; this is the escape hatch.
+  app.get("/api/account/export", async (req, res) => {
+    const ownerId = req.ownerId;
+    const [
+      sessions,
+      journal,
+      customFlows,
+      favorites,
+      favoriteAsanas,
+      enrollments,
+      preferences,
+      milestones,
+      stickers,
+      activeProfile,
+    ] = await Promise.all([
+      storage.getSessions(ownerId),
+      storage.getJournal(ownerId),
+      storage.getCustomFlows(ownerId),
+      storage.getFavorites(ownerId),
+      storage.getFavoriteAsanas(ownerId),
+      storage.getEnrollments(ownerId),
+      storage.getPreferences(ownerId),
+      storage.getMilestones(ownerId),
+      storage.getStickers(ownerId),
+      storage.getActiveProfile(ownerId),
+    ]);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="sadhana-export-${new Date().toISOString().slice(0, 10)}.json"`,
+    );
+    res.json({
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      signedIn: !!req.userId,
+      sessions,
+      journal,
+      customFlows,
+      favorites,
+      favoriteAsanas,
+      enrollments,
+      preferences,
+      milestones,
+      stickers,
+      activeProfileId: activeProfile?.profileId ?? null,
+    });
+  });
+
   app.delete("/api/account/data", async (req, res) => {
     await storage.clearOwnerData(req.ownerId);
     res.status(204).end();

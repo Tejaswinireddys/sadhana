@@ -52,6 +52,8 @@ export const KEYS = {
   recentSearches: "sadhana.recentSearches",
   reminder: "sadhana.reminder",
   reminderDismissedDay: "sadhana.reminder.dismissedDay",
+  /** "light" | "dark" | "system" — read by the pre-paint script in index.html. */
+  theme: "sadhana.theme",
 } as const;
 
 export type ReminderPrefs = {

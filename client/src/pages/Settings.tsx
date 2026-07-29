@@ -31,7 +31,7 @@ import {
 } from "@/lib/dataPortability";
 import { KEYS, readJson, readString, removeKey, writeJson, writeString, type ReminderPrefs } from "@/lib/localPrefs";
 import type { Session } from "@shared/schema";
-import { Moon, Sun, Download, Upload, Trash2, Bell, CalendarPlus, Info, UserRound } from "lucide-react";
+import { Moon, Sun, Laptop, Download, Upload, Trash2, Bell, CalendarPlus, Info, UserRound } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -40,7 +40,7 @@ const DEFAULT_REMINDER: ReminderPrefs = { enabled: true, hour: 18, notifications
 
 export default function Settings() {
   useDocumentTitle("Settings · Sadhana");
-  const { theme, toggle } = useTheme();
+  const { preference, setPreference } = useTheme();
   const { toast } = useToast();
   const { user, isSignedIn } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -214,15 +214,35 @@ export default function Settings() {
           <CardTitle className="font-serif text-xl">Experience</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2"
-            onClick={toggle}
-            data-testid="settings-theme"
-          >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            {theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          </Button>
+          <div className="rounded-md border border-border p-3">
+            <p className="text-sm font-medium">Appearance</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Saved on this device. “System” follows your OS setting.
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Appearance">
+              {(
+                [
+                  { id: "light", label: "Light", Icon: Sun },
+                  { id: "dark", label: "Dark", Icon: Moon },
+                  { id: "system", label: "System", Icon: Laptop },
+                ] as const
+              ).map(({ id, label, Icon }) => (
+                <Button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={preference === id}
+                  variant={preference === id ? "default" : "outline"}
+                  className="min-h-11 justify-center gap-1.5"
+                  onClick={() => setPreference(id)}
+                  data-testid={`settings-theme-${id}`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
           <Button variant="outline" className="min-h-11 w-full cursor-pointer justify-start gap-2" asChild>
             <Link href="/welcome" data-testid="settings-about">
               <Info className="h-4 w-4" />

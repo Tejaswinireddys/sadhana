@@ -123,6 +123,7 @@ export default function Practice() {
 
       const result = await logPracticeSession({
         minutes,
+        plannedMinutes: meta.plannedMinutes ?? null,
         poseNames,
         label: sessionLabel,
         pathwaySlug: meta.pathwaySlug ?? null,

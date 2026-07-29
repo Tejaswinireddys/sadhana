@@ -28,8 +28,25 @@ function useAppHashLocation(options?: { ssrPath?: string }): [string, ReturnType
   const [loc, navigate] = useHashLocation(options);
   const path = loc.split("?")[0] || "/";
   const nav: ReturnType<typeof useHashLocation>[1] = (to, opts) => {
+    const target = String(to);
+    if (target.includes("?")) {
+      // wouter's hash navigate puts the query on `location.search`, producing
+      // `/?q=warrior#/search` — the query lands *before* the fragment, so the
+      // link is order-dependent, easy to mangle, and sends the query to the
+      // server on every share. Write the hash ourselves so the canonical
+      // `#/search?q=warrior` is what appears in the address bar.
+      clearStickySearchParams();
+      const next = `#${target.startsWith("/") ? target : `/${target}`}`;
+      if (opts?.replace) {
+        window.history.replaceState(null, "", next);
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+      } else {
+        window.location.hash = next.slice(1);
+      }
+      return;
+    }
     navigate(to, opts);
-    if (!String(to).includes("?")) clearStickySearchParams();
+    clearStickySearchParams();
   };
   return [path, nav];
 }

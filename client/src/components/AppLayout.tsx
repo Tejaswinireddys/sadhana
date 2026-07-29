@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -19,8 +19,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Logo } from "./Logo";
 import { useTheme } from "./ThemeProvider";
+import { APP_SHELL_ID } from "./FullScreenOverlay";
 import { useAuth } from "@/lib/auth";
 import { useRecentSearches } from "@/context/RecentSearchesContext";
+import { searchPoses } from "@/lib/poseSearch";
 import { cn } from "@/lib/utils";
 import {
   Home,
@@ -82,15 +84,29 @@ const MOBILE_PRIMARY: NavItem[] = [
 ];
 
 function SidebarSearch() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { recents, addRecent } = useRecentSearches();
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
+  // Explicit dismissal. Blur alone wasn't enough: pressing Enter navigated but
+  // left the panel open on top of the sidebar, covering the nav links, with two
+  // search boxes on screen holding the same value.
+  const [dismissed, setDismissed] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const suggestions = useMemo(() => searchPoses(value, 6), [value]);
+
+  const close = () => {
+    setDismissed(true);
+    setFocused(false);
+    inputRef.current?.blur();
+  };
 
   const go = (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) return;
     navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+    close();
   };
 
   const submit = () => {
@@ -100,29 +116,95 @@ function SidebarSearch() {
     go(trimmed);
   };
 
+  // Any route change closes the panel — including one triggered from inside it.
+  useEffect(() => {
+    setDismissed(true);
+    setFocused(false);
+  }, [location]);
+
+  const open = focused && !dismissed && (value.trim() !== "" || recents.length > 0);
+
   return (
     <div className="relative">
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
+          ref={inputRef}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onFocus={() => setFocused(true)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setDismissed(false);
+          }}
+          onFocus={() => {
+            setFocused(true);
+            setDismissed(false);
+          }}
           onBlur={() => setTimeout(() => setFocused(false), 150)}
           onKeyDown={(e) => {
             if (e.key === "Enter") submit();
+            if (e.key === "Escape") {
+              e.preventDefault();
+              close();
+            }
           }}
           placeholder="Search poses, breathing, kids…"
           className="pl-9"
           aria-label="Search Sadhana"
+          aria-expanded={open}
+          aria-controls="sidebar-search-suggestions"
+          role="combobox"
           data-testid="input-sidebar-search"
         />
       </div>
-      {focused && (value.trim() || recents.length > 0) && (
+      {open && (
         <div
-          className="absolute left-0 right-0 top-full z-20 mt-1 rounded-lg border border-border bg-popover p-1 shadow-soft-lg"
+          id="sidebar-search-suggestions"
+          role="listbox"
+          className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[60vh] overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-soft-lg"
           data-testid="recent-searches"
         >
+          {/* Live preview. Showing only "Search for …" made the user navigate
+              just to discover whether anything matched. */}
+          {suggestions.items.length > 0 && (
+            <>
+              <p className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Poses
+              </p>
+              {suggestions.items.map((pose) => (
+                <button
+                  key={pose.slug}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    addRecent(value.trim());
+                    navigate(`/asanas/${pose.slug}`);
+                    close();
+                  }}
+                  data-testid={`search-suggestion-${pose.slug}`}
+                >
+                  <span className="h-8 w-8 shrink-0 overflow-hidden rounded bg-accent/30">
+                    <img
+                      src={`${import.meta.env.BASE_URL}poses/${pose.slug}.png`}
+                      alt=""
+                      aria-hidden
+                      className="h-full w-full scale-[1.35] object-contain"
+                      loading="eager"
+                      decoding="async"
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{pose.english}</span>
+                    <span className="block truncate text-xs italic text-muted-foreground">
+                      {pose.sanskrit}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
           {value.trim() ? (
             <button
               type="button"
@@ -134,7 +216,9 @@ function SidebarSearch() {
               data-testid="search-submit-suggestion"
             >
               <Search className="h-3.5 w-3.5 text-muted-foreground" />
-              Search for “{value.trim()}”
+              {suggestions.total > 0
+                ? `See all ${suggestions.total} results for \u201C${value.trim()}\u201D`
+                : `Search for \u201C${value.trim()}\u201D`}
             </button>
           ) : null}
           {recents.length > 0 && (
@@ -254,6 +338,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
+      {/* Full-screen experiences (the guided player) mark this inert so the
+          chrome underneath leaves the tab order and the a11y tree. */}
+      <div id={APP_SHELL_ID} className="contents">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-primary focus:px-4 focus:py-3 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-soft-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
@@ -337,6 +424,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
         <MobileBottomNav />
       </SidebarInset>
+      </div>
     </SidebarProvider>
   );
 }

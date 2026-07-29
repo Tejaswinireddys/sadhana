@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { PoseImage } from "@/components/PoseImage";
 import { usePractice } from "@/context/PracticeContext";
 import { asanaBySlug } from "@/data/content";
-import { profileById } from "@/data/profiles";
-import { readString, writeString } from "@/lib/localPrefs";
+import { audienceChipFromProfileId, profileById } from "@/data/profiles";
+import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import {
   BODY_OPTIONS,
   BODY_PARTS,
@@ -17,14 +17,59 @@ import {
   NEED_OPTIONS,
   TIME_OPTIONS,
   composeTrainerSession,
+  moodFromEnergy,
+  toggleBodyAnswer,
+  toggleBodyPart,
+  type TrainerExperience,
   type TrainerSession,
 } from "@/lib/yogaTrainer";
 import { cn } from "@/lib/utils";
-import { Play, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import { formatHold } from "@/lib/formatDuration";
+import { Play, RefreshCw, ShieldAlert, Sparkles, UserRound } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { UserProfile } from "@shared/schema";
 
 const TOUR_KEY = "sadhana.trainer.tourDone";
+/**
+ * The wizard answers and the composed result, kept across a reload.
+ *
+ * Four questions and a generated sequence used to evaporate on F5, dropping the
+ * practitioner back at step 1 with nothing. sessionStorage is the right scope:
+ * it survives a refresh and a restored tab, and does not follow someone into
+ * next week's practice.
+ */
+const STATE_KEY = "sadhana.trainer.state.v1";
+
+type PersistedTrainer = {
+  step: number;
+  body: string[];
+  soreParts: string[];
+  energy: string;
+  timeMinutes: number | null;
+  need: string;
+  phase: "wizard" | "result";
+  result: TrainerSession | null;
+};
+
+function loadTrainerState(): PersistedTrainer | null {
+  try {
+    const raw = sessionStorage.getItem(STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedTrainer;
+    return parsed && Array.isArray(parsed.body) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveTrainerState(state: PersistedTrainer | null): void {
+  try {
+    if (state) sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
+    else sessionStorage.removeItem(STATE_KEY);
+  } catch {
+    /* quota / private mode — the wizard still works, it just won't survive F5 */
+  }
+}
 
 function ChipButton({
   selected,
@@ -74,13 +119,6 @@ function StepDots({ step, total }: { step: number; total: number }) {
   );
 }
 
-function fmtHold(seconds: number, sides?: "once" | "each") {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  const base = m > 0 ? (s ? `${m}m ${s}s` : `${m} min`) : `${s}s`;
-  return sides === "each" ? `${base} each` : base;
-}
-
 export default function Trainer() {
   useDocumentTitle("Yoga Trainer · Sadhana");
   const [, navigate] = useLocation();
@@ -90,26 +128,26 @@ export default function Trainer() {
   });
   const activeProfile = profileById(activeProfileRow?.profileId);
 
-  const [step, setStep] = useState(0);
-  const [body, setBody] = useState<string[]>([]);
-  const [soreParts, setSoreParts] = useState<string[]>([]);
-  const [energy, setEnergy] = useState("");
-  const [timeMinutes, setTimeMinutes] = useState<number | null>(null);
-  const [need, setNeed] = useState("");
-  const [phase, setPhase] = useState<"wizard" | "composing" | "result">("wizard");
-  const [result, setResult] = useState<TrainerSession | null>(null);
-  const [showTour, setShowTour] = useState(() => !readString(TOUR_KEY));
+  const saved = useMemo(loadTrainerState, []);
+  const [step, setStep] = useState(saved?.step ?? 0);
+  const [body, setBody] = useState<string[]>(saved?.body ?? []);
+  const [soreParts, setSoreParts] = useState<string[]>(saved?.soreParts ?? []);
+  const [energy, setEnergy] = useState(saved?.energy ?? "");
+  const [timeMinutes, setTimeMinutes] = useState<number | null>(saved?.timeMinutes ?? null);
+  const [need, setNeed] = useState(saved?.need ?? "");
+  const [phase, setPhase] = useState<"wizard" | "composing" | "result">(
+    saved?.phase === "result" && saved.result ? "result" : "wizard",
+  );
+  const [result, setResult] = useState<TrainerSession | null>(saved?.result ?? null);
+  // A restored session skips the tour — they've already seen it.
+  const [showTour, setShowTour] = useState(() => !readString(TOUR_KEY) && !saved);
 
   const showBodyParts = body.some((b) => b === "Sore" || b === "Injured" || b === "A little stiff");
 
-  const toggleMulti = (arr: string[], setArr: (v: string[]) => void, value: string) => {
-    if (value === "Nothing specific" || value === "None specific") {
-      setArr(arr.includes(value) ? [] : [value]);
-      return;
-    }
-    const without = arr.filter((v) => v !== "Nothing specific" && v !== "None specific");
-    setArr(without.includes(value) ? without.filter((v) => v !== value) : [...without, value]);
-  };
+  // Mutual exclusion lives in yogaTrainer so it is testable and so the wizard
+  // and the composer agree on what a contradictory answer even is.
+  const toggleBody = (value: string) => setBody(toggleBodyAnswer(body, value));
+  const togglePart = (value: string) => setSoreParts(toggleBodyPart(soreParts, value));
 
   const canAdvance =
     step === 0
@@ -131,7 +169,13 @@ export default function Trainer() {
         timeMinutes: timeMinutes ?? 10,
         need: need || "movement",
       },
-      { preferSlugs: activeProfile?.recommendedAsanas },
+      {
+        preferSlugs: activeProfile?.recommendedAsanas,
+        audience: audienceChipFromProfileId(activeProfileRow?.profileId),
+        // Someone who told onboarding they're new should not be handed a
+        // two-and-a-half-minute plank.
+        experience: (readString(KEYS.experienceLevel) as TrainerExperience | null) ?? undefined,
+      },
     );
     const elapsed = Date.now() - started;
     if (elapsed < 900) await new Promise((r) => setTimeout(r, 900 - elapsed));
@@ -147,7 +191,10 @@ export default function Trainer() {
     });
     if (!poses.length) return;
     loadSession(poses, {
-      label: `Trainer — ${NEED_LABEL[need] ?? need} · ${timeMinutes ?? result.totalMinutes} min`,
+      label: `Trainer — ${NEED_LABEL[result.deliveredNeed] ?? result.deliveredNeed}`,
+      plannedMinutes: timeMinutes ?? result.totalMinutes,
+      // We already asked about body and energy; don't ask a third time.
+      preMood: moodFromEnergy(energy),
     });
     navigate("/guided");
   };
@@ -161,11 +208,21 @@ export default function Trainer() {
     setNeed("");
     setResult(null);
     setPhase("wizard");
+    saveTrainerState(null);
   };
 
   useEffect(() => {
     if (!showTour) writeString(TOUR_KEY, "1");
   }, [showTour]);
+
+  // Snapshot on every meaningful change so a refresh lands where they were.
+  useEffect(() => {
+    if (phase === "composing") return;
+    const empty = body.length === 0 && !energy && timeMinutes === null && !need && !result;
+    saveTrainerState(
+      empty ? null : { step, body, soreParts, energy, timeMinutes, need, phase, result },
+    );
+  }, [step, body, soreParts, energy, timeMinutes, need, phase, result]);
 
   if (phase === "composing") {
     return (
@@ -205,10 +262,30 @@ export default function Trainer() {
                 ~{result.totalMinutes} min
               </Badge>
               <Badge variant="outline">{result.poses.length} poses</Badge>
-              <Badge variant="outline">{NEED_LABEL[need] ?? need}</Badge>
+              <Badge variant="outline" data-testid="badge-delivered-need">
+                {NEED_LABEL[result.deliveredNeed] ?? "Restorative"}
+              </Badge>
             </div>
           </CardContent>
         </Card>
+
+        {result.adjustments.length > 0 && (
+          <Card className="border-amber-500/40 bg-amber-500/5" data-testid="card-adjustments">
+            <CardContent className="space-y-2 p-4">
+              <p className="flex items-center gap-2 text-sm font-medium">
+                <ShieldAlert className="h-4 w-4 text-amber-600" />
+                {result.deliveredNeed === result.requestedNeed
+                  ? `Adjusted for your body — still a ${(NEED_LABEL[result.requestedNeed] ?? result.requestedNeed).toLowerCase()} practice`
+                  : `I couldn't safely give you ${(NEED_LABEL[result.requestedNeed] ?? result.requestedNeed).toLowerCase()} today`}
+              </p>
+              <ul className="space-y-1 text-sm text-muted-foreground">
+                {result.adjustments.map((a, i) => (
+                  <li key={i}>{a}</li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         <ol className="space-y-3" data-testid="list-composed-poses">
           {result.poses.map((p, i) => {
@@ -220,11 +297,12 @@ export default function Trainer() {
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold tabular-nums text-primary">
                       {i + 1}
                     </span>
-                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg">
+                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg">
                       <PoseImage
                         slug={p.slug}
                         alt={asana?.english ?? p.slug}
                         aspect="aspect-square"
+                        thumb
                         rounded="rounded-lg"
                         breath={false}
                         shadow={false}
@@ -238,7 +316,7 @@ export default function Trainer() {
                       <p className="mt-0.5 text-sm text-muted-foreground">{p.why}</p>
                     </div>
                     <span className="shrink-0 text-right text-xs font-medium tabular-nums text-muted-foreground">
-                      {fmtHold(p.holdSeconds, p.sides)}
+                      {formatHold(p.holdSeconds, p.sides)}
                     </span>
                   </CardContent>
                 </Card>
@@ -334,7 +412,7 @@ export default function Trainer() {
               <ChipButton
                 key={opt}
                 selected={body.includes(opt)}
-                onClick={() => toggleMulti(body, setBody, opt)}
+                onClick={() => toggleBody(opt)}
                 testId={`body-${opt.toLowerCase().replace(/[^a-z]+/g, "-")}`}
               >
                 {opt}
@@ -349,7 +427,7 @@ export default function Trainer() {
                   <ChipButton
                     key={part}
                     selected={soreParts.includes(part)}
-                    onClick={() => toggleMulti(soreParts, setSoreParts, part)}
+                    onClick={() => togglePart(part)}
                     testId={`part-${part.toLowerCase().replace(/[^a-z]+/g, "-")}`}
                     className="py-3 text-sm"
                   >
@@ -364,12 +442,19 @@ export default function Trainer() {
 
       {step === 1 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {ENERGY_OPTIONS.map((opt) => (
+          {ENERGY_OPTIONS.map((opt, i) => (
             <ChipButton
               key={opt}
               selected={energy === opt}
               onClick={() => setEnergy(opt)}
               testId={`energy-${opt.toLowerCase().replace(/[^a-z]+/g, "-")}`}
+              // An odd option count leaves a dangling half-row; the last chip
+              // fills it instead.
+              className={
+                i === ENERGY_OPTIONS.length - 1 && ENERGY_OPTIONS.length % 2 === 1
+                  ? "sm:col-span-2"
+                  : undefined
+              }
             >
               {opt}
             </ChipButton>
@@ -395,12 +480,21 @@ export default function Trainer() {
 
       {step === 3 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {NEED_OPTIONS.map((opt) => (
+          {NEED_OPTIONS.map((opt, i) => (
             <ChipButton
               key={opt.id}
               selected={need === opt.id}
               onClick={() => setNeed(opt.id)}
               testId={`need-${opt.id}`}
+              className={
+                i === NEED_OPTIONS.length - 1
+                  ? cn(
+                      NEED_OPTIONS.length % 2 === 1 && "col-span-2 sm:col-span-1",
+                      NEED_OPTIONS.length % 3 === 1 && "sm:col-span-3",
+                      NEED_OPTIONS.length % 3 === 2 && "sm:col-span-2",
+                    )
+                  : undefined
+              }
             >
               {opt.label}
             </ChipButton>
@@ -410,14 +504,19 @@ export default function Trainer() {
       </div>
 
       <div className="flex items-center justify-between gap-3 pt-2">
-        <Button
-          variant="ghost"
-          disabled={step === 0}
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
-          data-testid="button-back"
-        >
-          Back
-        </Button>
+        {/* Step 1 has nowhere to go back to; render nothing rather than a
+            disabled control that looks like a dead end. */}
+        {step > 0 ? (
+          <Button
+            variant="ghost"
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            data-testid="button-back"
+          >
+            Back
+          </Button>
+        ) : (
+          <span />
+        )}
         {step < 3 ? (
           <Button
             disabled={!canAdvance}

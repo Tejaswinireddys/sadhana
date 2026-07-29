@@ -5,6 +5,7 @@
 //   - Groups results by type with section headers and per-group counts.
 //   - Each result links to its detail page; affirmations link to /affirmations.
 import { useEffect, useState, useMemo } from "react";
+import { poseMatches, squash } from "@/lib/poseSearch";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,52 +19,24 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useRecentSearches } from "@/context/RecentSearchesContext";
 
 const diffColor: Record<string, string> = {
-  Beginner: "bg-secondary/20 text-secondary-foreground border-secondary/30",
-  Intermediate: "bg-primary/15 text-primary border-primary/30",
-  Advanced: "bg-destructive/15 text-destructive border-destructive/30",
+  // Tinted fills with brand-coloured text were the worst offenders in the audit
+  // ("Intermediate" was effectively invisible). Text sits on the page surface
+  // colour, which the contrast test covers.
+  Beginner: "bg-secondary/15 text-foreground border-secondary/40",
+  Intermediate: "bg-primary/10 text-foreground border-primary/40",
+  Advanced: "bg-destructive/10 text-foreground border-destructive/40",
 };
 
-// Read ?q=... from the URL. wouter's hash navigation stores query params on
-// `location.search` (e.g. "http://host/?q=warrior#/search"), so we read there;
-// we also fall back to any query embedded in the hash for direct deep-links.
 function readQuery(): string {
-  const direct = new URLSearchParams(window.location.search).get("q");
-  if (direct) return direct;
+  // The hash is canonical (`#/search?q=warrior`). `location.search` is only a
+  // fallback for links shared before the URL format was fixed.
   const hash = window.location.hash;
   const qIndex = hash.indexOf("?");
   if (qIndex !== -1) {
     const fromHash = new URLSearchParams(hash.slice(qIndex + 1)).get("q");
     if (fromHash) return fromHash;
   }
-  return "";
-}
-
-// Returns true if `squashedQuery` can be formed by concatenating prefixes of
-// the words in `name`, taken in order (words may be skipped). This makes
-// abbreviated, space-less queries like "downdog" match "Downward-Facing Dog"
-// (down + dog) or "warr2" match "Warrior 2".
-function matchesWordPrefixes(squashedQuery: string, name: string): boolean {
-  if (!squashedQuery) return false;
-  const words = name.toLowerCase().split(/[\s-]+/).filter(Boolean);
-  // Recursive consume: from word index w, try to match the rest of the query.
-  const consume = (qi: number, w: number): boolean => {
-    if (qi >= squashedQuery.length) return true;
-    for (let i = w; i < words.length; i++) {
-      const word = words[i];
-      // Match the longest possible shared prefix between the remaining query
-      // and this word, then recurse onto the next word.
-      let k = 0;
-      while (k < word.length && qi + k < squashedQuery.length && word[k] === squashedQuery[qi + k]) {
-        k++;
-      }
-      // Require at least one character matched and try every prefix length.
-      for (let len = k; len >= 1; len--) {
-        if (consume(qi + len, i + 1)) return true;
-      }
-    }
-    return false;
-  };
-  return consume(0, 0);
+  return new URLSearchParams(window.location.search).get("q") ?? "";
 }
 
 export default function Search() {
@@ -120,39 +93,12 @@ export default function Search() {
   const q = query.trim().toLowerCase();
   // A more forgiving, "squashed" form of the query with spaces and hyphens
   // removed, so "downdog" matches "Downward-Facing Dog" / "Adho Mukha Svanasana".
-  const squash = (s: string) => s.toLowerCase().replace(/[\s-]+/g, "");
   const qSquashed = squash(q);
 
   const results = useMemo(() => {
     if (!q) return { poses: [], breathing: [], pathways: [], affirmations: [], kids: [] };
 
-    const poses = ASANAS.filter((a) => {
-      // Primary substring match across sanskrit, english, category, summary,
-      // benefits, best-for intents, and step text (all case-insensitive).
-      const hay = [
-        a.sanskrit,
-        a.english,
-        a.category,
-        a.summary,
-        a.benefits.join(" "),
-        a.bestFor.join(" "),
-        a.steps.map((s) => s.text).join(" "),
-      ]
-        .join(" ")
-        .toLowerCase();
-      if (hay.includes(q)) return true;
-      // Forgiving fallback: strip spaces/hyphens from both query and the
-      // pose names so e.g. "forwardfold" matches "Standing Forward Fold".
-      if (qSquashed.length >= 3) {
-        if (squash(a.sanskrit).includes(qSquashed)) return true;
-        if (squash(a.english).includes(qSquashed)) return true;
-        // Word-prefix concatenation: lets "downdog" match
-        // "Downward-Facing Dog" by consuming a prefix from consecutive words.
-        if (matchesWordPrefixes(qSquashed, a.english)) return true;
-        if (matchesWordPrefixes(qSquashed, a.sanskrit)) return true;
-      }
-      return false;
-    });
+    const poses = ASANAS.filter((a) => poseMatches(a, q, qSquashed));
 
     const pathways = PATHWAYS.filter((p) => {
       const hay = [p.name, p.summary, p.target].join(" ").toLowerCase();
@@ -254,12 +200,13 @@ export default function Search() {
                       data-testid={`search-result-pose-${a.slug}`}
                     >
                       <CardContent className="flex items-center gap-3 p-3">
-                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg">
+                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg">
                           <PoseImage
                             slug={a.slug}
                             alt={a.english}
                             rounded="rounded-lg"
                             aspect="aspect-square"
+                        thumb
                             shadow={false}
                             breath={false}
                           />

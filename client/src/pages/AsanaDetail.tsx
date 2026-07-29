@@ -15,7 +15,7 @@ import { PoseExplanation } from "@/components/PoseExplanation";
 import { asanaBySlug, type Severity } from "@/data/content";
 import { poseNarrationSrc } from "@/data/poseMedia";
 import { usagesForAsana } from "@/data/asanaUsage";
-import { QUICK_SESSIONS, sessionTimeLabel } from "@/data/quickSessions";
+import { QUICK_SESSIONS, sessionMinutes, sessionTimeLabel } from "@/data/quickSessions";
 import { usePractice } from "@/context/PracticeContext";
 import { EmptyState } from "@/components/EmptyState";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -182,7 +182,11 @@ export default function AsanaDetail() {
         (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
           x != null,
       );
-    loadSession(poses, { label: `${sessionTimeLabel(q.poses)} · ${q.label}`, breathSlug: q.breathSlug ?? null });
+    loadSession(poses, {
+      label: q.label,
+      plannedMinutes: sessionMinutes(q.poses),
+      breathSlug: q.breathSlug ?? null,
+    });
     navigate("/guided");
   };
 

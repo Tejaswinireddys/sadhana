@@ -5,8 +5,15 @@ import type { Milestone } from "@shared/schema";
 import type { Mood } from "@/data/content";
 
 export type LogSessionInput = {
+  /** Minutes ACTUALLY practiced. The one number that feeds stats and streaks. */
   minutes: number;
+  /** Minutes the session was designed to take. Recorded, never summed. */
+  plannedMinutes?: number | null;
   poseNames: string[];
+  /** How many poses were held to completion vs. skipped past. */
+  posesCompleted?: number;
+  posesSkipped?: number;
+  /** A name only — no duration baked in. See SessionMeta.label. */
   label: string;
   pathwaySlug: string | null;
   preMood: Mood | null;
@@ -15,6 +22,43 @@ export type LogSessionInput = {
   journalTags?: string[];
   journalBody?: string;
 };
+
+/**
+ * Build the journal title + body for a completed practice.
+ *
+ * Pure and exported so the "two different numbers for one session" bug stays
+ * fixed: every minute figure the user can see comes from `minutes` (elapsed).
+ */
+export function buildJournalEntry(args: {
+  label: string;
+  minutes: number;
+  plannedMinutes?: number | null;
+  poseNames: string[];
+  posesCompleted: number;
+  posesSkipped: number;
+  preMood: Mood | null;
+  postMood: Mood | null;
+}): { title: string; body: string } {
+  const { label, minutes, plannedMinutes, poseNames, posesCompleted, posesSkipped } = args;
+  const moodLine =
+    args.preMood && args.postMood
+      ? `Mood: ${args.preMood} → ${args.postMood}.`
+      : args.preMood
+        ? `Mood before: ${args.preMood}.`
+        : args.postMood
+          ? `Mood after: ${args.postMood}.`
+          : "";
+  const poseLine =
+    posesSkipped > 0
+      ? `${posesCompleted} of ${poseNames.length} poses (${posesSkipped} skipped)`
+      : poseNames.join(", ");
+  const plannedLine =
+    plannedMinutes && plannedMinutes !== minutes ? ` (planned ${plannedMinutes} min)` : "";
+  return {
+    title: `${label} · ${minutes} min`,
+    body: `${label} — practiced ${poseLine}. ${minutes} min${plannedLine}. ${moodLine}`.trim(),
+  };
+}
 
 export type LogSessionResult = {
   ok: boolean;
@@ -26,7 +70,10 @@ export type LogSessionResult = {
 export async function logPracticeSession(input: LogSessionInput): Promise<LogSessionResult> {
   const {
     minutes,
+    plannedMinutes = null,
     poseNames,
+    posesCompleted,
+    posesSkipped,
     label,
     pathwaySlug,
     preMood,
@@ -36,10 +83,16 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
     journalBody,
   } = input;
 
+  const completed = posesCompleted ?? poseNames.length;
+  const skipped = posesSkipped ?? 0;
+
   try {
     await apiRequest("POST", "/api/sessions", {
       date: todayISO(),
       durationMinutes: Math.max(1, minutes),
+      plannedMinutes: plannedMinutes ?? null,
+      posesCompleted: completed,
+      posesSkipped: skipped,
       asanas: JSON.stringify(poseNames),
       pathwaySlug: pathwaySlug ?? null,
       notes: null,
@@ -54,21 +107,20 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
   }
 
   try {
-    const moodLine =
-      preMood && postMood
-        ? `Mood: ${preMood} → ${postMood}.`
-        : preMood
-          ? `Mood before: ${preMood}.`
-          : postMood
-            ? `Mood after: ${postMood}.`
-            : "";
-    const body =
-      journalBody ??
-      `${label} — practiced ${poseNames.join(", ")}. ${minutes} min. ${moodLine}`.trim();
+    const entry = buildJournalEntry({
+      label,
+      minutes,
+      plannedMinutes,
+      poseNames,
+      posesCompleted: completed,
+      posesSkipped: skipped,
+      preMood,
+      postMood,
+    });
     await apiRequest("POST", "/api/journal", {
       date: todayISO(),
-      title: label,
-      body,
+      title: entry.title,
+      body: journalBody ?? entry.body,
       mood: postMood ?? preMood ?? null,
       tags: JSON.stringify(journalTags),
     });

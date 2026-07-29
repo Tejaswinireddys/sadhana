@@ -99,6 +99,7 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
               alt=""
               className="h-16 w-16 shrink-0"
               aspect="aspect-square"
+                        thumb
               rounded="rounded-xl"
               breath={false}
               shadow
@@ -145,6 +146,16 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
               data-testid={`text-why-${profile.id}`}
             >
               {profile.why}
+            </p>
+            {/* Say what a path actually changes. "For Men" next to a female
+                illustration reads as a broken promise; naming the scope up
+                front is honest and costs nothing. */}
+            <p
+              className="mt-2 px-3 text-[11px] text-muted-foreground"
+              data-testid={`text-scope-${profile.id}`}
+            >
+              A path changes which poses, breathing and affirmations you're given. The
+              illustrations use one figure style throughout.
             </p>
           </CollapsibleContent>
         </Collapsible>

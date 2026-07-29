@@ -77,7 +77,7 @@ export function Onboarding({
       const asana = asanaBySlug(p.slug);
       return asana ? { asana, holdSeconds: p.holdSeconds } : null;
     }).filter((x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } => x != null);
-    loadSession(poses, { label: "5 min · Welcome practice" });
+    loadSession(poses, { label: "Welcome practice", plannedMinutes: 5 });
     finish();
     navigate("/guided");
   };

@@ -12,51 +12,18 @@ export type SadhanaExport = {
   preferences: unknown;
   milestones: unknown[];
   stickers: unknown[];
-  poseNotes: Array<{ slug: string; body: string; updatedAt: string }>;
+  poseNotes?: Array<{ slug: string; body: string; updatedAt: string }>;
+  activeProfileId?: string | null;
 };
 
-async function getJson(url: string) {
-  const res = await apiRequest("GET", url);
-  return res.json();
-}
-
+/**
+ * One request, one consistent snapshot. Fanning out over nine endpoints could
+ * interleave with a write and produce a backup that never existed.
+ */
 export async function buildExport(): Promise<SadhanaExport> {
-  const [
-    sessions,
-    journal,
-    customFlows,
-    favorites,
-    favoriteAsanas,
-    enrollments,
-    preferences,
-    milestones,
-    stickers,
-  ] = await Promise.all([
-    getJson("/api/sessions"),
-    getJson("/api/journal"),
-    getJson("/api/custom-flows"),
-    getJson("/api/favorites"),
-    getJson("/api/favorites/asanas"),
-    getJson("/api/enrollments"),
-    getJson("/api/preferences"),
-    getJson("/api/milestones"),
-    getJson("/api/kids/stickers"),
-  ]);
-
-  return {
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    sessions,
-    journal,
-    customFlows,
-    favorites,
-    favoriteAsanas,
-    enrollments,
-    preferences,
-    milestones,
-    stickers,
-    poseNotes: [],
-  };
+  const res = await apiRequest("GET", "/api/account/export");
+  const data = (await res.json()) as SadhanaExport;
+  return { ...data, poseNotes: data.poseNotes ?? [] };
 }
 
 export function downloadExport(data: SadhanaExport) {

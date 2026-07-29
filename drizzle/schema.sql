@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS sessions (
   owner_id TEXT NOT NULL DEFAULT '',
   date TEXT NOT NULL,
   duration_minutes INTEGER NOT NULL,
+  planned_minutes INTEGER,
+  poses_completed INTEGER,
+  poses_skipped INTEGER,
   asanas TEXT NOT NULL DEFAULT '[]',
   pathway_slug TEXT,
   notes TEXT,
@@ -106,6 +109,11 @@ CREATE TABLE IF NOT EXISTS custom_flows (
 
 -- Migrate pre-existing databases that were created without owner_id.
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT '';
+-- Duration accounting: duration_minutes is elapsed time; planned_minutes is
+-- what the session was designed to take. Nullable so legacy rows stay valid.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS planned_minutes INTEGER;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS poses_completed INTEGER;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS poses_skipped INTEGER;
 ALTER TABLE preferences ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT '';
 ALTER TABLE pathway_enrollments ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT '';
 ALTER TABLE favorite_affirmations ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT '';

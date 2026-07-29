@@ -174,7 +174,8 @@ export default function Asanas() {
       <header className="space-y-1">
         <h1 className="font-serif text-3xl font-semibold tracking-tight">Asana Library</h1>
         <p className="text-muted-foreground">
-          {ASANAS.length} poses across seven families. Tap any card to explore the full guide.
+          {CATEGORIES.length} families, {ASANAS.length} poses. Tap any card to explore the full
+          guide.
         </p>
       </header>
 
@@ -194,8 +195,12 @@ export default function Asanas() {
             </span>
           )}
         </Button>
+        {/* Sitting next to "Favorites", a bare "25 poses" read as a favourites
+            count and contradicted the 207 in the header. Say what it counts. */}
         <Badge variant="secondary" className="tabular-nums" data-testid="chip-pose-count">
-          {list.length} {list.length === 1 ? "pose" : "poses"}
+          {list.length === ASANAS.length
+            ? `Showing all ${ASANAS.length}`
+            : `Showing ${list.length} of ${ASANAS.length}`}
         </Badge>
       </div>
 

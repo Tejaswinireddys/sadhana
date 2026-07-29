@@ -18,28 +18,32 @@
   --sidebar: 40 36% 91%;
   --sidebar-foreground: 30 10% 20%;
   --sidebar-border: 38 22% 82%;
-  --sidebar-primary: 20 55% 51%;
+  --sidebar-primary: 20 55% 41%;
   --sidebar-primary-foreground: 40 43% 96%;
   --sidebar-accent: 38 30% 86%;
   --sidebar-accent-foreground: 30 10% 16%;
-  --sidebar-ring: 20 55% 51%;
+  --sidebar-ring: 20 55% 41%;
   --popover: 40 42% 96%;
   --popover-foreground: 30 10% 16%;
   --popover-border: 38 22% 84%;
-  --primary: 20 55% 51%;
+  /* Text-weight brand colours. These are used as *foreground* (badges, "Best
+     for ·" captions, links) as well as button fills, so they must clear 4.5:1
+     against the lightest surface. The old 51%/48% pair sat at ~3.5:1 — which
+     also meant white button labels were failing on primary fills. */
+  --primary: 20 55% 41%;
   --primary-foreground: 40 43% 97%;
-  --secondary: 92 13% 48%;
+  --secondary: 92 20% 36%;
   --secondary-foreground: 40 43% 97%;
   --muted: 38 26% 88%;
   --muted-foreground: 30 10% 38%;
   --accent: 92 16% 86%;
   --accent-foreground: 92 22% 22%;
-  --destructive: 8 62% 48%;
+  --destructive: 8 66% 42%;
   --destructive-foreground: 40 43% 97%;
   --input: 38 22% 80%;
-  --ring: 20 55% 51%;
-  --chart-1: 20 55% 51%;
-  --chart-2: 92 13% 48%;
+  --ring: 20 55% 41%;
+  --chart-1: 20 55% 41%;
+  --chart-2: 92 20% 36%;
   --chart-3: 38 40% 60%;
   --chart-4: 200 22% 50%;
   --chart-5: 30 30% 40%;
@@ -120,28 +124,31 @@
   --sidebar: 30 14% 12%;
   --sidebar-foreground: 40 28% 94%;
   --sidebar-border: 30 12% 22%;
-  --sidebar-primary: 20 62% 60%;
+  --sidebar-primary: 20 62% 66%;
   --sidebar-primary-foreground: 30 12% 10%;
   --sidebar-accent: 30 12% 20%;
   --sidebar-accent-foreground: 40 32% 96%;
-  --sidebar-ring: 20 62% 60%;
+  --sidebar-ring: 20 62% 66%;
   --popover: 30 12% 15%;
   --popover-foreground: 40 32% 96%;
   --popover-border: 30 12% 26%;
-  --primary: 20 62% 60%;
+  /* Same rule in reverse: light enough to read on the dark surfaces. */
+  --primary: 20 62% 66%;
   --primary-foreground: 30 12% 10%;
-  --secondary: 92 18% 58%;
+  --secondary: 92 25% 62%;
   --secondary-foreground: 30 12% 10%;
   --muted: 30 12% 18%;
   --muted-foreground: 40 14% 84%;
   --accent: 92 16% 24%;
   --accent-foreground: 92 28% 88%;
-  --destructive: 8 62% 56%;
-  --destructive-foreground: 40 30% 97%;
+  /* Light-on-dark inverts the label too: white on a pale red fails, and the
+     red must be light enough to read as text on the dark card. */
+  --destructive: 8 62% 66%;
+  --destructive-foreground: 30 12% 10%;
   --input: 30 12% 28%;
-  --ring: 20 62% 60%;
-  --chart-1: 20 62% 60%;
-  --chart-2: 92 20% 58%;
+  --ring: 20 62% 66%;
+  --chart-1: 20 62% 66%;
+  --chart-2: 92 25% 62%;
   --chart-3: 38 42% 62%;
   --chart-4: 200 24% 58%;
   --chart-5: 30 24% 60%;

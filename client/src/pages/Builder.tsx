@@ -1,4 +1,9 @@
 import { useMemo, useState } from "react";
+import {
+  clampHoldSeconds,
+  MAX_HOLD_SECONDS,
+  MIN_HOLD_SECONDS,
+} from "@shared/schema";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,6 +42,7 @@ import {
   Search,
 } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { formatDuration } from "@/lib/formatDuration";
 
 const MAX_POSES = 20;
 
@@ -51,7 +57,7 @@ function parseSequence(json: string): SeqPose[] {
       .filter((p) => p && typeof p.slug === "string" && asanaBySlug(p.slug))
       .map((p) => ({
         slug: p.slug,
-        holdSeconds: typeof p.holdSeconds === "number" ? p.holdSeconds : 30,
+        holdSeconds: clampHoldSeconds(p.holdSeconds ?? 30),
         sides: p.sides === "each" ? "each" : "once",
       }));
   } catch {
@@ -61,14 +67,6 @@ function parseSequence(json: string): SeqPose[] {
 
 function totalSeconds(poses: SeqPose[]): number {
   return poses.reduce((sum, p) => sum + p.holdSeconds * (p.sides === "each" ? 2 : 1), 0);
-}
-
-function fmtTime(secs: number): string {
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  if (m === 0) return `${s}s`;
-  if (s === 0) return `${m} min`;
-  return `${m} min ${s}s`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -126,7 +124,7 @@ function FlowCard({
 
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="outline" className="gap-1">
-            <Clock className="h-3 w-3" /> ~{fmtTime(secs)}
+            <Clock className="h-3 w-3" /> ~{formatDuration(secs)}
           </Badge>
           <span>
             {poses.length} {poses.length === 1 ? "pose" : "poses"}
@@ -225,9 +223,11 @@ function BuilderView({
       return next;
     });
   };
+  // Clamp on commit rather than on every keystroke, so typing "120" isn't
+  // fought character by character — but nothing out of range can be saved.
   const setHold = (i: number, v: number) =>
     setSequence((prev) =>
-      prev.map((p, idx) => (idx === i ? { ...p, holdSeconds: Math.max(1, v || 1) } : p)),
+      prev.map((p, idx) => (idx === i ? { ...p, holdSeconds: clampHoldSeconds(v) } : p)),
     );
   const toggleSides = (i: number) =>
     setSequence((prev) =>
@@ -391,7 +391,7 @@ function BuilderView({
           <div className="flex items-center justify-between">
             <h2 className="font-serif text-lg">Your sequence</h2>
             <Badge variant="outline" className="gap-1" data-testid="text-total-time">
-              <Clock className="h-3 w-3" /> ~{fmtTime(secs)}
+              <Clock className="h-3 w-3" /> ~{formatDuration(secs)}
             </Badge>
           </div>
 
@@ -447,11 +447,16 @@ function BuilderView({
                         <span className="flex items-center gap-1">
                           <Input
                             type="number"
-                            min={1}
+                            inputMode="numeric"
+                            min={MIN_HOLD_SECONDS}
+                            max={MAX_HOLD_SECONDS}
+                            step={5}
                             value={p.holdSeconds}
                             onChange={(e) => setHold(i, Number(e.target.value))}
+                            onBlur={(e) => setHold(i, Number(e.target.value))}
                             className="h-7 w-16 px-2 text-xs"
-                            aria-label="Hold seconds"
+                            aria-label={`Hold seconds (${MIN_HOLD_SECONDS}–${MAX_HOLD_SECONDS})`}
+                            title={`${MIN_HOLD_SECONDS}–${MAX_HOLD_SECONDS} seconds`}
                             data-testid={`input-hold-${i}`}
                           />
                           <span className="text-xs text-muted-foreground">sec</span>

@@ -2,6 +2,8 @@
  *  Right panel is a decorative "hero moment": a layered pose composition with a
  *  soft gradient, depth, and gentle breath motion (reduced-motion / motion-off safe).
  */
+import { useCallback, useState } from "react";
+
 const HERO_POSES = ["vrksasana", "tadasana", "balasana"];
 
 export function HomeWelcomeHeader({
@@ -12,6 +14,13 @@ export function HomeWelcomeHeader({
   dateLabel: string;
 }) {
   const base = import.meta.env.BASE_URL;
+  // Pale watercolour figures on a white card render as a blank white rectangle
+  // for the whole load. Hold a visible placeholder until the front pose lands.
+  const [heroReady, setHeroReady] = useState(false);
+  const markReady = useCallback((node: HTMLImageElement | null) => {
+    // Cached images can finish before onLoad is attached — check on mount too.
+    if (node?.complete && node.naturalWidth > 0) setHeroReady(true);
+  }, []);
   return (
     <header className="grid gap-6 md:grid-cols-[1.15fr_0.85fr] md:items-center">
       <div className="space-y-2">
@@ -32,10 +41,24 @@ export function HomeWelcomeHeader({
         aria-hidden
         data-testid="home-hero-scene"
       >
-        {/* Warm ambient wash */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_25%_15%,hsl(var(--primary)/0.16),transparent_60%),radial-gradient(ellipse_at_85%_90%,hsl(var(--secondary)/0.14),transparent_55%)]" />
-        {/* Soft scrim so the left text edge blends into the panel */}
-        <div className="absolute inset-0 bg-gradient-to-r from-card via-card/40 to-transparent" />
+        {/* Warm ambient wash. Deliberately stronger than the pose art so the
+            panel reads as a designed surface even before anything loads. */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_25%_15%,hsl(var(--primary)/0.22),transparent_60%),radial-gradient(ellipse_at_85%_90%,hsl(var(--secondary)/0.18),transparent_55%)]" />
+
+        {/* Placeholder while the figures decode — never a blank white box. */}
+        <div
+          className={`absolute inset-y-6 right-6 flex items-end gap-3 transition-opacity duration-500 ${
+            heroReady ? "opacity-0" : "opacity-100"
+          }`}
+        >
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="w-16 animate-pulse rounded-2xl bg-primary/10"
+              style={{ height: `${9 - i * 1.5}rem`, animationDelay: `${i * 0.15}s` }}
+            />
+          ))}
+        </div>
 
         {/* Layered poses — largest in front, receding for depth */}
         <div className="absolute inset-y-0 right-0 flex items-end">
@@ -46,11 +69,13 @@ export function HomeWelcomeHeader({
             return (
               <img
                 key={slug}
+                ref={depth === 0 ? markReady : undefined}
+                onLoad={depth === 0 ? () => setHeroReady(true) : undefined}
                 src={`${base}poses/${slug}.png`}
                 alt=""
-                className={`hero-photo-breath -ml-6 w-auto rounded-2xl object-contain shadow-soft ${heights[depth]}`}
+                className={`hero-photo-breath -ml-6 w-auto rounded-2xl object-contain shadow-soft transition-opacity duration-500 ${heights[depth]}`}
                 style={{
-                  opacity: opacity[depth],
+                  opacity: heroReady ? opacity[depth] : 0,
                   transform: `translateY(${depth * 8}px) rotate(${(i - 1) * 2}deg)`,
                   zIndex: HERO_POSES.length - depth,
                   animationDelay: `${depth * 0.4}s`,
@@ -63,8 +88,11 @@ export function HomeWelcomeHeader({
           })}
         </div>
 
-        {/* Quiet caption chip */}
-        <span className="absolute bottom-3 left-4 rounded-full bg-background/75 px-3 py-1 text-xs font-medium text-primary shadow-soft backdrop-blur-sm">
+        {/* Scrim behind the caption only — a full-width scrim washed the art out
+            in light mode, and the caption sat *under* the z-indexed photos, so
+            "Your practice, today" was clipped to "Your pr…". */}
+        <div className="absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-t from-card via-card/80 to-transparent" />
+        <span className="absolute bottom-3 left-4 z-20 rounded-full bg-background px-3 py-1 text-xs font-semibold text-foreground shadow-soft ring-1 ring-card-border">
           Your practice, today
         </span>
       </div>

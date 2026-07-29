@@ -9,7 +9,7 @@
  * teaches the pose. Default to `contain` so the figure is never cut; the
  * container's background wash fills the remaining side space.
  */
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PoseSvg } from "@/components/PoseSvg";
 import { asanaBySlug } from "@/data/content";
@@ -26,6 +26,7 @@ export function PoseImage({
   sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw",
   priority = false,
   fit = "contain",
+  thumb = false,
   testId,
 }: {
   slug: string;
@@ -41,13 +42,44 @@ export function PoseImage({
   priority?: boolean;
   /** `contain` (default) never clips the figure; `cover` only for decorative crops. */
   fit?: "contain" | "cover";
+  /**
+   * Small list/row rendering. Loads the pre-scaled asset when one exists and
+   * skips the blur-up layer, which is pure cost at this size. Always eager:
+   * a 48px thumbnail is never worth a lazy-load round trip, and `loading="lazy"`
+   * was a major cause of thumbnails never painting at all.
+   */
+  thumb?: boolean;
   testId?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
+  // Pre-scaled thumbs are optional (see script/gen-pose-thumbs.ts). If one is
+  // missing we fall back to the full-size asset rather than showing nothing.
+  const [useFullSize, setUseFullSize] = useState(false);
   const asana = asanaBySlug(slug);
   const poseKey = asana?.pose ?? "mountain";
-  const src = `${import.meta.env.BASE_URL}poses/${slug}.png`;
+  const full = `${import.meta.env.BASE_URL}poses/${slug}.png`;
+  const src = thumb && !useFullSize ? `${import.meta.env.BASE_URL}poses/thumbs/${slug}.png` : full;
+  const eager = priority || thumb;
+
+  /**
+   * A cached image can finish decoding before React attaches `onLoad`, so the
+   * event never fires and the node stays at `opacity: 0` — visible pixels,
+   * invisible element — until an unrelated re-render (toggling the theme,
+   * typing in a field) happens to repaint it. Checking `complete` on the ref
+   * closes that race.
+   */
+  const attachImg = useCallback((node: HTMLImageElement | null) => {
+    if (node?.complete && node.naturalWidth > 0) setLoaded(true);
+  }, []);
+
+  const handleError = () => {
+    if (thumb && !useFullSize) {
+      setUseFullSize(true);
+      return;
+    }
+    setErrored(true);
+  };
 
   return (
     <div
@@ -57,37 +89,45 @@ export function PoseImage({
       {!loaded && !errored && (
         <>
           <Skeleton className={cn("absolute inset-0 h-full w-full", rounded)} />
-          {/* LQIP-style blur layer from the same asset at tiny intrinsic size */}
-          <img
-            src={src}
-            alt=""
-            aria-hidden
-            className={cn(
-              "pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl",
-              rounded,
-            )}
-            loading={priority ? "eager" : "lazy"}
-            decoding="async"
-          />
+          {/* LQIP-style blur layer from the same asset at tiny intrinsic size.
+              Skipped for thumbs — a blur pass costs more than it buys at 64px. */}
+          {!thumb && (
+            <img
+              src={src}
+              alt=""
+              aria-hidden
+              className={cn(
+                "pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl",
+                rounded,
+              )}
+              loading={priority ? "eager" : "lazy"}
+              decoding="async"
+            />
+          )}
         </>
       )}
       {!errored && (
         <img
+          ref={attachImg}
+          key={src}
           src={src}
           alt={alt}
           sizes={sizes}
-          loading={priority ? "eager" : "lazy"}
-          decoding="async"
+          loading={eager ? "eager" : "lazy"}
+          decoding={eager ? "sync" : "async"}
           fetchPriority={priority ? "high" : "auto"}
           onLoad={() => setLoaded(true)}
-          onError={() => setErrored(true)}
+          onError={handleError}
           className={cn(
             "relative z-[1] block select-none transition-opacity duration-300",
             fit === "cover" ? "object-cover" : "object-contain",
+            // A full-body figure shrunk to a row thumbnail is a few faint
+            // pixels. Scaling up inside the clip keeps it legible.
+            thumb ? "scale-[1.35]" : "",
             rounded,
             aspect ? "h-full w-full" : "w-full",
             shadow ? "shadow-soft-lg" : "",
-            loaded ? "photo-fade-in opacity-100" : "opacity-0",
+            loaded ? "opacity-100" : "opacity-0",
             loaded && breath ? "photo-breath" : "",
           )}
           draggable={false}
