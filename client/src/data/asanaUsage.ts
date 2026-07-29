@@ -1,7 +1,7 @@
 // Where each asana appears in real practice — so detail pages can invite
 // users into a session, not leave them staring at a catalog card.
 import { PATHWAYS, WARMUP } from "./content";
-import { QUICK_SESSIONS } from "./quickSessions";
+import { QUICK_SESSIONS, sessionTimeLabel } from "./quickSessions";
 import { PROFILES } from "./profiles";
 
 export type AsanaUsageHit =
@@ -19,7 +19,7 @@ export function usagesForAsana(slug: string): AsanaUsageHit[] {
 
   for (const q of QUICK_SESSIONS) {
     if (q.poses.some((p) => p.slug === slug)) {
-      hits.push({ kind: "mood", id: q.id, label: q.label, time: q.time });
+      hits.push({ kind: "mood", id: q.id, label: q.label, time: sessionTimeLabel(q.poses) });
     }
   }
 

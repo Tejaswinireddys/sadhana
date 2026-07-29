@@ -59,7 +59,7 @@ function PoseRow({ p }: { p: DailyPlan["poses"][number] }) {
         <img
           src={`${import.meta.env.BASE_URL}poses/${p.asanaSlug}.png`}
           alt={asana?.english ?? p.asanaSlug}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain"
           loading="lazy"
         />
       </span>
@@ -176,7 +176,7 @@ export function DailyProgram({
                     <img
                       src={`${import.meta.env.BASE_URL}poses/balasana.png`}
                       alt="Child's pose"
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                     />
                   </span>
                   <div>

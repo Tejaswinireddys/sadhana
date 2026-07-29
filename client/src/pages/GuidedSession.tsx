@@ -53,6 +53,8 @@ import {
   Route as RouteIcon,
   LayoutGrid,
   NotebookPen,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
@@ -60,7 +62,12 @@ import { PoseDemoStage } from "@/components/PoseDemoStage";
 import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
 import { poseMediaFor, poseHasVideo, poseNarrationSrc } from "@/data/poseMedia";
 import { practiceHoldCues } from "@/lib/poseExplanation";
-import { QUICK_SESSIONS } from "@/data/quickSessions";
+import {
+  QUICK_SESSIONS,
+  sessionTimeLabel,
+  TRANSITION_SECONDS,
+  SIDE_SWITCH_SECONDS,
+} from "@/data/quickSessions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useNarrationTiming } from "@/hooks/use-narration-timing";
 
@@ -90,10 +97,8 @@ function playChime() {
   }
 }
 
-const TRANSITION_SECONDS = 5;
 /** Reading window used when narration is off or unavailable. */
 const SILENT_INSTRUCTION_SECONDS = 12;
-const SIDE_SWITCH_SECONDS = 2;
 const FALLBACK_HOLD_CUES = [
   "Inhale…",
   "Exhale…",
@@ -134,7 +139,7 @@ export default function GuidedSession() {
         (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
           x != null,
       );
-    loadSession(poses, { label: `${q.time} · ${q.label}`, breathSlug: q.breathSlug ?? null });
+    loadSession(poses, { label: `${sessionTimeLabel(q.poses)} · ${q.label}`, breathSlug: q.breathSlug ?? null });
   };
 
   const startWarmup = () => {
@@ -165,6 +170,10 @@ export default function GuidedSession() {
   // 0–1 through the spoken step — drives limb interpolation on rigged poses.
   const [stepProgress, setStepProgress] = useState(1);
   const [paused, setPaused] = useState(false);
+  // Session-local narration mute — independent of the saved `voiceEnabled`
+  // preference, so silencing the voice for one practice (e.g. to use your own
+  // music) doesn't rewrite the user's global setting.
+  const [muted, setMuted] = useState(false);
   const [elapsedTotal, setElapsedTotal] = useState(0);
   const [imgVisible, setImgVisible] = useState(true); // crossfade toggle
   const [cueIndex, setCueIndex] = useState(0);
@@ -275,7 +284,7 @@ export default function GuidedSession() {
   // ---- speech-synthesis transition voice-over -------------------------------
   const speak = useCallback(
     (text: string) => {
-      if (!voiceEnabled) return;
+      if (!voiceEnabled || muted) return;
       try {
         if (!("speechSynthesis" in window)) return;
         window.speechSynthesis.cancel();
@@ -287,7 +296,7 @@ export default function GuidedSession() {
         /* ignore */
       }
     },
-    [voiceEnabled],
+    [voiceEnabled, muted],
   );
 
   // ---- enter transition-in for a given pose index ---------------------------
@@ -692,7 +701,7 @@ export default function GuidedSession() {
                       <div>
                         <p className="font-serif text-lg leading-tight">{q.label}</p>
                         <p className="text-sm text-muted-foreground">
-                          {q.time} · {q.intent}
+                          {sessionTimeLabel(q.poses)} · {q.intent}
                         </p>
                       </div>
                     </div>
@@ -787,7 +796,9 @@ export default function GuidedSession() {
               <p className="font-serif text-3xl tabular-nums text-primary" data-testid="text-complete-minutes">
                 {finishedMinutes.current}
               </p>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">minutes</p>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                {finishedMinutes.current === 1 ? "minute" : "minutes"}
+              </p>
             </div>
             <div>
               <p className="font-serif text-3xl tabular-nums text-primary" data-testid="text-complete-poses">
@@ -962,6 +973,10 @@ export default function GuidedSession() {
       <audio
         ref={audioRef}
         src={src}
+        // Session-local mute. Kept on the element (rather than skipping
+        // playback) so narration still drives step timing — silencing the voice
+        // must not change the pace of the practice.
+        muted={muted}
         preload={voiceEnabled ? "metadata" : "none"}
         data-testid="guided-audio"
         onLoadedMetadata={(e) => setVoiceDuration((e.target as HTMLAudioElement).duration)}
@@ -1174,6 +1189,17 @@ export default function GuidedSession() {
               aria-label="Add 30 seconds"
             >
               <Plus className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setMuted((m) => !m)}
+              data-testid="button-mute-guided"
+              aria-label={muted ? "Unmute narration" : "Mute narration"}
+              aria-pressed={muted}
+              title={muted ? "Unmute narration" : "Mute narration"}
+            >
+              {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             </Button>
             <PoseTipsTrigger onClick={() => setTipsOpen(true)} />
           </div>

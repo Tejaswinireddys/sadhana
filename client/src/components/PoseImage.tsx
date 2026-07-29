@@ -2,6 +2,12 @@
  * PoseImage — illustrated pose photo (/poses/<slug>.png).
  * Lazy decode, soft fade-in, optional breath scale, skeleton + SVG fallback.
  * Blur-up uses a tiny same-asset preview (no separate WebP set required).
+ *
+ * Fit: every pose source is authored at 600x1200 (1:2, full standing figure).
+ * `object-cover` in any wider container clips the top and bottom of the frame —
+ * which on a pose illustration is the head and the feet, i.e. the part that
+ * teaches the pose. Default to `contain` so the figure is never cut; the
+ * container's background wash fills the remaining side space.
  */
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +25,7 @@ export function PoseImage({
   shadow = true,
   sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw",
   priority = false,
+  fit = "contain",
   testId,
 }: {
   slug: string;
@@ -32,6 +39,8 @@ export function PoseImage({
   sizes?: string;
   /** Eager load for LCP heroes */
   priority?: boolean;
+  /** `contain` (default) never clips the figure; `cover` only for decorative crops. */
+  fit?: "contain" | "cover";
   testId?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
@@ -73,7 +82,8 @@ export function PoseImage({
           onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
           className={cn(
-            "relative z-[1] block select-none object-cover transition-opacity duration-300",
+            "relative z-[1] block select-none transition-opacity duration-300",
+            fit === "cover" ? "object-cover" : "object-contain",
             rounded,
             aspect ? "h-full w-full" : "w-full",
             shadow ? "shadow-soft-lg" : "",

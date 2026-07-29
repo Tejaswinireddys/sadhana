@@ -101,6 +101,22 @@ export default function Search() {
     navigate(`/search?q=${encodeURIComponent(trimmed)}`);
   };
 
+  // Live search: results follow the input after a short idle pause, so typing
+  // alone is enough — pressing Enter is an accelerator, not a requirement.
+  // The URL is kept in sync with `replace` so live typing doesn't spam history;
+  // recents are only recorded on an explicit Enter/submit (see commitSearch).
+  useEffect(() => {
+    const trimmed = draft.trim();
+    if (trimmed === query) return;
+    const t = window.setTimeout(() => {
+      setQuery(trimmed);
+      navigate(trimmed ? `/search?q=${encodeURIComponent(trimmed)}` : "/search", {
+        replace: true,
+      });
+    }, 180);
+    return () => window.clearTimeout(t);
+  }, [draft, query, navigate]);
+
   const q = query.trim().toLowerCase();
   // A more forgiving, "squashed" form of the query with spaces and hyphens
   // removed, so "downdog" matches "Downward-Facing Dog" / "Adho Mukha Svanasana".

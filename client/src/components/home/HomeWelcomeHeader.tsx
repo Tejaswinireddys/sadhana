@@ -46,9 +46,9 @@ export function HomeWelcomeHeader({
             return (
               <img
                 key={slug}
-                src={`${base}poses/${slug}.webp`}
+                src={`${base}poses/${slug}.png`}
                 alt=""
-                className={`hero-photo-breath -ml-6 w-auto rounded-2xl object-cover shadow-soft ${heights[depth]}`}
+                className={`hero-photo-breath -ml-6 w-auto rounded-2xl object-contain shadow-soft ${heights[depth]}`}
                 style={{
                   opacity: opacity[depth],
                   transform: `translateY(${depth * 8}px) rotate(${(i - 1) * 2}deg)`,

@@ -142,7 +142,9 @@ function PathwayCard({ p, enrolled }: { p: Pathway; enrolled: boolean }) {
                   <img
                     src={`${import.meta.env.BASE_URL}poses/${slug}.png`}
                     alt=""
-                    className="h-full w-full object-cover"
+                    aria-hidden
+                    decoding="async"
+                    className="h-full w-full object-contain"
                     loading="lazy"
                   />
                 </span>

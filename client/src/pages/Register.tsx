@@ -211,10 +211,21 @@ export default function Register() {
     });
   };
 
+  // The name is only ever used to greet the user ("Welcome back, …"), so it has
+  // to read as a name. Length alone let "35" through and Home then greeted the
+  // user as "35" — require at least one letter as well as the 2-char minimum.
   const validateName = () => {
     const trimmed = name.trim();
-    if (trimmed.length > 0 && trimmed.length < 2) {
+    if (trimmed.length === 0) {
+      setNameError(null);
+      return true;
+    }
+    if (trimmed.length < 2) {
       setNameError("Use at least 2 characters, or leave blank for now.");
+      return false;
+    }
+    if (!/\p{L}/u.test(trimmed)) {
+      setNameError("Use a name with letters, or leave blank for now.");
       return false;
     }
     setNameError(null);

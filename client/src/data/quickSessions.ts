@@ -6,18 +6,51 @@ export type QuickSession = {
   id: string;
   icon: LucideIcon;
   label: string;
-  time: string;
   intent: string;
   poses: Array<{ slug: string; holdSeconds: number }>;
   breathSlug?: string;
 };
+
+/**
+ * Session length is DERIVED, never hand-authored.
+ *
+ * These constants must stay in step with GuidedSession's player timings —
+ * previously the deck carried a literal `time: "5 min"` string while the player
+ * computed ~9 min from the same pose list, so the header and footer of one
+ * screen disagreed. Anything user-facing now comes from `sessionMinutes()`.
+ */
+export const TRANSITION_SECONDS = 5;
+export const SIDE_SWITCH_SECONDS = 2;
+
+/** Total wall-clock seconds for a pose list, including transitions. */
+export function sessionSeconds(
+  poses: Array<{ holdSeconds: number; sides?: "each" | "single" }>,
+): number {
+  return poses.reduce((sum, p) => {
+    const base = p.holdSeconds + TRANSITION_SECONDS;
+    return sum + (p.sides === "each" ? base + p.holdSeconds + SIDE_SWITCH_SECONDS : base);
+  }, 0);
+}
+
+/** Rounded minutes for display, e.g. 9 . Never returns 0. */
+export function sessionMinutes(
+  poses: Array<{ holdSeconds: number; sides?: "each" | "single" }>,
+): number {
+  return Math.max(1, Math.round(sessionSeconds(poses) / 60));
+}
+
+/** Display label for a session's length, e.g. "9 min". */
+export function sessionTimeLabel(
+  poses: Array<{ holdSeconds: number; sides?: "each" | "single" }>,
+): string {
+  return `${sessionMinutes(poses)} min`;
+}
 
 export const QUICK_SESSIONS: QuickSession[] = [
   {
     id: "tense",
     icon: HeartPulse,
     label: "I'm tense",
-    time: "5 min",
     intent: "Release",
     poses: [
       { slug: "simhasana", holdSeconds: 30 },
@@ -33,7 +66,6 @@ export const QUICK_SESSIONS: QuickSession[] = [
     id: "tired",
     icon: Moon,
     label: "I'm tired",
-    time: "5 min",
     intent: "Restore",
     poses: [
       { slug: "salamba-balasana", holdSeconds: 90 },
@@ -46,7 +78,6 @@ export const QUICK_SESSIONS: QuickSession[] = [
     id: "low-energy",
     icon: Sunrise,
     label: "I'm low energy",
-    time: "10 min",
     intent: "Energize",
     poses: [
       { slug: "urdhva-hastasana", holdSeconds: 20 },
@@ -66,7 +97,6 @@ export const QUICK_SESSIONS: QuickSession[] = [
     id: "anxious",
     icon: Wind,
     label: "I'm anxious",
-    time: "10 min",
     intent: "Calm",
     poses: [
       { slug: "vajrasana", holdSeconds: 60 },
@@ -83,7 +113,6 @@ export const QUICK_SESSIONS: QuickSession[] = [
     id: "feel-good",
     icon: Smile,
     label: "I need a reset",
-    time: "12 min",
     intent: "Feel good",
     poses: [
       { slug: "urdhva-hastasana", holdSeconds: 20 },
@@ -102,7 +131,6 @@ export const QUICK_SESSIONS: QuickSession[] = [
     id: "before-bed",
     icon: CloudMoon,
     label: "Before bed",
-    time: "12 min",
     intent: "Sleep",
     poses: [
       { slug: "salamba-balasana", holdSeconds: 90 },

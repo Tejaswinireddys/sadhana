@@ -25,7 +25,7 @@ import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
 import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/lib/localPrefs";
 import type { UserProfile, Enrollment, FavoriteAsana, CustomFlow, Journal } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
-import { QUICK_SESSIONS } from "@/data/quickSessions";
+import { QUICK_SESSIONS, sessionTimeLabel } from "@/data/quickSessions";
 import { EmptyState } from "@/components/EmptyState";
 import { ScrollRow } from "@/components/ScrollRow";
 import { ResponsiveDetails } from "@/components/ResponsiveDetails";
@@ -174,7 +174,7 @@ export default function Home() {
         return asana ? { asana, holdSeconds: p.holdSeconds } : null;
       })
       .filter((x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } => x != null);
-    loadSession(poses, { label: `${q.time} · ${q.label}`, breathSlug: q.breathSlug ?? null });
+    loadSession(poses, { label: `${sessionTimeLabel(q.poses)} · ${q.label}`, breathSlug: q.breathSlug ?? null });
     navigate("/guided");
   };
 
@@ -497,7 +497,10 @@ export default function Home() {
                           <img
                             src={`${import.meta.env.BASE_URL}poses/${a.slug}.png`}
                             alt=""
-                            className="h-12 w-12 shrink-0 rounded-md object-cover"
+                            aria-hidden
+                            loading="lazy"
+                            decoding="async"
+                            className="h-12 w-12 shrink-0 rounded-md object-contain"
                             draggable={false}
                           />
                           <span className="text-xs leading-tight">{a.english}</span>
@@ -598,7 +601,9 @@ export default function Home() {
                   <img
                     src={`${import.meta.env.BASE_URL}poses/${f.slug}.png`}
                     alt=""
-                    className="h-20 w-20 rounded-md object-cover"
+                    aria-hidden
+                    decoding="async"
+                    className="h-20 w-20 rounded-md object-contain"
                     loading="lazy"
                   />
                   <span className="text-xs font-medium leading-tight">{a.english}</span>
@@ -675,7 +680,7 @@ export default function Home() {
                   <div className="space-y-0.5">
                     <p className="font-serif text-lg leading-tight">{q.label}</p>
                     <p className="text-xs text-muted-foreground">
-                      {q.time} · {q.intent}
+                      {sessionTimeLabel(q.poses)} · {q.intent}
                     </p>
                   </div>
                   <Button

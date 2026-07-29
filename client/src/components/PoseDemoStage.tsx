@@ -283,7 +283,7 @@ export function PoseDemoStage({
           ref={videoRef}
           className={cn(
             variant === "detail"
-              ? "block aspect-[4/5] w-full object-cover"
+              ? "block aspect-[4/5] w-full object-contain"
               : "absolute inset-0 h-full w-full object-contain",
             (!videoReady || videoFailed) && "invisible absolute",
           )}
@@ -337,8 +337,10 @@ export function PoseDemoStage({
             onError={() => setImgErrored(true)}
             className={cn(
               "block select-none",
+              // Sources are 1:2; `cover` in the 4:5 stage clipped ~37.5% of the
+              // frame (head and feet). `contain` keeps the whole figure visible.
               variant === "detail" &&
-                "w-full rounded-2xl object-cover shadow-soft-lg",
+                "h-full w-full rounded-2xl object-contain shadow-soft-lg",
               variant === "practice" && "h-full w-full object-contain",
               playing && !reduceMotion ? "photo-breath-demo photo-brightness-pulse" : "photo-breath",
             )}
