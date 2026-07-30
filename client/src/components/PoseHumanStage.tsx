@@ -63,19 +63,26 @@ export function PoseHumanStage({
     });
   }, [targetSlug]);
 
-  const fx = focusZone?.cx ?? 0.5;
-  const fy = Math.min(0.85, Math.max(0.15, focusZone?.cy ?? 0.5));
-  const fr = focusZone?.r ?? 0.22;
+  // Hold the last cued region so the highlight doesn't blink off during the
+  // brief gaps between narration steps.
+  const lastFocusRef = useRef<FocusZone | null>(null);
+  if (focusZone) lastFocusRef.current = focusZone;
+  const zone = focusZone ?? lastFocusRef.current;
 
-  // Ease toward the cued region while playing — a soft "look here" push-in.
+  const fx = zone?.cx ?? 0.5;
+  const fy = Math.min(0.85, Math.max(0.15, zone?.cy ?? 0.5));
+  const fr = zone?.r ?? 0.22;
+
+  // Ease toward the cued region while playing — a clear "look here" push-in that
+  // travels across the body as the narration names each part (feet → crown).
   const kbStyle =
     motionOn && playing
       ? {
-          transform: "scale(1.08)",
+          transform: "scale(1.16)",
           transformOrigin: `${fx * 100}% ${fy * 100}%`,
-          transition: "transform 1200ms ease, transform-origin 700ms ease",
+          transition: "transform 900ms ease, transform-origin 900ms ease",
         }
-      : { transform: "scale(1)", transition: "transform 1200ms ease" };
+      : { transform: "scale(1)", transition: "transform 900ms ease" };
 
   return (
     <div
@@ -117,7 +124,7 @@ export function PoseHumanStage({
         })}
       </div>
 
-      {focusZone && (
+      {zone && (
         <div className="pointer-events-none absolute inset-0" aria-hidden>
           <span
             className={cn(
@@ -137,12 +144,12 @@ export function PoseHumanStage({
         </div>
       )}
 
-      {focusZone?.label && (
+      {zone?.label && (
         <span
           className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full bg-background/85 px-3 py-1 text-xs font-medium text-primary shadow-soft backdrop-blur-sm"
           data-testid={`human-focus-label-${slug}`}
         >
-          {focusZone.label}
+          {zone.label}
         </span>
       )}
 

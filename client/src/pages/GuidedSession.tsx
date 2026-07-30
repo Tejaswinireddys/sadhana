@@ -65,6 +65,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
 import { PoseHumanStage } from "@/components/PoseHumanStage";
+import { resolveStepFocus } from "@/lib/poseFocus";
 import { PoseImage } from "@/components/PoseImage";
 import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
 import { poseMediaFor, poseHasVideo, poseNarrationSrc } from "@/data/poseMedia";
@@ -283,7 +284,7 @@ export default function GuidedSession() {
 
   // Focus + step metadata for 3D moments during instruction.
   const activeZone =
-    phase === "instruction" ? steps[stepIndex]?.focusZone ?? null : null;
+    phase === "instruction" ? resolveStepFocus(steps[stepIndex]) : null;
   const activeStepPose =
     phase === "instruction"
       ? steps[stepIndex]?.pose || current?.pose
