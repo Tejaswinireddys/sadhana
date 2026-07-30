@@ -50,6 +50,21 @@ export function ParentGate() {
     setHoldProgress(0);
   };
 
+  // Keyboard/switch users can't fire pointer events, which would lock them out
+  // of the whole Kids section. Enter/Space hold the button the same way a press
+  // does; key auto-repeat is harmless because startHold ignores re-entry.
+  const isHoldKey = (key: string) => key === "Enter" || key === " " || key === "Spacebar";
+  const startHoldKey = (e: React.KeyboardEvent) => {
+    if (!isHoldKey(e.key)) return;
+    e.preventDefault();
+    startHold();
+  };
+  const stopHoldKey = (e: React.KeyboardEvent) => {
+    if (!isHoldKey(e.key)) return;
+    e.preventDefault();
+    stopHold();
+  };
+
   useEffect(() => stopHold, []);
 
   const attempt = () => {
@@ -126,7 +141,10 @@ export function ParentGate() {
               onPointerUp={stopHold}
               onPointerLeave={stopHold}
               onPointerCancel={stopHold}
+              onKeyDown={startHoldKey}
+              onKeyUp={stopHoldKey}
               disabled={answer.trim() === ""}
+              aria-label="Press and hold to enter the kids section"
               data-testid="button-parent-gate-submit"
             >
               <span
