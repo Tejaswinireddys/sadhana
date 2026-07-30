@@ -1,16 +1,14 @@
 /**
- * PoseHumanStage — narration-synced HUMAN teaching figure.
+ * PoseHumanStage — the illustrated HUMAN teaching figure.
  *
- * Shows the hand-composed human illustration for the step currently being
- * spoken and crossfades to the next step's illustration as the narration
- * advances, so the same character visibly moves through the shape. A gentle
- * breathing zoom keeps it alive, and a focus halo highlights the cued body
- * region. Uses only the local pose illustrations — no 3D, no external assets.
+ * Shows the hand-composed illustration for the step being narrated and
+ * crossfades to the next step's shape as the narration advances. Between shape
+ * changes the whole figure carries a narration-driven "momentum" (ground, lift,
+ * sway, rise …) so it reads like a live trainer moving through the pose rather
+ * than a static picture. Uses only local illustrations — no 3D, no highlight.
  */
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { useMotionEnabled } from "@/components/motion";
-import type { FocusZone } from "@/lib/poseMoments";
 import { humanStepSlug } from "@/data/poseKeyImages";
 
 export type PoseHumanStageProps = {
@@ -19,9 +17,10 @@ export type PoseHumanStageProps = {
   poseKey: string;
   /** Pose key of the step currently being narrated; selects the illustration. */
   stepPoseKey?: string | null;
-  focusZone?: FocusZone | null;
+  /** Whole-body momentum className for this step (see momentumClass). */
+  momentum?: string;
   stepIndex?: number;
-  /** Drives the breathing zoom (pass narration play/pause; true for idle preview). */
+  /** Drives the motion (pass narration play/pause; true for idle preview). */
   playing?: boolean;
   /** Laterality for "each side" poses — mirrors the figure on side 2. */
   side?: 1 | 2;
@@ -38,7 +37,7 @@ export function PoseHumanStage({
   english,
   poseKey,
   stepPoseKey,
-  focusZone = null,
+  momentum = "figure-momentum figure-momentum-breath",
   stepIndex = 0,
   playing = false,
   side = 1,
@@ -46,7 +45,6 @@ export function PoseHumanStage({
   className,
   "data-testid": testId,
 }: PoseHumanStageProps) {
-  const motionOn = useMotionEnabled();
   const targetSlug = humanStepSlug(slug, poseKey, stepPoseKey);
 
   // Keep at most two layers so a slug change can crossfade old → new.
@@ -63,27 +61,6 @@ export function PoseHumanStage({
     });
   }, [targetSlug]);
 
-  // Hold the last cued region so the highlight doesn't blink off during the
-  // brief gaps between narration steps.
-  const lastFocusRef = useRef<FocusZone | null>(null);
-  if (focusZone) lastFocusRef.current = focusZone;
-  const zone = focusZone ?? lastFocusRef.current;
-
-  const fx = zone?.cx ?? 0.5;
-  const fy = Math.min(0.85, Math.max(0.15, zone?.cy ?? 0.5));
-  const fr = zone?.r ?? 0.22;
-
-  // Ease toward the cued region while playing — a clear "look here" push-in that
-  // travels across the body as the narration names each part (feet → crown).
-  const kbStyle =
-    motionOn && playing
-      ? {
-          transform: "scale(1.16)",
-          transformOrigin: `${fx * 100}% ${fy * 100}%`,
-          transition: "transform 900ms ease, transform-origin 900ms ease",
-        }
-      : { transform: "scale(1)", transition: "transform 900ms ease" };
-
   return (
     <div
       className={cn(
@@ -95,9 +72,12 @@ export function PoseHumanStage({
       data-testid={testId ?? `pose-human-stage-${slug}`}
       data-human-slug={targetSlug}
       data-step={stepIndex}
+      data-momentum={momentum}
       aria-label={`Illustrated demonstration of ${english}`}
     >
-      <div className="absolute inset-0" style={kbStyle}>
+      {/* The momentum wrapper carries the live-trainer body motion; the layers
+          inside it only crossfade when the shape changes. */}
+      <div className={cn("absolute inset-0", playing && momentum)}>
         {layers.map((layer, i) => {
           const isTop = i === layers.length - 1;
           return (
@@ -108,50 +88,18 @@ export function PoseHumanStage({
               aria-hidden
               draggable={false}
               onError={(e) => {
-                // A mapped transition image is missing — fall back to the pose's
-                // own illustration rather than showing a broken frame.
                 const el = e.currentTarget as HTMLImageElement;
                 if (layer.slug !== slug) el.src = imgUrl(slug);
               }}
               className={cn(
                 "absolute inset-0 h-full w-full object-contain transition-opacity duration-700 ease-out",
                 isTop ? "opacity-100" : "opacity-0",
-                motionOn && playing && "photo-breath-demo",
               )}
               style={{ transform: side === 2 ? "scaleX(-1)" : undefined }}
             />
           );
         })}
       </div>
-
-      {zone && (
-        <div className="pointer-events-none absolute inset-0" aria-hidden>
-          <span
-            className={cn(
-              "absolute rounded-full bg-primary/15 ring-2 ring-primary/70",
-              motionOn && "pose-3d-halo-breath",
-            )}
-            style={{
-              left: `${fx * 100}%`,
-              top: `${fy * 100}%`,
-              width: `${fr * 170}%`,
-              height: `${fr * 140}%`,
-              transform: "translate(-50%, -50%)",
-              transition:
-                "left 400ms ease, top 400ms ease, width 400ms ease, height 400ms ease",
-            }}
-          />
-        </div>
-      )}
-
-      {zone?.label && (
-        <span
-          className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full bg-background/85 px-3 py-1 text-xs font-medium text-primary shadow-soft backdrop-blur-sm"
-          data-testid={`human-focus-label-${slug}`}
-        >
-          {zone.label}
-        </span>
-      )}
 
       <span className="pointer-events-none absolute right-2 top-2 z-10 rounded-full bg-background/75 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground backdrop-blur-sm">
         Illustrated guide

@@ -558,6 +558,36 @@ html.motion-off .animate-breathe {
 html.motion-off .photo-breath,
 html.motion-off .photo-breath-demo { animation: none !important; }
 
+/* =====================================================================
+   Trainer body momentum — the illustrated figure moves with the cue so it
+   reads like a live teacher demonstrating, not a static image with a
+   highlight. One class per narration step (ground → lift → sway → rise …),
+   pivoting from the feet like a standing body.
+   ===================================================================== */
+@keyframes figure-breath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+@keyframes figure-ground { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(3px) scaleY(0.98); } }
+@keyframes figure-rise { 0%, 100% { transform: translateY(4px) scaleY(0.99); } 50% { transform: translateY(-8px) scaleY(1.025); } }
+@keyframes figure-lift { 0%, 100% { transform: translateY(4px); } 50% { transform: translateY(-8px); } }
+@keyframes figure-sway { 0%, 100% { transform: rotate(-2.6deg); } 50% { transform: rotate(2.6deg); } }
+@keyframes figure-extend { 0%, 100% { transform: scaleX(0.96); } 50% { transform: scaleX(1.05); } }
+@keyframes figure-fold { 0%, 100% { transform: rotate(0deg) translateY(0); } 50% { transform: rotate(5deg) translateY(3px); } }
+@keyframes figure-rock { 0%, 100% { transform: translate(-4px, 0) rotate(-1.2deg); } 50% { transform: translate(4px, -3px) rotate(1.2deg); } }
+
+.figure-momentum { transform-origin: 50% 100%; will-change: transform; }
+.figure-momentum-breath { animation: figure-breath 3.6s ease-in-out infinite; }
+.figure-momentum-ground { animation: figure-ground 3.4s ease-in-out infinite; }
+.figure-momentum-rise { animation: figure-rise 3.8s ease-in-out infinite; }
+.figure-momentum-lift { animation: figure-lift 3.4s ease-in-out infinite; }
+.figure-momentum-sway { animation: figure-sway 4.2s ease-in-out infinite; }
+.figure-momentum-extend { animation: figure-extend 3.6s ease-in-out infinite; }
+.figure-momentum-fold { animation: figure-fold 4s ease-in-out infinite; }
+.figure-momentum-rock { animation: figure-rock 3.8s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="figure-momentum-"] { animation: none !important; }
+}
+html.motion-off [class*="figure-momentum-"] { animation: none !important; }
+
 /* Landing CSS/SVG “3D-ish” hero — perspective on the real pose photo */
 @keyframes hero-figure-breath {
   0%, 100% { transform: translateY(0) scale(1); }

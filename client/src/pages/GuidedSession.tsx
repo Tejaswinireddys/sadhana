@@ -65,7 +65,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
 import { PoseHumanStage } from "@/components/PoseHumanStage";
-import { resolveStepFocus } from "@/lib/poseFocus";
+import { momentumClass } from "@/lib/poseMomentum";
 import { PoseImage } from "@/components/PoseImage";
 import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
 import { poseMediaFor, poseHasVideo, poseNarrationSrc } from "@/data/poseMedia";
@@ -283,8 +283,9 @@ export default function GuidedSession() {
   );
 
   // Focus + step metadata for 3D moments during instruction.
-  const activeZone =
-    phase === "instruction" ? resolveStepFocus(steps[stepIndex]) : null;
+  const activeMomentum = momentumClass(
+    phase === "instruction" || phase === "hold" ? steps[stepIndex] : null,
+  );
   const activeStepPose =
     phase === "instruction"
       ? steps[stepIndex]?.pose || current?.pose
@@ -1146,7 +1147,7 @@ export default function GuidedSession() {
                 english={current.english}
                 poseKey={current.pose}
                 stepPoseKey={activeStepPose}
-                focusZone={activeZone}
+                momentum={activeMomentum}
                 stepIndex={phase === "instruction" ? stepIndex : Math.max(0, stepCount - 1)}
                 playing={!paused && (phase === "instruction" || phase === "hold")}
                 side={isEach ? (side as 1 | 2) : 1}
