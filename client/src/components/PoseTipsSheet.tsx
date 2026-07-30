@@ -143,6 +143,7 @@ export function PoseTipsTrigger({
       onClick={onClick}
       className={className}
       aria-label="Open pose explanation tips"
+      title="Pose tips — form, breath, alignment"
       data-testid="button-pose-tips"
     >
       <Lightbulb className="h-5 w-5" />

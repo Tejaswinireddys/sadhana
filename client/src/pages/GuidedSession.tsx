@@ -1224,6 +1224,7 @@ export default function GuidedSession() {
               onClick={handlePrev}
               data-testid="button-prev-pose"
               aria-label="Previous pose"
+              title="Previous pose"
             >
               <SkipBack className="h-5 w-5" />
             </Button>
@@ -1242,6 +1243,7 @@ export default function GuidedSession() {
               onClick={handleSkip}
               data-testid="button-skip-pose"
               aria-label="Skip to next pose"
+              title="Skip to next pose"
             >
               <SkipForward className="h-5 w-5" />
             </Button>
@@ -1251,6 +1253,7 @@ export default function GuidedSession() {
               onClick={handleAdd30}
               data-testid="button-add-30"
               aria-label="Add 30 seconds"
+              title="Add 30 seconds to this hold"
             >
               <Plus className="h-5 w-5" />
             </Button>
