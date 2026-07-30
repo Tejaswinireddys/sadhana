@@ -64,7 +64,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
-import { PoseDemoStage } from "@/components/PoseDemoStage";
+import { PoseHumanStage } from "@/components/PoseHumanStage";
 import { PoseImage } from "@/components/PoseImage";
 import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
 import { poseMediaFor, poseHasVideo, poseNarrationSrc } from "@/data/poseMedia";
@@ -1138,24 +1138,16 @@ export default function GuidedSession() {
               imgVisible ? "opacity-100" : "opacity-0",
             )}
           >
-            {current && poseMedia && (
-              <PoseDemoStage
+            {current && (
+              <PoseHumanStage
                 key={current.slug}
                 slug={current.slug}
                 english={current.english}
-                sanskrit={current.sanskrit}
                 poseKey={current.pose}
-                media={poseMedia}
-                prefer3D
-                preferVideo={poseHasVideo(current.slug)}
-                playing={!paused && (phase === "instruction" || phase === "hold")}
-                restartToken={videoRestartToken}
+                stepPoseKey={activeStepPose}
                 focusZone={activeZone}
                 stepIndex={phase === "instruction" ? stepIndex : Math.max(0, stepCount - 1)}
-                stepProgress={phase === "instruction" ? stepProgress : 1}
-                stepCount={stepCount}
-                stepPoseKey={activeStepPose}
-                stepMotion={activeStepMotion}
+                playing={!paused && (phase === "instruction" || phase === "hold")}
                 side={isEach ? (side as 1 | 2) : 1}
                 variant="practice"
                 data-testid="guided-hero"
