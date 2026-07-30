@@ -215,6 +215,17 @@ export default function Trainer() {
     if (!showTour) writeString(TOUR_KEY, "1");
   }, [showTour]);
 
+  // A full-screen intro that can only be dismissed by its one button feels like
+  // a trap. Let Escape close it too, matching every other overlay in the app.
+  useEffect(() => {
+    if (!showTour) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowTour(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showTour]);
+
   // Snapshot on every meaningful change so a refresh lands where they were.
   useEffect(() => {
     if (phase === "composing") return;
@@ -368,8 +379,12 @@ export default function Trainer() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm"
           data-testid="trainer-tour"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Meet your Yoga Trainer"
+          onClick={() => setShowTour(false)}
         >
-          <Card className="max-w-sm shadow-soft-lg">
+          <Card className="max-w-sm shadow-soft-lg" onClick={(e) => e.stopPropagation()}>
             <CardContent className="space-y-4 p-6 text-center">
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 text-primary">
                 <UserRound className="h-7 w-7" />
