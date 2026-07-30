@@ -72,21 +72,21 @@ Do **not** commit placeholder remote URLs that 404.
 5. Export WebM (VP9) + H.264 MP4; add English WebVTT for any on-screen or spoken form cues in the clip.
 6. Resolution: 1080×1920 (portrait) or 1280×720 (landscape) — portrait matches the illustration stage best.
 
-## UX behavior (human trainer first)
+## UX behavior (correct pose first)
 
 Pose explanation and guided practice use `PoseTrainerStage`:
 
-- **Default:** `PoseHumanStage` — human illustration crossfades through narration
-  steps with body momentum (reads as a trainer showing the pose)
-- **Filmed video:** only when a slug has a `POSE_MEDIA_OVERRIDES` entry (real
-  capture / CDN). Generated Ken Burns zooms under `videos/poses/` remain on disk
-  for future use but do not replace the human guide
+- **Idle / single-shape:** looping demo video for **this pose's slug** when
+  registered in `POSE_VIDEOS_READY` (Ken Burns of the correct PNG), otherwise
+  the pose's own human illustration
+- **Multi-shape narration:** `PoseHumanStage` crossfades entry → peak; idle
+  always pins to this pose so Tree never opens as Mountain
+- **Filmed CDN:** `POSE_MEDIA_OVERRIDES` always prefers real trainer clips
 - Video load failures / Save-Data fall back to the human trainer stage
 - Narration-synced steps + Form / Breath / Align teaching rail
-- Guided practice tip sheet + richer hold cues
 
-`PoseDemoStage` with `prefer3D={false}` powers filmed overrides; 3D figurine /
-rigged WebGL remain available for design-system / capture review.
+`humanStepSlug` in `poseKeyImages.ts` must never remap a pose onto another
+asana's artwork at idle or peak — see `poseKeyImages.test.ts`.
 
 ## Related code
 

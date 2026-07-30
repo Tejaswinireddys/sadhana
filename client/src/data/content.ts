@@ -621,7 +621,8 @@ const RAW_ASANAS: RawAsana[] = [
     contraindications: ["Knee injury", "Pregnancy (widen the knees)", "Recent ankle injury"],
     modifications: "Widen the knees, rest the forehead on a block, or place a bolster under the torso.",
     steps: [
-      { text: "Kneel and sit back toward the heels, knees together or wide.", pose: "seated" },
+      // Keep "child" (not "seated") so the demo never swaps to Easy Seat artwork.
+      { text: "Kneel and sit back toward the heels, knees together or wide.", pose: "child" },
       { text: "Fold forward and rest the forehead on the floor or a block.", pose: "child" },
       { text: "Extend the arms forward or rest them alongside the body.", pose: "child" },
       { text: "Soften completely and breathe slowly.", pose: "child" },
@@ -741,7 +742,7 @@ const RAW_ASANAS: RawAsana[] = [
     difficulty: "Intermediate",
     hold: "30–45 sec each side",
     holdSeconds: 40,
-    pose: "warrior-2",
+    pose: "side-angle",
     summary: "A grounded lunge with one long line of energy from the back heel to the top fingertips.",
     breathing: "Inhale to lengthen the side body; exhale to root down and open the chest.",
     benefits: ["Stretches the side body, groin, and hamstrings", "Strengthens the legs, knees, and ankles", "Opens the chest and shoulders"],
@@ -749,10 +750,10 @@ const RAW_ASANAS: RawAsana[] = [
     modifications: "Rest the forearm on the front thigh instead of the hand on the floor, or place a block under the lower hand.",
     steps: [
       { text: "From a wide stance, turn the right foot out 90° and bend the right knee over the ankle.", pose: "warrior-2" },
-      { text: "Lower the right forearm to the thigh or the right hand to the floor outside the foot.", pose: "warrior-2" },
-      { text: "Sweep the left arm up and over the ear, palm facing down.", pose: "triangle" },
-      { text: "Turn the chest toward the ceiling, feeling one long line from back heel to top hand.", pose: "triangle" },
-      { text: "Gaze past the top arm, hold, then switch sides.", pose: "triangle", focusZone: { cx: 0.5, cy: 0.42, r: 0.24, label: "Long side-body line" } },
+      { text: "Lower the right forearm to the thigh or the right hand to the floor outside the foot.", pose: "side-angle" },
+      { text: "Sweep the left arm up and over the ear, palm facing down.", pose: "side-angle" },
+      { text: "Turn the chest toward the ceiling, feeling one long line from back heel to top hand.", pose: "side-angle" },
+      { text: "Gaze past the top arm, hold, then switch sides.", pose: "side-angle", focusZone: { cx: 0.5, cy: 0.42, r: 0.24, label: "Long side-body line" } },
     ],
   },
   {
@@ -946,11 +947,12 @@ const RAW_ASANAS: RawAsana[] = [
     contraindications: ["Knee injury", "Groin strain", "Pregnancy"],
     modifications: "Pad the knees generously and widen the legs only as far as steady breath allows; back off at the first sharp knee sensation.",
     steps: [
-      { text: "Begin on hands and knees, then slowly widen the knees out to the sides.", pose: "child" },
-      { text: "Flex the feet and turn the ankles in line with the knees, inner edges down.", pose: "child" },
-      { text: "Lower onto the forearms and keep the hips stacked over the knees.", pose: "child" },
-      { text: "Ease the hips gently back and down, only as far as feels safe.", pose: "child" },
-      { text: "Breathe slowly and hold, then walk the knees back in to exit with care.", pose: "child", focusZone: { cx: 0.5, cy: 0.58, r: 0.24, label: "Inner thighs & groin" } },
+      // Use this pose's own key so the demo never swaps to Child's Pose artwork.
+      { text: "Begin on hands and knees, then slowly widen the knees out to the sides.", pose: "butterfly" },
+      { text: "Flex the feet and turn the ankles in line with the knees, inner edges down.", pose: "butterfly" },
+      { text: "Lower onto the forearms and keep the hips stacked over the knees.", pose: "butterfly" },
+      { text: "Ease the hips gently back and down, only as far as feels safe.", pose: "butterfly" },
+      { text: "Breathe slowly and hold, then walk the knees back in to exit with care.", pose: "butterfly", focusZone: { cx: 0.5, cy: 0.58, r: 0.24, label: "Inner thighs & groin" } },
     ],
   },
   {
@@ -2405,10 +2407,11 @@ const RAW_ASANAS: RawAsana[] = [
     modifications: "Loop a strap around the back foot and hold the strap instead of reaching for the foot directly; keep the head lifted rather than reaching it back.",
     steps: [
       { text: "Begin in Eka Pada Rajakapotasana with the front shin grounded and the back leg extended.", pose: "pigeon" },
-      { text: "Bend the back knee, drawing the heel toward the glute.", pose: "pigeon" },
+      { text: "Bend the back knee, drawing the heel toward the glute.", pose: "camel" },
       { text: "Reach the same-side hand back to catch the foot, elbow lifting toward the sky.", pose: "camel" },
       { text: "If it's available, walk the hand further to hold the foot with both hands, gently drawing it toward the crown.", pose: "camel" },
-      { text: "Keep lifting the chest rather than collapsing into the low back; release slowly and switch sides.", pose: "pigeon" },
+      // Peak must stay on this pose's illustration (not remapped to Pigeon).
+      { text: "Keep lifting the chest rather than collapsing into the low back; release slowly and switch sides.", pose: "camel" },
     ],
   },
   {

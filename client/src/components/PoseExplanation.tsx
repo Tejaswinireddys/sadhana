@@ -273,6 +273,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
             stepIndex={started ? stepIndex : 0}
             playing={stagePlaying}
             restartToken={restartToken}
+            guideActive={started && !completed}
             variant="detail"
             onModeChange={setDemoMode}
             data-testid={`demo-hero-${asana.slug}`}

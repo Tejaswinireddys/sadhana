@@ -54,10 +54,12 @@ export const POSE_KEY_TO_SLUG: Record<string, string> = {
 /**
  * The human illustration to show for a given narration step.
  *
- * When the step is demonstrating the pose's own final shape we use the pose's
- * exact illustration; for an entry / transition step that references a different
- * shape (e.g. Warrior I begins in a low lunge) we swap to that shape's
- * illustration so the figure visibly changes between steps.
+ * Rules (so users never open a pose and see a different asana):
+ * 1. No step key → this pose's own illustration.
+ * 2. Step key matches the asana's pose key → this pose's own illustration
+ *    (never remap via POSE_KEY_TO_SLUG — that would steal a sibling's PNG).
+ * 3. Step key maps to this asana's slug → keep this pose's illustration.
+ * 4. Otherwise crossfade to the mapped entry/transition shape.
  */
 export function humanStepSlug(
   asanaSlug: string,
@@ -65,5 +67,15 @@ export function humanStepSlug(
   stepPoseKey?: string | null,
 ): string {
   if (!stepPoseKey || stepPoseKey === asanaPoseKey) return asanaSlug;
-  return POSE_KEY_TO_SLUG[stepPoseKey] ?? asanaSlug;
+  const mapped = POSE_KEY_TO_SLUG[stepPoseKey];
+  if (!mapped || mapped === asanaSlug) return asanaSlug;
+  return mapped;
+}
+
+/** True when narration steps crossfade across more than one illustration. */
+export function poseHasShapeJourney(asanaSlug: string, asanaPoseKey: string, stepPoseKeys: Array<string | undefined>): boolean {
+  const shapes = new Set(
+    stepPoseKeys.map((key) => humanStepSlug(asanaSlug, asanaPoseKey, key)),
+  );
+  return shapes.size > 1;
 }

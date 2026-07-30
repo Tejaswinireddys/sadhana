@@ -1,17 +1,19 @@
 /**
- * PoseTrainerStage — human trainer demonstration for teaching surfaces.
+ * PoseTrainerStage — correct pose demonstration for teaching surfaces.
  *
- * Default: PoseHumanStage — the hand-composed human figure crossfades through
- * narration steps and carries body momentum, so it reads like a trainer showing
- * how to enter and hold the pose.
+ * Idle / single-shape: looping demo video for THIS pose slug when registered
+ * (Ken Burns of the correct illustration), so users see the pose they opened.
  *
- * Optional video: only when a real filmed clip is registered in
- * POSE_MEDIA_OVERRIDES (CDN / capture). Generated Ken Burns zooms stay available
- * on disk but do not replace the human guide — they are not step-by-step training.
+ * Multi-shape narration: PoseHumanStage crossfades entry → peak with body
+ * momentum. Idle always pins to this pose's own artwork (never another asana).
+ *
+ * Filmed CDN overrides in POSE_MEDIA_OVERRIDES always prefer real video.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
 import { PoseHumanStage } from "@/components/PoseHumanStage";
+import { asanaBySlug } from "@/data/content";
+import { poseHasShapeJourney } from "@/data/poseKeyImages";
 import {
   POSE_MEDIA_OVERRIDES,
   poseHasVideo,
@@ -28,11 +30,15 @@ export type PoseTrainerStageProps = {
   stepIndex?: number;
   playing?: boolean;
   restartToken?: number;
+  /**
+   * True while the user is in an active step walkthrough (narration / guided
+   * instruction). When false, the stage always shows THIS pose (video or art).
+   */
+  guideActive?: boolean;
   side?: 1 | 2;
   variant?: "detail" | "practice";
   className?: string;
   "data-testid"?: string;
-  /** Notifies parent which visual mode is active (for labels / analytics). */
   onModeChange?: (mode: "video" | "illustrated") => void;
 };
 
@@ -46,6 +52,7 @@ export function PoseTrainerStage({
   stepIndex = 0,
   playing = false,
   restartToken = 0,
+  guideActive = false,
   side = 1,
   variant = "detail",
   className,
@@ -53,15 +60,31 @@ export function PoseTrainerStage({
   onModeChange,
 }: PoseTrainerStageProps) {
   const media = useMemo(() => poseMediaFor(slug), [slug]);
-  // Real filmed trainer clips only — not the illustration Ken Burns inventory.
-  const hasFilmedTrainer = slug in POSE_MEDIA_OVERRIDES && poseHasVideo(slug);
+  const hasVideo = poseHasVideo(slug);
+  const filmedOverride = slug in POSE_MEDIA_OVERRIDES;
+  const asana = asanaBySlug(slug);
+  const shapeJourney = useMemo(
+    () =>
+      !!asana &&
+      poseHasShapeJourney(
+        slug,
+        poseKey,
+        asana.steps.map((s) => s.pose),
+      ),
+    [asana, slug, poseKey],
+  );
   const [forceIllustrated, setForceIllustrated] = useState(false);
 
   useEffect(() => {
     setForceIllustrated(false);
   }, [slug]);
 
-  const useVideo = hasFilmedTrainer && !forceIllustrated;
+  // Video of THIS pose when available — except mid multi-shape walkthrough,
+  // where the human stage must crossfade entry → peak. Filmed overrides always win.
+  const useVideo =
+    hasVideo &&
+    !forceIllustrated &&
+    (filmedOverride || !guideActive || !shapeJourney);
 
   useEffect(() => {
     onModeChange?.(useVideo ? "video" : "illustrated");
@@ -71,13 +94,16 @@ export function PoseTrainerStage({
     setForceIllustrated(true);
   }, []);
 
+  // Idle / non-guide: pin to this pose's shape so Tree never opens as Mountain.
+  const effectiveStepPose = guideActive ? stepPoseKey : poseKey;
+
   if (!useVideo) {
     return (
       <PoseHumanStage
         slug={slug}
         english={english}
         poseKey={poseKey}
-        stepPoseKey={stepPoseKey}
+        stepPoseKey={effectiveStepPose}
         momentum={momentum}
         stepIndex={stepIndex}
         playing={playing}
@@ -101,7 +127,7 @@ export function PoseTrainerStage({
       playing={playing}
       restartToken={restartToken}
       stepIndex={stepIndex}
-      stepPoseKey={stepPoseKey ?? undefined}
+      stepPoseKey={effectiveStepPose ?? undefined}
       side={side}
       variant={variant}
       className={className}

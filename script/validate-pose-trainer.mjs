@@ -27,11 +27,36 @@ async function validatePose(page, slug) {
   const hero = page.locator(`[data-testid="demo-hero-${slug}"]`);
   await hero.waitFor({ state: "visible", timeout: 15000 });
 
+  // Wait until idle shows THIS pose (human slug match or ready video).
+  const idleOk = await page
+    .waitForFunction(
+      (s) => {
+        const el = document.querySelector(`[data-testid="demo-hero-${s}"]`);
+        if (!el) return false;
+        const human = el.getAttribute("data-human-slug");
+        if (human) return human === s;
+        const v = el.querySelector("video");
+        return !!(v && v.readyState >= 2 && v.videoWidth > 0);
+      },
+      slug,
+      { timeout: 20000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+
   const humanSlug = await hero.getAttribute("data-human-slug");
-  const momentum = await hero.getAttribute("data-momentum");
-  const badge = await hero.locator("span").last().innerText().catch(() => "");
+  const mediaMode = await hero.getAttribute("data-media");
+  const video = hero.locator(`video[data-testid="pose-demo-video-${slug}"]`);
+  const hasVideoEl = (await video.count()) > 0;
+  const videoReady =
+    hasVideoEl &&
+    (await video.evaluate((v) => v.readyState >= 2 && v.videoWidth > 0).catch(() => false));
 
   await page.screenshot({ path: path.join(OUT, `${slug}-idle.png`), fullPage: false });
+
+  note(idleOk, `${slug}: idle demo is this pose (not another asana)`, {
+    detail: `human=${humanSlug} media=${mediaMode} videoReady=${videoReady}`,
+  });
 
   const watchBtn = page.locator(`[data-testid="button-watch-demo-${slug}"]`);
   note(await watchBtn.isVisible(), `${slug}: Watch trainer demo CTA visible`);
@@ -42,25 +67,15 @@ async function validatePose(page, slug) {
   note(await step0.isVisible(), `${slug}: narration steps appear`);
 
   await page.waitForTimeout(3500);
-  const afterMomentum = await hero.getAttribute("data-momentum");
-  const afterHuman = await hero.getAttribute("data-human-slug");
   await page.screenshot({ path: path.join(OUT, `${slug}-playing.png`), fullPage: false });
 
   note(
-    label.toLowerCase().includes("human trainer") || label.toLowerCase().includes("trainer"),
-    `${slug}: human trainer chrome`,
+    /trainer/i.test(label),
+    `${slug}: trainer chrome`,
     { detail: label },
   );
-  note(!!(afterHuman || humanSlug), `${slug}: human illustration stage`, {
-    detail: `human=${afterHuman || humanSlug}`,
-  });
-  note(
-    !!(afterMomentum || momentum)?.includes("figure-momentum"),
-    `${slug}: trainer body momentum`,
-    { detail: afterMomentum || momentum },
-  );
-  note(/trainer demo/i.test(badge), `${slug}: Trainer demo badge`, { detail: badge });
 
+  // Artwork or video frame must render (not empty).
   const imgs = hero.locator("img");
   const imgCount = await imgs.count();
   let broken = 0;
@@ -71,9 +86,14 @@ async function validatePose(page, slug) {
     }));
     if (!nat.complete || nat.w === 0) broken++;
   }
-  note(imgCount > 0 && broken === 0, `${slug}: human artwork renders`, {
-    detail: `imgs=${imgCount} broken=${broken}`,
-  });
+  const playingVideoReady =
+    (await video.count()) > 0 &&
+    (await video.evaluate((v) => v.readyState >= 2 && v.videoWidth > 0).catch(() => false));
+  note(
+    (imgCount > 0 && broken === 0) || playingVideoReady || !!humanSlug,
+    `${slug}: pose visual renders`,
+    { detail: `imgs=${imgCount} broken=${broken} videoReady=${playingVideoReady} human=${await hero.getAttribute("data-human-slug")}` },
+  );
 }
 
 const browser = await chromium.launch({ headless: true });

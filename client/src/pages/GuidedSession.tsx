@@ -1146,6 +1146,7 @@ export default function GuidedSession() {
                 stepIndex={phase === "instruction" ? stepIndex : Math.max(0, stepCount - 1)}
                 playing={!paused && (phase === "instruction" || phase === "hold")}
                 restartToken={videoRestartToken}
+                guideActive={phase === "instruction"}
                 side={isEach ? (side as 1 | 2) : 1}
                 variant="practice"
                 data-testid="guided-hero"

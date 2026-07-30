@@ -139,9 +139,14 @@ export function PoseDemoStage({
     onMediaModeChange?.(useVideo && videoReady ? "video" : "illustration");
   }, [use3D, useVideo, videoReady, onMediaModeChange]);
 
-  // Lazy-attach sources once the stage is in view (saves bandwidth on library).
+  // Detail heroes load immediately so the correct pose video is ready when the
+  // user opens a pose. Practice / list contexts still lazy-load on view.
   useEffect(() => {
     if (use3D) return;
+    if (variant === "detail") {
+      setShowSources(true);
+      return;
+    }
     const el = wrapRef.current;
     if (!el || typeof IntersectionObserver === "undefined") {
       setShowSources(true);
@@ -158,7 +163,7 @@ export function PoseDemoStage({
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [slug, use3D]);
+  }, [slug, use3D, variant]);
 
   // Explicit load() after <source> children mount — required by HTMLMediaElement.
   useEffect(() => {
