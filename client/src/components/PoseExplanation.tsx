@@ -14,9 +14,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { asanaBySlug } from "@/data/content";
-import { poseMediaFor, poseHasVideo, poseNarrationSrc } from "@/data/poseMedia";
+import { poseNarrationSrc } from "@/data/poseMedia";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
-import { PoseDemoStage } from "@/components/PoseDemoStage";
+import { PoseHumanStage } from "@/components/PoseHumanStage";
 import { useNarrationTiming } from "@/hooks/use-narration-timing";
 import { unlockAudio } from "@/lib/audioUnlock";
 import { cn } from "@/lib/utils";
@@ -62,7 +62,6 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const [audioFailed, setAudioFailed] = useState(false);
   const [restartToken, setRestartToken] = useState(0);
   const [tab, setTab] = useState<TeachTab>("form");
-  const [mediaMode, setMediaMode] = useState<"3d" | "video" | "illustration">("3d");
 
   const steps = asana?.steps ?? [];
   const stepCount = steps.length || 1;
@@ -74,8 +73,6 @@ export function PoseExplanation({ slug }: { slug: string }) {
     () => (asana ? buildPoseExplanation(asana) : null),
     [asana],
   );
-  const media = useMemo(() => poseMediaFor(slug), [slug]);
-  const preferVideo = poseHasVideo(slug);
   // Real per-step boundaries (generated file when present, syllable-weighted
   // estimate otherwise) instead of dividing the audio into equal slices.
   const stepTexts = useMemo(() => steps.map((s) => s.text), [steps]);
@@ -256,12 +253,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
         <div className="flex flex-col gap-1">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            Pose explanation
-            {mediaMode === "3d"
-              ? " · 3D"
-              : mediaMode === "video"
-                ? " · Video"
-                : " · Illustrated"}
+            Pose explanation · Illustrated
             {!voiceEnabled ? " · Voice off" : null}
           </span>
           <h2 className="font-serif text-2xl font-semibold tracking-tight">
@@ -271,24 +263,15 @@ export function PoseExplanation({ slug }: { slug: string }) {
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start">
-          <PoseDemoStage
+          <PoseHumanStage
             slug={asana.slug}
             english={asana.english}
-            sanskrit={asana.sanskrit}
             poseKey={asana.pose}
-            media={media}
-            prefer3D
-            preferVideo={preferVideo}
-            playing={stagePlaying}
-            restartToken={restartToken}
+            stepPoseKey={activeStepPose}
             focusZone={activeZone}
             stepIndex={started ? stepIndex : 0}
-            stepProgress={started ? stepProgress : 1}
-            stepCount={stepCount}
-            stepPoseKey={activeStepPose}
-            stepMotion={activeStepMotion}
+            playing={stagePlaying}
             variant="detail"
-            onMediaModeChange={setMediaMode}
             data-testid={`demo-hero-${asana.slug}`}
           />
 
