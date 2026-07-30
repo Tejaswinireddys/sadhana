@@ -60,9 +60,19 @@ export function poseHasVideo(slug: string): boolean {
   return POSE_VIDEOS_READY.has(slug) || slug in POSE_MEDIA_OVERRIDES;
 }
 
+/** Vite BASE_URL, defaulting to `/` outside the bundler (unit tests / Node). */
+function appBase(): string {
+  try {
+    const base = import.meta.env?.BASE_URL;
+    return typeof base === "string" && base.length > 0 ? base : "/";
+  } catch {
+    return "/";
+  }
+}
+
 /** Resolve media URLs for a pose. Always returns paths; UI handles missing files. */
 export function poseMediaFor(slug: string): PoseMediaSources {
-  const base = import.meta.env.BASE_URL;
+  const base = appBase();
   const override = POSE_MEDIA_OVERRIDES[slug] ?? {};
   return {
     webm: override.webm ?? `${base}videos/poses/${slug}.webm`,
@@ -79,5 +89,5 @@ export function poseMediaFor(slug: string): PoseMediaSources {
  * via audio onError / play() rejection (silent fallback).
  */
 export function poseNarrationSrc(slug: string): string {
-  return `${import.meta.env.BASE_URL}voice/pose-${slug}.mp3`;
+  return `${appBase()}voice/pose-${slug}.mp3`;
 }

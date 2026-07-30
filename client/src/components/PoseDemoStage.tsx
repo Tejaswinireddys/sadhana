@@ -63,6 +63,11 @@ type PoseDemoStageProps = {
   /** Aspect / sizing: "detail" (rounded card) or "practice" (full contain). */
   variant?: "detail" | "practice";
   onMediaModeChange?: (mode: "3d" | "video" | "illustration") => void;
+  /**
+   * Fired when a preferred video cannot be shown (save-data, load error, or
+   * timeout). Parents can swap to PoseHumanStage without breaking the lesson.
+   */
+  onVideoUnavailable?: () => void;
   "data-testid"?: string;
 };
 
@@ -97,6 +102,7 @@ export function PoseDemoStage({
   className,
   variant = "detail",
   onMediaModeChange,
+  onVideoUnavailable,
   "data-testid": testId,
 }: PoseDemoStageProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -111,6 +117,12 @@ export function PoseDemoStage({
   const reduceMotion = useMemo(() => prefersReducedMotion(), []);
   const use3D = prefer3D;
   const useVideo = !use3D && preferVideo && !saveData && !videoFailed;
+
+  // Let parents fall back to the illustrated trainer when video is blocked.
+  useEffect(() => {
+    if (use3D || !preferVideo) return;
+    if (saveData || videoFailed) onVideoUnavailable?.();
+  }, [use3D, preferVideo, saveData, videoFailed, onVideoUnavailable]);
 
   useEffect(() => {
     setImgErrored(false);

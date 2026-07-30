@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { asanaBySlug } from "@/data/content";
 import { poseNarrationSrc } from "@/data/poseMedia";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
-import { PoseHumanStage } from "@/components/PoseHumanStage";
+import { PoseTrainerStage } from "@/components/PoseTrainerStage";
 import { momentumClass } from "@/lib/poseMomentum";
 import { useNarrationTiming } from "@/hooks/use-narration-timing";
 import { unlockAudio } from "@/lib/audioUnlock";
@@ -63,6 +63,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const [audioFailed, setAudioFailed] = useState(false);
   const [restartToken, setRestartToken] = useState(0);
   const [tab, setTab] = useState<TeachTab>("form");
+  const [demoMode, setDemoMode] = useState<"video" | "illustrated">("illustrated");
 
   const steps = asana?.steps ?? [];
   const stepCount = steps.length || 1;
@@ -81,8 +82,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const activeStep = steps[stepIndex];
   const activeMomentum = momentumClass(started ? activeStep : steps[0]);
   const activeStepPose = activeStep?.pose || asana?.pose;
-  const activeStepMotion = activeStep?.stepMotion ?? null;
-  // Idle + narration: 3D stage stays “live”; pause freezes breath when stopped mid-guide.
+  // Idle + narration: demo stays “live”; pause freezes motion when stopped mid-guide.
   const stagePlaying = !started || (playing && !completed);
 
   useEffect(() => {
@@ -99,6 +99,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
     setAudioFailed(false);
     setRestartToken(0);
     setTab("form");
+    setDemoMode("illustrated");
   }, [slug]);
 
   // If voice is turned off mid-explanation, drop into the silent walkthrough.
@@ -252,7 +253,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
         <div className="flex flex-col gap-1">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            Pose explanation · Illustrated
+            Pose explanation · {demoMode === "video" ? "Trainer video" : "Illustrated"}
             {!voiceEnabled ? " · Voice off" : null}
           </span>
           <h2 className="font-serif text-2xl font-semibold tracking-tight">
@@ -262,15 +263,18 @@ export function PoseExplanation({ slug }: { slug: string }) {
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start">
-          <PoseHumanStage
+          <PoseTrainerStage
             slug={asana.slug}
             english={asana.english}
+            sanskrit={asana.sanskrit}
             poseKey={asana.pose}
             stepPoseKey={activeStepPose}
             momentum={activeMomentum}
             stepIndex={started ? stepIndex : 0}
-            playing={!completed}
+            playing={stagePlaying}
+            restartToken={restartToken}
             variant="detail"
+            onModeChange={setDemoMode}
             data-testid={`demo-hero-${asana.slug}`}
           />
 
@@ -339,10 +343,10 @@ export function PoseExplanation({ slug }: { slug: string }) {
             size="lg"
             onClick={start}
             data-testid={`button-watch-demo-${asana.slug}`}
-            aria-label={`Watch pose explanation for ${asana.english}`}
+            aria-label={`Watch trainer demo for ${asana.english}`}
             className="min-h-12 w-full gap-2 rounded-full bg-primary py-6 text-base font-medium text-primary-foreground hover:bg-primary/90"
           >
-            <Play className="h-5 w-5 fill-current" /> Watch pose explanation
+            <Play className="h-5 w-5 fill-current" /> Watch trainer demo
           </Button>
         ) : completed ? (
           <div

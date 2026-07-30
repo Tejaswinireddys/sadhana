@@ -72,26 +72,32 @@ Do **not** commit placeholder remote URLs that 404.
 5. Export WebM (VP9) + H.264 MP4; add English WebVTT for any on-screen or spoken form cues in the clip.
 6. Resolution: 1080×1920 (portrait) or 1280×720 (landscape) — portrait matches the illustration stage best.
 
-## UX behavior (3D-first)
+## UX behavior (trainer video first)
 
-Pose explanation and guided practice use:
+Pose explanation and guided practice use `PoseTrainerStage`:
 
-- 3D figurine stage with camera / focus moments timed to narration steps
-- Soft PNG poster under the figurine for recognition
+- Muted looping demo video when the slug is in `POSE_VIDEOS_READY` (or has a
+  `POSE_MEDIA_OVERRIDES` entry) and the pose is a single shape — trainer-style
+  hold demonstration
+- Multi-shape poses (entry → peak) keep `PoseHumanStage` so the figure
+  crossfades through steps; filmed CDN overrides still prefer video
+- Automatic fallback to `PoseHumanStage` when video is missing, blocked by
+  Save-Data, or fails to load
 - Narration-synced steps + Form / Breath / Align teaching rail
 - Guided practice tip sheet + richer hold cues
+- Demo clip restarts with narration via `restartToken`
 
-Optional looping WebM/MP4 clips remain supported via `prefer3D={false}` on
-`PoseDemoStage` for design-system / capture review.
+`PoseDemoStage` with `prefer3D={false}` powers the video path; 3D figurine /
+rigged WebGL remain available for design-system / capture review.
 
 ## Related code
 
-- `client/src/components/PoseFigurine3D.tsx` — CSS-perspective 3D teaching stage
-- `client/src/lib/poseMoments.ts` — camera / phase from focusZone + stepMotion
+- `client/src/components/PoseTrainerStage.tsx` — video-first trainer demo with illustrated fallback
+- `client/src/components/PoseHumanStage.tsx` — illustrated figure + body momentum fallback
+- `client/src/components/PoseDemoStage.tsx` — 3D (default) + optional video stage
 - `script/gen-pose-videos.ts` — regenerate illustration-based WebM/MP4 clips
 - `client/src/data/poseVideosReady.generated.ts` — allowlist written by the script
 - `client/src/data/poseMedia.ts` — URL resolution
-- `client/src/components/PoseDemoStage.tsx` — 3D (default) + optional video stage
 - `client/src/components/PoseExplanation.tsx` — detail-page experience
 - `client/src/components/PoseTipsSheet.tsx` — in-practice tips
 

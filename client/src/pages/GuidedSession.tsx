@@ -2,8 +2,8 @@
 //
 // A single full-height screen with three vertical zones:
 //   Top    — session progress bar, session name, close (X).
-//   Middle — 3D pose figurine stage (narration-synced moments + focus),
-//            prev/next thumbs, pose name.
+//   Middle — trainer demo stage (pose video when available, illustrated
+//            figure fallback), prev/next thumbs, pose name.
 //   Bottom — countdown, synced step / form cues, transport, pose-tips button.
 //
 // State machine per pose:
@@ -64,11 +64,11 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
-import { PoseHumanStage } from "@/components/PoseHumanStage";
+import { PoseTrainerStage } from "@/components/PoseTrainerStage";
 import { momentumClass } from "@/lib/poseMomentum";
 import { PoseImage } from "@/components/PoseImage";
 import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
-import { poseMediaFor, poseHasVideo, poseNarrationSrc } from "@/data/poseMedia";
+import { poseNarrationSrc } from "@/data/poseMedia";
 import { practiceHoldCues } from "@/lib/poseExplanation";
 import {
   QUICK_SESSIONS,
@@ -236,10 +236,6 @@ export default function GuidedSession() {
   const current = todays[index];
   const prev = index > 0 ? todays[index - 1] : null;
   const next = index + 1 < todays.length ? todays[index + 1] : null;
-  const poseMedia = useMemo(
-    () => (current ? poseMediaFor(current.slug) : null),
-    [current?.slug],
-  );
   const holdCues = useMemo(
     () => (current ? practiceHoldCues(current) : FALLBACK_HOLD_CUES),
     [current],
@@ -290,8 +286,6 @@ export default function GuidedSession() {
     phase === "instruction"
       ? steps[stepIndex]?.pose || current?.pose
       : current?.pose;
-  const activeStepMotion =
-    phase === "instruction" ? steps[stepIndex]?.stepMotion ?? null : null;
 
   // ---- session time estimate ------------------------------------------------
   const totalEstimateSeconds = useMemo(() => {
@@ -1141,15 +1135,17 @@ export default function GuidedSession() {
             )}
           >
             {current && (
-              <PoseHumanStage
+              <PoseTrainerStage
                 key={current.slug}
                 slug={current.slug}
                 english={current.english}
+                sanskrit={current.sanskrit}
                 poseKey={current.pose}
                 stepPoseKey={activeStepPose}
                 momentum={activeMomentum}
                 stepIndex={phase === "instruction" ? stepIndex : Math.max(0, stepCount - 1)}
                 playing={!paused && (phase === "instruction" || phase === "hold")}
+                restartToken={videoRestartToken}
                 side={isEach ? (side as 1 | 2) : 1}
                 variant="practice"
                 data-testid="guided-hero"
