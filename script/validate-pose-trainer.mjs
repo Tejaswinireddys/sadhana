@@ -58,20 +58,45 @@ async function validatePose(page, slug) {
     detail: `human=${humanSlug} media=${mediaMode} videoReady=${videoReady}`,
   });
 
+  const captionIdle = page.locator(`[data-testid="demo-caption-${slug}"]`);
+  note(await captionIdle.isVisible(), `${slug}: live caption strip present`);
+
   const watchBtn = page.locator(`[data-testid="button-watch-demo-${slug}"]`);
-  note(await watchBtn.isVisible(), `${slug}: Watch trainer demo CTA visible`);
+  note(await watchBtn.isVisible(), `${slug}: Watch demo CTA visible`);
   await watchBtn.click();
   await page.waitForTimeout(1200);
 
   const step0 = page.locator(`[data-testid="demo-step-${slug}-0"]`);
   note(await step0.isVisible(), `${slug}: narration steps appear`);
 
-  await page.waitForTimeout(3500);
+  const chapter0 = page.locator(`[data-testid="demo-chapter-${slug}-0"]`);
+  note(await chapter0.isVisible(), `${slug}: seekable chapter markers appear`);
+
+  const chapter1 = page.locator(`[data-testid="demo-chapter-${slug}-1"]`);
+  if ((await chapter1.count()) > 0) {
+    await chapter1.click();
+    await page.waitForTimeout(400);
+    const step1Current = await page
+      .locator(`[data-testid="demo-step-${slug}-1"]`)
+      .getAttribute("aria-current");
+    note(step1Current === "step", `${slug}: chapter seek highlights step 2`, {
+      detail: `aria-current=${step1Current}`,
+    });
+  }
+
+  await page.waitForTimeout(2000);
   await page.screenshot({ path: path.join(OUT, `${slug}-playing.png`), fullPage: false });
 
+  const captionText = (await captionIdle.innerText()).trim();
   note(
-    /trainer/i.test(label),
-    `${slug}: trainer chrome`,
+    captionText.length > 8 && !/tap watch demo/i.test(captionText),
+    `${slug}: caption shows spoken cue while playing`,
+    { detail: captionText.slice(0, 80) },
+  );
+
+  note(
+    /learn this pose|trainer/i.test(label),
+    `${slug}: learn/trainer chrome`,
     { detail: label },
   );
 
