@@ -7,7 +7,7 @@ import { poseHasVideo, poseMediaFor } from "./poseMedia.ts";
 import { POSE_VIDEOS_READY_LIST } from "./poseVideosReady.generated.ts";
 
 describe("pose trainer demo media", () => {
-  it("registers the generated Ken Burns / demo clips", () => {
+  it("keeps the generated clip inventory registered (for filmed overrides / future use)", () => {
     assert.ok(POSE_VIDEOS_READY_LIST.length > 50, "expected a full pose video inventory");
     assert.ok(poseHasVideo("tadasana"), "Mountain Pose should have a demo clip");
     assert.ok(poseHasVideo("vrksasana"), "Tree Pose should have a demo clip");

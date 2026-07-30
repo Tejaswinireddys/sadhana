@@ -253,7 +253,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
         <div className="flex flex-col gap-1">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            Pose explanation · {demoMode === "video" ? "Trainer video" : "Illustrated"}
+            Pose explanation · {demoMode === "video" ? "Trainer video" : "Human trainer"}
             {!voiceEnabled ? " · Voice off" : null}
           </span>
           <h2 className="font-serif text-2xl font-semibold tracking-tight">

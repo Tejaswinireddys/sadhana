@@ -73,7 +73,7 @@ export function PoseHumanStage({
       data-human-slug={targetSlug}
       data-step={stepIndex}
       data-momentum={momentum}
-      aria-label={`Illustrated demonstration of ${english}`}
+      aria-label={`Trainer demonstration of ${english}`}
     >
       {/* The momentum wrapper carries the live-trainer body motion; the layers
           inside it only crossfade when the shape changes. */}
@@ -102,7 +102,7 @@ export function PoseHumanStage({
       </div>
 
       <span className="pointer-events-none absolute right-2 top-2 z-10 rounded-full bg-background/75 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground backdrop-blur-sm">
-        Illustrated guide
+        Trainer demo
       </span>
     </div>
   );

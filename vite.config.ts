@@ -12,7 +12,9 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
-  base: "./",
+  // Absolute base so deep links (/asanas/:slug, /guided) load JS/CSS correctly.
+  // Relative "./" resolves assets under the route path and returns HTML (MIME error).
+  base: "/",
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,

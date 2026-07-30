@@ -60,14 +60,16 @@ export function poseHasVideo(slug: string): boolean {
   return POSE_VIDEOS_READY.has(slug) || slug in POSE_MEDIA_OVERRIDES;
 }
 
-/** Vite BASE_URL, defaulting to `/` outside the bundler (unit tests / Node). */
+/** Vite BASE_URL (build-time). Fallback `/` for unit tests outside Vite. */
 function appBase(): string {
   try {
-    const base = import.meta.env?.BASE_URL;
-    return typeof base === "string" && base.length > 0 ? base : "/";
+    // Exact `import.meta.env.BASE_URL` so Vite statically replaces it in builds.
+    const base = import.meta.env.BASE_URL;
+    if (typeof base === "string" && base.length > 0) return base;
   } catch {
-    return "/";
+    /* Node tests: import.meta.env may be missing */
   }
+  return "/";
 }
 
 /** Resolve media URLs for a pose. Always returns paths; UI handles missing files. */

@@ -1,20 +1,17 @@
 /**
- * PoseTrainerStage — trainer-style pose demonstration for teaching surfaces.
+ * PoseTrainerStage — human trainer demonstration for teaching surfaces.
  *
- * Video path: muted looping demo clip (Ken Burns or filmed override) when the
- * slug is registered and the pose is a single shape — reads as a trainer
- * holding the posture for the user to copy.
+ * Default: PoseHumanStage — the hand-composed human figure crossfades through
+ * narration steps and carries body momentum, so it reads like a trainer showing
+ * how to enter and hold the pose.
  *
- * Illustrated path: PoseHumanStage with narration-driven body momentum. Used
- * when the pose walks through multiple shapes (entry → peak), when video is
- * missing / blocked / fails, or when a CDN override is not present for a
- * multi-shape pose. Never leaves an empty hero.
+ * Optional video: only when a real filmed clip is registered in
+ * POSE_MEDIA_OVERRIDES (CDN / capture). Generated Ken Burns zooms stay available
+ * on disk but do not replace the human guide — they are not step-by-step training.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
 import { PoseHumanStage } from "@/components/PoseHumanStage";
-import { asanaBySlug } from "@/data/content";
-import { humanStepSlug } from "@/data/poseKeyImages";
 import {
   POSE_MEDIA_OVERRIDES,
   poseHasVideo,
@@ -39,16 +36,6 @@ export type PoseTrainerStageProps = {
   onModeChange?: (mode: "video" | "illustrated") => void;
 };
 
-/** True when narration steps crossfade across more than one illustration. */
-function hasShapeJourney(slug: string, poseKey: string): boolean {
-  const asana = asanaBySlug(slug);
-  if (!asana?.steps?.length) return false;
-  const shapes = new Set(
-    asana.steps.map((s) => humanStepSlug(slug, poseKey, s.pose)),
-  );
-  return shapes.size > 1;
-}
-
 export function PoseTrainerStage({
   slug,
   english,
@@ -66,20 +53,15 @@ export function PoseTrainerStage({
   onModeChange,
 }: PoseTrainerStageProps) {
   const media = useMemo(() => poseMediaFor(slug), [slug]);
-  const canTryVideo = poseHasVideo(slug);
-  const filmedOverride = slug in POSE_MEDIA_OVERRIDES;
-  // Multi-shape poses keep the illustrated guide (step crossfade). Filmed
-  // CDN overrides still win — those are real trainer clips.
-  const preferIllustratedGuide =
-    !filmedOverride && hasShapeJourney(slug, poseKey);
+  // Real filmed trainer clips only — not the illustration Ken Burns inventory.
+  const hasFilmedTrainer = slug in POSE_MEDIA_OVERRIDES && poseHasVideo(slug);
   const [forceIllustrated, setForceIllustrated] = useState(false);
 
   useEffect(() => {
     setForceIllustrated(false);
   }, [slug]);
 
-  const useVideo =
-    canTryVideo && !forceIllustrated && !preferIllustratedGuide;
+  const useVideo = hasFilmedTrainer && !forceIllustrated;
 
   useEffect(() => {
     onModeChange?.(useVideo ? "video" : "illustrated");
