@@ -17,6 +17,7 @@ import { asanaBySlug } from "@/data/content";
 import { poseNarrationSrc } from "@/data/poseMedia";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
 import { PoseHumanStage } from "@/components/PoseHumanStage";
+import { resolveStepFocus } from "@/lib/poseFocus";
 import { useNarrationTiming } from "@/hooks/use-narration-timing";
 import { unlockAudio } from "@/lib/audioUnlock";
 import { cn } from "@/lib/utils";
@@ -79,8 +80,11 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const { resolve: resolveStep } = useNarrationTiming(slug, stepTexts, effectiveDuration);
   const activeStep = steps[stepIndex];
   const activeZone =
-    (started && !completed && activeStep?.focusZone) ||
-    (!started ? steps[0]?.focusZone ?? null : null);
+    started && !completed
+      ? resolveStepFocus(activeStep)
+      : !started
+        ? resolveStepFocus(steps[0])
+        : null;
   const activeStepPose = activeStep?.pose || asana?.pose;
   const activeStepMotion = activeStep?.stepMotion ?? null;
   // Idle + narration: 3D stage stays “live”; pause freezes breath when stopped mid-guide.

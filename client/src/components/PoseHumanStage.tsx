@@ -67,15 +67,16 @@ export function PoseHumanStage({
   const fy = Math.min(0.85, Math.max(0.15, focusZone?.cy ?? 0.5));
   const fr = focusZone?.r ?? 0.22;
 
-  // Ease toward the cued region while playing — a soft "look here" push-in.
+  // Ease toward the cued region while playing — a clear "look here" push-in that
+  // travels across the body as the narration names each part (feet → crown).
   const kbStyle =
     motionOn && playing
       ? {
-          transform: "scale(1.08)",
+          transform: "scale(1.16)",
           transformOrigin: `${fx * 100}% ${fy * 100}%`,
-          transition: "transform 1200ms ease, transform-origin 700ms ease",
+          transition: "transform 900ms ease, transform-origin 900ms ease",
         }
-      : { transform: "scale(1)", transition: "transform 1200ms ease" };
+      : { transform: "scale(1)", transition: "transform 900ms ease" };
 
   return (
     <div
