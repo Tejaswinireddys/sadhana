@@ -269,7 +269,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
             stepPoseKey={activeStepPose}
             momentum={activeMomentum}
             stepIndex={started ? stepIndex : 0}
-            playing={stagePlaying}
+            playing={!completed}
             variant="detail"
             data-testid={`demo-hero-${asana.slug}`}
           />
