@@ -2,59 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE */
+/* LIGHT MODE — Organic Biophilic yoga theme (sage/teal, cool mist) */
 :root {
   --button-outline: rgba(0, 0, 0, 0.1);
   --badge-outline: rgba(0, 0, 0, 0.05);
   --opaque-button-border-intensity: -8;
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
-  --background: 40 43% 94%;
-  --foreground: 30 10% 16%;
-  --border: 38 22% 84%;
-  --card: 40 40% 97%;
-  --card-foreground: 30 10% 16%;
-  --card-border: 38 24% 86%;
-  --sidebar: 40 36% 91%;
-  --sidebar-foreground: 30 10% 20%;
-  --sidebar-border: 38 22% 82%;
-  --sidebar-primary: 20 55% 41%;
-  --sidebar-primary-foreground: 40 43% 96%;
-  --sidebar-accent: 38 30% 86%;
-  --sidebar-accent-foreground: 30 10% 16%;
-  --sidebar-ring: 20 55% 41%;
-  --popover: 40 42% 96%;
-  --popover-foreground: 30 10% 16%;
-  --popover-border: 38 22% 84%;
-  /* Text-weight brand colours. These are used as *foreground* (badges, "Best
-     for ·" captions, links) as well as button fills, so they must clear 4.5:1
-     against the lightest surface. The old 51%/48% pair sat at ~3.5:1 — which
-     also meant white button labels were failing on primary fills. */
-  --primary: 20 55% 41%;
-  --primary-foreground: 40 43% 97%;
-  --secondary: 92 20% 36%;
-  --secondary-foreground: 40 43% 97%;
-  --muted: 38 26% 88%;
-  --muted-foreground: 30 10% 38%;
-  --accent: 92 16% 86%;
-  --accent-foreground: 92 22% 22%;
-  --destructive: 8 66% 42%;
-  --destructive-foreground: 40 43% 97%;
-  --input: 38 22% 80%;
-  --ring: 20 55% 41%;
-  --chart-1: 20 55% 41%;
-  --chart-2: 92 20% 36%;
-  --chart-3: 38 40% 60%;
-  --chart-4: 200 22% 50%;
-  --chart-5: 30 30% 40%;
-  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: Fraunces, Georgia, "Times New Roman", serif;
+  --background: 150 20% 96%;
+  --foreground: 164 35% 10%;
+  --border: 147 14% 84%;
+  --card: 90 25% 98%;
+  --card-foreground: 164 35% 10%;
+  --card-border: 147 16% 86%;
+  --sidebar: 150 16% 93%;
+  --sidebar-foreground: 164 28% 14%;
+  --sidebar-border: 147 14% 82%;
+  --sidebar-primary: 175 72% 26%;
+  --sidebar-primary-foreground: 150 30% 98%;
+  --sidebar-accent: 150 18% 88%;
+  --sidebar-accent-foreground: 164 35% 10%;
+  --sidebar-ring: 175 72% 26%;
+  --popover: 150 22% 97%;
+  --popover-foreground: 164 35% 10%;
+  --popover-border: 147 14% 84%;
+  --primary: 175 72% 26%;
+  --primary-foreground: 150 30% 98%;
+  --secondary: 142 22% 36%;
+  --secondary-foreground: 150 30% 98%;
+  --muted: 150 14% 90%;
+  --muted-foreground: 164 12% 34%;
+  --accent: 168 24% 90%;
+  --accent-foreground: 175 40% 20%;
+  --destructive: 8 62% 48%;
+  --destructive-foreground: 150 30% 98%;
+  --input: 147 14% 80%;
+  --ring: 175 72% 26%;
+  --chart-1: 175 72% 26%;
+  --chart-2: 142 22% 36%;
+  --chart-3: 192 55% 42%;
+  --chart-4: 155 18% 48%;
+  --chart-5: 164 20% 32%;
+  --font-sans: "Raleway", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Lora", Georgia, "Times New Roman", serif;
   --font-mono: Menlo, monospace;
-  --radius: 1rem;
-  --radius-sm: 0.5rem;
-  --radius-lg: 1.25rem;
-  --surface-shadow: 0 1px 2px hsl(30 16% 28% / 0.05), 0 10px 28px -14px hsl(30 16% 28% / 0.16);
-  --surface-shadow-lg: 0 2px 6px hsl(30 16% 28% / 0.06), 0 22px 48px -20px hsl(30 16% 28% / 0.22);
+  --radius: 1.1rem;
+  --radius-sm: 0.55rem;
+  --radius-lg: 1.5rem;
+  --surface-shadow: 0 1px 2px hsl(164 20% 20% / 0.05), 0 12px 32px -16px hsl(164 24% 18% / 0.18);
+  --surface-shadow-lg: 0 2px 8px hsl(164 20% 20% / 0.06), 0 24px 52px -22px hsl(164 24% 18% / 0.24);
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0);
   --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0);
   --shadow-sm: var(--surface-shadow);
@@ -115,43 +111,40 @@
   --opaque-button-border-intensity: 9;
   --elevate-1: rgba(255, 255, 255, 0.05);
   --elevate-2: rgba(255, 255, 255, 0.1);
-  --background: 30 12% 10%;
-  --foreground: 40 32% 96%;
-  --border: 30 12% 26%;
-  --card: 30 12% 14%;
-  --card-foreground: 40 32% 96%;
-  --card-border: 30 12% 22%;
-  --sidebar: 30 14% 12%;
-  --sidebar-foreground: 40 28% 94%;
-  --sidebar-border: 30 12% 22%;
-  --sidebar-primary: 20 62% 66%;
-  --sidebar-primary-foreground: 30 12% 10%;
-  --sidebar-accent: 30 12% 20%;
-  --sidebar-accent-foreground: 40 32% 96%;
-  --sidebar-ring: 20 62% 66%;
-  --popover: 30 12% 15%;
-  --popover-foreground: 40 32% 96%;
-  --popover-border: 30 12% 26%;
-  /* Same rule in reverse: light enough to read on the dark surfaces. */
-  --primary: 20 62% 66%;
-  --primary-foreground: 30 12% 10%;
-  --secondary: 92 25% 62%;
-  --secondary-foreground: 30 12% 10%;
-  --muted: 30 12% 18%;
-  --muted-foreground: 40 14% 84%;
-  --accent: 92 16% 24%;
-  --accent-foreground: 92 28% 88%;
-  /* Light-on-dark inverts the label too: white on a pale red fails, and the
-     red must be light enough to read as text on the dark card. */
-  --destructive: 8 62% 66%;
-  --destructive-foreground: 30 12% 10%;
-  --input: 30 12% 28%;
-  --ring: 20 62% 66%;
-  --chart-1: 20 62% 66%;
-  --chart-2: 92 25% 62%;
-  --chart-3: 38 42% 62%;
-  --chart-4: 200 24% 58%;
-  --chart-5: 30 24% 60%;
+  --background: 165 18% 8%;
+  --foreground: 150 20% 96%;
+  --border: 165 12% 22%;
+  --card: 165 16% 12%;
+  --card-foreground: 150 20% 96%;
+  --card-border: 165 12% 20%;
+  --sidebar: 165 18% 10%;
+  --sidebar-foreground: 150 16% 94%;
+  --sidebar-border: 165 12% 18%;
+  --sidebar-primary: 173 48% 48%;
+  --sidebar-primary-foreground: 165 20% 8%;
+  --sidebar-accent: 165 14% 16%;
+  --sidebar-accent-foreground: 150 20% 96%;
+  --sidebar-ring: 173 48% 48%;
+  --popover: 165 16% 13%;
+  --popover-foreground: 150 20% 96%;
+  --popover-border: 165 12% 22%;
+  --primary: 173 48% 48%;
+  --primary-foreground: 165 20% 8%;
+  --secondary: 142 24% 48%;
+  --secondary-foreground: 165 20% 8%;
+  --muted: 165 12% 16%;
+  --muted-foreground: 150 12% 78%;
+  --accent: 168 18% 18%;
+  --accent-foreground: 168 30% 88%;
+  --destructive: 8 62% 64%;
+  --destructive-foreground: 165 25% 10%;
+  --input: 165 12% 24%;
+  --ring: 173 48% 48%;
+  --chart-1: 173 48% 48%;
+  --chart-2: 142 24% 48%;
+  --chart-3: 192 40% 52%;
+  --chart-4: 155 20% 52%;
+  --chart-5: 164 18% 58%;
   --surface-shadow: 0 1px 2px hsl(0 0% 0% / 0.45), 0 12px 32px -14px hsl(0 0% 0% / 0.65);
   --surface-shadow-lg: 0 2px 8px hsl(0 0% 0% / 0.4), 0 24px 52px -18px hsl(0 0% 0% / 0.7);
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0);
@@ -213,7 +206,6 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    font-feature-settings: "ss01" on, "cv11" on;
   }
 
   h1,
@@ -249,6 +241,20 @@
   .surface-raised {
     @apply rounded-2xl border border-card-border bg-card text-card-foreground;
     box-shadow: var(--surface-shadow-lg);
+  }
+
+  /* Soft biophilic wash for marketing / signup atmospheres */
+  .yoga-atmosphere {
+    background-image:
+      radial-gradient(ellipse 80% 55% at 12% 18%, hsl(var(--primary) / 0.12), transparent 58%),
+      radial-gradient(ellipse 70% 50% at 88% 82%, hsl(var(--secondary) / 0.1), transparent 55%),
+      linear-gradient(180deg, hsl(var(--background)), hsl(var(--accent) / 0.35));
+  }
+
+  .yoga-grain {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+    opacity: 0.035;
   }
 }
 

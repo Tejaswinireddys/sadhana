@@ -330,25 +330,25 @@ export default function Register() {
               aria-hidden
             />
             <div
-              className="absolute inset-0 bg-[linear-gradient(180deg,hsl(30_18%_12%/0.45)_0%,hsl(30_18%_12%/0.28)_38%,hsl(30_18%_12%/0.72)_100%)]"
+              className="absolute inset-0 bg-[linear-gradient(180deg,hsl(165_28%_8%/0.5)_0%,hsl(165_28%_8%/0.28)_38%,hsl(165_28%_8%/0.78)_100%)]"
               aria-hidden
             />
             <div
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_80%,hsl(var(--primary)/0.28),transparent_55%)]"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_80%,hsl(var(--primary)/0.32),transparent_55%)]"
               aria-hidden
             />
 
             <div className="relative mx-auto flex min-h-[100svh] max-w-5xl flex-col justify-end px-4 pb-16 pt-28 md:justify-center md:px-6 md:pb-24 md:pt-24">
               <FadeIn className="max-w-xl space-y-5 text-primary-foreground">
-                <p className="font-serif text-4xl font-semibold tracking-tight md:text-6xl" data-testid="register-brand">
+                <p className="font-serif text-5xl font-semibold tracking-tight md:text-7xl" data-testid="register-brand">
                   Sadhana
                 </p>
-                <h1 className="font-serif text-3xl font-semibold leading-tight tracking-tight md:text-4xl">
-                  {returning ? "Update your practice" : "Create your practice"}
+                <h1 className="font-serif text-2xl font-semibold leading-tight tracking-tight md:text-3xl">
+                  {returning ? "Refresh your yoga path" : "Start your yoga practice in one minute"}
                 </h1>
                 <p className="max-w-md text-base leading-relaxed text-primary-foreground/85 md:text-lg">
-                  A short guided setup — intent, name, path, and preferences — so Home greets you
-                  clearly. No email or password; everything stays on this device.
+                  Tell us how you want to feel — then we personalize Home, poses, and gentle reminders.
+                  No email or password; everything stays on this device.
                 </p>
                 <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center">
                   <Button
@@ -371,15 +371,16 @@ export default function Register() {
                     </Button>
                   )}
                 </div>
-                <p className="text-sm text-primary-foreground/70">About 1 minute · 5 steps after this</p>
+                <p className="text-sm text-primary-foreground/70">Free forever · About 1 minute · 5 short steps</p>
               </FadeIn>
             </div>
           </section>
         )}
 
         {step > 0 && (
-          <section className="relative border-t border-border/50 bg-[radial-gradient(ellipse_at_top,_hsl(var(--secondary)/0.12),_transparent_55%),hsl(var(--background))]">
-            <div className="mx-auto max-w-xl px-4 py-10 md:px-6 md:py-14">
+          <section className="relative overflow-hidden border-t border-border/50 yoga-atmosphere">
+            <div className="pointer-events-none absolute inset-0 yoga-grain" aria-hidden />
+            <div className="relative mx-auto max-w-xl px-4 py-10 md:px-6 md:py-14">
               <ProgressHeader step={step} />
 
               <FadeIn key={step} className="space-y-6">
@@ -732,7 +733,7 @@ export default function Register() {
                         onClick={() => void finish()}
                         data-testid="register-submit"
                       >
-                        {submitting || activate.isPending ? "Creating…" : "Create my practice"}
+                        {submitting || activate.isPending ? "Creating…" : "Create my yoga practice"}
                         <ArrowRight className="ml-1.5 h-4 w-4" />
                       </Button>
                     </div>
