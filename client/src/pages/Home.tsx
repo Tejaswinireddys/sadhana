@@ -17,6 +17,7 @@ import {
   pathwayBySlug,
   PATHWAYS,
   PROFILE_AFFIRMATION_TAG_MAP,
+  WARMUP,
 } from "@/data/content";
 import type { Pathway } from "@/data/content";
 import { profileById } from "@/data/profiles";
@@ -188,6 +189,24 @@ export default function Home() {
     document.getElementById("quick-start")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  // One-tap gentle on-ramp for absolute newcomers — a 5-minute guided warm-up
+  // so the first thing they see is a single, obvious "start" rather than a
+  // wall of equally-weighted choices.
+  const startWarmup = () => {
+    const poses = WARMUP.steps
+      .map((s) => {
+        const asana = asanaBySlug(s.asanaSlug);
+        return asana ? { asana, holdSeconds: s.holdSeconds, sides: s.sides } : null;
+      })
+      .filter(
+        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
+          x != null,
+      );
+    if (!poses.length) return;
+    loadSession(poses, { label: WARMUP.title, pathwaySlug: null });
+    navigate("/guided");
+  };
+
   /** Run a sequence saved in the Builder without a detour through its page. */
   const startCustomFlow = (flow: CustomFlow) => {
     const parsed = JSON.parse(flow.poseSequence || "[]") as {
@@ -283,6 +302,9 @@ export default function Home() {
   );
 
   const hasPracticed = stats && stats.totalSessions > 0;
+  // A true first-timer: nothing practiced, no path chosen, nothing mid-session.
+  // These users get one clear "start here" instead of the full menu.
+  const isNewcomer = !isLoading && !hasPracticed && !profile && !showResume;
   const ProfileIcon = profile ? resolveIcon(profile.icon) : Compass;
 
   // Daily reminder banner: show if not practiced today AND it's past 6 PM local.
@@ -347,6 +369,44 @@ export default function Home() {
             Practice now
           </h2>
         </div>
+
+      {/* Newcomer on-ramp — one obvious first action, no decision paralysis */}
+      {isNewcomer && (
+        <Card className="surface-banner border-primary/30" data-testid="card-new-here">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <Sparkles className="h-5 w-5" />
+              </span>
+              <div className="space-y-1">
+                <p className="font-serif text-xl leading-tight">New here? Start with a gentle warm-up</p>
+                <p className="text-sm text-muted-foreground">
+                  A voice-guided 5-minute warm-up to wake up your spine — no experience needed.
+                  Everything else can wait.
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+              <Button
+                className="min-h-11 w-full cursor-pointer sm:w-auto"
+                onClick={startWarmup}
+                data-testid="button-new-here-warmup"
+              >
+                <Play className="mr-1.5 h-4 w-4" /> Start 5-minute warm-up
+              </Button>
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="min-h-11 cursor-pointer"
+                data-testid="button-new-here-trainer"
+              >
+                <Link href="/trainer">Or answer 4 quick questions</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Resume an in-progress session after refresh / navigation away */}
       {showResume && (
@@ -561,7 +621,7 @@ export default function Home() {
             </Button>
           </CardContent>
         </Card>
-      ) : (
+      ) : isNewcomer ? null : (
         <Card className="surface-banner border-primary/25" data-testid="card-trainer-cta">
           <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
