@@ -1,15 +1,14 @@
 /**
- * PoseExplanation — premium per-pose teaching experience (detail page).
+ * PoseExplanation — cinema-style personal trainer (detail page).
  *
- * Better than a bare looping clip (Down Dog style):
- *   - 3D figurine stage timed to narration steps (pose key, focus, stepMotion)
- *   - Narration-synced step walkthrough (/voice/pose-{slug}.mp3)
- *   - Side teaching rail: Form · Breath · Alignment · Watch outs · Feel it
- *   - Smooth play/pause, progress, accessible captions / alt text
+ * Built to beat static wellness-club demos (e.g. Alo): live captions synced to
+ * voice, seekable chapters, Form · Breath · Align coaching, and an interactive
+ * human trainer — free, not a one-take blog clip behind a paywall.
  *
  * Honors voiceEnabled: when OFF, silent step countdown still drives the guide.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,7 @@ import { PoseTrainerStage } from "@/components/PoseTrainerStage";
 import { momentumClass } from "@/lib/poseMomentum";
 import { useNarrationTiming } from "@/hooks/use-narration-timing";
 import { unlockAudio } from "@/lib/audioUnlock";
+import { usePractice } from "@/context/PracticeContext";
 import { cn } from "@/lib/utils";
 import type { Preferences } from "@shared/schema";
 import {
@@ -32,7 +32,15 @@ import {
   AlertTriangle,
   Heart,
   AlignCenter,
+  RotateCcw,
 } from "lucide-react";
+
+function formatTime(s: number) {
+  if (!Number.isFinite(s) || s < 0) return "0:00";
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
 
 type TeachTab = "form" | "breath" | "align" | "watch" | "feel";
 
@@ -47,6 +55,8 @@ const TABS: { id: TeachTab; label: string; icon: typeof Target }[] = [
 export function PoseExplanation({ slug }: { slug: string }) {
   const asana = asanaBySlug(slug);
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const { loadSession } = usePractice();
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
   const voiceEnabled = prefs ? prefs.voiceEnabled !== 0 : true;
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -78,12 +88,20 @@ export function PoseExplanation({ slug }: { slug: string }) {
   // Real per-step boundaries (generated file when present, syllable-weighted
   // estimate otherwise) instead of dividing the audio into equal slices.
   const stepTexts = useMemo(() => steps.map((s) => s.text), [steps]);
-  const { resolve: resolveStep } = useNarrationTiming(slug, stepTexts, effectiveDuration);
+  const { timings, resolve: resolveStep } = useNarrationTiming(
+    slug,
+    stepTexts,
+    effectiveDuration,
+  );
   const activeStep = steps[stepIndex];
   const activeMomentum = momentumClass(started ? activeStep : steps[0]);
   const activeStepPose = activeStep?.pose || asana?.pose;
   // Idle + narration: demo stays “live”; pause freezes motion when stopped mid-guide.
   const stagePlaying = !started || (playing && !completed);
+  const estimatedMins = Math.max(
+    1,
+    Math.round((effectiveDuration > 0 ? effectiveDuration : stepCount * 6) / 60),
+  );
 
   useEffect(() => {
     const a = audioRef.current;
@@ -218,6 +236,54 @@ export function PoseExplanation({ slug }: { slug: string }) {
     setCompleted(false);
     setCurrent(0);
     setStepIndex(0);
+    setStepProgress(1);
+  };
+
+  const practiceNow = () => {
+    if (!asana) return;
+    const hold = asana.variations.intermediate?.holdSeconds ?? asana.holdSeconds;
+    loadSession([{ asana, holdSeconds: hold }], {
+      label: `${asana.english} · practice now`,
+    });
+    navigate("/guided");
+  };
+
+  /** Jump narration + visuals to a chapter (Alo lists steps; we make them live). */
+  const seekToStep = (index: number) => {
+    const i = Math.max(0, Math.min(stepCount - 1, index));
+    const t = timings[i]?.start ?? (effectiveDuration > 0 ? (i / stepCount) * effectiveDuration : i * SILENT_SECONDS_PER_STEP);
+    if (!useSilentGuide && audioRef.current) {
+      audioRef.current.currentTime = t;
+    }
+    setCurrent(t);
+    const resolved = resolveStep(t);
+    setStepIndex(resolved.index);
+    setStepProgress(resolved.progress);
+    if (completed) setCompleted(false);
+    if (!started) {
+      setStarted(true);
+      setRestartToken((n) => n + 1);
+    }
+    if (!playing) {
+      if (useSilentGuide) {
+        setPlaying(true);
+      } else {
+        const a = audioRef.current;
+        if (a) {
+          const p = a.play();
+          if (p && typeof p.then === "function") {
+            p.then(() => setPlaying(true)).catch(() => {
+              setAudioFailed(true);
+              setPlaying(true);
+            });
+          } else {
+            setPlaying(true);
+          }
+        } else {
+          setPlaying(true);
+        }
+      }
+    }
   };
 
   const tabBody = (() => {
@@ -239,7 +305,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
     <section
       className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft"
       data-testid={`demo-mode-${asana.slug}`}
-      aria-label={`Pose explanation for ${asana.english}`}
+      aria-label={`Learn ${asana.english} with your trainer`}
     >
       <div className="h-1.5 w-full bg-accent/40" aria-hidden>
         <div
@@ -250,34 +316,86 @@ export function PoseExplanation({ slug }: { slug: string }) {
       </div>
 
       <div className="space-y-5 p-5 sm:p-6">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            Pose explanation · {demoMode === "video" ? "Trainer video" : "Human trainer"}
+            Learn this pose · {demoMode === "video" ? "Trainer video" : "Human trainer"}
             {!voiceEnabled ? " · Voice off" : null}
+            {" · "}~{estimatedMins} min
           </span>
-          <h2 className="font-serif text-2xl font-semibold tracking-tight">
-            {asana.english}
+          <h2 className="font-serif text-2xl font-semibold tracking-tight sm:text-[1.75rem]">
+            Your trainer walks you through {asana.english}
           </h2>
-          <p className="text-sm text-muted-foreground">{asana.sanskrit}</p>
+          <p className="text-sm text-muted-foreground">
+            {asana.sanskrit}
+            {" · "}
+            Live captions, seekable steps, and Form · Breath · Align — clearer than a studio clip.
+          </p>
         </div>
 
+        {asana.benefits.length > 0 && (
+          <ul
+            className="flex flex-wrap gap-2"
+            data-testid={`demo-benefits-${asana.slug}`}
+            aria-label="Benefits"
+          >
+            {asana.benefits.slice(0, 3).map((b) => (
+              <li
+                key={b}
+                className="rounded-full border border-primary/20 bg-primary/[0.06] px-3 py-1 text-xs font-medium text-foreground/85"
+              >
+                {b}
+              </li>
+            ))}
+          </ul>
+        )}
+
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start">
-          <PoseTrainerStage
-            slug={asana.slug}
-            english={asana.english}
-            sanskrit={asana.sanskrit}
-            poseKey={asana.pose}
-            stepPoseKey={activeStepPose}
-            momentum={activeMomentum}
-            stepIndex={started ? stepIndex : 0}
-            playing={stagePlaying}
-            restartToken={restartToken}
-            guideActive={started && !completed}
-            variant="detail"
-            onModeChange={setDemoMode}
-            data-testid={`demo-hero-${asana.slug}`}
-          />
+          <div className="relative min-w-0">
+            <PoseTrainerStage
+              slug={asana.slug}
+              english={asana.english}
+              sanskrit={asana.sanskrit}
+              poseKey={asana.pose}
+              stepPoseKey={activeStepPose}
+              momentum={activeMomentum}
+              stepIndex={started ? stepIndex : 0}
+              playing={stagePlaying}
+              restartToken={restartToken}
+              guideActive={started && !completed}
+              variant="detail"
+              onModeChange={setDemoMode}
+              data-testid={`demo-hero-${asana.slug}`}
+            />
+
+            {/* Live spoken caption — synced to narration (Alo shows static copy under video) */}
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-2xl bg-gradient-to-t from-black/70 via-black/30 to-transparent px-3 pb-3 pt-14 sm:px-4 sm:pb-4"
+              data-testid={`demo-caption-${asana.slug}`}
+            >
+              {!started ? (
+                <p className="text-center text-sm font-medium text-white/90">
+                  Tap Watch demo — your trainer shows and tells each cue.
+                </p>
+              ) : (
+                <div className="mx-auto max-w-md text-center">
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-teal-100/90">
+                    {completed
+                      ? "Complete"
+                      : `Step ${stepIndex + 1} of ${stepCount}${playing ? " · speaking" : " · paused"}`}
+                  </p>
+                  <p
+                    key={`${started}-${stepIndex}-${completed}`}
+                    className="animate-fade-in text-sm font-medium leading-snug text-white sm:text-base"
+                  >
+                    {completed
+                      ? "Beautiful — you know the shape. Practice when you’re ready."
+                      : activeStep?.text}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Teaching rail */}
           <div
@@ -347,22 +465,39 @@ export function PoseExplanation({ slug }: { slug: string }) {
             aria-label={`Watch trainer demo for ${asana.english}`}
             className="min-h-12 w-full gap-2 rounded-full bg-primary py-6 text-base font-medium text-primary-foreground hover:bg-primary/90"
           >
-            <Play className="h-5 w-5 fill-current" /> Watch trainer demo
+            <Play className="h-5 w-5 fill-current" /> Watch demo with your trainer
           </Button>
         ) : completed ? (
           <div
             className="flex flex-col items-center gap-3 rounded-xl bg-accent/40 p-6 text-center"
             data-testid={`demo-complete-${asana.slug}`}
           >
-            <p className="font-serif text-lg">Explanation complete · Try the pose yourself</p>
-            <Button
-              onClick={closeDemo}
-              variant="default"
-              className="gap-2 rounded-full"
-              data-testid={`button-demo-got-it-${asana.slug}`}
-            >
-              <Check className="h-4 w-4" /> Got it
-            </Button>
+            <p className="font-serif text-lg">Ready to feel it in your body?</p>
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+              <Button
+                onClick={practiceNow}
+                className="gap-2 rounded-full sm:min-w-[10rem]"
+                data-testid={`button-demo-practice-${asana.slug}`}
+              >
+                <Play className="h-4 w-4 fill-current" /> Practice now
+              </Button>
+              <Button
+                onClick={start}
+                variant="outline"
+                className="gap-2 rounded-full"
+                data-testid={`button-demo-replay-${asana.slug}`}
+              >
+                <RotateCcw className="h-4 w-4" /> Replay lesson
+              </Button>
+              <Button
+                onClick={closeDemo}
+                variant="ghost"
+                className="gap-2 rounded-full"
+                data-testid={`button-demo-got-it-${asana.slug}`}
+              >
+                <Check className="h-4 w-4" /> Got it
+              </Button>
+            </div>
           </div>
         ) : (
           <Button
@@ -384,27 +519,71 @@ export function PoseExplanation({ slug }: { slug: string }) {
           </Button>
         )}
 
-        {started && !completed && (
+        {/* Chapter scrubber — jump to any cue while the lesson plays */}
+        {started && steps.length > 0 && (
+          <div
+            className="flex flex-wrap items-center gap-1.5"
+            role="tablist"
+            aria-label="Tutorial chapters"
+            data-testid={`demo-chapters-${asana.slug}`}
+          >
+            {steps.map((_, i) => {
+              const isActive = i === stepIndex && !completed;
+              const isPast = i < stepIndex || completed;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => seekToStep(i)}
+                  className={cn(
+                    "h-8 min-w-8 rounded-full px-2.5 text-xs font-semibold transition-colors",
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : isPast
+                        ? "bg-primary/15 text-primary"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80",
+                  )}
+                  data-testid={`demo-chapter-${asana.slug}-${i}`}
+                >
+                  {i + 1}
+                </button>
+              );
+            })}
+            {(effectiveDuration > 0 || current > 0) && (
+              <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+                {formatTime(current)}
+                {effectiveDuration > 0 ? ` / ${formatTime(effectiveDuration)}` : ""}
+              </span>
+            )}
+          </div>
+        )}
+
+        {started && (
           <ol className="space-y-2" data-testid={`demo-steps-${asana.slug}`}>
             {steps.map((step, i) => {
-              const isActive = i === stepIndex;
-              const isPast = i < stepIndex;
+              const isActive = i === stepIndex && !completed;
+              const isPast = i < stepIndex || completed;
               return (
-                <li
-                  key={i}
-                  className={cn(
-                    "rounded-lg px-4 py-3 transition-all duration-500",
-                    isActive
-                      ? "border-l-4 border-primary bg-accent/50 text-base font-medium text-foreground opacity-100"
-                      : isPast
-                        ? "border-l-4 border-transparent text-sm text-muted-foreground opacity-60"
-                        : "border-l-4 border-transparent text-sm text-muted-foreground opacity-40",
-                  )}
-                  data-testid={`demo-step-${asana.slug}-${i}`}
-                  aria-current={isActive ? "step" : undefined}
-                >
-                  <span className="mr-2 font-serif text-primary">{i + 1}.</span>
-                  {step.text}
+                <li key={i}>
+                  <button
+                    type="button"
+                    onClick={() => seekToStep(i)}
+                    className={cn(
+                      "w-full rounded-lg px-4 py-3 text-left transition-all duration-500",
+                      isActive
+                        ? "border-l-4 border-primary bg-accent/50 text-base font-medium text-foreground opacity-100"
+                        : isPast
+                          ? "border-l-4 border-transparent text-sm text-muted-foreground opacity-60 hover:opacity-100"
+                          : "border-l-4 border-transparent text-sm text-muted-foreground opacity-40 hover:opacity-80",
+                    )}
+                    data-testid={`demo-step-${asana.slug}-${i}`}
+                    aria-current={isActive ? "step" : undefined}
+                  >
+                    <span className="mr-2 font-serif text-primary">{i + 1}.</span>
+                    {step.text}
+                  </button>
                 </li>
               );
             })}
