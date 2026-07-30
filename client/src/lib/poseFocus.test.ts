@@ -25,10 +25,13 @@ describe("focusFromText — narration drives the look-here region", () => {
     assert.equal(focusFromText(undefined), null);
   });
 
-  it("prefers an explicit focusZone over inferred text", () => {
+  it("prefers text-inferred focus over an authored (3D-tuned) focusZone", () => {
+    // Authored zones were placed for the old 3D figure and mis-map onto the
+    // illustration, so a named body part in the text wins.
     const authored = { cx: 0.1, cy: 0.2, r: 0.3, label: "Authored" };
-    assert.deepEqual(resolveStepFocus({ text: "feet", focusZone: authored }), authored);
-    assert.equal(resolveStepFocus({ text: "roll the shoulders back" })?.label, "Shoulders");
+    assert.equal(resolveStepFocus({ text: "ground down through both feet", focusZone: authored })?.label, "Feet & toes");
+    // Falls back to the authored zone only when the text names no body part.
+    assert.deepEqual(resolveStepFocus({ text: "breathe and stay present", focusZone: authored }), authored);
     assert.equal(resolveStepFocus(null), null);
   });
 });

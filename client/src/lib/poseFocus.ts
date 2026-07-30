@@ -41,10 +41,16 @@ export function focusFromText(text?: string | null): FocusZone | null {
   return { cx, cy, r, label };
 }
 
-/** A step's own focusZone if authored, otherwise one inferred from its text. */
+/**
+ * Focus region for a step on the illustrated human figure. Prefers the region
+ * inferred from the narration text because those coordinates are tuned for the
+ * portrait illustration; any authored `focusZone` was placed for the old 3D
+ * figure (its coordinates mis-map onto the illustration — e.g. the crown landed
+ * on the torso), so it is only a last resort when the text names no body part.
+ */
 export function resolveStepFocus(
   step?: { text?: string; focusZone?: FocusZone | null } | null,
 ): FocusZone | null {
   if (!step) return null;
-  return step.focusZone ?? focusFromText(step.text);
+  return focusFromText(step.text) ?? step.focusZone ?? null;
 }
