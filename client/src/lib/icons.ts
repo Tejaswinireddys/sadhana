@@ -2,6 +2,7 @@
 // profile presets. Falls back to a neutral Sparkles icon when unknown.
 import {
   Baby,
+  Clock,
   HeartHandshake,
   Moon,
   Brain,
@@ -20,6 +21,7 @@ import {
 
 const MAP: Record<string, LucideIcon> = {
   Baby,
+  Clock,
   HeartHandshake,
   Moon,
   Brain,

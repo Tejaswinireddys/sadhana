@@ -97,7 +97,7 @@ export function Onboarding({
           </DialogTitle>
           <DialogDescription>
             {step === 0 &&
-              "Pick a path — everyday goals, men, women, or pregnancy. You can change it anytime."}
+              "Pick a path that fits your life — short sessions for busy parents, stress, sleep, work, men, women, or pregnancy. Change anytime."}
             {step === 1 && "A short guided flow to feel how sessions work."}
             {step === 2 && "Voice narration and soft motion — toggle what feels calm."}
           </DialogDescription>
