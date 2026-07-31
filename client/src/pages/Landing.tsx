@@ -23,36 +23,40 @@ const HERO_SRC = `${import.meta.env.BASE_URL}poses/vrksasana.png`;
 const FEATURES = [
   {
     icon: BookOpen,
-    title: "200+ illustrated poses",
-    body: "English-first guides with Sanskrit names, step-by-step cues, variations, and contraindications.",
+    title: "Privacy-first, no signup wall",
+    body: "Start as a guest — no email required. Open source, exportable data, and optional accounts only when you want sync.",
   },
   {
     icon: Play,
-    title: "Guided voice sessions",
-    body: "Build a sequence or tap Yoga Trainer — listen as you move, at your own pace.",
+    title: "Never shame you for missing a day",
+    body: "Compassionate recovery instead of streak punishment. Private challenges — no body-comparison leaderboards.",
   },
   {
     icon: Compass,
-    title: "Paths that fit your life",
-    body: "Profiles for everyday goals, men, women, and pregnancy — plus multi-week pathways.",
+    title: "Safety-deep pose library",
+    body: "200+ illustrated poses with contraindications, modifications, and voice-guided sessions in minutes.",
   },
   {
     icon: Smile,
-    title: "Kids stories & breath",
-    body: "Parent-gated animal poses and playful breathing games with stickers.",
+    title: "Kids, household & workplace",
+    body: "Parent-gated kids stories, household profiles, and aggregate-only corporate wellness.",
   },
 ];
 
 const STEPS = [
-  { n: "1", title: "Choose how you feel", body: "Trainer, mood quick-starts, or a practice profile." },
-  { n: "2", title: "Follow the guide", body: "Illustrated poses with optional calm voice narration." },
-  { n: "3", title: "Track gently", body: "Streaks, heatmap, and journal — progress without pressure." },
+  { n: "1", title: "Begin without an account", body: "Answer a few gentle questions — practice starts the same day." },
+  { n: "2", title: "Follow the guide", body: "Illustrated trainers and optional calm voice narration." },
+  { n: "3", title: "Track without pressure", body: "Minutes and milestones — missed days get a soft reset, not guilt." },
 ];
 
 const FAQ = [
   {
+    q: "What makes Sadhana different?",
+    a: "It's the privacy-first, no-signup yoga app that never shames you for missing a day — open source, no App Store account wall, and no public body-comparison boards.",
+  },
+  {
     q: "Is Sadhana free?",
-    a: "Yes. Sadhana is free and open source. Practise as a guest and everything stays on this device, or create a free account to sync your streak, journal, and sequences across browsers.",
+    a: "Yes. The core library and guest practice stay free. Optional Plus/Coach plans fund deeper features when billing is enabled — cancel anytime, no dark patterns.",
   },
   {
     q: "Do I need an account?",
@@ -164,10 +168,11 @@ export default function Landing() {
                 Sadhana
               </p>
               <h1 className="font-serif text-2xl font-semibold leading-tight tracking-tight md:text-3xl">
-                Your daily yoga companion — calm, illustrated, and ready in minutes.
+                The privacy-first yoga app that never shames you for missing a day.
               </h1>
               <p className="max-w-md text-base leading-relaxed text-primary-foreground/85 md:text-lg">
-                Free guided practice on this device. No email, no password — just begin.
+                No email required. Open source. Gentle habits — start a session in minutes on this
+                device.
               </p>
               <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center">
                 <Button

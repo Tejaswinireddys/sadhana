@@ -8,8 +8,9 @@
  *     content-hashed or immutable, so a stale hit is always safe.
  *   - Explicit offline pack (`sadhana-offline-v1`): checked before network for assets.
  *   - API: never cached. Practice data must not be served stale.
+ *   - Push: show gentle practice reminders when the tab is closed.
  */
-const VERSION = "v2";
+const VERSION = "v3";
 const SHELL_CACHE = `sadhana-shell-${VERSION}`;
 const ASSET_CACHE = `sadhana-assets-${VERSION}`;
 const OFFLINE_CACHE = "sadhana-offline-v1";
@@ -51,12 +52,51 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("push", (event) => {
+  let data = {
+    title: "Sadhana",
+    body: "A gentle reminder to practice — no streak guilt.",
+    url: "/#/",
+  };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {
+    /* ignore malformed payloads */
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url: data.url || "/#/" },
+      tag: "sadhana-reminder",
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/#/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const c of clients) {
+        if ("focus" in c) {
+          c.navigate(target);
+          return c.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+    }),
+  );
+});
+
 function isAsset(url) {
   return (
     url.pathname.startsWith("/assets/") ||
     url.pathname.startsWith("/poses/") ||
+    url.pathname.startsWith("/videos/") ||
     url.pathname.startsWith("/voice/") ||
-    /\.(png|jpg|jpeg|webp|svg|woff2?|mp3|json)$/.test(url.pathname)
+    /\.(png|jpg|jpeg|webp|svg|woff2?|mp3|json|webm|mp4)$/.test(url.pathname)
   );
 }
 

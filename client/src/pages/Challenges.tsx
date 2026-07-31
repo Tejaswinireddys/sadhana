@@ -1,13 +1,25 @@
 import { Link } from "wouter";
+import { useState } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { FadeIn } from "@/components/motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  clearBuddyPair,
+  pairBuddy,
+  readBuddy,
+  recordBuddyNudge,
+  writeBuddy,
+  type PracticeBuddy,
+} from "@/lib/practiceBuddy";
+import { useToast } from "@/hooks/use-toast";
 
 /**
  * Community challenges — privacy-first, no body-comparison leaderboards.
- * Participation is local/enrolment-based for now (no social graph).
+ * Practice buddy is opt-in pairing via share code only.
  */
 const CHALLENGES = [
   {
@@ -35,15 +47,107 @@ const CHALLENGES = [
 
 export default function Challenges() {
   useDocumentTitle("Challenges · Sadhana");
+  const { toast } = useToast();
+  const [buddy, setBuddy] = useState<PracticeBuddy>(() => readBuddy());
+  const [pairCode, setPairCode] = useState("");
+  const [name, setName] = useState(buddy.displayName);
+
   return (
     <FadeIn className="space-y-6">
       <header className="space-y-2">
         <h1 className="font-serif text-3xl font-semibold tracking-tight">Challenges</h1>
         <p className="max-w-xl text-muted-foreground">
-          Goal-based cohorts without body comparison. Moderation and private defaults come before
-          any public leaderboard.
+          Goal-based cohorts without body comparison. Pair with one practice buddy if you want
+          encouragement — never a public feed.
         </p>
       </header>
+
+      <Card className="shadow-soft" data-testid="practice-buddy">
+        <CardHeader className="pb-2">
+          <CardTitle className="font-serif text-xl">Practice buddy</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Share your code with one person. No leaderboards, no body metrics — just a nudge that
+            showing up is enough.
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="buddy-name">Your display name</Label>
+            <Input
+              id="buddy-name"
+              className="min-h-11"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => {
+                const next = { ...buddy, displayName: name.trim() || "Friend" };
+                writeBuddy(next);
+                setBuddy(next);
+              }}
+            />
+          </div>
+          <p className="rounded-md border border-border bg-accent/20 px-3 py-2 font-mono text-sm" data-testid="buddy-code">
+            Your code: {buddy.code}
+          </p>
+          {buddy.pairedWithCode ? (
+            <div className="space-y-2">
+              <p className="text-sm">
+                Paired with <strong>{buddy.pairedName}</strong> ({buddy.pairedWithCode})
+              </p>
+              <p className="text-sm text-muted-foreground italic">{buddy.encouragement}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  className="min-h-11"
+                  onClick={() => {
+                    setBuddy(recordBuddyNudge());
+                    toast({
+                      title: "Nudge noted",
+                      description: "Your buddy encouragement is saved on this device.",
+                    });
+                  }}
+                  data-testid="buddy-nudge"
+                >
+                  Send encouragement
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() => setBuddy(clearBuddyPair())}
+                >
+                  Unpair
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                className="min-h-11"
+                placeholder="Their code (SB-…)"
+                value={pairCode}
+                onChange={(e) => setPairCode(e.target.value.toUpperCase())}
+                aria-label="Buddy share code"
+                data-testid="buddy-pair-input"
+              />
+              <Button
+                className="min-h-11"
+                onClick={() => {
+                  const next = pairBuddy(pairCode);
+                  setBuddy(next);
+                  setPairCode("");
+                  toast({
+                    title: next.pairedWithCode ? "Paired" : "Could not pair",
+                    description: next.pairedWithCode
+                      ? "You’re connected privately on this device."
+                      : "Enter a valid buddy code (not your own).",
+                  });
+                }}
+                data-testid="buddy-pair"
+              >
+                Pair
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         {CHALLENGES.map((c) => (

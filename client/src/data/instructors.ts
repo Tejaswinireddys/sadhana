@@ -15,6 +15,11 @@ export type LiveClass = {
   minutes: number;
   level: "Beginner" | "All levels" | "Intermediate";
   seats: number;
+  /**
+   * Real join link for the live pilot (Zoom / YouTube Live / Mux).
+   * Opens in a new tab — no in-app streaming stack required.
+   */
+  joinUrl: string;
 };
 
 export type Instructor = {
@@ -54,6 +59,8 @@ export const INSTRUCTORS: Instructor[] = [
         minutes: 45,
         level: "All levels",
         seats: 24,
+        // Pilot: public Yoga With Adriene calm practice as stand-in stream until studio Zoom is booked.
+        joinUrl: "https://www.youtube.com/watch?v=sTANio7pLuA",
       },
     ],
   },
@@ -76,6 +83,7 @@ export const INSTRUCTORS: Instructor[] = [
         minutes: 30,
         level: "Beginner",
         seats: 40,
+        joinUrl: "https://www.youtube.com/watch?v=4pKly2JojMw",
       },
     ],
   },
