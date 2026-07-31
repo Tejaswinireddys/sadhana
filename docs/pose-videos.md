@@ -24,8 +24,8 @@ mkdir -p client/public/videos/poses client/public/captions/poses
 
 ## Generating clips from illustrations
 
-Every pose PNG under `client/public/poses/` can be turned into a short looping
-WebM + MP4 (subtle breathing zoom) with:
+Every catalog asana becomes a short **step-journey** clip (entry → peak with
+crossfades) — not a Ken Burns zoom on one still:
 
 ```bash
 # requires: brew install ffmpeg
@@ -37,6 +37,19 @@ The script writes files to `client/public/videos/poses/` and regenerates
 `client/src/data/poseVideosReady.generated.ts`, which `poseMedia.ts` imports as
 `POSE_VIDEOS_READY`. Incremental runs skip existing non-empty outputs unless
 `--force` is passed.
+
+**Coverage rule:** every entry in `ASANAS` must have both `.webm` and `.mp4` and
+appear in `POSE_VIDEOS_READY`. Unit tests enforce this.
+
+**Teaching UI:** pose detail and guided practice use the illustrated / 3D trainer
+(`PoseTrainerStage`) so limbs and shapes change with each cue. Journey clips
+power the asana library cards.
+
+Kids story poses use illustrated stills (story art), generated optionally via:
+
+```bash
+npm run gen:kids-pose-videos
+```
 
 ## Enabling a pose clip
 

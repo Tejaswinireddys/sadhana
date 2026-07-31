@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PoseImage } from "@/components/PoseImage";
+import { PoseCardVideo } from "@/components/PoseCardVideo";
 import { EmptyState } from "@/components/EmptyState";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ASANAS, CATEGORIES, type Category, type Asana } from "@/data/content";
@@ -301,13 +301,9 @@ export default function Asanas() {
                 <Link href={`/asanas/${a.slug}`} className="block cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <div>
                     <div className="transition-transform duration-200 group-hover:scale-[1.02]">
-                      <PoseImage
+                      <PoseCardVideo
                         slug={a.slug}
                         alt={a.english}
-                        rounded="rounded-none"
-                        aspect="aspect-square"
-                        shadow={false}
-                        breath={false}
                         testId={`asana-thumb-${a.slug}`}
                       />
                     </div>

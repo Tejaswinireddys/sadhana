@@ -99,10 +99,12 @@ async function validatePose(page, slug) {
       .first()
       .evaluate((v) => v.readyState >= 2 && !v.paused && v.videoWidth > 0)
       .catch(() => false));
+  const mediaNow = await hero.getAttribute("data-media");
+  const hasCanvas = (await hero.locator("canvas").count()) > 0;
   note(
-    videoPlaying || (await hero.getAttribute("data-media")) === "illustrated",
-    `${slug}: step demo video plays (or illustrated fallback)`,
-    { detail: `videoPlaying=${videoPlaying} media=${await hero.getAttribute("data-media")}` },
+    videoPlaying || mediaNow === "illustrated" || mediaNow === "3d" || hasCanvas,
+    `${slug}: trainer shows moving demo (illustrated steps, 3D, or journey clip)`,
+    { detail: `videoPlaying=${videoPlaying} media=${mediaNow} canvas=${hasCanvas}` },
   );
 
   // Stage should be large enough to teach from (not a skinny strip).

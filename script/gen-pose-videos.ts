@@ -1,27 +1,25 @@
 /**
- * Generate short looping demo videos from pose PNG illustrations.
+ * Generate short looping demo videos from pose illustrations.
  *
- * For each `client/public/poses/{slug}.png` (excluding `_`-prefixed assets),
- * writes:
+ * Builds a **step journey** (entry → mid → peak) with crossfades — not a Ken
+ * Burns zoom on a single still. For each asana:
  *   client/public/videos/poses/{slug}.webm
  *   client/public/videos/poses/{slug}.mp4
  *
- * Then regenerates `client/src/data/poseVideosReady.generated.ts` so the UI
- * can enable video without probing for missing files.
+ * Then regenerates `client/src/data/poseVideosReady.generated.ts`.
  *
  * Usage:
  *   npx tsx script/gen-pose-videos.ts
- *   npx tsx script/gen-pose-videos.ts --force          # regenerate all
- *   npx tsx script/gen-pose-videos.ts --only tadasana  # one slug
- *   npx tsx script/gen-pose-videos.ts --concurrency 6
- *
- * Requires ffmpeg on PATH (e.g. `brew install ffmpeg`).
+ *   npx tsx script/gen-pose-videos.ts --force
+ *   npx tsx script/gen-pose-videos.ts --only vrksasana
+ *   npx tsx script/gen-pose-videos.ts --concurrency 4
  */
-
 import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ASANAS, type Asana } from "../client/src/data/content.ts";
+import { humanStepSlug } from "../client/src/data/poseKeyImages.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -29,11 +27,13 @@ const POSES_DIR = path.join(ROOT, "client/public/poses");
 const OUT_DIR = path.join(ROOT, "client/public/videos/poses");
 const READY_FILE = path.join(ROOT, "client/src/data/poseVideosReady.generated.ts");
 
-const DURATION_SEC = 5;
 const FPS = 24;
 const WIDTH = 600;
 const HEIGHT = 1200;
-const FRAMES = DURATION_SEC * FPS;
+/** Seconds each shape is held before/after crossfade. */
+const HOLD = 1.35;
+/** Crossfade length between shapes. */
+const FADE = 0.55;
 
 type Args = {
   force: boolean;
@@ -43,7 +43,7 @@ type Args = {
 };
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { force: false, only: null, concurrency: 4, skipMp4: false };
+  const args: Args = { force: false, only: null, concurrency: 3, skipMp4: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--force") args.force = true;
@@ -53,7 +53,9 @@ function parseArgs(argv: string[]): Args {
       const n = Number(argv[++i]);
       if (Number.isFinite(n) && n >= 1) args.concurrency = Math.floor(n);
     } else if (a === "--help" || a === "-h") {
-      console.log(`Usage: npx tsx script/gen-pose-videos.ts [--force] [--only slug] [--concurrency N] [--skip-mp4]`);
+      console.log(
+        `Usage: npx tsx script/gen-pose-videos.ts [--force] [--only slug] [--concurrency N] [--skip-mp4]`,
+      );
       process.exit(0);
     }
   }
@@ -70,7 +72,7 @@ function run(cmd: string, args: string[]): Promise<void> {
     child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`${cmd} exited ${code}\n${err.slice(-800)}`));
+      else reject(new Error(`${cmd} exited ${code}\n${err.slice(-1000)}`));
     });
   });
 }
@@ -83,54 +85,6 @@ async function ensureFfmpeg(): Promise<void> {
   }
 }
 
-/** Subtle breathing zoom that returns to the start scale for a seamless loop. */
-function vfFilter(): string {
-  const z = `1.03+0.025*sin(2*PI*on/${FRAMES})`;
-  return [
-    `scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease`,
-    `pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2`,
-    `zoompan=z='${z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${WIDTH}x${HEIGHT}:fps=${FPS}`,
-    "format=yuv420p",
-  ].join(",");
-}
-
-async function encodeWebm(png: string, out: string): Promise<void> {
-  await run("ffmpeg", [
-    "-y",
-    "-loop", "1",
-    "-i", png,
-    "-vf", vfFilter(),
-    "-t", String(DURATION_SEC),
-    "-an",
-    "-c:v", "libvpx-vp9",
-    "-b:v", "250k",
-    "-crf", "36",
-    "-row-mt", "1",
-    "-deadline", "good",
-    "-cpu-used", "4",
-    out,
-  ]);
-}
-
-async function encodeMp4(png: string, out: string): Promise<void> {
-  await run("ffmpeg", [
-    "-y",
-    "-loop", "1",
-    "-i", png,
-    "-vf", vfFilter(),
-    "-t", String(DURATION_SEC),
-    "-an",
-    "-c:v", "libx264",
-    "-pix_fmt", "yuv420p",
-    "-profile:v", "baseline",
-    "-level", "3.1",
-    "-crf", "28",
-    "-preset", "veryfast",
-    "-movflags", "+faststart",
-    out,
-  ]);
-}
-
 async function fileNonEmpty(p: string): Promise<boolean> {
   try {
     const st = await fs.stat(p);
@@ -140,12 +94,122 @@ async function fileNonEmpty(p: string): Promise<boolean> {
   }
 }
 
-async function listPoseSlugs(): Promise<string[]> {
-  const entries = await fs.readdir(POSES_DIR);
-  return entries
-    .filter((f) => f.endsWith(".png") && !f.startsWith("_"))
-    .map((f) => f.replace(/\.png$/, ""))
-    .sort();
+/** Sensible entry shape when narration never leaves the peak illustration. */
+function defaultEntrySlug(asana: Asana): string | null {
+  const cat = asana.category as string;
+  const map: Record<string, string> = {
+    Standing: "tadasana",
+    "Hip Openers": "anjaneyasana",
+    Seated: "sukhasana",
+    "Forward Bends": "tadasana",
+    Backbends: "bhujangasana",
+    Inversions: "adho-mukha-svanasana",
+    Restorative: "sukhasana",
+  };
+  const entry = map[cat] ?? "tadasana";
+  return entry === asana.slug ? null : entry;
+}
+
+/**
+ * Ordered unique illustration slugs that tell the pose's shape journey.
+ * Always ends on this asana's own PNG.
+ */
+export function journeySlugsFor(asana: Asana): string[] {
+  const seq: string[] = [];
+  for (const step of asana.steps) {
+    const s = humanStepSlug(asana.slug, asana.pose, step.pose);
+    if (seq[seq.length - 1] !== s) seq.push(s);
+  }
+  if (seq[seq.length - 1] !== asana.slug) seq.push(asana.slug);
+  if (seq.length === 1) {
+    const entry = defaultEntrySlug(asana);
+    if (entry) seq.unshift(entry);
+  }
+  // Cap length so encodes stay short (~8s).
+  if (seq.length > 5) {
+    return [seq[0]!, seq[Math.floor(seq.length / 2)]!, seq[seq.length - 1]!];
+  }
+  return seq;
+}
+
+function padFilter(): string {
+  return `scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${FPS},format=yuv420p`;
+}
+
+async function encodeJourney(pngs: string[], webm: string, mp4: string | null): Promise<void> {
+  if (pngs.length === 0) throw new Error("no frames");
+
+  // Single frame: honest hold — no fake zoom drift.
+  if (pngs.length === 1) {
+    const common = [
+      "-y",
+      "-loop", "1",
+      "-i", pngs[0]!,
+      "-vf", padFilter(),
+      "-t", "4",
+      "-an",
+    ];
+    await run("ffmpeg", [
+      ...common,
+      "-c:v", "libvpx-vp9", "-b:v", "280k", "-crf", "34",
+      "-row-mt", "1", "-deadline", "good", "-cpu-used", "4",
+      webm,
+    ]);
+    if (mp4) {
+      await run("ffmpeg", [
+        ...common,
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "baseline",
+        "-level", "3.1", "-crf", "26", "-preset", "veryfast",
+        "-movflags", "+faststart",
+        mp4,
+      ]);
+    }
+    return;
+  }
+
+  // Multi-frame: hold each shape, crossfade into the next.
+  const inputs: string[] = [];
+  for (const png of pngs) {
+    inputs.push("-loop", "1", "-t", String(HOLD), "-i", png);
+  }
+
+  const parts: string[] = [];
+  for (let i = 0; i < pngs.length; i++) {
+    parts.push(`[${i}:v]${padFilter()}[v${i}]`);
+  }
+
+  let last = `v0`;
+  for (let i = 1; i < pngs.length; i++) {
+    const offset = (HOLD - FADE) * i;
+    const out = i === pngs.length - 1 ? "outv" : `vx${i}`;
+    parts.push(`[${last}][v${i}]xfade=transition=fade:duration=${FADE}:offset=${offset.toFixed(3)}[${out}]`);
+    last = out;
+  }
+
+  const filter = parts.join(";");
+  const encode = async (outPath: string, codec: string[]) => {
+    await run("ffmpeg", [
+      "-y",
+      ...inputs,
+      "-filter_complex", filter,
+      "-map", "[outv]",
+      "-an",
+      ...codec,
+      outPath,
+    ]);
+  };
+
+  await encode(webm, [
+    "-c:v", "libvpx-vp9", "-b:v", "320k", "-crf", "34",
+    "-row-mt", "1", "-deadline", "good", "-cpu-used", "4",
+  ]);
+  if (mp4) {
+    await encode(mp4, [
+      "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "baseline",
+      "-level", "3.1", "-crf", "26", "-preset", "veryfast",
+      "-movflags", "+faststart",
+    ]);
+  }
 }
 
 async function writeReadyList(slugs: string[]): Promise<void> {
@@ -191,48 +255,51 @@ async function main() {
   await ensureFfmpeg();
   await fs.mkdir(OUT_DIR, { recursive: true });
 
-  let slugs = await listPoseSlugs();
+  let asanas = [...ASANAS];
   if (args.only) {
-    if (!slugs.includes(args.only)) {
-      throw new Error(`Unknown pose slug (no PNG): ${args.only}`);
-    }
-    slugs = [args.only];
+    asanas = asanas.filter((a) => a.slug === args.only);
+    if (!asanas.length) throw new Error(`Unknown asana slug: ${args.only}`);
   }
 
   console.log(
-    `Generating pose videos for ${slugs.length} pose(s) ` +
+    `Generating step-journey pose videos for ${asanas.length} pose(s) ` +
       `(concurrency=${args.concurrency}, force=${args.force}, mp4=${!args.skipMp4})…`,
   );
 
   const started = Date.now();
   let skipped = 0;
 
-  const { ok, failed } = await mapPool(slugs, args.concurrency, async (slug, index) => {
-    const png = path.join(POSES_DIR, `${slug}.png`);
-    const webm = path.join(OUT_DIR, `${slug}.webm`);
-    const mp4 = path.join(OUT_DIR, `${slug}.mp4`);
-
-    const needWebm = args.force || !(await fileNonEmpty(webm));
-    const needMp4 = !args.skipMp4 && (args.force || !(await fileNonEmpty(mp4)));
-
-    if (!needWebm && !needMp4) {
+  const { ok, failed } = await mapPool(asanas, args.concurrency, async (asana, index) => {
+    const webm = path.join(OUT_DIR, `${asana.slug}.webm`);
+    const mp4 = path.join(OUT_DIR, `${asana.slug}.mp4`);
+    const need = args.force || !(await fileNonEmpty(webm)) || (!args.skipMp4 && !(await fileNonEmpty(mp4)));
+    if (!need) {
       skipped++;
       return;
     }
 
-    if (needWebm) await encodeWebm(png, webm);
-    if (needMp4) await encodeMp4(png, mp4);
+    const journey = journeySlugsFor(asana);
+    const pngs: string[] = [];
+    for (const slug of journey) {
+      const p = path.join(POSES_DIR, `${slug}.png`);
+      if (await fileNonEmpty(p)) pngs.push(p);
+    }
+    if (!pngs.length) {
+      const self = path.join(POSES_DIR, `${asana.slug}.png`);
+      if (!(await fileNonEmpty(self))) throw new Error(`missing PNG for ${asana.slug}`);
+      pngs.push(self);
+    }
 
-    if ((index + 1) % 10 === 0 || index === 0 || index === slugs.length - 1) {
-      console.log(`  [${index + 1}/${slugs.length}] ${slug}`);
+    await encodeJourney(pngs, webm, args.skipMp4 ? null : mp4);
+
+    if ((index + 1) % 10 === 0 || index === 0 || index === asanas.length - 1) {
+      console.log(`  [${index + 1}/${asanas.length}] ${asana.slug} (${pngs.length} frames)`);
     }
   });
 
-  // Ready list = every pose that has a non-empty webm (full inventory when batch succeeds).
-  const allSlugs = await listPoseSlugs();
   const ready: string[] = [];
-  for (const slug of allSlugs) {
-    if (await fileNonEmpty(path.join(OUT_DIR, `${slug}.webm`))) ready.push(slug);
+  for (const a of ASANAS) {
+    if (await fileNonEmpty(path.join(OUT_DIR, `${a.slug}.webm`))) ready.push(a.slug);
   }
   await writeReadyList(ready);
 
@@ -243,7 +310,7 @@ async function main() {
   console.log(`Registered ${ready.length} slugs in ${path.relative(ROOT, READY_FILE)}`);
   if (failed.length) {
     console.error("Failures:");
-    for (const f of failed) console.error(`  - ${f.item}: ${f.error.split("\n")[0]}`);
+    for (const f of failed) console.error(`  - ${(f.item as Asana).slug}: ${f.error.split("\n")[0]}`);
     process.exitCode = 1;
   }
 }
