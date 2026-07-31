@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Confetti } from "@/components/Confetti";
 import { EmptyState } from "@/components/EmptyState";
 import { useKidsGate } from "@/context/KidsGateContext";
 import { kidsPoseBySlug } from "@/data/kids";
+import { kidsPoseHasVideo, kidsPoseMediaFor } from "@/data/kidsMedia";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { todayISO } from "@/lib/sadhana";
 import { ArrowLeft, Check, Star } from "lucide-react";
@@ -71,15 +72,7 @@ export default function KidsPose() {
           </Link>
 
           <div className="grid items-center gap-6 md:grid-cols-2">
-            <div className="flex items-center justify-center rounded-2xl bg-[hsl(41_80%_88%)] p-6 dark:bg-white/5">
-              <img
-                src={`${import.meta.env.BASE_URL}kids/${pose.image}.png`}
-                alt={pose.poseName}
-                className="kids-bob h-64 w-64 object-contain"
-                draggable={false}
-                data-testid={`img-kids-${pose.slug}`}
-              />
-            </div>
+            <KidsPoseDemo slug={pose.slug} image={pose.image} poseName={pose.poseName} />
             <div className="space-y-3">
               <h1 className="kids-title text-4xl font-bold leading-tight" data-testid="text-kids-story-title">
                 {pose.title}
@@ -139,5 +132,57 @@ export default function KidsPose() {
         </div>
       )}
     </>
+  );
+}
+
+function KidsPoseDemo({
+  slug,
+  image,
+  poseName,
+}: {
+  slug: string;
+  image: string;
+  poseName: string;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [failed, setFailed] = useState(false);
+  const hasVideo = kidsPoseHasVideo(slug) && !failed;
+  const media = hasVideo ? kidsPoseMediaFor(slug) : null;
+  const poster = `${import.meta.env.BASE_URL}kids/${image}.png`;
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !hasVideo) return;
+    v.load();
+    void v.play().catch(() => undefined);
+  }, [hasVideo, slug]);
+
+  return (
+    <div className="flex items-center justify-center rounded-2xl bg-[hsl(41_80%_88%)] p-6 dark:bg-white/5">
+      {hasVideo && media ? (
+        <video
+          ref={videoRef}
+          className="h-64 w-64 object-contain"
+          poster={media.poster}
+          playsInline
+          muted
+          loop
+          aria-label={`${poseName} demonstration`}
+          onError={() => setFailed(true)}
+          data-testid={`video-kids-${slug}`}
+        >
+          <source src={media.webm} type="video/webm" />
+          <source src={media.mp4} type="video/mp4" />
+        </video>
+      ) : (
+        <img
+          src={poster}
+          alt={poseName}
+          className="kids-bob h-64 w-64 object-contain"
+          draggable={false}
+          data-testid={`img-kids-${slug}`}
+        />
+      )}
+    </div>
   );
 }

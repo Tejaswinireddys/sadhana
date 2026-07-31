@@ -38,6 +38,15 @@ The script writes files to `client/public/videos/poses/` and regenerates
 `POSE_VIDEOS_READY`. Incremental runs skip existing non-empty outputs unless
 `--force` is passed.
 
+**Coverage rule:** every entry in `ASANAS` must have both `.webm` and `.mp4` and
+appear in `POSE_VIDEOS_READY`. Unit tests enforce this.
+
+Kids story poses use the same pattern under `client/public/videos/kids/`:
+
+```bash
+npm run gen:kids-pose-videos
+```
+
 ## Enabling a pose clip
 
 After adding files for a slug, register it so the player attempts video:
