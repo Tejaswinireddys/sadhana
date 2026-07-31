@@ -4,9 +4,9 @@ dist
 .env
 .venv-tts
 rig-preview.png
+.data/
 
 # FUSE mount artifacts from remote/dev filesystems
 .fuse_hidden*
 test-results/
 playwright-report/
-

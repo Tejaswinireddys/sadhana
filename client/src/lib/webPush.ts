@@ -6,6 +6,7 @@ import { KEYS, readJson, writeJson } from "./localPrefs";
 export type PushPrefs = {
   enabled: boolean;
   endpoint?: string;
+  reminderHour?: number;
 };
 
 export function readPushPrefs(): PushPrefs {
@@ -36,8 +37,14 @@ export async function fetchVapidPublicKey(): Promise<string | null> {
   }
 }
 
+export type SubscribeOpts = {
+  reminderHour?: number;
+};
+
 /** Subscribe for Web Push. Returns false if unsupported or user denied. */
-export async function subscribeWebPush(): Promise<{ ok: boolean; message: string }> {
+export async function subscribeWebPush(
+  opts: SubscribeOpts = {},
+): Promise<{ ok: boolean; message: string }> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     return { ok: false, message: "Web Push needs a modern browser with a service worker." };
   }
@@ -57,7 +64,6 @@ export async function subscribeWebPush(): Promise<{ ok: boolean; message: string
     };
   }
 
-  // Ensure SW is registered (also in prod via main.tsx).
   const reg =
     (await navigator.serviceWorker.getRegistration()) ||
     (await navigator.serviceWorker.register("/sw.js"));
@@ -71,16 +77,44 @@ export async function subscribeWebPush(): Promise<{ ok: boolean; message: string
     });
   }
 
+  const reminderHour =
+    typeof opts.reminderHour === "number"
+      ? Math.min(23, Math.max(0, opts.reminderHour))
+      : 18;
+
   const res = await fetch("/api/push/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(sub.toJSON()),
+    body: JSON.stringify({
+      ...sub.toJSON(),
+      reminderHour,
+      timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+    }),
   });
   if (!res.ok) {
     return { ok: false, message: "Could not save push subscription on the server." };
   }
-  writePushPrefs({ enabled: true, endpoint: sub.endpoint });
+  writePushPrefs({ enabled: true, endpoint: sub.endpoint, reminderHour });
   return { ok: true, message: "Push reminders enabled — you can close the tab." };
+}
+
+/** Re-POST hour/timezone without re-requesting permission. */
+export async function syncPushReminderHour(reminderHour: number): Promise<void> {
+  const prefs = readPushPrefs();
+  if (!prefs.enabled || !prefs.endpoint) return;
+  const reg = await navigator.serviceWorker.getRegistration();
+  const sub = await reg?.pushManager.getSubscription();
+  if (!sub) return;
+  await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...sub.toJSON(),
+      reminderHour: Math.min(23, Math.max(0, reminderHour)),
+      timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+    }),
+  }).catch(() => undefined);
+  writePushPrefs({ ...prefs, reminderHour });
 }
 
 export async function unsubscribeWebPush(): Promise<void> {

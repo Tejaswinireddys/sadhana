@@ -8,7 +8,11 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Check } from "lucide-react";
 
-type BillingConfig = { enabled: boolean; note: string; cancelUrl?: string };
+type BillingConfig = {
+  enabled: boolean;
+  note: string;
+  portalAvailable?: boolean;
+};
 
 export default function Plus() {
   useDocumentTitle("Sadhana Plus · Plans");
@@ -37,9 +41,9 @@ export default function Plus() {
     }
     if (!billing.enabled) {
       toast({
-        title: `${PLANS.find((p) => p.id === id)?.name} preference saved`,
+        title: `${PLANS.find((p) => p.id === id)?.name} selected`,
         description:
-          "Checkout turns on when Stripe keys are configured — no charge and no dark patterns today.",
+          "Paid checkout is not active on this deployment yet. Free practice continues — you will not be charged.",
       });
       return;
     }
@@ -67,16 +71,41 @@ export default function Plus() {
     }
   };
 
+  const openPortal = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/billing/portal", { method: "POST" });
+      const data = (await res.json()) as { url?: string; error?: string; hint?: string };
+      if (!res.ok || !data.url) {
+        toast({
+          title: "Manage subscription",
+          description: data.hint || data.error || "Subscribe once to unlock the cancel portal.",
+          variant: "destructive",
+        });
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      toast({ title: "Network error", description: "Could not open the billing portal." });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <FadeIn className="mx-auto max-w-3xl space-y-6 py-2">
       <header className="space-y-2">
         <h1 className="font-serif text-3xl font-semibold tracking-tight">Plans</h1>
         <p className="text-muted-foreground">
-          Transparent tiers. Clear cancel path. Safety library, captions, and basic modifications stay
-          free forever — we refuse the category&apos;s dark-pattern billing playbook.
+          The privacy-first yoga app that never shames you for missing a day — with billing that
+          matches that promise. Transparent tiers. Cancel anytime. Safety library, captions, and
+          guest practice stay free forever.
         </p>
         <p className="text-xs text-muted-foreground" data-testid="billing-status">
-          {billing.note || (billing.enabled ? "Checkout is live." : "Billing keys not set — preference only.")}
+          {billing.note ||
+            (billing.enabled
+              ? "Checkout is live."
+              : "Free forever on this deployment until paid checkout is configured.")}
         </p>
       </header>
 
@@ -139,22 +168,29 @@ export default function Plus() {
                   : billing.enabled
                     ? `Subscribe · ${p.name}`
                     : plan === p.id
-                      ? "Preference saved"
-                      : "Notify me"}
+                      ? "Selected"
+                      : `Choose ${p.name}`}
               </Button>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {billing.enabled && billing.cancelUrl && (
-        <p className="text-sm text-muted-foreground">
-          Cancel anytime via the{" "}
-          <a href={billing.cancelUrl} className="underline underline-offset-2" target="_blank" rel="noreferrer">
-            Stripe customer portal
-          </a>
-          .
-        </p>
+      {billing.enabled && billing.portalAvailable && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="outline"
+            className="min-h-11"
+            disabled={busy}
+            onClick={() => void openPortal()}
+            data-testid="billing-portal"
+          >
+            Manage subscription / cancel
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            One-click cancel in Stripe&apos;s customer portal — no chatbots, no dark patterns.
+          </p>
+        </div>
       )}
 
       <p className="text-xs text-muted-foreground">
@@ -165,8 +201,8 @@ export default function Plus() {
         and{" "}
         <Link href="/terms" className="underline underline-offset-2">
           Terms
-        </Link>
-        .
+        </Link>{" "}
+        for fair-billing commitments.
       </p>
     </FadeIn>
   );

@@ -128,7 +128,7 @@ minutes of inactivity; the first visit after that takes ~30 seconds to wake.
 ## Design system & product video
 
 - Preview UI tokens and states at `/#/design-system` (also linked from Settings).
-- Product demo video placeholders: [`docs/product-videos.md`](docs/product-videos.md).
+- Product overview demo video: [`docs/product-videos.md`](docs/product-videos.md) (wired on the landing page).
 - Landing hero 3D approach: [`docs/hero-3d.md`](docs/hero-3d.md).
 - Logic surfaces that must stay stable: [`docs/architecture-invariants.md`](docs/architecture-invariants.md).
 

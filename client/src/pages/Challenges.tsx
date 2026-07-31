@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { FadeIn } from "@/components/motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  clearBuddyPair,
-  pairBuddy,
+  clearBuddyPairRemote,
+  pairBuddyRemote,
   readBuddy,
-  recordBuddyNudge,
+  registerBuddyRemote,
+  sendBuddyNudgeRemote,
   writeBuddy,
   type PracticeBuddy,
 } from "@/lib/practiceBuddy";
@@ -41,7 +42,7 @@ const CHALLENGES = [
     title: "Chair crew",
     blurb: "Three chair or limited-mobility sessions this week.",
     pathwaySlug: "chair-limited-mobility",
-    privacy: "Aliases only if group mode ships later; report/block ready.",
+    privacy: "Private progress only — no public leaderboard.",
   },
 ] as const;
 
@@ -51,6 +52,11 @@ export default function Challenges() {
   const [buddy, setBuddy] = useState<PracticeBuddy>(() => readBuddy());
   const [pairCode, setPairCode] = useState("");
   const [name, setName] = useState(buddy.displayName);
+
+  useEffect(() => {
+    void registerBuddyRemote(buddy).then(setBuddy);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- register once on mount
+  }, []);
 
   return (
     <FadeIn className="space-y-6">
@@ -69,7 +75,8 @@ export default function Challenges() {
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
             Share your code with one person. No leaderboards, no body metrics — just a nudge that
-            showing up is enough.
+            showing up is enough. Encouragement can arrive as a push when your buddy has reminders
+            on.
           </p>
           <div className="space-y-2">
             <Label htmlFor="buddy-name">Your display name</Label>
@@ -82,6 +89,7 @@ export default function Challenges() {
                 const next = { ...buddy, displayName: name.trim() || "Friend" };
                 writeBuddy(next);
                 setBuddy(next);
+                void registerBuddyRemote(next);
               }}
             />
           </div>
@@ -98,10 +106,15 @@ export default function Challenges() {
                 <Button
                   className="min-h-11"
                   onClick={() => {
-                    setBuddy(recordBuddyNudge());
-                    toast({
-                      title: "Nudge noted",
-                      description: "Your buddy encouragement is saved on this device.",
+                    void sendBuddyNudgeRemote().then(({ buddy: next, deliveredPush }) => {
+                      setBuddy(next);
+                      toast({
+                        title: deliveredPush > 0 ? "Encouragement sent" : "Encouragement recorded",
+                        description:
+                          deliveredPush > 0
+                            ? "A push went to your buddy's device."
+                            : "Saved — your buddy will see it next time they open Challenges (enable push for live delivery).",
+                      });
                     });
                   }}
                   data-testid="buddy-nudge"
@@ -111,7 +124,9 @@ export default function Challenges() {
                 <Button
                   variant="outline"
                   className="min-h-11"
-                  onClick={() => setBuddy(clearBuddyPair())}
+                  onClick={() => {
+                    void clearBuddyPairRemote().then(setBuddy);
+                  }}
                 >
                   Unpair
                 </Button>
@@ -130,14 +145,15 @@ export default function Challenges() {
               <Button
                 className="min-h-11"
                 onClick={() => {
-                  const next = pairBuddy(pairCode);
-                  setBuddy(next);
-                  setPairCode("");
-                  toast({
-                    title: next.pairedWithCode ? "Paired" : "Could not pair",
-                    description: next.pairedWithCode
-                      ? "You’re connected privately on this device."
-                      : "Enter a valid buddy code (not your own).",
+                  void pairBuddyRemote(pairCode, name.trim() || "Friend").then((next) => {
+                    setBuddy(next);
+                    setPairCode("");
+                    toast({
+                      title: next.pairedWithCode ? "Paired" : "Could not pair",
+                      description: next.pairedWithCode
+                        ? "You’re connected privately — no public feed."
+                        : "Ask your buddy to open Challenges once, then enter their SB- code.",
+                    });
                   });
                 }}
                 data-testid="buddy-pair"

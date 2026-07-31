@@ -35,6 +35,8 @@ export type SessionMeta = {
    * modal — four check-ins in one flow is an interrogation, not a practice.
    */
   preMood?: Mood | null;
+  /** Pose slug for an illustrated intro clip on the guided start screen. */
+  introPoseSlug?: string | null;
 };
 
 type PracticeContextType = {
@@ -64,6 +66,7 @@ const DEFAULT_META: SessionMeta = {
   breathSlug: null,
   plannedMinutes: null,
   preMood: null,
+  introPoseSlug: null,
 };
 
 function hydrateFromStorage(): {

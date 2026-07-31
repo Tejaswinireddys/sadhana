@@ -71,7 +71,7 @@ import { PoseTrainerStage } from "@/components/PoseTrainerStage";
 import { momentumClass } from "@/lib/poseMomentum";
 import { PoseImage } from "@/components/PoseImage";
 import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
-import { poseNarrationSrc } from "@/data/poseMedia";
+import { poseNarrationSrc, poseHasVideo, poseMediaFor } from "@/data/poseMedia";
 import { practiceHoldCues } from "@/lib/poseExplanation";
 import {
   QUICK_SESSIONS,
@@ -154,6 +154,7 @@ export default function GuidedSession() {
       label: q.label,
       plannedMinutes: sessionMinutes(q.poses),
       breathSlug: q.breathSlug ?? null,
+      introPoseSlug: q.introPoseSlug ?? q.poses[0]?.slug ?? null,
     });
   };
 
@@ -1093,6 +1094,25 @@ export default function GuidedSession() {
             {meta.label ? `${meta.label} · ` : ""}
             {todays.length} poses · a continuous voice-narrated flow.
           </p>
+          {meta.introPoseSlug && poseHasVideo(meta.introPoseSlug) && (
+            <div
+              className="w-full max-w-sm overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft"
+              data-testid="mood-intro-video"
+            >
+              <video
+                className="aspect-video w-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                poster={poseMediaFor(meta.introPoseSlug).poster}
+                aria-label={`Illustrated intro for ${meta.label ?? "this session"}`}
+              >
+                <source src={poseMediaFor(meta.introPoseSlug).webm} type="video/webm" />
+                <source src={poseMediaFor(meta.introPoseSlug).mp4} type="video/mp4" />
+              </video>
+            </div>
+          )}
           {/* Guided is primary; timer-only is the secondary mode */}
           <div className="inline-flex rounded-full border border-border bg-card p-0.5 text-sm" data-testid="mode-toggle">
             <button

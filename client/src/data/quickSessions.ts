@@ -9,6 +9,8 @@ export type QuickSession = {
   intent: string;
   poses: Array<{ slug: string; holdSeconds: number }>;
   breathSlug?: string;
+  /** First pose slug used as a short illustrated intro clip on the guided start screen. */
+  introPoseSlug?: string;
 };
 
 /**
@@ -52,6 +54,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     icon: HeartPulse,
     label: "I'm tense",
     intent: "Release",
+    introPoseSlug: "simhasana",
     poses: [
       { slug: "simhasana", holdSeconds: 30 },
       { slug: "apanasana", holdSeconds: 60 },
@@ -67,6 +70,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     icon: Moon,
     label: "I'm tired",
     intent: "Restore",
+    introPoseSlug: "salamba-balasana",
     poses: [
       { slug: "salamba-balasana", holdSeconds: 90 },
       { slug: "salamba-bhujangasana", holdSeconds: 45 },
@@ -79,6 +83,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     icon: Sunrise,
     label: "I'm low energy",
     intent: "Energize",
+    introPoseSlug: "urdhva-hastasana",
     poses: [
       { slug: "urdhva-hastasana", holdSeconds: 20 },
       { slug: "chakravakasana", holdSeconds: 30 },
@@ -98,6 +103,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     icon: Wind,
     label: "I'm anxious",
     intent: "Calm",
+    introPoseSlug: "vajrasana",
     poses: [
       { slug: "vajrasana", holdSeconds: 60 },
       { slug: "salamba-balasana", holdSeconds: 90 },
@@ -114,6 +120,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     icon: Smile,
     label: "I need a reset",
     intent: "Feel good",
+    introPoseSlug: "urdhva-hastasana",
     poses: [
       { slug: "urdhva-hastasana", holdSeconds: 20 },
       { slug: "simhasana", holdSeconds: 30 },
@@ -132,6 +139,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     icon: CloudMoon,
     label: "Before bed",
     intent: "Sleep",
+    introPoseSlug: "salamba-balasana",
     poses: [
       { slug: "salamba-balasana", holdSeconds: 90 },
       { slug: "pawanmuktasana", holdSeconds: 60 },

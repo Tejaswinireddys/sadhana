@@ -332,13 +332,13 @@ export default function Home() {
     pastReminderHour &&
     !isLoading;
 
-  // Optional browser notification when the tab is open past the reminder hour.
+  // Optional browser notification fallback when the tab is open (Web Push is primary).
   useEffect(() => {
     if (!showReminder || !reminderPrefs.notifications) return;
     if (!("Notification" in window) || Notification.permission !== "granted") return;
     try {
       new Notification("Time for Sadhana", {
-        body: "A few mindful minutes will meet you where you are.",
+        body: "A few mindful minutes — no streak guilt.",
         tag: `sadhana-reminder-${todayISO()}`,
       });
     } catch {

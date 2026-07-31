@@ -8,11 +8,14 @@ import {
   ArrowRight,
   BookOpen,
   Compass,
+  Github,
   Play,
+  Shield,
   Smile,
   UserRound,
 } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { CONTENT_REVIEW } from "@/data/contentProvenance";
 
 const ProductDemoVideo = lazy(() =>
   import("@/components/ProductDemoVideo").then((m) => ({ default: m.ProductDemoVideo })),
@@ -56,7 +59,7 @@ const FAQ = [
   },
   {
     q: "Is Sadhana free?",
-    a: "Yes. The core library and guest practice stay free. Optional Plus/Coach plans fund deeper features when billing is enabled — cancel anytime, no dark patterns.",
+    a: "Yes. The core library and guest practice stay free forever. Optional Plus/Coach plans fund deeper features with clear pricing and cancel-anytime billing — no dark patterns.",
   },
   {
     q: "Do I need an account?",
@@ -244,6 +247,58 @@ export default function Landing() {
                 <ProductDemoVideo title="A real walkthrough of the Sadhana app" />
               </Suspense>
             </Reveal>
+          </div>
+        </section>
+
+        <section id="trust" className="yoga-atmosphere" data-testid="landing-trust">
+          <div className="mx-auto max-w-5xl px-4 py-16 md:px-6 md:py-20">
+            <Reveal className="mb-10 max-w-xl space-y-2">
+              <h2 className="font-serif text-3xl font-semibold tracking-tight">Trust without an App Store wall</h2>
+              <p className="text-muted-foreground">
+                No star-farm yet — instead, open source, privacy you can inspect, and safety notes that
+                admit their limits.
+              </p>
+            </Reveal>
+            <div className="grid gap-8 sm:grid-cols-3">
+              <Reveal className="space-y-2">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Github className="h-5 w-5" aria-hidden />
+                </span>
+                <h3 className="font-serif text-lg font-semibold">MIT open source</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Read the code on{" "}
+                  <a
+                    href="https://github.com/Tejaswinireddys/sadhana"
+                    className="underline underline-offset-2"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    GitHub
+                  </a>
+                  . No black-box habit guilt loops.
+                </p>
+              </Reveal>
+              <Reveal delay={0.05} className="space-y-2">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Shield className="h-5 w-5" aria-hidden />
+                </span>
+                <h3 className="font-serif text-lg font-semibold">Privacy-first by design</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Guest practice on-device. Optional account only for sync. Export or delete anytime —
+                  no App Store login required to start.
+                </p>
+              </Reveal>
+              <Reveal delay={0.1} className="space-y-2">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <BookOpen className="h-5 w-5" aria-hidden />
+                </span>
+                <h3 className="font-serif text-lg font-semibold">Safety notes you can audit</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Content review {CONTENT_REVIEW.version} · {CONTENT_REVIEW.reviewedAt}. Educational
+                  guidance, not clinical clearance.
+                </p>
+              </Reveal>
+            </div>
           </div>
         </section>
 

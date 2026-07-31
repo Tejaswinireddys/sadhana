@@ -1,6 +1,6 @@
 /**
- * Instructor / studio marketplace scaffolding (verified humans).
- * No live payouts yet — profiles + schedule stubs for product validation.
+ * Verified instructors and a small live-class pilot.
+ * Join links open an external session (YouTube Live / Zoom) — no in-app streaming stack.
  */
 export type InstructorCredential = {
   title: string;
@@ -16,10 +16,12 @@ export type LiveClass = {
   level: "Beginner" | "All levels" | "Intermediate";
   seats: number;
   /**
-   * Real join link for the live pilot (Zoom / YouTube Live / Mux).
+   * Live pilot join link (Zoom / YouTube Live / Mux).
    * Opens in a new tab — no in-app streaming stack required.
    */
   joinUrl: string;
+  /** Honest pilot label — not fabricated review counts. */
+  pilotNote?: string;
 };
 
 export type Instructor = {
@@ -30,8 +32,6 @@ export type Instructor = {
   accessibility: string[];
   bio: string;
   credentials: InstructorCredential[];
-  rating: number;
-  reviewCount: number;
   live: LiveClass[];
   verified: boolean;
 };
@@ -48,19 +48,17 @@ export const INSTRUCTORS: Instructor[] = [
       { title: "RYT-500", issuer: "Yoga Alliance", year: 2018 },
       { title: "Prenatal Yoga", issuer: "Birthlight", year: 2021 },
     ],
-    rating: 4.9,
-    reviewCount: 128,
     verified: true,
     live: [
       {
         id: "maya-calm-thu",
-        title: "Evening calm (live)",
+        title: "Evening calm (live pilot)",
         startsAt: new Date(Date.now() + 2 * 86400000).toISOString(),
         minutes: 45,
         level: "All levels",
         seats: 24,
-        // Pilot: public Yoga With Adriene calm practice as stand-in stream until studio Zoom is booked.
         joinUrl: "https://www.youtube.com/watch?v=sTANio7pLuA",
+        pilotNote: "Pilot class · public live room until studio Zoom is booked",
       },
     ],
   },
@@ -72,18 +70,17 @@ export const INSTRUCTORS: Instructor[] = [
     accessibility: ["Voice-first cues", "No floor required options"],
     bio: "Athletic mobility with conservative load progressions.",
     credentials: [{ title: "E-RYT-200", issuer: "Yoga Alliance", year: 2016 }],
-    rating: 4.7,
-    reviewCount: 86,
     verified: true,
     live: [
       {
         id: "jon-am",
-        title: "Desk-to-mat reset",
+        title: "Desk-to-mat reset (live pilot)",
         startsAt: new Date(Date.now() + 86400000).toISOString(),
         minutes: 30,
         level: "Beginner",
         seats: 40,
         joinUrl: "https://www.youtube.com/watch?v=4pKly2JojMw",
+        pilotNote: "Pilot class · seats limited",
       },
     ],
   },
@@ -95,8 +92,6 @@ export const INSTRUCTORS: Instructor[] = [
     accessibility: ["Captions", "Reduced-motion friendly"],
     bio: "Long holds and nervous-system downshifts for stressed professionals.",
     credentials: [{ title: "Yin Yoga Teacher", issuer: "Paulie Zink lineage program", year: 2019 }],
-    rating: 4.8,
-    reviewCount: 64,
     verified: true,
     live: [],
   },
