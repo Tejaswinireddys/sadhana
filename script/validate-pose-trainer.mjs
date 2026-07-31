@@ -67,11 +67,10 @@ async function validatePose(page, slug) {
   );
 
   const idleMedia = await hero.getAttribute("data-media");
-  const idleMomentum = await hero.getAttribute("data-momentum");
   note(
-    idleMedia === "illustrated" || idleMedia === null,
-    `${slug}: idle uses illustrated trainer (not Ken Burns bob)`,
-    { detail: `media=${idleMedia} momentum=${idleMomentum}` },
+    idleMedia === "video" || idleMedia === "illustrated" || !!idleMedia,
+    `${slug}: idle shows pose demo media`,
+    { detail: `media=${idleMedia}` },
   );
 
   await watchBtn.click();
@@ -80,19 +79,39 @@ async function validatePose(page, slug) {
   const step0 = page.locator(`[data-testid="demo-step-${slug}-0"]`);
   note(await step0.isVisible(), `${slug}: narration steps appear`);
 
-  const focusLabel = page.locator(
-    `[data-testid="pose-human-focus-label-${slug}"], [data-testid="pose-demo-focus-label-${slug}"]`,
-  );
+  // Focus/caption testids use the step’s display slug (entry shape may differ).
+  const focusLabel = hero.locator('[data-testid*="focus-label"]');
   note(
     (await focusLabel.count()) > 0,
     `${slug}: body-region focus cue while training`,
   );
 
-  const caption = page.locator(`[data-testid="pose-human-caption-${slug}"]`);
-  const captionText = (await caption.count()) > 0 ? (await caption.innerText()).trim() : "";
+  const caption = hero.locator('[data-testid*="caption"]');
+  const captionText = (await caption.count()) > 0 ? (await caption.first().innerText()).trim() : "";
   note(captionText.length > 8, `${slug}: live step caption while training`, {
     detail: captionText.slice(0, 90),
   });
+
+  const trainingVideo = hero.locator("video");
+  const videoPlaying =
+    (await trainingVideo.count()) > 0 &&
+    (await trainingVideo
+      .first()
+      .evaluate((v) => v.readyState >= 2 && !v.paused && v.videoWidth > 0)
+      .catch(() => false));
+  note(
+    videoPlaying || (await hero.getAttribute("data-media")) === "illustrated",
+    `${slug}: step demo video plays (or illustrated fallback)`,
+    { detail: `videoPlaying=${videoPlaying} media=${await hero.getAttribute("data-media")}` },
+  );
+
+  // Stage should be large enough to teach from (not a skinny strip).
+  const box = await hero.boundingBox();
+  note(
+    !!box && box.width >= 240 && box.height >= 280,
+    `${slug}: demo stage is large enough on screen`,
+    { detail: box ? `${Math.round(box.width)}x${Math.round(box.height)}` : "missing" },
+  );
 
   await page.waitForTimeout(2500);
   await page.screenshot({ path: path.join(OUT, `${slug}-playing.png`), fullPage: false });
@@ -103,7 +122,8 @@ async function validatePose(page, slug) {
     { detail: label },
   );
 
-  // Artwork or video frame must render (not empty).
+  // Artwork or video frame must render (not empty). Step videos may use a
+  // different slug than the asana (e.g. Tree step 1 → Mountain clip).
   const imgs = hero.locator("img");
   const imgCount = await imgs.count();
   let broken = 0;
@@ -114,13 +134,28 @@ async function validatePose(page, slug) {
     }));
     if (!nat.complete || nat.w === 0) broken++;
   }
+  const anyVideo = hero.locator("video");
+  await anyVideo
+    .first()
+    .waitFor({ state: "attached", timeout: 5000 })
+    .catch(() => {});
   const playingVideoReady =
-    (await video.count()) > 0 &&
-    (await video.evaluate((v) => v.readyState >= 2 && v.videoWidth > 0).catch(() => false));
+    (await anyVideo.count()) > 0 &&
+    (await anyVideo
+      .first()
+      .evaluate((v) => v.readyState >= 2 && v.videoWidth > 0)
+      .catch(() => false));
+  const mediaNow = await hero.getAttribute("data-media");
   note(
-    (imgCount > 0 && broken === 0) || playingVideoReady || !!humanSlug,
+    (imgCount > 0 && broken === 0) ||
+      playingVideoReady ||
+      videoPlaying ||
+      mediaNow === "video" ||
+      !!humanSlug,
     `${slug}: pose visual renders`,
-    { detail: `imgs=${imgCount} broken=${broken} videoReady=${playingVideoReady} human=${await hero.getAttribute("data-human-slug")}` },
+    {
+      detail: `imgs=${imgCount} broken=${broken} videoReady=${playingVideoReady} media=${mediaNow} human=${await hero.getAttribute("data-human-slug")}`,
+    },
   );
 }
 

@@ -46,6 +46,8 @@ type PoseDemoStageProps = {
    */
   restartToken?: number;
   focusZone?: FocusZone | null;
+  /** Live step caption overlaid on the demo (training clarity). */
+  caption?: string | null;
   /** Narration step index — advances the 3D camera / focus moment. */
   stepIndex?: number;
   /**
@@ -93,6 +95,7 @@ export function PoseDemoStage({
   playing = false,
   restartToken = 0,
   focusZone = null,
+  caption = null,
   stepIndex = 0,
   stepProgress = 1,
   stepCount = 1,
@@ -295,118 +298,118 @@ export function PoseDemoStage({
       data-testid={testId ?? `pose-demo-stage-${slug}`}
       data-media={useVideo && videoReady ? "video" : "illustration"}
     >
-      {useVideo && showSources && (
-        <video
-          ref={videoRef}
-          className={cn(
-            "absolute inset-0 h-full w-full object-contain",
-            (!videoReady || videoFailed) && "invisible",
-          )}
-          poster={media.poster}
-          playsInline
-          muted
-          loop
-          preload={saveData ? "none" : "auto"}
-          aria-label={alt}
-          onLoadedData={() => setVideoReady(true)}
-          onCanPlay={() => setVideoReady(true)}
-          onError={() => setVideoFailed(true)}
-          data-testid={`pose-demo-video-${slug}`}
-        >
-          <source src={media.mp4} type="video/mp4" />
-          <source src={media.webm} type="video/webm" />
-          {media.captions ? (
-            <track kind="captions" src={media.captions} srcLang="en" label="English" />
-          ) : null}
-        </video>
-      )}
-
-      {useVideo && showSources && !videoReady && !videoFailed && (
-        <div
-          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-accent/10"
-          aria-hidden
-        >
-          <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
-        </div>
-      )}
-
-      {showIllustration &&
-        (imgErrored ? (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
-            <PoseSvg pose={poseKey} size={variant === "practice" ? 200 : 180} />
-            <span className="text-xs">Pose guide unavailable</span>
-          </div>
-        ) : (
-          <img
-            src={media.poster}
-            alt={alt}
-            draggable={false}
-            onError={() => setImgErrored(true)}
+      <div className={cn("absolute inset-0", caption ? "px-2 pb-14 pt-9" : "p-2")}>
+        {useVideo && showSources && (
+          <video
+            ref={videoRef}
             className={cn(
-              // Tall 1:2 sources — contain (never cover) so head + feet stay on screen.
-              "absolute inset-0 h-full w-full select-none object-contain",
-              variant === "detail" && "rounded-2xl shadow-soft-lg",
-              playing && !reduceMotion ? "photo-breath-demo photo-brightness-pulse" : "photo-breath",
+              "h-full w-full object-contain object-center",
+              (!videoReady || videoFailed) && "invisible absolute inset-0",
             )}
-            data-testid={`pose-demo-poster-${slug}`}
-          />
-        ))}
+            poster={media.poster}
+            playsInline
+            muted
+            loop
+            preload={saveData ? "none" : "auto"}
+            aria-label={alt}
+            onLoadedData={() => setVideoReady(true)}
+            onCanPlay={() => setVideoReady(true)}
+            onError={() => setVideoFailed(true)}
+            data-testid={`pose-demo-video-${slug}`}
+          >
+            <source src={media.mp4} type="video/mp4" />
+            <source src={media.webm} type="video/webm" />
+            {media.captions ? (
+              <track kind="captions" src={media.captions} srcLang="en" label="English" />
+            ) : null}
+          </video>
+        )}
 
-      {showIllustration && focusZone && box.w > 0 && box.h > 0 && (
-        (() => {
-          const clampedCy = Math.min(0.8, Math.max(0.2, focusZone.cy));
-          const cx = box.offsetX + focusZone.cx * box.w;
-          const cy = box.offsetY + clampedCy * box.h;
-          const r = focusZone.r * (variant === "detail" ? 0.7 : 1) * Math.min(box.w, box.h);
-          const tween = "cx 300ms ease, cy 300ms ease, r 300ms ease";
-          return (
-            <svg
-              viewBox={`0 0 ${box.wrapW || 1} ${box.wrapH || 1}`}
-              preserveAspectRatio="none"
-              className="pointer-events-none absolute inset-0 h-full w-full"
-              aria-hidden
-              data-testid={`pose-demo-focus-${slug}`}
-            >
-              <circle
-                className="focus-halo-breath"
-                cx={cx}
-                cy={cy}
-                r={r}
-                fill="hsl(var(--primary))"
-                fillOpacity={0.18}
-                style={{ transition: tween }}
-              />
-              <circle
-                cx={cx}
-                cy={cy}
-                r={r}
-                fill="none"
-                stroke="hsl(var(--primary))"
-                strokeWidth={Math.max(2, box.w * 0.006)}
-                strokeOpacity={0.85}
-                style={{ transition: tween }}
-              />
-              <circle
-                className="focus-dot-pulse"
-                cx={cx}
-                cy={cy}
-                r={Math.max(3, box.w * 0.012)}
-                fill="hsl(var(--primary))"
-                style={{ transition: tween }}
-              />
-            </svg>
-          );
-        })()
+        {useVideo && showSources && !videoReady && !videoFailed && (
+          <div
+            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-accent/10"
+            aria-hidden
+          >
+            <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {showIllustration &&
+          (imgErrored ? (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
+              <PoseSvg pose={poseKey} size={variant === "practice" ? 200 : 180} />
+              <span className="text-xs">Pose guide unavailable</span>
+            </div>
+          ) : (
+            <img
+              src={media.poster}
+              alt={alt}
+              draggable={false}
+              onError={() => setImgErrored(true)}
+              className={cn(
+                "h-full w-full select-none object-contain object-center",
+                variant === "detail" && "rounded-2xl shadow-soft-lg",
+                // Still poster only — avoid extra bob when video isn't ready.
+                !useVideo &&
+                  (playing && !reduceMotion
+                    ? "photo-breath-demo photo-brightness-pulse"
+                    : "photo-breath"),
+              )}
+              data-testid={`pose-demo-poster-${slug}`}
+            />
+          ))}
+      </div>
+
+      {/* Focus + caption work on video and illustration */}
+      {focusZone && (
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
+          aria-hidden
+          data-testid={`pose-demo-focus-${slug}`}
+        >
+          <circle
+            className="focus-halo-breath"
+            cx={focusZone.cx * 100}
+            cy={Math.min(80, Math.max(12, focusZone.cy * 100))}
+            r={focusZone.r * 55}
+            fill="hsl(var(--primary))"
+            fillOpacity={0.16}
+            style={{ transition: "cx 350ms ease, cy 350ms ease, r 350ms ease" }}
+          />
+          <circle
+            cx={focusZone.cx * 100}
+            cy={Math.min(80, Math.max(12, focusZone.cy * 100))}
+            r={focusZone.r * 55}
+            fill="none"
+            stroke="hsl(var(--primary))"
+            strokeWidth={1.2}
+            strokeOpacity={0.9}
+            style={{ transition: "cx 350ms ease, cy 350ms ease, r 350ms ease" }}
+          />
+        </svg>
       )}
 
-      {showIllustration && focusZone?.label && (
+      {focusZone?.label && (
         <span
-          className="absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full bg-background/85 px-3 py-1 text-xs font-medium text-primary shadow-soft backdrop-blur-sm"
+          className="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-full bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary shadow-soft backdrop-blur-sm"
           data-testid={`pose-demo-focus-label-${slug}`}
         >
           {focusZone.label}
         </span>
       )}
+
+      {caption ? (
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/70 via-black/35 to-transparent px-3 pb-3 pt-10"
+          data-testid={`pose-demo-caption-${slug}`}
+        >
+          <p className="text-center text-xs font-medium leading-snug text-white sm:text-sm">
+            {caption}
+          </p>
+        </div>
+      ) : null}
 
       {preferVideo && videoFailed && variant === "detail" && (
         <span
