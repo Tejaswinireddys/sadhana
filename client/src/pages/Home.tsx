@@ -24,6 +24,7 @@ import { profileById } from "@/data/profiles";
 import { resolveIcon } from "@/lib/icons";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
 import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/lib/localPrefs";
+import { isHabitDay, readHabitPlan } from "@/lib/habitPlan";
 import type { UserProfile, Enrollment, FavoriteAsana, CustomFlow, Journal } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { QUICK_SESSIONS, sessionMinutes, sessionTimeLabel } from "@/data/quickSessions";
@@ -135,6 +136,7 @@ export default function Home() {
     hour: 18,
     notifications: false,
   });
+  const habitPlan = readHabitPlan();
 
   const profile = profileById(activeProfileRow?.profileId);
   const practitionerName = readString(KEYS.practitionerName)?.trim() || null;
@@ -318,6 +320,8 @@ export default function Home() {
     const todayEntry = stats?.heatmap?.find((h) => h.date === today);
     return !!todayEntry && todayEntry.minutes > 0;
   })();
+  const habitDayToday = isHabitDay(habitPlan);
+  const recoveryMode = habitPlan.compassionateRecovery && !practicedToday;
   const pastReminderHour = new Date().getHours() >= (reminderPrefs.hour ?? 18);
   const reminderDismissedToday = readString(KEYS.reminderDismissedDay) === todayISO();
   const showReminder =
@@ -448,10 +452,16 @@ export default function Home() {
               </span>
               <div>
                 <p className="font-serif text-lg leading-tight">
-                  Five minutes of practice before sleep?
+                  {recoveryMode
+                    ? habitDayToday
+                      ? "Missed a beat? A five-minute reset still counts."
+                      : "Five minutes of practice before sleep?"
+                    : "Five minutes of practice before sleep?"}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Even just Child's Pose counts. Your body will thank you.
+                  {recoveryMode
+                    ? "No streak punishment — Child's Pose is enough. Your chain is not broken."
+                    : "Even just Child's Pose counts. Your body will thank you."}
                 </p>
               </div>
             </div>
@@ -944,8 +954,13 @@ export default function Home() {
         </Card>
       ) : (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard icon={Flame} label="Current streak (days)" value={stats?.currentStreak ?? 0} testId="stat-current-streak" />
-          <StatCard icon={Trophy} label="Longest streak (days)" value={stats?.longestStreak ?? 0} testId="stat-longest-streak" />
+          <StatCard
+            icon={Flame}
+            label={habitPlan.compassionateRecovery ? "Days practiced (no shame)" : "Current streak (days)"}
+            value={stats?.currentStreak ?? 0}
+            testId="stat-current-streak"
+          />
+          <StatCard icon={Trophy} label="Longest stretch (days)" value={stats?.longestStreak ?? 0} testId="stat-longest-streak" />
           <StatCard icon={CalendarCheck} label="Total sessions" value={stats?.totalSessions ?? 0} testId="stat-total-sessions" />
           <StatCard icon={Clock} label="Minutes practiced" value={stats?.totalMinutes ?? 0} testId="stat-total-minutes" />
         </div>

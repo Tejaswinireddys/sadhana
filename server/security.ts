@@ -47,7 +47,7 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader(
     "Permissions-Policy",
-    "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()",
+    "camera=(self), microphone=(self), geolocation=(), payment=(self), usb=()",
   );
   res.setHeader(
     "Content-Security-Policy",
@@ -119,6 +119,10 @@ export function requireSameOrigin(req: Request, res: Response, next: NextFunctio
   }
   // Platform API uses API keys rather than cookies — CSRF not applicable.
   if (req.path.startsWith("/v1") || req.originalUrl.startsWith("/api/v1")) {
+    return next();
+  }
+  // Stripe webhooks are signed; Origin is absent by design.
+  if (req.originalUrl.startsWith("/api/billing/webhook")) {
     return next();
   }
   if (req.get("x-api-key")) return next();

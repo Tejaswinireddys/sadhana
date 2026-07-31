@@ -1,6 +1,6 @@
 /**
- * Transparent subscription tiers (scaffolding).
- * Payments are not wired — this documents plans and stores a local preference only.
+ * Transparent subscription tiers.
+ * Stripe Checkout activates when STRIPE_SECRET_KEY (+ price IDs) are set.
  */
 export type PlanId = "free" | "plus" | "coach";
 

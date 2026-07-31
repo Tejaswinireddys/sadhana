@@ -60,6 +60,8 @@ export const KEYS = {
   household: "sadhana.household",
   voiceControl: "sadhana.voiceControl",
   poseCoachConsent: "sadhana.poseCoach.consent",
+  webPush: "sadhana.webPush",
+  practiceBuddy: "sadhana.practiceBuddy",
 } as const;
 
 export type ReminderPrefs = {

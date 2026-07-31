@@ -38,6 +38,9 @@ import {
 import { habitDayLabel, readHabitPlan, writeHabitPlan, type HabitPlan } from "@/lib/habitPlan";
 import { readAnalyticsPrefs, writeAnalyticsPrefs } from "@/lib/analytics";
 import { readVoicePrefs, writeVoicePrefs } from "@/lib/voiceControl";
+import { subscribeWebPush, unsubscribeWebPush, readPushPrefs } from "@/lib/webPush";
+import { downloadHealthWorkout } from "@/lib/healthExport";
+import { todayISO } from "@/lib/sadhana";
 import type { Session } from "@shared/schema";
 import { Moon, Sun, Laptop, Download, Upload, Trash2, Bell, CalendarPlus, Info, UserRound } from "lucide-react";
 import { Link } from "wouter";
@@ -60,6 +63,7 @@ export default function Settings() {
   const [habit, setHabit] = useState<HabitPlan>(() => readHabitPlan());
   const [analyticsOn, setAnalyticsOn] = useState(() => readAnalyticsPrefs().enabled);
   const [voiceOn, setVoiceOn] = useState(() => readVoicePrefs().enabled);
+  const [pushOn, setPushOn] = useState(() => readPushPrefs().enabled);
   const [offlineStatus, setOfflineStatus] = useState({ present: false, entries: 0 });
 
   useEffect(() => {
@@ -88,12 +92,23 @@ export default function Settings() {
     const perm = await Notification.requestPermission();
     const enabled = perm === "granted";
     saveReminder({ ...reminder, notifications: enabled });
-    toast({
-      title: enabled ? "Notifications enabled" : "Notifications blocked",
-      description: enabled
-        ? "You'll get a gentle nudge around your reminder hour when the tab is open."
-        : "You can still use the in-app banner and calendar file.",
-    });
+    if (enabled) {
+      const push = await subscribeWebPush();
+      setPushOn(push.ok);
+      toast({
+        title: push.ok ? "Push reminders enabled" : "Browser alerts enabled",
+        description: push.ok
+          ? "You'll get a gentle nudge even when the tab is closed."
+          : push.message,
+      });
+    } else {
+      await unsubscribeWebPush();
+      setPushOn(false);
+      toast({
+        title: "Notifications blocked",
+        description: "You can still use the in-app banner and calendar file.",
+      });
+    }
   };
 
   const doExport = async () => {
@@ -339,9 +354,9 @@ export default function Settings() {
             <span className="text-sm text-muted-foreground">:00 local time</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={requestNotifications} data-testid="settings-notif">
+            <Button variant="outline" onClick={() => void requestNotifications()} data-testid="settings-notif">
               <Bell className="mr-1.5 h-4 w-4" />
-              {reminder.notifications ? "Notifications on" : "Enable notifications"}
+              {pushOn ? "Push on" : reminder.notifications ? "Alerts on" : "Enable notifications"}
             </Button>
             <Button
               variant="outline"
@@ -349,6 +364,80 @@ export default function Settings() {
               data-testid="settings-ics"
             >
               <CalendarPlus className="mr-1.5 h-4 w-4" /> Add to calendar
+            </Button>
+            {pushOn && (
+              <Button
+                variant="outline"
+                data-testid="settings-push-test"
+                onClick={() =>
+                  void fetch("/api/push/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(
+                    async (r) => {
+                      const data = await r.json();
+                      toast({
+                        title: r.ok ? "Test push sent" : "Push test failed",
+                        description: r.ok ? `Delivered to ${data.sent} subscription(s).` : data.error,
+                        variant: r.ok ? "default" : "destructive",
+                      });
+                    },
+                  )
+                }
+              >
+                Send test push
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Web Push works when the service worker is active (production). Missed-day copy stays
+            compassionate — we never threaten your streak.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-soft">
+        <CardHeader>
+          <CardTitle className="font-serif text-xl">Health &amp; wearables</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Export a workout file you can import into Apple Health, Google Fit, or Strava. Sadhana
+            does not keep a standing cloud connection to wearables — you stay in control.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              className="min-h-11"
+              data-testid="settings-health-tcx"
+              onClick={() => {
+                const last = sessions[0];
+                downloadHealthWorkout({
+                  date: last?.date ?? todayISO(),
+                  minutes: last?.durationMinutes ?? 15,
+                  label: "Sadhana yoga practice",
+                  notes: "Imported from Sadhana — mood and journal stay private.",
+                });
+                toast({ title: "TCX downloaded", description: "Import it in your health app." });
+              }}
+            >
+              <Download className="mr-1.5 h-4 w-4" /> Export last session (TCX)
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-11"
+              data-testid="settings-health-csv"
+              onClick={() => {
+                const last = sessions[0];
+                downloadHealthWorkout(
+                  {
+                    date: last?.date ?? todayISO(),
+                    minutes: last?.durationMinutes ?? 15,
+                    label: "Sadhana yoga practice",
+                  },
+                  "csv",
+                );
+                toast({ title: "CSV downloaded" });
+              }}
+            >
+              Export CSV
             </Button>
           </div>
         </CardContent>

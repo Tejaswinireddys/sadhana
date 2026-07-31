@@ -9,6 +9,8 @@ import { resolve } from "node:path";
 import { initStorage, pool } from "./storage";
 import { mountSecurity, redactForLog } from "./security";
 import { registerPlatformApi } from "./platformApi";
+import { registerPushRoutes } from "./push";
+import { registerBillingRoutes } from "./billing";
 
 const app = express();
 const httpServer = createServer(app);
@@ -113,6 +115,8 @@ async function ensureSchema() {
 
   await registerRoutes(httpServer, app);
   registerPlatformApi(app);
+  registerPushRoutes(app);
+  registerBillingRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
