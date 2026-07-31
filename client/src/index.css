@@ -530,6 +530,37 @@ html.motion-off .animate-breathe {
 }
 
 /* =====================================================================
+   Detail pose stage — fit the visible screen so full-body demos (e.g.
+   Mountain Pose) are not clipped by the viewport, header, or bottom nav.
+   Height is viewport-relative; media inside uses object-contain.
+   ===================================================================== */
+.pose-stage-frame {
+  /* Pose media is 1:2. Size by viewport height so the full figure fits on
+     screen, then derive width — never let the stage blow past the phone. */
+  --pose-stage-h: min(48dvh, 22rem);
+  position: relative;
+  box-sizing: border-box;
+  height: var(--pose-stage-h);
+  max-height: var(--pose-stage-h);
+  width: min(100%, calc(var(--pose-stage-h) * 0.5));
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+  aspect-ratio: 1 / 2;
+}
+@media (min-width: 640px) {
+  .pose-stage-frame {
+    --pose-stage-h: min(50dvh, 26rem);
+  }
+}
+@media (min-width: 1024px) {
+  .pose-stage-frame {
+    /* Leave room for title + teaching rail + Watch CTA in the first screen */
+    --pose-stage-h: min(48dvh, 28rem);
+  }
+}
+
+/* =====================================================================
    v3 — Illustrated pose photos: soft fade-in + subtle "breath" scale
    ===================================================================== */
 @keyframes photo-fade-in {

@@ -287,8 +287,8 @@ export function PoseDemoStage({
     <div
       ref={wrapRef}
       className={cn(
-        "relative w-full overflow-hidden",
-        variant === "detail" && "rounded-2xl bg-accent/30",
+        "relative w-full max-w-full overflow-hidden",
+        variant === "detail" && "pose-stage-frame rounded-2xl bg-accent/30",
         variant === "practice" && "flex h-full w-full items-center justify-center",
         className,
       )}
@@ -299,10 +299,8 @@ export function PoseDemoStage({
         <video
           ref={videoRef}
           className={cn(
-            variant === "detail"
-              ? "block aspect-[4/5] w-full object-contain"
-              : "absolute inset-0 h-full w-full object-contain",
-            (!videoReady || videoFailed) && "invisible absolute",
+            "absolute inset-0 h-full w-full object-contain",
+            (!videoReady || videoFailed) && "invisible",
           )}
           poster={media.poster}
           playsInline
@@ -325,10 +323,7 @@ export function PoseDemoStage({
 
       {useVideo && showSources && !videoReady && !videoFailed && (
         <div
-          className={cn(
-            "pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-accent/10",
-            variant === "detail" && "aspect-[4/5]",
-          )}
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-accent/10"
           aria-hidden
         >
           <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
@@ -337,12 +332,7 @@ export function PoseDemoStage({
 
       {showIllustration &&
         (imgErrored ? (
-          <div
-            className={cn(
-              "flex flex-col items-center justify-center gap-2 text-muted-foreground",
-              variant === "detail" ? "aspect-[4/5] w-full" : "h-full w-full",
-            )}
-          >
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
             <PoseSvg pose={poseKey} size={variant === "practice" ? 200 : 180} />
             <span className="text-xs">Pose guide unavailable</span>
           </div>
@@ -353,12 +343,9 @@ export function PoseDemoStage({
             draggable={false}
             onError={() => setImgErrored(true)}
             className={cn(
-              "block select-none",
-              // Sources are 1:2; `cover` in the 4:5 stage clipped ~37.5% of the
-              // frame (head and feet). `contain` keeps the whole figure visible.
-              variant === "detail" &&
-                "h-full w-full rounded-2xl object-contain shadow-soft-lg",
-              variant === "practice" && "h-full w-full object-contain",
+              // Tall 1:2 sources — contain (never cover) so head + feet stay on screen.
+              "absolute inset-0 h-full w-full select-none object-contain",
+              variant === "detail" && "rounded-2xl shadow-soft-lg",
               playing && !reduceMotion ? "photo-breath-demo photo-brightness-pulse" : "photo-breath",
             )}
             data-testid={`pose-demo-poster-${slug}`}

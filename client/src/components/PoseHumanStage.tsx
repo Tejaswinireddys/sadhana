@@ -64,8 +64,8 @@ export function PoseHumanStage({
   return (
     <div
       className={cn(
-        "relative w-full overflow-hidden bg-accent/20",
-        variant === "detail" && "aspect-[4/5] rounded-2xl",
+        "relative w-full max-w-full overflow-hidden bg-accent/20",
+        variant === "detail" && "pose-stage-frame rounded-2xl",
         variant === "practice" && "flex h-full w-full items-center justify-center",
         className,
       )}

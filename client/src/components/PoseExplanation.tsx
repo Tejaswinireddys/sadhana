@@ -262,7 +262,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
           <p className="text-sm text-muted-foreground">{asana.sanskrit}</p>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start">
+        <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start">
           <PoseTrainerStage
             slug={asana.slug}
             english={asana.english}
@@ -276,6 +276,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
             guideActive={started && !completed}
             variant="detail"
             onModeChange={setDemoMode}
+            className="min-w-0"
             data-testid={`demo-hero-${asana.slug}`}
           />
 
