@@ -85,8 +85,8 @@ export function PoseFigurine3D({
   return (
     <div
       className={cn(
-        "pose-3d-stage relative w-full overflow-hidden",
-        variant === "detail" && "aspect-[4/5] rounded-2xl",
+        "pose-3d-stage relative w-full max-w-full overflow-hidden",
+        variant === "detail" && "pose-stage-frame rounded-2xl",
         variant === "practice" && "h-full min-h-[12rem]",
         className,
       )}

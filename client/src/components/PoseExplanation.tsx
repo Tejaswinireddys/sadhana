@@ -1,11 +1,9 @@
 /**
- * PoseExplanation — premium per-pose teaching experience (detail page).
+ * PoseExplanation — clear per-pose training (detail page).
  *
- * Better than a bare looping clip (Down Dog style):
- *   - 3D figurine stage timed to narration steps (pose key, focus, stepMotion)
- *   - Narration-synced step walkthrough (/voice/pose-{slug}.mp3)
- *   - Side teaching rail: Form · Breath · Alignment · Watch outs · Feel it
- *   - Smooth play/pause, progress, accessible captions / alt text
+ * Not a bobbing Ken Burns clip: a still full-body figure, voice-synced steps,
+ * focus halo on the body region being cued, and Form · Breath · Align coaching.
+ * Built to make “start training” obvious — clearer than a zooming still.
  *
  * Honors voiceEnabled: when OFF, silent step countdown still drives the guide.
  */
@@ -18,6 +16,7 @@ import { poseNarrationSrc } from "@/data/poseMedia";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
 import { PoseTrainerStage } from "@/components/PoseTrainerStage";
 import { momentumClass } from "@/lib/poseMomentum";
+import { resolveStepFocus } from "@/lib/poseMoments";
 import { useNarrationTiming } from "@/hooks/use-narration-timing";
 import { unlockAudio } from "@/lib/audioUnlock";
 import { cn } from "@/lib/utils";
@@ -63,7 +62,6 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const [audioFailed, setAudioFailed] = useState(false);
   const [restartToken, setRestartToken] = useState(0);
   const [tab, setTab] = useState<TeachTab>("form");
-  const [demoMode, setDemoMode] = useState<"video" | "illustrated">("illustrated");
 
   const steps = asana?.steps ?? [];
   const stepCount = steps.length || 1;
@@ -80,10 +78,17 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const stepTexts = useMemo(() => steps.map((s) => s.text), [steps]);
   const { resolve: resolveStep } = useNarrationTiming(slug, stepTexts, effectiveDuration);
   const activeStep = steps[stepIndex];
-  const activeMomentum = momentumClass(started ? activeStep : steps[0]);
+  const activeMomentum = momentumClass(activeStep);
   const activeStepPose = activeStep?.pose || asana?.pose;
-  // Idle + narration: demo stays “live”; pause freezes motion when stopped mid-guide.
-  const stagePlaying = !started || (playing && !completed);
+  const activeFocus = useMemo(
+    () =>
+      started && !completed
+        ? resolveStepFocus(activeStep, stepIndex, stepCount)
+        : null,
+    [started, completed, activeStep, stepIndex, stepCount],
+  );
+  // Motion only while the lesson is actively playing — idle stays a clear still.
+  const stagePlaying = started && playing && !completed;
 
   useEffect(() => {
     const a = audioRef.current;
@@ -99,7 +104,6 @@ export function PoseExplanation({ slug }: { slug: string }) {
     setAudioFailed(false);
     setRestartToken(0);
     setTab("form");
-    setDemoMode("illustrated");
   }, [slug]);
 
   // If voice is turned off mid-explanation, drop into the silent walkthrough.
@@ -250,19 +254,23 @@ export function PoseExplanation({ slug }: { slug: string }) {
       </div>
 
       <div className="space-y-5 p-5 sm:p-6">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            Pose explanation · {demoMode === "video" ? "Trainer video" : "Human trainer"}
+            Pose training · Step-by-step
             {!voiceEnabled ? " · Voice off" : null}
           </span>
           <h2 className="font-serif text-2xl font-semibold tracking-tight">
-            {asana.english}
+            Learn {asana.english}
           </h2>
-          <p className="text-sm text-muted-foreground">{asana.sanskrit}</p>
+          <p className="text-sm text-muted-foreground">
+            {asana.sanskrit}
+            {" · "}
+            Clear cues on the body — not a zooming clip. Follow the steps, then practice.
+          </p>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start">
+        <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start">
           <PoseTrainerStage
             slug={asana.slug}
             english={asana.english}
@@ -274,8 +282,14 @@ export function PoseExplanation({ slug }: { slug: string }) {
             playing={stagePlaying}
             restartToken={restartToken}
             guideActive={started && !completed}
+            focusZone={activeFocus}
+            caption={
+              started && !completed
+                ? `Step ${stepIndex + 1}/${stepCount}: ${activeStep?.text ?? ""}`
+                : null
+            }
             variant="detail"
-            onModeChange={setDemoMode}
+            className="min-w-0"
             data-testid={`demo-hero-${asana.slug}`}
           />
 
@@ -344,17 +358,17 @@ export function PoseExplanation({ slug }: { slug: string }) {
             size="lg"
             onClick={start}
             data-testid={`button-watch-demo-${asana.slug}`}
-            aria-label={`Watch trainer demo for ${asana.english}`}
+            aria-label={`Start pose training for ${asana.english}`}
             className="min-h-12 w-full gap-2 rounded-full bg-primary py-6 text-base font-medium text-primary-foreground hover:bg-primary/90"
           >
-            <Play className="h-5 w-5 fill-current" /> Watch trainer demo
+            <Play className="h-5 w-5 fill-current" /> Start pose training
           </Button>
         ) : completed ? (
           <div
             className="flex flex-col items-center gap-3 rounded-xl bg-accent/40 p-6 text-center"
             data-testid={`demo-complete-${asana.slug}`}
           >
-            <p className="font-serif text-lg">Explanation complete · Try the pose yourself</p>
+            <p className="font-serif text-lg">You know the cues — try it in your body</p>
             <Button
               onClick={closeDemo}
               variant="default"
@@ -374,42 +388,41 @@ export function PoseExplanation({ slug }: { slug: string }) {
           >
             {playing ? (
               <>
-                <Pause className="h-5 w-5" /> Pause
+                <Pause className="h-5 w-5" /> Pause training
               </>
             ) : (
               <>
-                <Play className="h-5 w-5 fill-current" /> Resume
+                <Play className="h-5 w-5 fill-current" /> Resume training
               </>
             )}
           </Button>
         )}
 
-        {started && !completed && (
-          <ol className="space-y-2" data-testid={`demo-steps-${asana.slug}`}>
-            {steps.map((step, i) => {
-              const isActive = i === stepIndex;
-              const isPast = i < stepIndex;
-              return (
-                <li
-                  key={i}
-                  className={cn(
-                    "rounded-lg px-4 py-3 transition-all duration-500",
-                    isActive
-                      ? "border-l-4 border-primary bg-accent/50 text-base font-medium text-foreground opacity-100"
-                      : isPast
-                        ? "border-l-4 border-transparent text-sm text-muted-foreground opacity-60"
-                        : "border-l-4 border-transparent text-sm text-muted-foreground opacity-40",
-                  )}
-                  data-testid={`demo-step-${asana.slug}-${i}`}
-                  aria-current={isActive ? "step" : undefined}
-                >
-                  <span className="mr-2 font-serif text-primary">{i + 1}.</span>
-                  {step.text}
-                </li>
-              );
-            })}
-          </ol>
-        )}
+        {/* How-to always visible — Alo lists steps; we highlight the live cue */}
+        <ol className="space-y-2" data-testid={`demo-steps-${asana.slug}`}>
+          {steps.map((step, i) => {
+            const isActive = started && !completed && i === stepIndex;
+            const isPast = started && (completed || i < stepIndex);
+            return (
+              <li
+                key={i}
+                className={cn(
+                  "rounded-lg px-4 py-3 transition-all duration-500",
+                  isActive
+                    ? "border-l-4 border-primary bg-accent/50 text-base font-medium text-foreground opacity-100"
+                    : isPast
+                      ? "border-l-4 border-transparent text-sm text-muted-foreground opacity-60"
+                      : "border-l-4 border-transparent text-sm text-muted-foreground opacity-70",
+                )}
+                data-testid={`demo-step-${asana.slug}-${i}`}
+                aria-current={isActive ? "step" : undefined}
+              >
+                <span className="mr-2 font-serif text-primary">{i + 1}.</span>
+                {step.text}
+              </li>
+            );
+          })}
+        </ol>
 
         <audio
           ref={audioRef}

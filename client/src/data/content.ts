@@ -115,10 +115,26 @@ const RAW_ASANAS: RawAsana[] = [
     contraindications: ["Low blood pressure (rise slowly)", "Dizziness or vertigo"],
     modifications: "Stand with feet hip-width apart for more stability, or against a wall to feel alignment.",
     steps: [
-      { text: "Stand at the top of your mat, feet together or hip-width apart, weight even across both feet.", pose: "mountain" },
-      { text: "Engage the thighs, lift the kneecaps gently, and lengthen the tailbone down.", pose: "mountain" },
-      { text: "Roll the shoulders back and down, arms relaxed alongside the body, palms facing forward.", pose: "mountain" },
-      { text: "Crown of the head reaches upward; soften the face and breathe steadily.", pose: "mountain" },
+      {
+        text: "Stand at the top of your mat, feet together or hip-width apart, weight even across both feet.",
+        pose: "mountain",
+        focusZone: { cx: 0.5, cy: 0.9, r: 0.17, label: "Feet & foundation" },
+      },
+      {
+        text: "Engage the thighs, lift the kneecaps gently, and lengthen the tailbone down.",
+        pose: "mountain",
+        focusZone: { cx: 0.5, cy: 0.66, r: 0.2, label: "Legs & tailbone" },
+      },
+      {
+        text: "Roll the shoulders back and down, arms relaxed alongside the body, palms facing forward.",
+        pose: "mountain",
+        focusZone: { cx: 0.5, cy: 0.36, r: 0.2, label: "Shoulders & arms" },
+      },
+      {
+        text: "Crown of the head reaches upward; soften the face and breathe steadily.",
+        pose: "mountain",
+        focusZone: { cx: 0.5, cy: 0.12, r: 0.15, label: "Crown & breath" },
+      },
     ],
   },
   {
