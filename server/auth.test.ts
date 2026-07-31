@@ -1,7 +1,16 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { hashPassword, verifyPassword, ownerIdForUser, readCookie, sessionExpiry } from "./auth";
+import {
+  hashPassword,
+  verifyPassword,
+  ownerIdForUser,
+  readCookie,
+  sessionExpiry,
+  hashResetToken,
+  newResetToken,
+} from "./auth";
 import { MemoryStorage } from "./storage";
+import { redactForLog } from "./security";
 
 describe("password hashing", () => {
   it("verifies the right password and rejects the wrong one", async () => {
@@ -29,6 +38,70 @@ describe("cookies and session expiry", () => {
 
   it("expires in the future", () => {
     assert.ok(new Date(sessionExpiry()).getTime() > Date.now());
+  });
+});
+
+describe("password reset tokens", () => {
+  it("hashes reset tokens so the raw code is not stored", () => {
+    const token = newResetToken();
+    assert.notEqual(hashResetToken(token), token);
+    assert.equal(hashResetToken(token), hashResetToken(token));
+    assert.notEqual(hashResetToken(token), hashResetToken(newResetToken()));
+  });
+
+  it("lets a user reset then invalidates prior sessions", async () => {
+    const store = new MemoryStorage();
+    const user = await store.createUser("reset@example.com", await hashPassword("old-password-9"));
+    const sessionTok = "session-abc";
+    await store.createAuthSession(user.id, sessionTok, sessionExpiry());
+
+    const raw = newResetToken();
+    await store.createPasswordResetToken(
+      user.id,
+      hashResetToken(raw),
+      new Date(Date.now() + 60_000).toISOString(),
+    );
+    const row = await store.getPasswordResetToken(hashResetToken(raw));
+    assert.ok(row);
+
+    await store.updateUserPassword(user.id, await hashPassword("new-password-9"));
+    await store.deletePasswordResetToken(row!.tokenHash);
+    await store.deleteAuthSessionsForUser(user.id);
+
+    const updated = await store.getUserById(user.id);
+    assert.equal(await verifyPassword("new-password-9", updated!.passwordHash), true);
+    assert.equal(await store.getAuthSession(sessionTok), undefined);
+    assert.equal(await store.getPasswordResetToken(hashResetToken(raw)), undefined);
+  });
+});
+
+describe("account deletion", () => {
+  it("removes the user, sessions, and practice data", async () => {
+    const store = new MemoryStorage();
+    const user = await store.createUser("bye@example.com", await hashPassword("password123"));
+    const owner = ownerIdForUser(user.id);
+    await store.createSession(owner, { date: "2026-07-01", durationMinutes: 10 } as never);
+    await store.createAuthSession(user.id, "tok", sessionExpiry());
+
+    await store.deleteUser(user.id);
+
+    assert.equal(await store.getUserById(user.id), undefined);
+    assert.equal(await store.getAuthSession("tok"), undefined);
+    assert.equal((await store.getSessions(owner)).length, 0);
+  });
+});
+
+describe("log redaction", () => {
+  it("redacts email and password fields", () => {
+    const out = redactForLog({
+      user: { email: "a@b.com", displayName: "A" },
+      password: "secret",
+      ok: true,
+    }) as Record<string, unknown>;
+    assert.equal(out.password, "[redacted]");
+    const user = out.user as Record<string, unknown>;
+    assert.equal(user.email, "[redacted]");
+    assert.equal(out.ok, true);
   });
 });
 

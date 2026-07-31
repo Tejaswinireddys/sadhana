@@ -5,7 +5,7 @@
  * simple. Sessions are opaque random tokens stored server-side so signing out
  * (or wiping an account) revokes access immediately.
  */
-import { randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 
 const scryptAsync = promisify(scrypt);
@@ -15,6 +15,8 @@ const SALT_BYTES = 16;
 
 export const AUTH_COOKIE = "sadhana_session";
 export const SESSION_DAYS = 90;
+/** Password-reset codes expire quickly and are single-use. */
+export const RESET_TOKEN_MINUTES = 60;
 
 /** `scrypt$<salt-hex>$<key-hex>` — self-describing so the format can evolve. */
 export async function hashPassword(password: string): Promise<string> {
@@ -73,4 +75,17 @@ export function readCookie(header: string | undefined, name: string): string | u
     if (key === name) return decodeURIComponent(rest.join("="));
   }
   return undefined;
+}
+
+export function newResetToken(): string {
+  return randomBytes(32).toString("hex");
+}
+
+/** Store only a hash of the reset token so a DB leak cannot reset passwords. */
+export function hashResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export function resetTokenExpiry(from = new Date()): string {
+  return new Date(from.getTime() + RESET_TOKEN_MINUTES * 60_000).toISOString();
 }

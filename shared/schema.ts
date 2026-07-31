@@ -53,6 +53,35 @@ export const loginSchema = z.object({
 });
 export type LoginCredentials = z.infer<typeof loginSchema>;
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email address"),
+});
+
+export const resetPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email address"),
+  token: z.string().min(16, "Enter the reset code from your email"),
+  password: z.string().min(8, "Use at least 8 characters"),
+});
+
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, "Enter your password to confirm"),
+});
+
+/** One-time password reset tokens (hashed at rest). */
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("password_reset_tokens_hash_idx").on(t.tokenHash)],
+);
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
 // Practice sessions logged after completing a timed practice
 export const sessions = pgTable("sessions", {
   id: serial("id").primaryKey(),

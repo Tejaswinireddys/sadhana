@@ -13,6 +13,7 @@ import { StepMotion } from "@/components/StepMotion";
 import { VoicePlayer } from "@/components/VoicePlayer";
 import { PoseExplanation } from "@/components/PoseExplanation";
 import { asanaBySlug, type Severity } from "@/data/content";
+import { CONTENT_REVIEW } from "@/data/contentProvenance";
 import { poseNarrationSrc } from "@/data/poseMedia";
 import { usagesForAsana } from "@/data/asanaUsage";
 import { QUICK_SESSIONS, sessionMinutes, sessionTimeLabel } from "@/data/quickSessions";
@@ -88,24 +89,32 @@ function PersonalNotes({ slug }: { slug: string }) {
       <CardContent className="space-y-3 p-5">
         <div className="flex items-center justify-between gap-2">
           <h3 className="flex items-center gap-2 font-serif text-lg">
-            <NotebookPen className="h-5 w-5 text-secondary" /> My notes
+            <NotebookPen className="h-5 w-5 text-secondary" aria-hidden />{" "}
+            <label htmlFor="pose-notes">My notes</label>
           </h3>
           {saved && (
             <span
               className="flex items-center gap-1 text-xs text-muted-foreground"
+              role="status"
+              aria-live="polite"
               data-testid="text-notes-saved"
             >
-              <CheckIcon className="h-3.5 w-3.5 text-secondary" /> Saved
+              <CheckIcon className="h-3.5 w-3.5 text-secondary" aria-hidden /> Saved
             </span>
           )}
         </div>
         <Textarea
+          id="pose-notes"
           placeholder="What works for me / what hurts / props I like…"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           rows={4}
+          aria-describedby="pose-notes-help"
           data-testid="input-pose-notes"
         />
+        <p id="pose-notes-help" className="text-xs text-muted-foreground">
+          Private notes for this pose — saved to your practice data on this device or account.
+        </p>
       </CardContent>
     </Card>
   );
@@ -596,6 +605,15 @@ export default function AsanaDetail() {
           </div>
         </CardContent>
       </Card>
+
+      <p className="text-xs text-muted-foreground" data-testid="content-review-note">
+        Safety guidance version {CONTENT_REVIEW.version} · reviewed {CONTENT_REVIEW.reviewedAt}.{" "}
+        {CONTENT_REVIEW.note}{" "}
+        <Link href="/health-disclaimer" className="underline underline-offset-2">
+          Health disclaimer
+        </Link>
+        .
+      </p>
 
       {/* Personal notes (v3.4) */}
       <PersonalNotes slug={asana.slug} />

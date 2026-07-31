@@ -12,6 +12,7 @@ import { RecentSearchesProvider } from "@/context/RecentSearchesContext";
 import { AppLayout } from "@/components/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ConnectivityBanner } from "@/components/ConnectivityBanner";
+import { LegalConsentBanner } from "@/components/LegalConsentBanner";
 import { Onboarding } from "@/components/Onboarding";
 import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,7 +60,13 @@ import Home from "@/pages/Home";
 import Landing from "@/pages/Landing";
 import Register from "@/pages/Register";
 
-const MARKETING_PATHS = new Set(["/welcome", "/register"]);
+const MARKETING_PATHS = new Set([
+  "/welcome",
+  "/register",
+  "/privacy",
+  "/terms",
+  "/health-disclaimer",
+]);
 
 function lazyPage<T extends ComponentType<any>>(loader: () => Promise<{ default: T }>) {
   return lazy(loader);
@@ -85,6 +92,9 @@ const Search = lazyPage(() => import("@/pages/Search"));
 const DesignSystem = lazyPage(() => import("@/pages/DesignSystem"));
 const Settings = lazyPage(() => import("@/pages/Settings"));
 const Account = lazyPage(() => import("@/pages/Account"));
+const Privacy = lazyPage(() => import("@/pages/Privacy"));
+const Terms = lazyPage(() => import("@/pages/Terms"));
+const HealthDisclaimer = lazyPage(() => import("@/pages/HealthDisclaimer"));
 
 function RouteFallback() {
   return (
@@ -140,6 +150,9 @@ function AppRouter() {
           <Route path="/search" component={Search} />
           <Route path="/settings" component={Settings} />
           <Route path="/account" component={Account} />
+          <Route path="/privacy" component={Privacy} />
+          <Route path="/terms" component={Terms} />
+          <Route path="/health-disclaimer" component={HealthDisclaimer} />
           <Route path="/design-system" component={DesignSystem} />
           <Route component={NotFound} />
         </Switch>
@@ -186,6 +199,7 @@ function App() {
               <RecentSearchesProvider>
                 <Toaster />
                 <ConnectivityBanner />
+                <LegalConsentBanner />
                 <Router hook={useAppHashLocation}>
                   <AppShell />
                 </Router>

@@ -142,12 +142,17 @@ export default function Journal() {
       {/* Filters */}
       <div className="surface-inset flex flex-wrap items-center gap-3 p-4">
         <div className="relative min-w-[180px] flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <label htmlFor="journal-search" className="sr-only">
+            Search journal entries
+          </label>
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input
+            id="journal-search"
             placeholder="Search entries..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="min-h-11 pl-9"
+            aria-label="Search journal entries"
             data-testid="input-search-journal"
           />
         </div>
@@ -168,6 +173,9 @@ export default function Journal() {
       </div>
 
       {/* List */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {isLoading ? "Loading journal entries" : `${filtered.length} journal entries shown`}
+      </p>
       {isLoading ? (
         <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>
       ) : filtered.length === 0 ? (

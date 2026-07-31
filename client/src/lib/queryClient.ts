@@ -1,5 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { peekDeviceId, syncDeviceId } from "./deviceId";
+import { notifyApiOk } from "@/components/ConnectivityBanner";
 
 const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
@@ -21,6 +22,7 @@ function deviceHeaders(extra?: HeadersInit): HeadersInit {
 /** Mirror the server-resolved identity back into localStorage. */
 function adoptDeviceId(res: Response): Response {
   syncDeviceId(res.headers.get(DEVICE_ECHO_HEADER));
+  if (res.ok) notifyApiOk();
   return res;
 }
 
@@ -35,18 +37,32 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  opts?: { timeoutMs?: number },
 ): Promise<Response> {
-  const res = adoptDeviceId(
-    await fetch(`${API_BASE}${url}`, {
-      method,
-      headers: deviceHeaders(data ? { "Content-Type": "application/json" } : undefined),
-      body: data ? JSON.stringify(data) : undefined,
-      credentials: "include",
-    }),
-  );
+  const timeoutMs = opts?.timeoutMs ?? 20_000;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = adoptDeviceId(
+      await fetch(`${API_BASE}${url}`, {
+        method,
+        headers: deviceHeaders(data ? { "Content-Type": "application/json" } : undefined),
+        body: data ? JSON.stringify(data) : undefined,
+        credentials: "include",
+        signal: ctrl.signal,
+      }),
+    );
 
-  await throwIfResNotOk(res);
-  return res;
+    await throwIfResNotOk(res);
+    return res;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("Request timed out. Check your connection and try again.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

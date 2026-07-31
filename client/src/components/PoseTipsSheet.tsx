@@ -98,7 +98,7 @@ export function PoseTipsSheet({ asana, open, onOpenChange }: PoseTipsSheetProps)
               aria-selected={tab === id}
               onClick={() => setTab(id)}
               className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
                 tab === id
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:text-foreground",

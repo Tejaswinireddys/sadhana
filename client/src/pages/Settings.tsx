@@ -249,6 +249,27 @@ export default function Settings() {
               About Sadhana — product overview
             </Link>
           </Button>
+          <div className="flex flex-wrap gap-2 text-sm">
+            <Link href="/privacy" className="underline underline-offset-2" data-testid="settings-privacy">
+              Privacy
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/terms" className="underline underline-offset-2" data-testid="settings-terms">
+              Terms
+            </Link>
+            <span aria-hidden>·</span>
+            <Link
+              href="/health-disclaimer"
+              className="underline underline-offset-2"
+              data-testid="settings-health"
+            >
+              Health disclaimer
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/account" className="underline underline-offset-2">
+              Account
+            </Link>
+          </div>
           <div className="rounded-md border border-border p-3">
             <VoiceToggle />
           </div>

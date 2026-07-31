@@ -7,6 +7,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { initStorage, pool } from "./storage";
+import { mountSecurity, redactForLog } from "./security";
 
 const app = express();
 const httpServer = createServer(app);
@@ -17,20 +18,42 @@ declare module "http" {
   }
 }
 
+mountSecurity(app);
+
 app.use(
   express.json({
+    limit: "2mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: "64kb" }));
 
 // Cheap liveness probe for Render health checks. The previous health check
 // pointed at /api/preferences, which opens a DB round-trip (and lazily INSERTs
 // a row) on every probe — wasteful on free-tier Postgres.
 app.get("/healthz", (_req, res) => res.status(200).json({ ok: true }));
+
+const PUBLIC_ORIGIN =
+  process.env.PUBLIC_APP_URL?.replace(/\/$/, "") || "https://sadhana-yoga.onrender.com";
+
+/** Real XML sitemap (not the SPA shell) for marketing / SEO crawlers. */
+app.get("/sitemap.xml", (_req, res) => {
+  const paths = ["/", "/welcome", "/register", "/privacy", "/terms", "/health-disclaimer"];
+  const urls = paths
+    .map(
+      (p) =>
+        `  <url><loc>${PUBLIC_ORIGIN}/#${p === "/" ? "/" : p}</loc><changefreq>weekly</changefreq></url>`,
+    )
+    .join("\n");
+  res
+    .type("application/xml")
+    .send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+    );
+});
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -59,7 +82,7 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        logLine += ` :: ${JSON.stringify(redactForLog(capturedJsonResponse))}`;
       }
 
       log(logLine);

@@ -386,12 +386,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             {theme === "dark" ? "Light mode" : "Dark mode"}
           </Button>
-          <Button variant="ghost" size="sm" className="w-full cursor-pointer justify-start gap-2" asChild>
+          <Button variant="ghost" size="sm" className="min-h-11 w-full cursor-pointer justify-start gap-2" asChild>
             <Link href="/welcome">
               <Info className="h-4 w-4" />
               About Sadhana
             </Link>
           </Button>
+          <p className="px-2 pt-1 text-xs text-muted-foreground">
+            <Link href="/privacy" className="underline-offset-2 hover:underline">
+              Privacy
+            </Link>
+            {" · "}
+            <Link href="/terms" className="underline-offset-2 hover:underline">
+              Terms
+            </Link>
+            {" · "}
+            <Link href="/health-disclaimer" className="underline-offset-2 hover:underline">
+              Health
+            </Link>
+          </p>
           <p className="px-2 pt-2 text-xs text-muted-foreground">
             Sādhanā — a daily, dedicated practice.
           </p>

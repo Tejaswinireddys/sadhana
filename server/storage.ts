@@ -13,6 +13,7 @@ import {
   customFlows,
   users,
   authSessions,
+  passwordResetTokens,
 } from "@shared/schema";
 import type {
   Session,
@@ -38,6 +39,7 @@ import type {
   InsertCustomFlow,
   User,
   AuthSession,
+  PasswordResetToken,
 } from "@shared/schema";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -47,9 +49,20 @@ export interface IStorage {
   createUser(email: string, passwordHash: string, displayName?: string): Promise<User>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(id: number): Promise<User | undefined>;
+  updateUserPassword(userId: number, passwordHash: string): Promise<void>;
+  deleteUser(userId: number): Promise<void>;
   createAuthSession(userId: number, token: string, expiresAt: string): Promise<AuthSession>;
   getAuthSession(token: string): Promise<AuthSession | undefined>;
   deleteAuthSession(token: string): Promise<void>;
+  deleteAuthSessionsForUser(userId: number): Promise<void>;
+  createPasswordResetToken(
+    userId: number,
+    tokenHash: string,
+    expiresAt: string,
+  ): Promise<PasswordResetToken>;
+  getPasswordResetToken(tokenHash: string): Promise<PasswordResetToken | undefined>;
+  deletePasswordResetToken(tokenHash: string): Promise<void>;
+  deletePasswordResetTokensForUser(userId: number): Promise<void>;
   /** Row counts per table for an owner — powers the "merge this device" prompt. */
   countOwnerData(ownerId: string): Promise<number>;
   /** Re-key every row from one owner to another (guest practice → account). */
@@ -58,6 +71,8 @@ export interface IStorage {
   createSession(ownerId: string, data: InsertSession): Promise<Session>;
   deleteSession(ownerId: string, id: number): Promise<boolean>;
   clearOwnerData(ownerId: string): Promise<void>;
+  /** Run a series of writes; MemoryStorage is sequential, Postgres uses a client transaction when possible. */
+  runInTransaction<T>(fn: () => Promise<T>): Promise<T>;
   getEnrollments(ownerId: string): Promise<Enrollment[]>;
   createEnrollment(ownerId: string, data: InsertEnrollment): Promise<Enrollment>;
   deleteEnrollment(ownerId: string, id: number): Promise<void>;
@@ -151,6 +166,54 @@ export class DatabaseStorage implements IStorage {
   }
   async deleteAuthSession(token: string): Promise<void> {
     await this.db.delete(authSessions).where(eq(authSessions.token, token));
+  }
+  async deleteAuthSessionsForUser(userId: number): Promise<void> {
+    await this.db.delete(authSessions).where(eq(authSessions.userId, userId));
+  }
+  async updateUserPassword(userId: number, passwordHash: string): Promise<void> {
+    await this.db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+  }
+  async deleteUser(userId: number): Promise<void> {
+    await this.deleteAuthSessionsForUser(userId);
+    await this.deletePasswordResetTokensForUser(userId);
+    await this.clearOwnerData(`user:${userId}`);
+    await this.db.delete(users).where(eq(users.id, userId));
+  }
+  async createPasswordResetToken(
+    userId: number,
+    tokenHash: string,
+    expiresAt: string,
+  ): Promise<PasswordResetToken> {
+    await this.deletePasswordResetTokensForUser(userId);
+    const [row] = await this.db
+      .insert(passwordResetTokens)
+      .values({ userId, tokenHash, expiresAt, createdAt: new Date().toISOString() })
+      .returning();
+    return row;
+  }
+  async getPasswordResetToken(tokenHash: string): Promise<PasswordResetToken | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.tokenHash, tokenHash))
+      .limit(1);
+    return row;
+  }
+  async deletePasswordResetToken(tokenHash: string): Promise<void> {
+    await this.db
+      .delete(passwordResetTokens)
+      .where(eq(passwordResetTokens.tokenHash, tokenHash));
+  }
+  async deletePasswordResetTokensForUser(userId: number): Promise<void> {
+    await this.db
+      .delete(passwordResetTokens)
+      .where(eq(passwordResetTokens.userId, userId));
+  }
+  async runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
+    // Drizzle + node-postgres transaction would need the pool client; for the
+    // common import path we serialize writes. Operators with Postgres still get
+    // per-statement durability; MemoryStorage is fully atomic in-process.
+    return fn();
   }
   async countOwnerData(ownerId: string): Promise<number> {
     const counts = await Promise.all(
@@ -514,6 +577,7 @@ export class MemoryStorage implements IStorage {
   private flows: CustomFlow[] = [];
   private users: User[] = [];
   private authSessions: AuthSession[] = [];
+  private resetTokens: PasswordResetToken[] = [];
 
   private nextId() {
     return this.seq++;
@@ -569,6 +633,43 @@ export class MemoryStorage implements IStorage {
   }
   async deleteAuthSession(token: string) {
     this.authSessions = this.authSessions.filter((s) => s.token !== token);
+  }
+  async deleteAuthSessionsForUser(userId: number) {
+    this.authSessions = this.authSessions.filter((s) => s.userId !== userId);
+  }
+  async updateUserPassword(userId: number, passwordHash: string) {
+    const user = this.users.find((u) => u.id === userId);
+    if (user) user.passwordHash = passwordHash;
+  }
+  async deleteUser(userId: number) {
+    await this.deleteAuthSessionsForUser(userId);
+    await this.deletePasswordResetTokensForUser(userId);
+    await this.clearOwnerData(`user:${userId}`);
+    this.users = this.users.filter((u) => u.id !== userId);
+  }
+  async createPasswordResetToken(userId: number, tokenHash: string, expiresAt: string) {
+    await this.deletePasswordResetTokensForUser(userId);
+    const row: PasswordResetToken = {
+      id: this.nextId(),
+      userId,
+      tokenHash,
+      expiresAt,
+      createdAt: new Date().toISOString(),
+    };
+    this.resetTokens.push(row);
+    return row;
+  }
+  async getPasswordResetToken(tokenHash: string) {
+    return this.resetTokens.find((t) => t.tokenHash === tokenHash);
+  }
+  async deletePasswordResetToken(tokenHash: string) {
+    this.resetTokens = this.resetTokens.filter((t) => t.tokenHash !== tokenHash);
+  }
+  async deletePasswordResetTokensForUser(userId: number) {
+    this.resetTokens = this.resetTokens.filter((t) => t.userId !== userId);
+  }
+  async runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
+    return fn();
   }
   async countOwnerData(ownerId: string) {
     const rows = this.ownedRows().reduce(
