@@ -11,8 +11,10 @@ Sadhana ships a reusable `ProductDemoVideo` component for real product walkthrou
 | Poster | `client/public/images/product-overview-poster.png` |
 | Captions | `client/public/captions/product-overview.vtt` |
 
-The overview is a real capture of the running app: Home → Yoga Trainer intake →
-guided session → pathways → asana library → breathing → dark mode.
+The overview is a real capture of the running app covering the evaluation
+ship: Today → Adaptive plan → guided player (pace/captions) → outcome programs →
+pose coach → instructors → household → workplace → settings (voice/offline) →
+Plus → challenges → privacy/account → dark mode.
 
 ## Regenerating the overview
 

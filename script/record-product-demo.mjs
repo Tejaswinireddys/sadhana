@@ -1,9 +1,9 @@
 /**
  * Record the "See it in practice" product montage from the real running app.
  *
- * Drives an actual browser through Trainer → guided session → pathways → library
- * → breathing → dark mode, with a synthetic cursor so the capture reads as a
- * person using Sadhana. Scene boundaries are written to scenes.json so the
+ * Covers the shipped evaluation walkthrough: Today → Adaptive → guided player →
+ * programs → pose coach → teachers → household → settings/trust → Plus →
+ * challenges → legal → dark mode. Scene boundaries land in scenes.json so the
  * encoder can place matching captions.
  *
  * Usage:
@@ -100,6 +100,11 @@ await ctx.addInitScript(() => {
   localStorage.setItem("sadhana.welcome.seen", "1");
   localStorage.setItem("sadhana.onboarding.done", "1");
   localStorage.setItem("sadhana.practitioner.name", "Maya");
+  // Acknowledge current legal version so the consent banner does not cover the demo.
+  localStorage.setItem(
+    "sadhana.legalAck",
+    JSON.stringify({ version: "2026-07-31", acceptedAt: new Date().toISOString() }),
+  );
 });
 await ctx.addInitScript(cursorScript);
 
@@ -124,19 +129,19 @@ async function scene(caption, fn) {
 }
 
 /** Glide the pointer so movement reads as human, then click. */
-async function humanClick(locator, { steps = 22, settle = 550 } = {}) {
+async function humanClick(locator, { steps = 18, settle = 450 } = {}) {
   await locator.scrollIntoViewIfNeeded().catch(() => {});
   const box = await locator.boundingBox();
   if (!box) throw new Error("no box for click target");
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps });
-  await wait(260);
+  await wait(200);
   await page.mouse.down();
-  await wait(90);
+  await wait(80);
   await page.mouse.up();
   await wait(settle);
 }
 
-async function smoothScroll(to, duration = 1400) {
+async function smoothScroll(to, duration = 1100) {
   await page.evaluate(
     ([target, dur]) => {
       const scroller =
@@ -157,13 +162,13 @@ async function smoothScroll(to, duration = 1400) {
     },
     [to, duration],
   );
-  await wait(duration + 220);
+  await wait(duration + 180);
 }
 
 async function goto(route) {
   await page.goto(`${BASE}/#${route}`, { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle").catch(() => {});
-  await wait(900);
+  await wait(700);
 }
 
 console.log("recording…");
@@ -171,102 +176,176 @@ console.log("recording…");
 await goto("/");
 t0 = Date.now();
 
-await scene("Your practice, every day", async () => {
-  await wait(1800);
-  await smoothScroll(420, 1500);
-  await wait(900);
-  await smoothScroll(0, 1000);
-});
-
-await scene("Four quick questions", async () => {
-  await humanClick(page.getByRole("link", { name: "Yoga Trainer" }).first());
-  await wait(1100);
-  const tourStart = page.getByTestId("button-tour-start");
-  if (await tourStart.isVisible().catch(() => false)) {
-    await humanClick(tourStart);
-  }
+await scene("Today — practice that meets you where you are", async () => {
+  await wait(1400);
+  await smoothScroll(380, 1200);
   await wait(700);
+  await smoothScroll(0, 800);
+});
 
-  const answers = ["body-a-little-stiff", "energy-balanced", "time-15", "need-calm"];
-  for (const testId of answers) {
-    await humanClick(page.getByTestId(testId), { settle: 800 });
-    const compose = page.getByTestId("button-compose");
-    if (await compose.isVisible().catch(() => false)) {
-      await humanClick(compose, { settle: 1600 });
-      break;
-    }
-    await humanClick(page.getByTestId("button-next"), { settle: 800 });
+await scene("Adaptive plan from how hard you worked", async () => {
+  await goto("/adaptive");
+  await page.getByTestId("adaptive-start").waitFor({ timeout: 10000 });
+  await wait(900);
+  await smoothScroll(320, 1000);
+  await wait(900);
+  const mins = page.getByRole("button", { name: "15 min" });
+  if (await mins.isVisible().catch(() => false)) {
+    await humanClick(mins, { settle: 700 });
   }
+  await wait(800);
 });
 
-await scene("A practice built for today", async () => {
-  await page.getByTestId("list-composed-poses").waitFor({ timeout: 15000 });
-  await wait(2000);
-  await smoothScroll(360, 1300);
-  await wait(1300);
-});
-
-await scene("Guided voice sessions", async () => {
-  await humanClick(page.getByTestId("button-start-guided"), { settle: 1600 });
+await scene("Guided player — pace, captions, and cues", async () => {
+  await humanClick(page.getByTestId("adaptive-start"), { settle: 1200 });
   const preMood = page.getByTestId("premood-mood-calm");
   if (await preMood.isVisible().catch(() => false)) {
-    await humanClick(preMood, { settle: 1300 });
+    await humanClick(preMood, { settle: 900 });
   }
   const begin = page.getByTestId("button-begin-guided");
   if (await begin.isVisible().catch(() => false)) {
-    await humanClick(begin, { settle: 1300 });
+    await humanClick(begin, { settle: 1000 });
   }
   await page.getByTestId("guided-session").waitFor({ timeout: 20000 });
-  await wait(9000);
+  await wait(2200);
+  const pace = page.getByTestId("button-pace-guided");
+  if (await pace.isVisible().catch(() => false)) {
+    await humanClick(pace, { settle: 700 });
+  }
+  const captions = page.getByTestId("button-captions-guided");
+  if (await captions.isVisible().catch(() => false)) {
+    await humanClick(captions, { settle: 700 });
+  }
+  await wait(2800);
   const exit = page.getByTestId("button-exit-guided");
   if (await exit.isVisible().catch(() => false)) {
-    await humanClick(exit, { settle: 1000 });
+    await humanClick(exit, { settle: 700 });
+    const confirm = page.getByTestId("button-exit-confirm");
+    if (await confirm.isVisible().catch(() => false)) {
+      await humanClick(confirm, { settle: 700 });
+    }
   }
 });
 
-await scene("Quick flows and multi-week paths", async () => {
+await scene("Programs for stress, sleep, chair, and foundations", async () => {
   await goto("/pathways");
-  await wait(1500);
-  await smoothScroll(560, 1700);
-  await wait(1600);
-});
-
-await scene("Every pose, illustrated", async () => {
-  await goto("/asanas");
-  await wait(1400);
-  await smoothScroll(760, 1800);
-  await wait(1200);
-  await smoothScroll(1560, 1800);
-  await wait(1400);
-});
-
-await scene("Cues, variations, and what to avoid", async () => {
-  await goto("/asanas/ardha-chandrasana");
-  await wait(2000);
-  await smoothScroll(900, 1800);
-  await wait(1600);
-});
-
-await scene("Six guided breathing techniques", async () => {
-  await goto("/breathing");
-  await wait(1500);
-  const start = page.getByRole("button", { name: /start|begin/i }).first();
-  if (await start.isVisible().catch(() => false)) {
-    await humanClick(start, { settle: 900 });
+  await wait(900);
+  await smoothScroll(420, 1200);
+  const foundations = page.getByTestId("card-pathway-foundations-beginner");
+  if (await foundations.isVisible().catch(() => false)) {
+    await foundations.scrollIntoViewIfNeeded();
+    await wait(900);
+  } else {
+    await smoothScroll(900, 1200);
   }
-  await wait(5500);
+  await wait(1000);
+});
+
+await scene("On-device pose coach — private confidence cues", async () => {
+  await goto("/pose-coach");
+  await wait(800);
+  const consent = page.getByTestId("pose-coach-consent");
+  if (await consent.isVisible().catch(() => false)) {
+    await humanClick(consent, { settle: 900 });
+  }
+  await wait(700);
+  const tree = page.getByRole("button", { name: "Tree" });
+  if (await tree.isVisible().catch(() => false)) {
+    await humanClick(tree, { settle: 700 });
+  }
+  const checks = page.locator('input[type="checkbox"]');
+  const count = await checks.count();
+  for (let i = 0; i < Math.min(count, 2); i++) {
+    await humanClick(checks.nth(i), { settle: 450 });
+  }
+  await wait(900);
+});
+
+await scene("Teachers and live class waitlists", async () => {
+  await goto("/instructors");
+  await wait(1000);
+  await smoothScroll(360, 1100);
+  await wait(1000);
+});
+
+await scene("Household profiles with optional PINs", async () => {
+  await goto("/household");
+  await wait(800);
+  const name = page.getByTestId("household-name");
+  if (await name.isVisible().catch(() => false)) {
+    await humanClick(name, { settle: 300 });
+    await name.fill("Alex");
+    await wait(400);
+    await humanClick(page.getByTestId("household-add"), { settle: 900 });
+  }
+  await wait(900);
+});
+
+await scene("Workplace wellness — aggregate only", async () => {
+  await goto("/corporate");
+  await wait(800);
+  const org = page.getByTestId("corporate-name");
+  if (await org.isVisible().catch(() => false)) {
+    await humanClick(org, { settle: 300 });
+    await org.fill("Northwind Wellness");
+    await wait(400);
+  }
+  await wait(1000);
+});
+
+await scene("Settings — habits, offline pack, voice control", async () => {
+  await goto("/settings");
+  await wait(800);
+  await smoothScroll(520, 1200);
+  const voice = page.getByTestId("settings-voice-control");
+  if (await voice.isVisible().catch(() => false)) {
+    await voice.scrollIntoViewIfNeeded();
+    await wait(600);
+    await humanClick(voice, { settle: 700 });
+  }
+  const offline = page.getByTestId("settings-offline-download");
+  if (await offline.isVisible().catch(() => false)) {
+    await offline.scrollIntoViewIfNeeded();
+    await wait(800);
+  }
+  await wait(700);
+});
+
+await scene("Sadhana Plus plans — clear tiers, no pressure", async () => {
+  await goto("/plus");
+  await wait(1000);
+  await smoothScroll(280, 900);
+  await wait(1000);
+});
+
+await scene("Private challenges — no body comparisons", async () => {
+  await goto("/challenges");
+  await wait(1000);
+  await smoothScroll(240, 900);
+  await wait(900);
+});
+
+await scene("Privacy, terms, and health transparency", async () => {
+  await goto("/privacy");
+  await wait(1000);
+  await smoothScroll(360, 1100);
+  await wait(800);
+  await goto("/account");
+  await page.getByTestId("tab-reset").waitFor({ timeout: 8000 }).catch(() => {});
+  await wait(700);
+  if (await page.getByTestId("tab-reset").isVisible().catch(() => false)) {
+    await humanClick(page.getByTestId("tab-reset"), { settle: 800 });
+  }
+  await wait(900);
 });
 
 await scene("Light or dark — free and open source", async () => {
-  // Theme follows prefers-color-scheme at mount, and route changes are hash-only,
-  // so the app needs a real reload to remount dark. Reloading also repaints every
-  // surface — toggling in-page leaves stale screencast tiles on the sidebar.
   await page.emulateMedia({ colorScheme: "dark" });
   await goto("/asanas");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await wait(2200);
-  await smoothScroll(620, 1700);
-  await wait(2200);
+  await wait(1600);
+  await smoothScroll(480, 1200);
+  await wait(1600);
 });
 
 await ctx.close();
