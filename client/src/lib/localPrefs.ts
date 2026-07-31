@@ -56,6 +56,10 @@ export const KEYS = {
   theme: "sadhana.theme",
   analytics: "sadhana.analytics",
   habitPlan: "sadhana.habitPlan",
+  lastRpe: "sadhana.adaptive.lastRpe",
+  household: "sadhana.household",
+  voiceControl: "sadhana.voiceControl",
+  poseCoachConsent: "sadhana.poseCoach.consent",
 } as const;
 
 export type ReminderPrefs = {

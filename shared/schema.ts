@@ -105,6 +105,8 @@ export const sessions = pgTable("sessions", {
   kind: text("kind").notNull().default("asana"), // 'asana' | 'breathing'
   preMood: text("pre_mood"), // mood chip recorded before practice
   postMood: text("post_mood"), // mood chip recorded after practice
+  /** Rate of perceived exertion 1–10. Nullable for legacy rows. */
+  rpe: integer("rpe"),
 });
 
 export const insertSessionSchema = createInsertSchema(sessions).omit({ id: true, ownerId: true });

@@ -47,7 +47,7 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader(
     "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()",
   );
   res.setHeader(
     "Content-Security-Policy",
@@ -117,6 +117,11 @@ export function requireSameOrigin(req: Request, res: Response, next: NextFunctio
   if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
     return next();
   }
+  // Platform API uses API keys rather than cookies — CSRF not applicable.
+  if (req.path.startsWith("/v1") || req.originalUrl.startsWith("/api/v1")) {
+    return next();
+  }
+  if (req.get("x-api-key")) return next();
 
   const origin = req.get("origin");
   const referer = req.get("referer");

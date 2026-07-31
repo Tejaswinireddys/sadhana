@@ -82,6 +82,7 @@ import {
 } from "@/data/quickSessions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useNarrationTiming } from "@/hooks/use-narration-timing";
+import { createVoiceController, readVoicePrefs, type VoiceCommand } from "@/lib/voiceControl";
 
 // ---- soft chime (shared with Practice) --------------------------------------
 function playChime() {
@@ -212,6 +213,8 @@ export default function GuidedSession() {
   const [showPostMood, setShowPostMood] = useState(false);
   const [preMood, setPreMood] = useState<Mood | null>(meta.preMood ?? null);
   const [postMood, setPostMood] = useState<Mood | null>(null);
+  const [rpe, setRpe] = useState<number | null>(null);
+  const [showRpe, setShowRpe] = useState(false);
   const [started, setStarted] = useState(false);
   const [confetti, setConfetti] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -390,7 +393,7 @@ export default function GuidedSession() {
 
   // ---- persist + auto-journal + milestone (mirrors Practice.tsx) ------------
   const finalizeSession = useCallback(
-    async (resolvedPost: Mood | null) => {
+    async (resolvedPost: Mood | null, resolvedRpe: number | null = rpe) => {
       if (sessionLogged.current || saving) return;
       lastPostMood.current = resolvedPost;
       setSaving(true);
@@ -409,6 +412,7 @@ export default function GuidedSession() {
         pathwaySlug: meta.pathwaySlug ?? null,
         preMood,
         postMood: resolvedPost,
+        rpe: resolvedRpe,
         journalTags: [sessionLabel, "guided"],
       });
       setSaving(false);
@@ -434,7 +438,7 @@ export default function GuidedSession() {
         toast({ title: result.milestone.title, description: result.milestone.message });
       }
     },
-    [todays, meta, preMood, toast, saving, saveProgress],
+    [todays, meta, preMood, rpe, toast, saving, saveProgress],
   );
 
   const finish = useCallback(() => {
@@ -706,6 +710,41 @@ export default function GuidedSession() {
     toast({ title: "+30 seconds", description: "Extended this hold." });
   };
 
+  // Auto-pause when the tab is hidden so timers/audio don't run off-screen.
+  useEffect(() => {
+    if (!started || finished) return;
+    const onVis = () => {
+      if (document.hidden) setPaused(true);
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [started, finished]);
+
+  // Hands-free voice commands (opt-in via Settings / voice prefs).
+  useEffect(() => {
+    if (!started || finished || !readVoicePrefs().enabled) return;
+    const apply = (cmd: VoiceCommand) => {
+      if (cmd === "pause") setPaused(true);
+      else if (cmd === "resume") setPaused(false);
+      else if (cmd === "repeat") handleRepeatCue();
+      else if (cmd === "skip") handleSkip();
+      else if (cmd === "slower") setPace((p) => (p === 1.25 ? 1 : 0.75));
+      else if (cmd === "faster") setPace((p) => (p === 0.75 ? 1 : 1.25));
+      else if (cmd === "modification") setTipsOpen(true);
+      else if (cmd === "stop") setConfirmExit(true);
+    };
+    const ctrl = createVoiceController({
+      onCommand: (cmd) => {
+        apply(cmd);
+        toast({ title: `Voice: ${cmd}`, description: "Hands-free control" });
+      },
+      onError: (message) => toast({ title: "Voice control", description: message, variant: "destructive" }),
+    });
+    ctrl.start();
+    return () => ctrl.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started, finished]);
+
   const attemptExit = () => {
     if (finished) {
       clear();
@@ -832,13 +871,64 @@ export default function GuidedSession() {
           onPick={(m) => {
             setPostMood(m);
             setShowPostMood(false);
-            finalizeSession(m);
+            setShowRpe(true);
           }}
           onSkip={() => {
             setShowPostMood(false);
-            finalizeSession(null);
+            setShowRpe(true);
           }}
         />
+        {showRpe && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-background/95 p-6"
+            role="dialog"
+            aria-label="Rate of perceived exertion"
+            data-testid="rpe-dialog"
+          >
+            <div className="w-full max-w-md space-y-4 text-center">
+              <h2 className="font-serif text-2xl">How hard did that feel?</h2>
+              <p className="text-sm text-muted-foreground">
+                Rate of perceived exertion (1 easy – 10 maximal). Used only to ease tomorrow’s plan.
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                  <Button
+                    key={n}
+                    className="min-h-11 min-w-11"
+                    variant={rpe === n ? "default" : "outline"}
+                    onClick={() => setRpe(n)}
+                    data-testid={`rpe-${n}`}
+                  >
+                    {n}
+                  </Button>
+                ))}
+              </div>
+              <div className="flex justify-center gap-2">
+                <Button
+                  className="min-h-11"
+                  variant="outline"
+                  onClick={() => {
+                    setShowRpe(false);
+                    void finalizeSession(postMood, null);
+                  }}
+                >
+                  Skip
+                </Button>
+                <Button
+                  className="min-h-11"
+                  disabled={rpe == null}
+                  onClick={() => {
+                    setShowRpe(false);
+                    void finalizeSession(postMood, rpe);
+                  }}
+                  data-testid="rpe-confirm"
+                >
+                  Save effort
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         <div
           className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background px-6 text-center"
           data-testid="guided-complete"

@@ -7472,6 +7472,88 @@ export const PATHWAYS: Pathway[] = [
       },
     ],
   },
+  {
+    slug: "prenatal-gentle-week",
+    name: "Prenatal Gentle Week",
+    tagline: "Seven clinician-aware sessions with belly room and side-lying rest.",
+    target: "Prenatal Goddess",
+    targetPose: "goddess",
+    targetImgSlug: "prenatal-goddess",
+    targetPoseSlug: "prenatal-goddess",
+    kind: "daily",
+    section: "seven-day",
+    weeks: 1,
+    sessionsPerWeek: 7,
+    timePerSession: "15–20 min",
+    minutesPerSession: 15,
+    goalDescription: "Stay mobile with reviewed prenatal shapes — medical clearance required.",
+    summary:
+      "Wide-knee and side-lying emphasis. Avoid long supine holds. Always follow your maternity care provider.",
+    schedule: [],
+    weekPlan: [],
+    dailyPlan: [
+      {
+        day: 1, theme: "Arrive with breath", focus: "general", totalMinutes: 15,
+        poses: [
+          { asanaSlug: "prenatal-pelvic-tilt", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "prenatal-cat-cow", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "prenatal-butterfly", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "prenatal-side-lying-rest", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 2, theme: "Hips and ease", focus: "hips", totalMinutes: 15,
+        poses: [
+          { asanaSlug: "prenatal-hip-circles", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "prenatal-malasana", holdSeconds: 40, sides: "once" },
+          { asanaSlug: "prenatal-butterfly", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "prenatal-legs-elevated", holdSeconds: 90, sides: "once" },
+        ],
+      },
+      {
+        day: 3, theme: "Supported stand", focus: "general", totalMinutes: 16,
+        poses: [
+          { asanaSlug: "prenatal-chest-opener", holdSeconds: 40, sides: "once" },
+          { asanaSlug: "prenatal-warrior-ii", holdSeconds: 30, sides: "each" },
+          { asanaSlug: "prenatal-tree-wall", holdSeconds: 30, sides: "each" },
+          { asanaSlug: "prenatal-side-lying-rest", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 4, theme: "Rest day", focus: "sleep", totalMinutes: 12, restDay: true,
+        poses: [
+          { asanaSlug: "prenatal-side-lying-rest", holdSeconds: 150, sides: "once" },
+          { asanaSlug: "prenatal-legs-elevated", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 5, theme: "Open and ground", focus: "general", totalMinutes: 15,
+        poses: [
+          { asanaSlug: "prenatal-cat-cow", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "prenatal-goddess", holdSeconds: 40, sides: "once" },
+          { asanaSlug: "prenatal-thread-needle", holdSeconds: 30, sides: "each" },
+          { asanaSlug: "prenatal-side-lying-rest", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 6, theme: "Strength without strain", focus: "general", totalMinutes: 16,
+        poses: [
+          { asanaSlug: "prenatal-wall-squat", holdSeconds: 40, sides: "once" },
+          { asanaSlug: "prenatal-side-angle", holdSeconds: 30, sides: "each" },
+          { asanaSlug: "prenatal-supported-twist", holdSeconds: 30, sides: "each" },
+          { asanaSlug: "prenatal-legs-elevated", holdSeconds: 90, sides: "once" },
+        ],
+      },
+      {
+        day: 7, theme: "Integrate", focus: "sleep", totalMinutes: 15,
+        poses: [
+          { asanaSlug: "prenatal-butterfly", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "prenatal-chest-opener", holdSeconds: 40, sides: "once" },
+          { asanaSlug: "prenatal-side-lying-rest", holdSeconds: 180, sides: "once", note: "rest as long as you like" },
+        ],
+      },
+    ],
+  },
 ];
 
 /** Theme ids shown in Affirmations UI (and linked from profiles). */

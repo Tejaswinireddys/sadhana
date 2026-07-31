@@ -71,4 +71,18 @@ test.describe("critical journeys", () => {
     await page.goto("/#/");
     await expect(page.getByRole("link", { name: "Today" }).first()).toBeVisible();
   });
+
+  test("adaptive plan and pose coach routes render", async ({ page }) => {
+    await page.goto("/#/adaptive");
+    await expect(page.getByTestId("adaptive-start")).toBeVisible();
+    await page.goto("/#/pose-coach");
+    await expect(page.getByRole("heading", { name: /Pose coach/i })).toBeVisible();
+  });
+
+  test("platform API v1 is reachable", async ({ request }) => {
+    const res = await request.get("/api/v1");
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.version).toBe("1");
+  });
 });

@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS sessions (
   post_mood TEXT
 );
 
+-- RPE for adaptive recovery (nullable for legacy rows)
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS rpe INTEGER;
+
 CREATE TABLE IF NOT EXISTS preferences (
   id SERIAL PRIMARY KEY,
   owner_id TEXT NOT NULL DEFAULT '',

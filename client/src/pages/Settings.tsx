@@ -37,6 +37,7 @@ import {
 } from "@/lib/offlinePack";
 import { habitDayLabel, readHabitPlan, writeHabitPlan, type HabitPlan } from "@/lib/habitPlan";
 import { readAnalyticsPrefs, writeAnalyticsPrefs } from "@/lib/analytics";
+import { readVoicePrefs, writeVoicePrefs } from "@/lib/voiceControl";
 import type { Session } from "@shared/schema";
 import { Moon, Sun, Laptop, Download, Upload, Trash2, Bell, CalendarPlus, Info, UserRound } from "lucide-react";
 import { Link } from "wouter";
@@ -58,6 +59,7 @@ export default function Settings() {
   const [practitionerName, setPractitionerName] = useState(() => readString(KEYS.practitionerName) ?? "");
   const [habit, setHabit] = useState<HabitPlan>(() => readHabitPlan());
   const [analyticsOn, setAnalyticsOn] = useState(() => readAnalyticsPrefs().enabled);
+  const [voiceOn, setVoiceOn] = useState(() => readVoicePrefs().enabled);
   const [offlineStatus, setOfflineStatus] = useState({ present: false, entries: 0 });
 
   useEffect(() => {
@@ -534,6 +536,22 @@ export default function Settings() {
           <p className="text-xs text-muted-foreground">
             Off by default. Never includes journal text, emails, or injury notes — only event names
             like practice_start.
+          </p>
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="voice-control">Hands-free voice control in guided practice</Label>
+            <Switch
+              id="voice-control"
+              checked={voiceOn}
+              onCheckedChange={(enabled) => {
+                setVoiceOn(enabled);
+                writeVoicePrefs({ enabled });
+              }}
+              data-testid="settings-voice-control"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Say pause, resume, repeat, skip, slower, faster, or modification. Requires microphone
+            permission. Off by default.
           </p>
         </CardContent>
       </Card>

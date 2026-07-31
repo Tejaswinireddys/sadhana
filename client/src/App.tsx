@@ -97,6 +97,11 @@ const Terms = lazyPage(() => import("@/pages/Terms"));
 const HealthDisclaimer = lazyPage(() => import("@/pages/HealthDisclaimer"));
 const Plus = lazyPage(() => import("@/pages/Plus"));
 const Challenges = lazyPage(() => import("@/pages/Challenges"));
+const AdaptivePlan = lazyPage(() => import("@/pages/AdaptivePlan"));
+const PoseCoach = lazyPage(() => import("@/pages/PoseCoach"));
+const Instructors = lazyPage(() => import("@/pages/Instructors"));
+const Household = lazyPage(() => import("@/pages/Household"));
+const Corporate = lazyPage(() => import("@/pages/Corporate"));
 
 function RouteFallback() {
   return (
@@ -157,6 +162,11 @@ function AppRouter() {
           <Route path="/health-disclaimer" component={HealthDisclaimer} />
           <Route path="/plus" component={Plus} />
           <Route path="/challenges" component={Challenges} />
+          <Route path="/adaptive" component={AdaptivePlan} />
+          <Route path="/pose-coach" component={PoseCoach} />
+          <Route path="/instructors" component={Instructors} />
+          <Route path="/household" component={Household} />
+          <Route path="/corporate" component={Corporate} />
           <Route path="/design-system" component={DesignSystem} />
           <Route component={NotFound} />
         </Switch>

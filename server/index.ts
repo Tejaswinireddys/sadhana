@@ -8,6 +8,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { initStorage, pool } from "./storage";
 import { mountSecurity, redactForLog } from "./security";
+import { registerPlatformApi } from "./platformApi";
 
 const app = express();
 const httpServer = createServer(app);
@@ -111,6 +112,7 @@ async function ensureSchema() {
   }
 
   await registerRoutes(httpServer, app);
+  registerPlatformApi(app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

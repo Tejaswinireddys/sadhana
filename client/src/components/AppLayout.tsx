@@ -50,6 +50,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Today",
     items: [
       { href: "/", label: "Today", icon: Home },
+      { href: "/adaptive", label: "Adaptive", icon: Sparkles },
       { href: "/guided", label: "Practice", icon: Timer },
       { href: "/trainer", label: "Coach", icon: UserRound },
     ],
@@ -59,11 +60,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/asanas", label: "Poses", icon: LayoutGrid },
       { href: "/pathways", label: "Programs", icon: RouteIcon },
-      { href: "/challenges", label: "Challenges", icon: Sparkles },
+      { href: "/instructors", label: "Teachers", icon: Compass },
+      { href: "/pose-coach", label: "Pose coach", icon: Smile },
       { href: "/breathing", label: "Breathing", icon: Wind },
       { href: "/affirmations", label: "Affirmations", icon: Sparkles },
       { href: "/kids", label: "Kids", icon: Smile },
       { href: "/builder", label: "Builder", icon: PlusCircle },
+      { href: "/challenges", label: "Challenges", icon: Sparkles },
     ],
   },
   {
@@ -71,8 +74,10 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/journal", label: "Journal", icon: NotebookPen },
       { href: "/profiles", label: "My path", icon: Compass },
+      { href: "/household", label: "Household", icon: UserRound },
       { href: "/settings", label: "Settings", icon: Settings },
       { href: "/account", label: "Account", icon: UserRound },
+      { href: "/corporate", label: "Workplace", icon: Info },
     ],
   },
 ];
