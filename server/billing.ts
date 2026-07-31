@@ -1,10 +1,11 @@
 /**
  * Stripe Checkout for Plus / Coach — only active when STRIPE_SECRET_KEY is set.
- * Clear pricing, easy cancel path, no dark patterns.
+ * Clear pricing, Billing Portal cancel path, no dark patterns.
  */
 import type { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { createRateLimiter } from "./security";
+import { loadMap, saveMap } from "./jsonStore";
 
 const stripeKey = process.env.STRIPE_SECRET_KEY || "";
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
@@ -15,8 +16,19 @@ const priceCoachYear = process.env.STRIPE_PRICE_COACH_YEARLY || "";
 
 const stripe = stripeKey ? new Stripe(stripeKey) : null;
 
-/** ownerId → plan entitlement (memory; Postgres entitlements table is for later). */
-const entitlements = new Map<string, { plan: string; status: string; renewsAt: string | null }>();
+type Entitlement = {
+  plan: string;
+  status: string;
+  renewsAt: string | null;
+  stripeCustomerId?: string;
+};
+
+const STORE = "billing-entitlements";
+const entitlements = loadMap<Entitlement>(STORE);
+
+function persist() {
+  saveMap(STORE, entitlements);
+}
 
 const billLimit = createRateLimiter({ windowMs: 60_000, max: 20 });
 
@@ -41,10 +53,10 @@ export function registerBillingRoutes(app: Express) {
     res.json({
       enabled: Boolean(stripe),
       plans: ["free", "plus", "coach"],
-      cancelUrl: "https://billing.stripe.com/p/login",
+      portalAvailable: Boolean(stripe),
       note: stripe
-        ? "Checkout is live. Cancel anytime from the Stripe customer portal."
-        : "Set STRIPE_SECRET_KEY and price IDs to enable checkout.",
+        ? "Checkout is live. Cancel anytime from Manage subscription — no dark patterns."
+        : "Core practice stays free. Paid checkout activates when the operator configures Stripe — you will never be charged silently.",
     });
   });
 
@@ -60,8 +72,8 @@ export function registerBillingRoutes(app: Express) {
   app.post("/api/billing/checkout", billLimit, async (req: Request, res: Response) => {
     if (!stripe) {
       return res.status(503).json({
-        error: "Billing is not configured",
-        hint: "Payments stay off until STRIPE_SECRET_KEY is set — no surprise charges.",
+        error: "Billing is not configured on this deployment",
+        hint: "Free practice stays available. Paid tiers turn on when Stripe keys are set — no surprise charges.",
       });
     }
     const plan = String(req.body?.plan || "");
@@ -77,6 +89,8 @@ export function registerBillingRoutes(app: Express) {
       });
     }
     const origin = appOrigin(req);
+    const ownerId = req.ownerId || "";
+    const existing = entitlements.get(ownerId);
     try {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
@@ -85,14 +99,40 @@ export function registerBillingRoutes(app: Express) {
         cancel_url: `${origin}/#/plus?checkout=cancel`,
         allow_promotion_codes: true,
         billing_address_collection: "auto",
+        customer: existing?.stripeCustomerId || undefined,
+        client_reference_id: ownerId || undefined,
         subscription_data: {
-          metadata: { sadhanaPlan: plan, ownerId: req.ownerId || "" },
+          metadata: { sadhanaPlan: plan, ownerId },
         },
-        metadata: { sadhanaPlan: plan, ownerId: req.ownerId || "" },
+        metadata: { sadhanaPlan: plan, ownerId },
       });
       res.json({ url: session.url });
     } catch (e) {
       res.status(502).json({ error: (e as Error).message || "Checkout failed" });
+    }
+  });
+
+  /** Stripe Customer Portal — real cancel / update payment path. */
+  app.post("/api/billing/portal", billLimit, async (req: Request, res: Response) => {
+    if (!stripe) {
+      return res.status(503).json({ error: "Billing is not configured on this deployment" });
+    }
+    const ownerId = req.ownerId || "";
+    const row = entitlements.get(ownerId);
+    if (!row?.stripeCustomerId) {
+      return res.status(404).json({
+        error: "No Stripe customer on file",
+        hint: "Subscribe once, then Manage subscription opens the cancel portal.",
+      });
+    }
+    try {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: row.stripeCustomerId,
+        return_url: `${appOrigin(req)}/#/plus`,
+      });
+      res.json({ url: session.url });
+    } catch (e) {
+      res.status(502).json({ error: (e as Error).message || "Portal unavailable" });
     }
   });
 
@@ -112,21 +152,47 @@ export function registerBillingRoutes(app: Express) {
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
-      const ownerId = session.metadata?.ownerId || "";
+      const ownerId = session.metadata?.ownerId || session.client_reference_id || "";
       const plan = session.metadata?.sadhanaPlan || "plus";
+      const customerId =
+        typeof session.customer === "string" ? session.customer : session.customer?.id;
       if (ownerId) {
         entitlements.set(ownerId, {
           plan,
           status: "active",
           renewsAt: null,
+          stripeCustomerId: customerId || entitlements.get(ownerId)?.stripeCustomerId,
         });
+        persist();
+      }
+    }
+    if (event.type === "customer.subscription.updated") {
+      const sub = event.data.object as Stripe.Subscription;
+      const ownerId = sub.metadata?.ownerId || "";
+      const plan = sub.metadata?.sadhanaPlan || entitlements.get(ownerId)?.plan || "plus";
+      if (ownerId) {
+        entitlements.set(ownerId, {
+          plan: sub.status === "active" || sub.status === "trialing" ? plan : "free",
+          status: sub.status,
+          renewsAt: null,
+          stripeCustomerId:
+            typeof sub.customer === "string" ? sub.customer : entitlements.get(ownerId)?.stripeCustomerId,
+        });
+        persist();
       }
     }
     if (event.type === "customer.subscription.deleted") {
       const sub = event.data.object as Stripe.Subscription;
       const ownerId = sub.metadata?.ownerId || "";
       if (ownerId) {
-        entitlements.set(ownerId, { plan: "free", status: "canceled", renewsAt: null });
+        const prev = entitlements.get(ownerId);
+        entitlements.set(ownerId, {
+          plan: "free",
+          status: "canceled",
+          renewsAt: null,
+          stripeCustomerId: prev?.stripeCustomerId,
+        });
+        persist();
       }
     }
     res.json({ received: true });

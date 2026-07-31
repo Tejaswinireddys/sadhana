@@ -69,6 +69,19 @@ export default function Terms() {
       </section>
 
       <section className="space-y-3 text-sm leading-relaxed">
+        <h2 className="font-serif text-xl">Subscriptions &amp; fair billing</h2>
+        <p className="text-muted-foreground">
+          Core guest practice, the pose safety library, captions, and basic modifications stay free.
+          Optional Plus and Coach plans are clearly priced on the Plans page. When Stripe checkout is
+          configured on a deployment: (1) you are charged only after completing checkout, (2) you can
+          cancel anytime via Manage subscription (Stripe Customer Portal) with no chatbot gate, (3) we
+          do not use countdown-discount paywalls or pre-checked upsells, and (4) canceling stops future
+          renewals at period end — you keep access until then. If paid checkout is not configured, you
+          will not be charged.
+        </p>
+      </section>
+
+      <section className="space-y-3 text-sm leading-relaxed">
         <h2 className="font-serif text-xl">Limitation of liability</h2>
         <p className="text-muted-foreground">
           To the fullest extent permitted by law, Sadhana and its contributors are not liable for

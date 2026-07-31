@@ -38,7 +38,7 @@ export const PLANS: Plan[] = [
       "Structured outcome programs",
       "Full offline downloads",
       "Advanced progress insights",
-      "Family sharing for two (coming soon)",
+      "Household profiles for two",
     ],
   },
   {
@@ -48,7 +48,7 @@ export const PLANS: Plan[] = [
     yearlyUsd: 149,
     bullets: [
       "Everything in Plus",
-      "Optional on-device pose feedback (future)",
+      "On-device pose coach pilot",
       "Adaptive recovery suggestions",
       "Deeper assessments",
     ],

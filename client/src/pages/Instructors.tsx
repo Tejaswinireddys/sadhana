@@ -15,8 +15,8 @@ export default function Instructors() {
       <header className="space-y-2">
         <h1 className="font-serif text-3xl font-semibold tracking-tight">Instructors & live</h1>
         <p className="max-w-2xl text-muted-foreground">
-          Verified teachers and a small live-class pilot. Join opens a real session link (Zoom /
-          YouTube Live). Full marketplace payouts stay gated behind credential checks.
+          Verified teachers and a small live-class pilot. Join opens a real session link. Full
+          marketplace payouts stay gated behind credential checks.
         </p>
       </header>
 
@@ -39,6 +39,9 @@ export default function Instructors() {
                 <p className="text-xs text-muted-foreground">
                   {new Date(c.startsAt).toLocaleString()}
                 </p>
+                {c.pilotNote && (
+                  <p className="text-xs text-muted-foreground">{c.pilotNote}</p>
+                )}
                 <Button className="min-h-11" asChild data-testid={`live-join-${c.id}`}>
                   <a href={c.joinUrl} target="_blank" rel="noreferrer">
                     Join live session
@@ -66,9 +69,7 @@ export default function Instructors() {
                 <p>
                   {i.styles.join(" · ")} · {i.languages.join(", ")}
                 </p>
-                <p>
-                  ★ {i.rating.toFixed(1)} ({i.reviewCount} reviews)
-                </p>
+                <p className="text-xs">Pilot roster — ratings publish after real student reviews.</p>
                 <ul className="list-disc pl-5">
                   {i.credentials.map((c) => (
                     <li key={c.title}>

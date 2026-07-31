@@ -9,8 +9,9 @@ import { resolve } from "node:path";
 import { initStorage, pool } from "./storage";
 import { mountSecurity, redactForLog } from "./security";
 import { registerPlatformApi } from "./platformApi";
-import { registerPushRoutes } from "./push";
+import { registerPushRoutes, startPushScheduler } from "./push";
 import { registerBillingRoutes } from "./billing";
+import { registerBuddyRoutes } from "./buddy";
 
 const app = express();
 const httpServer = createServer(app);
@@ -117,6 +118,8 @@ async function ensureSchema() {
   registerPlatformApi(app);
   registerPushRoutes(app);
   registerBillingRoutes(app);
+  registerBuddyRoutes(app);
+  startPushScheduler();
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

@@ -38,7 +38,12 @@ import {
 import { habitDayLabel, readHabitPlan, writeHabitPlan, type HabitPlan } from "@/lib/habitPlan";
 import { readAnalyticsPrefs, writeAnalyticsPrefs } from "@/lib/analytics";
 import { readVoicePrefs, writeVoicePrefs } from "@/lib/voiceControl";
-import { subscribeWebPush, unsubscribeWebPush, readPushPrefs } from "@/lib/webPush";
+import {
+  subscribeWebPush,
+  unsubscribeWebPush,
+  syncPushReminderHour,
+  readPushPrefs,
+} from "@/lib/webPush";
 import { downloadHealthWorkout } from "@/lib/healthExport";
 import { todayISO } from "@/lib/sadhana";
 import type { Session } from "@shared/schema";
@@ -82,6 +87,9 @@ export default function Settings() {
   const saveReminder = (next: ReminderPrefs) => {
     setReminder(next);
     writeJson(KEYS.reminder, next);
+    if (pushOn && next.hour !== reminder.hour) {
+      void syncPushReminderHour(next.hour);
+    }
   };
 
   const requestNotifications = async () => {
@@ -93,7 +101,7 @@ export default function Settings() {
     const enabled = perm === "granted";
     saveReminder({ ...reminder, notifications: enabled });
     if (enabled) {
-      const push = await subscribeWebPush();
+      const push = await subscribeWebPush({ reminderHour: reminder.hour });
       setPushOn(push.ok);
       toast({
         title: push.ok ? "Push reminders enabled" : "Browser alerts enabled",
@@ -324,7 +332,7 @@ export default function Settings() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <Label htmlFor="reminder-enabled">In-app evening nudge</Label>
+            <Label htmlFor="reminder-enabled">Gentle daily reminder</Label>
             <Switch
               id="reminder-enabled"
               checked={reminder.enabled}
@@ -387,8 +395,9 @@ export default function Settings() {
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Web Push works when the service worker is active (production). Missed-day copy stays
-            compassionate — we never threaten your streak.
+            Web Push fires at your chosen local hour even when the tab is closed (production service
+            worker). The in-app banner is only a fallback. Missed-day copy stays compassionate — we
+            never threaten your streak.
           </p>
         </CardContent>
       </Card>
@@ -600,7 +609,7 @@ export default function Settings() {
             </Button>
           </div>
           <Button variant="outline" className="min-h-11 w-full justify-start" asChild>
-            <Link href="/plus">Sadhana Plus plans (coming soon)</Link>
+            <Link href="/plus">Sadhana Plus plans</Link>
           </Button>
         </CardContent>
       </Card>

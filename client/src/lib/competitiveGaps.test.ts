@@ -1,5 +1,5 @@
 /**
- * Competitive-analysis gap fixes — unit coverage for new helpers.
+ * Competitive-analysis remaining gaps — unit coverage.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -7,6 +7,8 @@ import { buildTcx, buildWorkoutCsv } from "./healthExport.ts";
 import { pairBuddy, clearBuddyPair, readBuddy, writeBuddy } from "./practiceBuddy.ts";
 import { upcomingLive } from "../data/instructors.ts";
 import { isHabitDay, readHabitPlan } from "./habitPlan.ts";
+import { QUICK_SESSIONS } from "../data/quickSessions.ts";
+import { PLANS } from "./plans.ts";
 
 describe("health export", () => {
   it("builds importable TCX and CSV", () => {
@@ -21,7 +23,6 @@ describe("health export", () => {
 
 describe("practice buddy", () => {
   it("pairs and clears without using your own code", () => {
-    // Isolate storage for the test
     const original = globalThis.localStorage;
     const store = new Map<string, string>();
     // @ts-expect-error test stub
@@ -57,11 +58,12 @@ describe("practice buddy", () => {
 });
 
 describe("live class pilot", () => {
-  it("exposes real join URLs for upcoming sessions", () => {
+  it("exposes real join URLs and honest pilot notes", () => {
     const live = upcomingLive();
     assert.ok(live.length >= 1);
     for (const c of live) {
       assert.match(c.joinUrl, /^https:\/\//);
+      assert.ok(c.pilotNote);
     }
   });
 });
@@ -70,5 +72,22 @@ describe("habit plan", () => {
   it("exposes habit-day helpers used by Home recovery copy", () => {
     const plan = { ...readHabitPlan(), days: [0, 1, 2, 3, 4, 5, 6], compassionateRecovery: true };
     assert.equal(isHabitDay(plan, new Date("2026-07-31T12:00:00Z")), true);
+  });
+});
+
+describe("mood session intros", () => {
+  it("gives every mood session an intro pose slug", () => {
+    assert.equal(QUICK_SESSIONS.length, 6);
+    for (const q of QUICK_SESSIONS) {
+      assert.ok(q.introPoseSlug);
+      assert.equal(q.introPoseSlug, q.poses[0]?.slug);
+    }
+  });
+});
+
+describe("plans copy", () => {
+  it("does not advertise coming-soon stubs on paid tiers", () => {
+    const text = PLANS.flatMap((p) => p.bullets).join(" ");
+    assert.equal(/coming soon|future\)/i.test(text), false);
   });
 });
