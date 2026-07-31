@@ -1,20 +1,17 @@
 /**
- * PoseTrainerStage — clear pose teaching for detail / guided surfaces.
+ * PoseTrainerStage — large step video for teaching surfaces.
  *
- * Default: illustrated human figure with step focus + captions (readable
- * training). Ken Burns looping clips are NOT used for teaching — they only
- * bob a still image. Real filmed CDN overrides in POSE_MEDIA_OVERRIDES still win.
+ * While training, plays the demo clip for the current step’s shape (this pose,
+ * or the entry shape on a multi-shape journey). Restarts on each step so the
+ * clip reads as a fresh cue. Falls back to the illustrated figure when no
+ * clip is registered.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
 import { PoseHumanStage } from "@/components/PoseHumanStage";
 import { asanaBySlug } from "@/data/content";
-import { poseHasShapeJourney } from "@/data/poseKeyImages";
-import {
-  POSE_MEDIA_OVERRIDES,
-  poseHasVideo,
-  poseMediaFor,
-} from "@/data/poseMedia";
+import { humanStepSlug, poseHasShapeJourney } from "@/data/poseKeyImages";
+import { poseHasVideo, poseMediaFor } from "@/data/poseMedia";
 import type { FocusZone } from "@/lib/poseMoments";
 
 export type PoseTrainerStageProps = {
@@ -27,10 +24,6 @@ export type PoseTrainerStageProps = {
   stepIndex?: number;
   playing?: boolean;
   restartToken?: number;
-  /**
-   * True while the user is in an active step walkthrough (narration / guided
-   * instruction). When false, the stage always shows THIS pose (still art).
-   */
   guideActive?: boolean;
   focusZone?: FocusZone | null;
   caption?: string | null;
@@ -60,9 +53,6 @@ export function PoseTrainerStage({
   "data-testid": testId,
   onModeChange,
 }: PoseTrainerStageProps) {
-  const media = useMemo(() => poseMediaFor(slug), [slug]);
-  const hasVideo = poseHasVideo(slug);
-  const filmedOverride = slug in POSE_MEDIA_OVERRIDES;
   const asana = asanaBySlug(slug);
   const shapeJourney = useMemo(
     () =>
@@ -74,15 +64,23 @@ export function PoseTrainerStage({
       ),
     [asana, slug, poseKey],
   );
+
+  // Idle: this pose. Training: the step’s shape (e.g. Mountain → Tree).
+  const displaySlug = useMemo(
+    () => humanStepSlug(slug, poseKey, guideActive ? stepPoseKey : poseKey),
+    [slug, poseKey, guideActive, stepPoseKey],
+  );
+
+  const media = useMemo(() => poseMediaFor(displaySlug), [displaySlug]);
+  const hasVideo = poseHasVideo(displaySlug);
   const [forceIllustrated, setForceIllustrated] = useState(false);
 
   useEffect(() => {
     setForceIllustrated(false);
-  }, [slug]);
+  }, [displaySlug]);
 
-  // Only real filmed overrides use video. Generated Ken Burns clips look like
-  // “moving up and down” — not a training explanation.
-  const useVideo = filmedOverride && hasVideo && !forceIllustrated;
+  // Prefer registered demo clips so each step plays a video, not a tiny still.
+  const useVideo = hasVideo && !forceIllustrated;
 
   useEffect(() => {
     onModeChange?.(useVideo ? "video" : "illustrated");
@@ -93,8 +91,7 @@ export function PoseTrainerStage({
   }, []);
 
   const effectiveStepPose = guideActive ? stepPoseKey : poseKey;
-  // Whole-body bounce only when the illustration actually changes shape.
-  const effectiveMomentum = shapeJourney && guideActive ? momentum : "";
+  const effectiveMomentum = shapeJourney && guideActive && !useVideo ? momentum : "";
 
   if (!useVideo) {
     return (
@@ -118,7 +115,8 @@ export function PoseTrainerStage({
 
   return (
     <PoseDemoStage
-      slug={slug}
+      key={displaySlug}
+      slug={displaySlug}
       english={english}
       sanskrit={sanskrit}
       poseKey={poseKey}
@@ -130,6 +128,7 @@ export function PoseTrainerStage({
       stepIndex={stepIndex}
       stepPoseKey={effectiveStepPose ?? undefined}
       focusZone={guideActive ? focusZone : null}
+      caption={guideActive ? caption : null}
       side={side}
       variant={variant}
       className={className}

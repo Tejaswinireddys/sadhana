@@ -535,28 +535,26 @@ html.motion-off .animate-breathe {
    Height is viewport-relative; media inside uses object-contain.
    ===================================================================== */
 .pose-stage-frame {
-  /* Pose media is 1:2. Size by viewport height so the full figure fits on
-     screen, then derive width — never let the stage blow past the phone. */
-  --pose-stage-h: min(48dvh, 22rem);
+  /* Full-width teaching stage — tall enough to read the figure/video,
+     capped so the page still fits phones. */
+  --pose-stage-h: min(56dvh, 28rem);
   position: relative;
   box-sizing: border-box;
-  height: var(--pose-stage-h);
-  max-height: var(--pose-stage-h);
-  width: min(100%, calc(var(--pose-stage-h) * 0.5));
+  width: 100%;
   max-width: 100%;
   min-width: 0;
+  height: var(--pose-stage-h);
+  max-height: var(--pose-stage-h);
   margin-inline: auto;
-  aspect-ratio: 1 / 2;
 }
 @media (min-width: 640px) {
   .pose-stage-frame {
-    --pose-stage-h: min(50dvh, 26rem);
+    --pose-stage-h: min(58dvh, 32rem);
   }
 }
 @media (min-width: 1024px) {
   .pose-stage-frame {
-    /* Leave room for title + teaching rail + Watch CTA in the first screen */
-    --pose-stage-h: min(48dvh, 28rem);
+    --pose-stage-h: min(62dvh, 36rem);
   }
 }
 

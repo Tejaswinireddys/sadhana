@@ -87,8 +87,8 @@ export function PoseExplanation({ slug }: { slug: string }) {
         : null,
     [started, completed, activeStep, stepIndex, stepCount],
   );
-  // Motion only while the lesson is actively playing — idle stays a clear still.
-  const stagePlaying = started && playing && !completed;
+  // During training, video follows play/pause; idle preview loops the clip.
+  const stagePlaying = !started || (playing && !completed);
 
   useEffect(() => {
     const a = audioRef.current;
@@ -105,6 +105,12 @@ export function PoseExplanation({ slug }: { slug: string }) {
     setRestartToken(0);
     setTab("form");
   }, [slug]);
+
+  // Restart the step video whenever the spoken cue advances.
+  useEffect(() => {
+    if (!started || completed) return;
+    setRestartToken((n) => n + 1);
+  }, [stepIndex, started, completed]);
 
   // If voice is turned off mid-explanation, drop into the silent walkthrough.
   useEffect(() => {
@@ -266,11 +272,11 @@ export function PoseExplanation({ slug }: { slug: string }) {
           <p className="text-sm text-muted-foreground">
             {asana.sanskrit}
             {" · "}
-            Clear cues on the body — not a zooming clip. Follow the steps, then practice.
+            A demo video for each step, with cues on the body. Follow along, then practice.
           </p>
         </div>
 
-        <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start">
+        <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)] lg:items-start">
           <PoseTrainerStage
             slug={asana.slug}
             english={asana.english}
@@ -289,7 +295,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
                 : null
             }
             variant="detail"
-            className="min-w-0"
+            className="min-w-0 w-full"
             data-testid={`demo-hero-${asana.slug}`}
           />
 
