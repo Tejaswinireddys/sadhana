@@ -25,7 +25,7 @@ import {
 } from "@/lib/yogaTrainer";
 import { cn } from "@/lib/utils";
 import { formatHold } from "@/lib/formatDuration";
-import { Play, RefreshCw, ShieldAlert, Sparkles, UserRound } from "lucide-react";
+import { ChevronRight, Play, RefreshCw, ShieldAlert, Sparkles, UserRound } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { UserProfile } from "@shared/schema";
 
@@ -298,44 +298,7 @@ export default function Trainer() {
           </Card>
         )}
 
-        <ol className="space-y-3" data-testid="list-composed-poses">
-          {result.poses.map((p, i) => {
-            const asana = asanaBySlug(p.slug);
-            return (
-              <li key={`${p.slug}-${i}`}>
-                <Card className="shadow-soft" data-testid={`composed-pose-${p.slug}`}>
-                  <CardContent className="flex items-center gap-4 p-3">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold tabular-nums text-primary">
-                      {i + 1}
-                    </span>
-                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg">
-                      <PoseImage
-                        slug={p.slug}
-                        alt={asana?.english ?? p.slug}
-                        aspect="aspect-square"
-                        thumb
-                        rounded="rounded-lg"
-                        breath={false}
-                        shadow={false}
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-baseline gap-x-2">
-                        <p className="font-serif text-base leading-tight">{asana?.english ?? p.slug}</p>
-                        <span className="text-xs italic text-muted-foreground">{asana?.sanskrit}</span>
-                      </div>
-                      <p className="mt-0.5 text-sm text-muted-foreground">{p.why}</p>
-                    </div>
-                    <span className="shrink-0 text-right text-xs font-medium tabular-nums text-muted-foreground">
-                      {formatHold(p.holdSeconds, p.sides)}
-                    </span>
-                  </CardContent>
-                </Card>
-              </li>
-            );
-          })}
-        </ol>
-
+        {/* CTA above the long list — was easy to miss below 13 poses */}
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             size="lg"
@@ -351,6 +314,88 @@ export default function Trainer() {
             className="flex-1"
             onClick={doCompose}
             data-testid="button-compose-different"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" /> Compose a different one
+          </Button>
+        </div>
+
+        <div className="flex items-end justify-between gap-3">
+          <h2 className="font-serif text-lg font-medium tracking-tight">Poses in this practice</h2>
+          <p className="text-xs text-muted-foreground">Tap a pose to open its guide</p>
+        </div>
+
+        <ol className="space-y-3" data-testid="list-composed-poses">
+          {result.poses.map((p, i) => {
+            const asana = asanaBySlug(p.slug);
+            const href = `/asanas/${p.slug}`;
+            return (
+              <li key={`${p.slug}-${i}`}>
+                <Card
+                  className="shadow-soft transition-colors hover:border-primary/40"
+                  data-testid={`composed-pose-${p.slug}`}
+                >
+                  <CardContent className="p-0">
+                    <Link
+                      href={href}
+                      className="flex min-h-11 cursor-pointer items-center gap-3 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:gap-4"
+                      data-testid={`link-composed-pose-${p.slug}`}
+                      aria-label={`Open ${asana?.english ?? p.slug} pose guide`}
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold tabular-nums text-primary">
+                        {i + 1}
+                      </span>
+                      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-20">
+                        <PoseImage
+                          slug={p.slug}
+                          alt={asana?.english ?? p.slug}
+                          aspect="aspect-square"
+                          thumb
+                          rounded="rounded-lg"
+                          breath={false}
+                          shadow={false}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-baseline gap-x-2">
+                          <p className="font-serif text-base leading-tight">
+                            {asana?.english ?? p.slug}
+                          </p>
+                          <span className="text-xs italic text-muted-foreground">
+                            {asana?.sanskrit}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-sm text-muted-foreground">{p.why}</p>
+                      </div>
+                      <span className="hidden shrink-0 text-right text-xs font-medium tabular-nums text-muted-foreground sm:block">
+                        {formatHold(p.holdSeconds, p.sides)}
+                      </span>
+                      <ChevronRight
+                        className="h-5 w-5 shrink-0 text-muted-foreground"
+                        aria-hidden
+                      />
+                    </Link>
+                  </CardContent>
+                </Card>
+              </li>
+            );
+          })}
+        </ol>
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button
+            size="lg"
+            className="flex-1 bg-primary text-primary-foreground"
+            onClick={startGuided}
+            data-testid="button-start-guided-bottom"
+          >
+            <Play className="mr-2 h-4 w-4" /> Start guided session
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="flex-1"
+            onClick={doCompose}
+            data-testid="button-compose-different-bottom"
           >
             <RefreshCw className="mr-2 h-4 w-4" /> Compose a different one
           </Button>
