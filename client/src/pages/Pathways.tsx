@@ -78,8 +78,16 @@ function FlowCard({ p, onStart }: { p: Pathway; onStart: (p: Pathway) => void })
       <CardContent className="flex flex-1 flex-col gap-3 p-4">
         <div>
           <h3 className="font-serif text-lg leading-tight">{p.name}</h3>
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="h-3.5 w-3.5" /> {p.minutesPerSession ?? p.timePerSession} min · {poseCount} poses
+          {p.tagline && (
+            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.tagline}</p>
+          )}
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5" /> {p.minutesPerSession ?? p.timePerSession} min
+            </span>
+            <span>· {poseCount} poses</span>
+            <span>· All levels</span>
+            <span>· No props required</span>
           </p>
         </div>
         <Button
@@ -164,6 +172,10 @@ function PathwayCard({ p, enrolled }: { p: Pathway; enrolled: boolean }) {
             <p className="flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" /> {p.timePerSession}
             </p>
+            {p.goalDescription && (
+              <p className="pt-1 text-foreground/80">{p.goalDescription}</p>
+            )}
+            <p>Voice-guided · Safety notes on every pose · Guest-friendly</p>
           </div>
         </CardContent>
       </Card>

@@ -7,3 +7,6 @@ rig-preview.png
 
 # FUSE mount artifacts from remote/dev filesystems
 .fuse_hidden*
+test-results/
+playwright-report/
+

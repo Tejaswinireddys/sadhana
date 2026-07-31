@@ -130,7 +130,18 @@ ALTER TABLE custom_flows ADD COLUMN IF NOT EXISTS owner_id TEXT NOT NULL DEFAULT
 ALTER TABLE pose_notes DROP CONSTRAINT IF EXISTS pose_notes_slug_key;
 CREATE UNIQUE INDEX IF NOT EXISTS pose_notes_owner_slug_idx ON pose_notes (owner_id, slug);
 CREATE INDEX IF NOT EXISTS sessions_owner_idx ON sessions (owner_id);
+CREATE INDEX IF NOT EXISTS sessions_owner_date_idx ON sessions (owner_id, date);
 CREATE INDEX IF NOT EXISTS preferences_owner_idx ON preferences (owner_id);
+CREATE INDEX IF NOT EXISTS pathway_enrollments_owner_idx ON pathway_enrollments (owner_id);
+CREATE INDEX IF NOT EXISTS favorite_affirmations_owner_idx ON favorite_affirmations (owner_id);
+CREATE INDEX IF NOT EXISTS journal_entries_owner_idx ON journal_entries (owner_id);
+CREATE INDEX IF NOT EXISTS journal_entries_owner_date_idx ON journal_entries (owner_id, date);
+CREATE INDEX IF NOT EXISTS user_profiles_owner_idx ON user_profiles (owner_id);
+CREATE INDEX IF NOT EXISTS kids_stickers_owner_idx ON kids_stickers (owner_id);
+CREATE INDEX IF NOT EXISTS favorite_asanas_owner_idx ON favorite_asanas (owner_id);
+CREATE INDEX IF NOT EXISTS milestones_owner_idx ON milestones (owner_id);
+CREATE INDEX IF NOT EXISTS mobility_check_ins_owner_idx ON mobility_check_ins (owner_id);
+CREATE INDEX IF NOT EXISTS custom_flows_owner_idx ON custom_flows (owner_id);
 
 -- Optional accounts (v6). Guests keep using an anonymous device owner id.
 CREATE TABLE IF NOT EXISTS users (
@@ -145,7 +156,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (email);
 CREATE TABLE IF NOT EXISTS auth_sessions (
   id SERIAL PRIMARY KEY,
   token TEXT NOT NULL,
-  user_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL
 );
@@ -154,10 +165,35 @@ CREATE INDEX IF NOT EXISTS auth_sessions_user_idx ON auth_sessions (user_id);
 
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token_hash TEXT NOT NULL,
   expires_at TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS password_reset_tokens_hash_idx ON password_reset_tokens (token_hash);
 CREATE INDEX IF NOT EXISTS password_reset_tokens_user_idx ON password_reset_tokens (user_id);
+
+-- Soft entitlements for future Sadhana Plus (local scaffolding; no payment processor yet).
+CREATE TABLE IF NOT EXISTS entitlements (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  plan TEXT NOT NULL DEFAULT 'free',
+  status TEXT NOT NULL DEFAULT 'active',
+  renews_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS entitlements_user_idx ON entitlements (user_id);
+
+-- Backfill FKs on databases created before REFERENCES existed (ignore if already present).
+DO $$ BEGIN
+  ALTER TABLE auth_sessions
+    ADD CONSTRAINT auth_sessions_user_id_fkey
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE password_reset_tokens
+    ADD CONSTRAINT password_reset_tokens_user_id_fkey
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

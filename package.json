@@ -8,7 +8,8 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
-    "test": "tsx --test server/owner.test.ts server/deviceIdentity.test.ts server/auth.test.ts server/storage.isolation.test.ts server/pathwayProgress.test.ts client/src/lib/practicePersist.test.ts client/src/lib/yogaTrainer.test.ts client/src/lib/logPracticeSession.test.ts client/src/lib/savePracticePrompt.test.ts shared/holdBounds.test.ts client/src/lib/contrast.test.ts client/src/lib/uiFixes.test.ts client/src/lib/poseMomentum.test.ts client/src/lib/poseMoments.test.ts client/src/data/catalog.test.ts client/src/data/poseKeyImages.test.ts client/src/data/poseMedia.test.ts client/src/lib/narrationTiming.test.ts client/src/data/poseKeyframes.test.ts",
+    "test": "tsx --test server/owner.test.ts server/deviceIdentity.test.ts server/auth.test.ts server/storage.isolation.test.ts server/pathwayProgress.test.ts client/src/lib/practicePersist.test.ts client/src/lib/yogaTrainer.test.ts client/src/lib/logPracticeSession.test.ts client/src/lib/savePracticePrompt.test.ts shared/holdBounds.test.ts client/src/lib/contrast.test.ts client/src/lib/uiFixes.test.ts client/src/lib/poseMomentum.test.ts client/src/lib/poseMoments.test.ts client/src/data/catalog.test.ts client/src/data/poseKeyImages.test.ts client/src/data/poseMedia.test.ts client/src/lib/narrationTiming.test.ts client/src/data/poseKeyframes.test.ts client/src/lib/p1p2Features.test.ts script/perfBudgets.test.ts",
+    "test:e2e": "playwright test",
     "gen:pose-videos": "tsx script/gen-pose-videos.ts",
     "demo:record": "node script/record-product-demo.mjs",
     "demo:encode": "node script/encode-product-demo.mjs --in /tmp/demo",
@@ -80,6 +81,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.18",
     "@types/express": "^5.0.0",

@@ -7176,6 +7176,302 @@ export const PATHWAYS: Pathway[] = [
       },
     ],
   },
+  // ─── Outcome programs (eval P1): beginner, stress, sleep reinforcement, limited mobility ───
+  {
+    slug: "foundations-beginner",
+    name: "Foundations for Beginners",
+    tagline: "A calm 7-day introduction to alignment, breath, and short holds.",
+    target: "Tadasana",
+    targetPose: "mountain",
+    targetImgSlug: "tadasana",
+    targetPoseSlug: "tadasana",
+    kind: "daily",
+    section: "seven-day",
+    weeks: 1,
+    sessionsPerWeek: 7,
+    timePerSession: "12–15 min",
+    minutesPerSession: 12,
+    goalDescription: "Build confidence with foundational poses and kind pacing.",
+    summary:
+      "Seven short sessions that teach mountain, child's pose, cat-cow, and easy standing shapes. Conservative holds, clear cues, and rest days that still feel like practice.",
+    schedule: [],
+    weekPlan: [],
+    dailyPlan: [
+      {
+        day: 1, theme: "Arrive and stand", focus: "general", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 60, sides: "once", note: "settle" },
+          { asanaSlug: "marjaryasana-bitilasana", holdSeconds: 60, sides: "once", note: "wake the spine" },
+          { asanaSlug: "tadasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "uttanasana", holdSeconds: 40, sides: "once", note: "soft knees ok" },
+          { asanaSlug: "balasana", holdSeconds: 90, sides: "once", note: "rest" },
+        ],
+      },
+      {
+        day: 2, theme: "Breath and balance", focus: "general", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "vajrasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "marjaryasana-bitilasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "tadasana", holdSeconds: 30, sides: "once" },
+          { asanaSlug: "vrksasana", holdSeconds: 30, sides: "each", note: "wall ok" },
+          { asanaSlug: "balasana", holdSeconds: 90, sides: "once" },
+        ],
+      },
+      {
+        day: 3, theme: "Gentle strength", focus: "general", totalMinutes: 14,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "adho-mukha-svanasana", holdSeconds: 40, sides: "once", note: "knees down anytime" },
+          { asanaSlug: "virabhadrasana-ii", holdSeconds: 30, sides: "each", note: "short stance" },
+          { asanaSlug: "uttanasana", holdSeconds: 40, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 4, theme: "Active recovery", focus: "general", totalMinutes: 10, restDay: true,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 90, sides: "once", note: "breathe" },
+          { asanaSlug: "balasana", holdSeconds: 90, sides: "once" },
+          { asanaSlug: "viparita-karani", holdSeconds: 120, sides: "once", note: "legs up wall if helpful" },
+        ],
+      },
+      {
+        day: 5, theme: "Hips and ease", focus: "hips", totalMinutes: 14,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "baddha-konasana", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "anjaneyasana", holdSeconds: 30, sides: "each", note: "low lunge" },
+          { asanaSlug: "balasana", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 6, theme: "Flow the basics", focus: "morning", totalMinutes: 15,
+        poses: [
+          { asanaSlug: "tadasana", holdSeconds: 30, sides: "once" },
+          { asanaSlug: "urdhva-hastasana", holdSeconds: 20, sides: "once" },
+          { asanaSlug: "uttanasana", holdSeconds: 30, sides: "once" },
+          { asanaSlug: "adho-mukha-svanasana", holdSeconds: 40, sides: "once" },
+          { asanaSlug: "bhujangasana", holdSeconds: 25, sides: "once", note: "gentle cobra" },
+          { asanaSlug: "balasana", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 7, theme: "Integrate and rest", focus: "sleep", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "supta-baddha-konasana", holdSeconds: 90, sides: "once" },
+          { asanaSlug: "viparita-karani", holdSeconds: 120, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 180, sides: "once", note: "celebrate showing up" },
+        ],
+      },
+    ],
+  },
+  {
+    slug: "stress-release-week",
+    name: "Stress Release Week",
+    tagline: "Seven gentle sessions to downshift the nervous system.",
+    target: "Balasana",
+    targetPose: "child",
+    targetImgSlug: "balasana",
+    targetPoseSlug: "balasana",
+    kind: "daily",
+    section: "seven-day",
+    weeks: 1,
+    sessionsPerWeek: 7,
+    timePerSession: "10–15 min",
+    minutesPerSession: 12,
+    goalDescription: "Lower perceived stress with breath-led, low-load practice.",
+    summary:
+      "Forward folds, supported inversions, and slow breathing shapes. No peak poses — just reliable calm you can finish even on hard days.",
+    schedule: [],
+    weekPlan: [],
+    dailyPlan: [
+      {
+        day: 1, theme: "Exhale longer", focus: "general", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 90, sides: "once", note: "lengthen exhale" },
+          { asanaSlug: "balasana", holdSeconds: 90, sides: "once" },
+          { asanaSlug: "uttanasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 150, sides: "once" },
+        ],
+      },
+      {
+        day: 2, theme: "Soft spine", focus: "general", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "marjaryasana-bitilasana", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "balasana", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "bharadvajasana", holdSeconds: 40, sides: "each", note: "gentle twist" },
+          { asanaSlug: "viparita-karani", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 3, theme: "Shoulders down", focus: "general", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "gomukhasana", holdSeconds: 40, sides: "each", note: "skip bind if needed" },
+          { asanaSlug: "balasana", holdSeconds: 75, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 150, sides: "once" },
+        ],
+      },
+      {
+        day: 4, theme: "Rest day reset", focus: "sleep", totalMinutes: 10, restDay: true,
+        poses: [
+          { asanaSlug: "supta-baddha-konasana", holdSeconds: 120, sides: "once" },
+          { asanaSlug: "viparita-karani", holdSeconds: 150, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 5, theme: "Grounding stand", focus: "general", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "tadasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "uttanasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "adho-mukha-svanasana", holdSeconds: 40, sides: "once", note: "knees down ok" },
+          { asanaSlug: "balasana", holdSeconds: 90, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 6, theme: "Hip ease", focus: "hips", totalMinutes: 14,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "baddha-konasana", holdSeconds: 75, sides: "once" },
+          { asanaSlug: "balasana", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "viparita-karani", holdSeconds: 120, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 7, theme: "Close the week softly", focus: "sleep", totalMinutes: 15,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "balasana", holdSeconds: 90, sides: "once" },
+          { asanaSlug: "supta-baddha-konasana", holdSeconds: 90, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 180, sides: "once", note: "no rush to leave" },
+        ],
+      },
+    ],
+  },
+  {
+    slug: "chair-limited-mobility",
+    name: "Chair & Limited Mobility",
+    tagline: "A 7-day seated and supported path — no floor required.",
+    target: "Chair Forward Fold",
+    targetPose: "seated",
+    targetImgSlug: "chair-forward-fold",
+    targetPoseSlug: "chair-forward-fold",
+    kind: "daily",
+    section: "seven-day",
+    weeks: 1,
+    sessionsPerWeek: 7,
+    timePerSession: "10–12 min",
+    minutesPerSession: 11,
+    goalDescription: "Practice safely with chair support and conservative range.",
+    summary:
+      "Designed for desk workers, recovery days, and anyone who prefers not to get on the floor. Large cues, short holds, and rest options on every day.",
+    schedule: [],
+    weekPlan: [],
+    dailyPlan: [
+      {
+        day: 1, theme: "Seated arrival", focus: "general", totalMinutes: 10,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 60, sides: "once", note: "or sit in a chair" },
+          { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "bharadvajasana", holdSeconds: 30, sides: "each", note: "chair twist ok" },
+          { asanaSlug: "chair-viparita-karani", holdSeconds: 90, sides: "once", note: "legs on chair" },
+        ],
+      },
+      {
+        day: 2, theme: "Shoulders free", focus: "general", totalMinutes: 11,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "gomukhasana", holdSeconds: 30, sides: "each", note: "arms only if needed" },
+          { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 120, sides: "once", note: "or recline in chair" },
+        ],
+      },
+      {
+        day: 3, theme: "Gentle stand optional", focus: "general", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "tadasana", holdSeconds: 40, sides: "once", note: "hold chair back" },
+          { asanaSlug: "uttanasana", holdSeconds: 30, sides: "once", note: "hands to chair seat" },
+          { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "chair-viparita-karani", holdSeconds: 90, sides: "once" },
+        ],
+      },
+      {
+        day: 4, theme: "Rest and breathe", focus: "sleep", totalMinutes: 10, restDay: true,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 90, sides: "once" },
+          { asanaSlug: "chair-viparita-karani", holdSeconds: 150, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 90, sides: "once" },
+        ],
+      },
+      {
+        day: 5, theme: "Spine mobility", focus: "general", totalMinutes: 11,
+        poses: [
+          { asanaSlug: "marjaryasana-bitilasana", holdSeconds: 45, sides: "once", note: "seated cat-cow ok" },
+          { asanaSlug: "bharadvajasana", holdSeconds: 35, sides: "each" },
+          { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 6, theme: "Hip comfort", focus: "hips", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "baddha-konasana", holdSeconds: 60, sides: "once", note: "seated on chair edge" },
+          { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "chair-viparita-karani", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 7, theme: "Integrate", focus: "general", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "tadasana", holdSeconds: 30, sides: "once", note: "optional" },
+          { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "bharadvajasana", holdSeconds: 30, sides: "each" },
+          { asanaSlug: "chair-viparita-karani", holdSeconds: 90, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 120, sides: "once", note: "well done" },
+        ],
+      },
+    ],
+  },
+  {
+    slug: "better-sleep-flow",
+    name: "Better Sleep Flow",
+    tagline: "A 12-minute wind-down you can repeat nightly.",
+    target: "Savasana",
+    targetPose: "corpse",
+    targetImgSlug: "savasana",
+    targetPoseSlug: "savasana",
+    kind: "flow",
+    section: "quick-flow",
+    weeks: 1,
+    sessionsPerWeek: 7,
+    minutesPerSession: 12,
+    timePerSession: "12 min",
+    summary:
+      "Dim the lights and move slowly into folds, a supported inversion, and a long final rest. Pair with the 7-day sleep challenge when you want structure.",
+    schedule: [],
+    weekPlan: [
+      {
+        weekNumber: 1,
+        theme: "Better Sleep Flow",
+        sessionsPerWeek: 7,
+        poses: [
+          { asanaSlug: "sukhasana", holdSeconds: 60, note: "arrive" },
+          { asanaSlug: "baddha-konasana", holdSeconds: 60 },
+          { asanaSlug: "uttanasana", holdSeconds: 45, note: "soft knees" },
+          { asanaSlug: "balasana", holdSeconds: 75 },
+          { asanaSlug: "viparita-karani", holdSeconds: 120 },
+          { asanaSlug: "savasana", holdSeconds: 180, note: "stay as long as you like" },
+        ],
+      },
+    ],
+  },
 ];
 
 /** Theme ids shown in Affirmations UI (and linked from profiles). */

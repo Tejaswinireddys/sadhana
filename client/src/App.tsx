@@ -95,6 +95,8 @@ const Account = lazyPage(() => import("@/pages/Account"));
 const Privacy = lazyPage(() => import("@/pages/Privacy"));
 const Terms = lazyPage(() => import("@/pages/Terms"));
 const HealthDisclaimer = lazyPage(() => import("@/pages/HealthDisclaimer"));
+const Plus = lazyPage(() => import("@/pages/Plus"));
+const Challenges = lazyPage(() => import("@/pages/Challenges"));
 
 function RouteFallback() {
   return (
@@ -153,6 +155,8 @@ function AppRouter() {
           <Route path="/privacy" component={Privacy} />
           <Route path="/terms" component={Terms} />
           <Route path="/health-disclaimer" component={HealthDisclaimer} />
+          <Route path="/plus" component={Plus} />
+          <Route path="/challenges" component={Challenges} />
           <Route path="/design-system" component={DesignSystem} />
           <Route component={NotFound} />
         </Switch>

@@ -1,6 +1,7 @@
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { todayISO, type Stats } from "@/lib/sadhana";
 import { detectMilestones } from "@/lib/milestones";
+import { track } from "@/lib/analytics";
 import type { Milestone } from "@shared/schema";
 import type { Mood } from "@/data/content";
 
@@ -102,6 +103,7 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
     });
     queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
     queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
+    track("practice_complete", { minutes: Math.max(1, minutes), kind });
   } catch (e) {
     return { ok: false, error: (e as Error).message || "Could not save your session." };
   }

@@ -47,40 +47,42 @@ type NavItem = { href: string; label: string; icon: typeof Home };
 
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
-    label: "Practice",
+    label: "Today",
     items: [
-      { href: "/", label: "Home", icon: Home },
-      { href: "/trainer", label: "Yoga Trainer", icon: UserRound },
-      { href: "/guided", label: "Start practice", icon: Timer },
-      { href: "/pathways", label: "Pathways", icon: RouteIcon },
-      { href: "/builder", label: "Builder", icon: PlusCircle },
+      { href: "/", label: "Today", icon: Home },
+      { href: "/guided", label: "Practice", icon: Timer },
+      { href: "/trainer", label: "Coach", icon: UserRound },
     ],
   },
   {
     label: "Explore",
     items: [
-      { href: "/asanas", label: "Asana Library", icon: LayoutGrid },
+      { href: "/asanas", label: "Poses", icon: LayoutGrid },
+      { href: "/pathways", label: "Programs", icon: RouteIcon },
+      { href: "/challenges", label: "Challenges", icon: Sparkles },
       { href: "/breathing", label: "Breathing", icon: Wind },
       { href: "/affirmations", label: "Affirmations", icon: Sparkles },
       { href: "/kids", label: "Kids", icon: Smile },
+      { href: "/builder", label: "Builder", icon: PlusCircle },
     ],
   },
   {
-    label: "You",
+    label: "Progress",
     items: [
       { href: "/journal", label: "Journal", icon: NotebookPen },
       { href: "/profiles", label: "My path", icon: Compass },
       { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/account", label: "Account", icon: UserRound },
     ],
   },
 ];
 
 const MOBILE_PRIMARY: NavItem[] = [
-  { href: "/", label: "Home", icon: Home },
+  { href: "/", label: "Today", icon: Home },
   { href: "/guided", label: "Practice", icon: Timer },
-  { href: "/trainer", label: "Trainer", icon: UserRound },
-  { href: "/pathways", label: "Pathways", icon: RouteIcon },
-  { href: "/asanas", label: "Library", icon: LayoutGrid },
+  { href: "/trainer", label: "Coach", icon: UserRound },
+  { href: "/pathways", label: "Programs", icon: RouteIcon },
+  { href: "/asanas", label: "Poses", icon: LayoutGrid },
 ];
 
 function SidebarSearch() {

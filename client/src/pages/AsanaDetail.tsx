@@ -15,6 +15,7 @@ import { PoseExplanation } from "@/components/PoseExplanation";
 import { asanaBySlug, type Severity } from "@/data/content";
 import { CONTENT_REVIEW } from "@/data/contentProvenance";
 import { poseNarrationSrc } from "@/data/poseMedia";
+import { pronunciationFor } from "@/lib/sanskritPronunciation";
 import { usagesForAsana } from "@/data/asanaUsage";
 import { QUICK_SESSIONS, sessionMinutes, sessionTimeLabel } from "@/data/quickSessions";
 import { usePractice } from "@/context/PracticeContext";
@@ -234,6 +235,18 @@ export default function AsanaDetail() {
             <p className="text-lg italic text-muted-foreground" data-testid="text-asana-sanskrit">
               {asana.sanskrit}
             </p>
+            {(() => {
+              const pron = pronunciationFor(asana.slug, asana.sanskrit);
+              return (
+                <p className="text-sm text-muted-foreground" data-testid="text-asana-pronunciation">
+                  <span className="not-italic">Pronounce:</span>{" "}
+                  <span className="font-medium text-foreground">{pron.approx}</span>
+                  <span className="mx-1.5 text-border">·</span>
+                  <span className="not-italic">{pron.transliteration}</span>
+                  <span className="mt-1 block text-xs">{pron.tip}</span>
+                </p>
+              );
+            })()}
           </div>
           <p className="max-w-2xl text-base leading-relaxed text-foreground/90">{asana.summary}</p>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

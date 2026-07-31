@@ -61,6 +61,9 @@ import {
   NotebookPen,
   Volume2,
   VolumeX,
+  RotateCcw,
+  Gauge,
+  Subtitles,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
@@ -191,6 +194,9 @@ export default function GuidedSession() {
   // preference, so silencing the voice for one practice (e.g. to use your own
   // music) doesn't rewrite the user's global setting.
   const [muted, setMuted] = useState(false);
+  /** Playback pace for narration + countdown (0.75 / 1 / 1.25). */
+  const [pace, setPace] = useState<0.75 | 1 | 1.25>(1);
+  const [captionsOn, setCaptionsOn] = useState(true);
   const [elapsedTotal, setElapsedTotal] = useState(0);
   const [imgVisible, setImgVisible] = useState(true); // crossfade toggle
   const [cueIndex, setCueIndex] = useState(0);
@@ -498,7 +504,7 @@ export default function GuidedSession() {
         return;
       }
       a.currentTime = 0;
-      a.playbackRate = 1;
+      a.playbackRate = pace;
       const p = a.play();
       if (p && typeof p.then === "function") {
         p.catch((err) => {
@@ -510,7 +516,7 @@ export default function GuidedSession() {
         });
       }
     },
-    [voiceEnabled],
+    [voiceEnabled, pace],
   );
 
   const enterHold = useCallback(() => {
@@ -539,9 +545,17 @@ export default function GuidedSession() {
     }
   }, [isEach, side, enterHold, speak]);
 
+  // Keep narration rate in sync when the practitioner changes pace mid-pose.
+  useEffect(() => {
+    const a = audioRef.current;
+    if (a) a.playbackRate = pace;
+  }, [pace]);
+
   // ---- master 1s tick -------------------------------------------------------
   useEffect(() => {
     if (!started || paused || finished) return;
+    // Pace slows/fastens the wall-clock of countdowns (not engagement scoring).
+    const intervalMs = Math.round(1000 / pace);
     const t = setInterval(() => {
       setElapsedTotal((e) => e + 1);
       setRemainingEstimate((r) => Math.max(0, r - 1));
@@ -582,13 +596,14 @@ export default function GuidedSession() {
         }
         return r - 1;
       });
-    }, 1000);
+    }, intervalMs);
     return () => clearInterval(t);
   }, [
     started,
     paused,
     finished,
     phase,
+    pace,
     voiceEnabled,
     index,
     todays.length,
@@ -662,6 +677,22 @@ export default function GuidedSession() {
   const handlePrev = () => {
     if (index === 0) enterTransition(0);
     else goToPose(index - 1);
+  };
+  const handleRepeatCue = () => {
+    if (phase === "instruction") {
+      startInstruction(side);
+      toast({ title: "Repeating guidance", description: "Playing this pose’s cues again." });
+      return;
+    }
+    if (phase === "hold") {
+      setCueIndex(0);
+      toast({ title: "Cue restarted", description: "Form cues will cycle from the top." });
+      return;
+    }
+    enterTransition(index);
+  };
+  const cyclePace = () => {
+    setPace((p) => (p === 1 ? 1.25 : p === 1.25 ? 0.75 : 1));
   };
   const handleAdd30 = () => {
     if (phase === "hold" || phase === "transitionIn" || phase === "sideSwitch") {
@@ -1198,20 +1229,23 @@ export default function GuidedSession() {
           <p
             key={`${phase}-${stepIndex}-${cueIndex}`}
             className={cn(
-              "min-h-[3rem] animate-fade-in px-2 text-center transition-all",
+              "min-h-[3rem] animate-fade-in px-2 text-center transition-all motion-reduce:animate-none",
               isHold
                 ? "text-base text-muted-foreground"
                 : "text-lg font-medium text-foreground",
+              !captionsOn && "sr-only",
             )}
             data-testid="guided-caption"
+            aria-live="polite"
           >
             {activeCaption}
           </p>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <Button
               variant="outline"
               size="icon"
+              className="min-h-11 min-w-11"
               onClick={handlePrev}
               data-testid="button-prev-pose"
               aria-label="Previous pose"
@@ -1220,10 +1254,21 @@ export default function GuidedSession() {
               <SkipBack className="h-5 w-5" />
             </Button>
             <Button
+              variant="outline"
+              size="icon"
+              className="min-h-11 min-w-11"
+              onClick={handleRepeatCue}
+              data-testid="button-repeat-cue"
+              aria-label="Repeat current guidance"
+              title="Repeat current guidance"
+            >
+              <RotateCcw className="h-5 w-5" />
+            </Button>
+            <Button
               size="lg"
               onClick={() => setPaused((p) => !p)}
               data-testid="button-pause-guided"
-              className="min-w-[7rem]"
+              className="min-h-11 min-w-[7rem]"
             >
               {paused ? <Play className="mr-1.5 h-5 w-5" /> : <Pause className="mr-1.5 h-5 w-5" />}
               {paused ? "Resume" : "Pause"}
@@ -1231,6 +1276,7 @@ export default function GuidedSession() {
             <Button
               variant="outline"
               size="icon"
+              className="min-h-11 min-w-11"
               onClick={handleSkip}
               data-testid="button-skip-pose"
               aria-label="Skip to next pose"
@@ -1241,6 +1287,7 @@ export default function GuidedSession() {
             <Button
               variant="outline"
               size="icon"
+              className="min-h-11 min-w-11"
               onClick={handleAdd30}
               data-testid="button-add-30"
               aria-label="Add 30 seconds"
@@ -1251,6 +1298,7 @@ export default function GuidedSession() {
             <Button
               variant="outline"
               size="icon"
+              className="min-h-11 min-w-11"
               onClick={() => setMuted((m) => !m)}
               data-testid="button-mute-guided"
               aria-label={muted ? "Unmute narration" : "Mute narration"}
@@ -1259,12 +1307,37 @@ export default function GuidedSession() {
             >
               {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="min-h-11 min-w-11"
+              onClick={cyclePace}
+              data-testid="button-pace-guided"
+              aria-label={`Practice pace ${pace}x. Tap to change.`}
+              title={`Pace ${pace}×`}
+            >
+              <Gauge className="h-5 w-5" />
+              <span className="sr-only">Pace {pace}×</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="min-h-11 min-w-11"
+              onClick={() => setCaptionsOn((c) => !c)}
+              data-testid="button-captions-guided"
+              aria-label={captionsOn ? "Hide captions" : "Show captions"}
+              aria-pressed={captionsOn}
+              title={captionsOn ? "Hide captions" : "Show captions"}
+            >
+              <Subtitles className="h-5 w-5" />
+            </Button>
             <PoseTipsTrigger onClick={() => setTipsOpen(true)} />
           </div>
 
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid="guided-pace-label">
             <TimerIcon className="h-3.5 w-3.5" />
-            Time remaining in session: ~{Math.max(1, Math.round(remainingEstimate / 60))} min
+            ~{Math.max(1, Math.round(remainingEstimate / 60))} min left · pace {pace}×
+            {side === 2 ? " · side 2" : isEach ? " · side 1" : ""}
           </p>
         </div>
       </div>

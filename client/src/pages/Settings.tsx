@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,13 @@ import {
   type SadhanaExport,
 } from "@/lib/dataPortability";
 import { KEYS, readJson, readString, removeKey, writeJson, writeString, type ReminderPrefs } from "@/lib/localPrefs";
+import {
+  downloadOfflinePack,
+  clearOfflinePack,
+  offlinePackStatus,
+} from "@/lib/offlinePack";
+import { habitDayLabel, readHabitPlan, writeHabitPlan, type HabitPlan } from "@/lib/habitPlan";
+import { readAnalyticsPrefs, writeAnalyticsPrefs } from "@/lib/analytics";
 import type { Session } from "@shared/schema";
 import { Moon, Sun, Laptop, Download, Upload, Trash2, Bell, CalendarPlus, Info, UserRound } from "lucide-react";
 import { Link } from "wouter";
@@ -49,6 +56,13 @@ export default function Settings() {
     readJson(KEYS.reminder, DEFAULT_REMINDER),
   );
   const [practitionerName, setPractitionerName] = useState(() => readString(KEYS.practitionerName) ?? "");
+  const [habit, setHabit] = useState<HabitPlan>(() => readHabitPlan());
+  const [analyticsOn, setAnalyticsOn] = useState(() => readAnalyticsPrefs().enabled);
+  const [offlineStatus, setOfflineStatus] = useState({ present: false, entries: 0 });
+
+  useEffect(() => {
+    void offlinePackStatus().then(setOfflineStatus);
+  }, []);
 
   const savePractitionerName = () => {
     const trimmed = practitionerName.trim();
@@ -387,6 +401,140 @@ export default function Settings() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-soft">
+        <CardHeader>
+          <CardTitle className="font-serif text-xl">Habit plan</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Pick practice days and quiet hours. Missed days suggest a short recovery session — no
+            streak punishment.
+          </p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Practice days">
+            {([0, 1, 2, 3, 4, 5, 6] as const).map((d) => {
+              const on = habit.days.includes(d);
+              return (
+                <Button
+                  key={d}
+                  type="button"
+                  size="sm"
+                  className="min-h-11 min-w-11"
+                  variant={on ? "default" : "outline"}
+                  aria-pressed={on}
+                  onClick={() => {
+                    const days = on ? habit.days.filter((x) => x !== d) : [...habit.days, d].sort();
+                    const next = { ...habit, days };
+                    setHabit(next);
+                    writeHabitPlan(next);
+                  }}
+                  data-testid={`habit-day-${d}`}
+                >
+                  {habitDayLabel(d)}
+                </Button>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="habit-recovery">Compassionate missed-day recovery</Label>
+            <Switch
+              id="habit-recovery"
+              checked={habit.compassionateRecovery}
+              onCheckedChange={(compassionateRecovery) => {
+                const next = { ...habit, compassionateRecovery };
+                setHabit(next);
+                writeHabitPlan(next);
+              }}
+              data-testid="habit-recovery"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-soft">
+        <CardHeader>
+          <CardTitle className="font-serif text-xl">Offline practice pack</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Cache shell assets and a few foundation pose images for flaky networks. API practice
+            data is never stored offline.
+          </p>
+          <p className="text-xs text-muted-foreground" data-testid="offline-status">
+            {offlineStatus.present
+              ? `${offlineStatus.entries} assets cached`
+              : "No offline pack downloaded yet"}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              className="min-h-11"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                void downloadOfflinePack()
+                  .then(async (r) => {
+                    setOfflineStatus(await offlinePackStatus());
+                    toast({
+                      title: "Offline pack ready",
+                      description: `Cached ${r.cached} assets${r.failed ? ` (${r.failed} failed)` : ""}.`,
+                    });
+                  })
+                  .catch((e) =>
+                    toast({
+                      title: "Download failed",
+                      description: e instanceof Error ? e.message : "Try again",
+                      variant: "destructive",
+                    }),
+                  )
+                  .finally(() => setBusy(false));
+              }}
+              data-testid="settings-offline-download"
+            >
+              Download offline pack
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => {
+                void clearOfflinePack().then(async () => {
+                  setOfflineStatus(await offlinePackStatus());
+                  toast({ title: "Offline pack cleared" });
+                });
+              }}
+              data-testid="settings-offline-clear"
+            >
+              Clear pack
+            </Button>
+          </div>
+          <Button variant="outline" className="min-h-11 w-full justify-start" asChild>
+            <Link href="/plus">Sadhana Plus plans (coming soon)</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-soft">
+        <CardHeader>
+          <CardTitle className="font-serif text-xl">Privacy-first analytics</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="analytics-enabled">Share anonymous product events</Label>
+            <Switch
+              id="analytics-enabled"
+              checked={analyticsOn}
+              onCheckedChange={(enabled) => {
+                setAnalyticsOn(enabled);
+                writeAnalyticsPrefs({ enabled });
+              }}
+              data-testid="settings-analytics"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Off by default. Never includes journal text, emails, or injury notes — only event names
+            like practice_start.
+          </p>
         </CardContent>
       </Card>
 

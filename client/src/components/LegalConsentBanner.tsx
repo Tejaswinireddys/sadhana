@@ -13,7 +13,7 @@ export function LegalConsentBanner() {
 
   return (
     <div
-      className="border-b border-border bg-muted/60 px-4 py-3 text-sm"
+      className="relative z-30 border-b border-border bg-muted/95 px-4 py-3 text-sm backdrop-blur"
       role="region"
       aria-label="Privacy and health notice"
       data-testid="banner-legal-consent"
