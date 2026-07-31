@@ -12,6 +12,9 @@ import {
   insertCustomFlowSchema,
   credentialsSchema,
   loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  deleteAccountSchema,
   type PublicUser,
   type User,
 } from "@shared/schema";
@@ -25,8 +28,14 @@ import {
   verifyPassword,
   AUTH_COOKIE,
   readCookie,
+  newResetToken,
+  hashResetToken,
+  resetTokenExpiry,
 } from "./auth";
 import { z } from "zod";
+
+const IMPORT_MAX_ITEMS = 2_000;
+const IMPORT_MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 // Normalize an ISO string / date string to YYYY-MM-DD
 function dayKey(iso: string): string {
@@ -202,6 +211,75 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ claimed });
   });
 
+  /** Always returns a generic message so we don't enumerate accounts. */
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    const parsed = forgotPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid email" });
+    }
+    const user = await storage.getUserByEmail(parsed.data.email);
+    const generic = {
+      ok: true as const,
+      message:
+        "If an account exists for that email, a reset code was created. It expires in 60 minutes.",
+    };
+    if (!user) return res.json(generic);
+
+    const token = newResetToken();
+    await storage.createPasswordResetToken(user.id, hashResetToken(token), resetTokenExpiry());
+    // No SMTP in this stack — operators find the code in logs; local/dev also
+    // gets it in the JSON so automated tests and self-hosters can finish the flow.
+    console.info(
+      `[auth] password reset for user ${user.id} — enter code on Account → Reset password`,
+    );
+    if (process.env.NODE_ENV !== "production" || process.env.EXPOSE_RESET_TOKEN === "1") {
+      return res.json({ ...generic, resetToken: token });
+    }
+    return res.json(generic);
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    const parsed = resetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid reset" });
+    }
+    const user = await storage.getUserByEmail(parsed.data.email);
+    const tokenRow = await storage.getPasswordResetToken(hashResetToken(parsed.data.token));
+    if (
+      !user ||
+      !tokenRow ||
+      tokenRow.userId !== user.id ||
+      new Date(tokenRow.expiresAt).getTime() < Date.now()
+    ) {
+      return res.status(400).json({ error: "Reset code is invalid or expired" });
+    }
+
+    await storage.updateUserPassword(user.id, await hashPassword(parsed.data.password));
+    await storage.deletePasswordResetToken(tokenRow.tokenHash);
+    await storage.deleteAuthSessionsForUser(user.id);
+
+    const token = newSessionToken();
+    await storage.createAuthSession(user.id, token, sessionExpiry());
+    res.setHeader("Set-Cookie", authCookie(token, isSecure(req)));
+    res.json({ user: publicUser(user) });
+  });
+
+  /** Full account deletion: practice data + user row + sessions. Requires password. */
+  app.delete("/api/auth/account", async (req, res) => {
+    if (!req.userId) return res.status(401).json({ error: "Sign in first" });
+    const parsed = deleteAccountSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Password required" });
+    }
+    const user = await storage.getUserById(req.userId);
+    if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+      return res.status(401).json({ error: "Password is incorrect" });
+    }
+    await storage.deleteUser(user.id);
+    res.setHeader("Set-Cookie", clearedAuthCookie(isSecure(req)));
+    res.status(204).end();
+  });
+
   // ---- Sessions ----
   app.get("/api/sessions", async (req, res) => {
     res.json(await storage.getSessions(req.ownerId));
@@ -255,6 +333,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       storage.getStickers(ownerId),
       storage.getActiveProfile(ownerId),
     ]);
+    // Pose notes are per-slug; include all known from export by scanning favorites
+    // plus a best-effort list isn't available — export notes for favorite asanas
+    // and any slug referenced in sessions.
+    const noteSlugs = new Set<string>();
+    for (const f of favoriteAsanas) noteSlugs.add(f.slug);
+    for (const s of sessions) {
+      try {
+        const asanas = JSON.parse(s.asanas || "[]") as string[];
+        for (const slug of asanas) if (typeof slug === "string") noteSlugs.add(slug);
+      } catch {
+        /* ignore */
+      }
+    }
+    const poseNotes = (
+      await Promise.all([...noteSlugs].map((slug) => storage.getPoseNote(ownerId, slug)))
+    ).filter(Boolean);
+
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="sadhana-export-${new Date().toISOString().slice(0, 10)}.json"`,
@@ -272,6 +367,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       preferences,
       milestones,
       stickers,
+      poseNotes,
       activeProfileId: activeProfile?.profileId ?? null,
     });
   });
@@ -282,6 +378,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
   app.post("/api/account/import", async (req, res) => {
     try {
+      const rawLen = Buffer.isBuffer(req.rawBody)
+        ? req.rawBody.length
+        : JSON.stringify(req.body ?? {}).length;
+      if (rawLen > IMPORT_MAX_BODY_BYTES) {
+        return res.status(413).json({ error: "Import is too large (max 2 MB)" });
+      }
+
       const strip = (raw: unknown) => {
         const o = { ...(raw as Record<string, unknown>) };
         delete o.id;
@@ -290,6 +393,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return o;
       };
       const body = req.body as {
+        version?: number;
         sessions?: unknown[];
         journal?: unknown[];
         customFlows?: unknown[];
@@ -299,71 +403,108 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         preferences?: { motionEnabled?: number; voiceEnabled?: number };
         milestones?: unknown[];
         stickers?: unknown[];
+        poseNotes?: { slug?: string; body?: string }[];
+        activeProfileId?: string | null;
       };
-      const ownerId = req.ownerId;
-      let imported = 0;
 
-      for (const raw of body.sessions ?? []) {
-        const data = insertSessionSchema.parse(strip(raw));
-        await storage.createSession(ownerId, data);
-        imported++;
+      if (body.version != null && body.version !== 1) {
+        return res.status(400).json({ error: "Unsupported export version" });
       }
-      for (const raw of body.journal ?? []) {
-        const data = insertJournalSchema.parse(strip(raw));
-        await storage.createJournal(ownerId, data);
-        imported++;
+
+      const totalItems =
+        (body.sessions?.length ?? 0) +
+        (body.journal?.length ?? 0) +
+        (body.customFlows?.length ?? 0) +
+        (body.favorites?.length ?? 0) +
+        (body.favoriteAsanas?.length ?? 0) +
+        (body.enrollments?.length ?? 0) +
+        (body.milestones?.length ?? 0) +
+        (body.stickers?.length ?? 0) +
+        (body.poseNotes?.length ?? 0) +
+        (body.preferences ? 1 : 0);
+      if (totalItems > IMPORT_MAX_ITEMS) {
+        return res.status(400).json({ error: `Import exceeds ${IMPORT_MAX_ITEMS} items` });
       }
-      for (const raw of body.customFlows ?? []) {
-        const cleaned = strip(raw) as Record<string, unknown>;
-        const data = insertCustomFlowSchema.parse({
-          ...cleaned,
-          createdAt: (cleaned.createdAt as string) ?? new Date().toISOString(),
-        });
-        await storage.createCustomFlow(ownerId, data);
-        imported++;
-      }
-      for (const raw of body.favorites ?? []) {
-        const data = insertFavoriteSchema.parse(strip(raw));
-        await storage.createFavorite(ownerId, data);
-        imported++;
-      }
-      for (const raw of body.favoriteAsanas ?? []) {
-        const slug = z.object({ slug: z.string() }).parse(raw).slug;
-        await storage.addFavoriteAsana(ownerId, slug);
-        imported++;
-      }
-      for (const raw of body.enrollments ?? []) {
-        const data = insertEnrollmentSchema.parse(strip(raw));
-        await storage.createEnrollment(ownerId, data);
-        imported++;
-      }
-      if (body.preferences) {
-        await storage.updatePreferences(ownerId, {
-          motionEnabled: body.preferences.motionEnabled,
-          voiceEnabled: body.preferences.voiceEnabled,
-        });
-        imported++;
-      }
-      for (const raw of body.milestones ?? []) {
-        const { kind, reachedAt } = z
-          .object({ kind: z.string(), reachedAt: z.string().optional() })
-          .parse(raw);
-        await storage.createMilestone(ownerId, {
-          kind,
-          reachedAt: reachedAt ?? new Date().toISOString(),
-        });
-        imported++;
-      }
-      for (const raw of body.stickers ?? []) {
-        const { poseSlug, earnedAt } = z
-          .object({ poseSlug: z.string(), earnedAt: z.string().optional() })
-          .parse(raw);
-        await storage.createSticker(ownerId, {
-          poseSlug,
-          earnedAt: earnedAt ?? new Date().toISOString(),
-        });
-        imported++;
-      }
+
+      const ownerId = req.ownerId;
+      const imported = await storage.runInTransaction(async () => {
+        let count = 0;
+
+        for (const raw of body.sessions ?? []) {
+          const data = insertSessionSchema.parse(strip(raw));
+          await storage.createSession(ownerId, data);
+          count++;
+        }
+        for (const raw of body.journal ?? []) {
+          const data = insertJournalSchema.parse(strip(raw));
+          await storage.createJournal(ownerId, data);
+          count++;
+        }
+        for (const raw of body.customFlows ?? []) {
+          const cleaned = strip(raw) as Record<string, unknown>;
+          const data = insertCustomFlowSchema.parse({
+            ...cleaned,
+            createdAt: (cleaned.createdAt as string) ?? new Date().toISOString(),
+          });
+          await storage.createCustomFlow(ownerId, data);
+          count++;
+        }
+        for (const raw of body.favorites ?? []) {
+          const data = insertFavoriteSchema.parse(strip(raw));
+          await storage.createFavorite(ownerId, data);
+          count++;
+        }
+        for (const raw of body.favoriteAsanas ?? []) {
+          const slug = z.object({ slug: z.string() }).parse(raw).slug;
+          await storage.addFavoriteAsana(ownerId, slug);
+          count++;
+        }
+        for (const raw of body.enrollments ?? []) {
+          const data = insertEnrollmentSchema.parse(strip(raw));
+          await storage.createEnrollment(ownerId, data);
+          count++;
+        }
+        if (body.preferences) {
+          await storage.updatePreferences(ownerId, {
+            motionEnabled: body.preferences.motionEnabled,
+            voiceEnabled: body.preferences.voiceEnabled,
+          });
+          count++;
+        }
+        for (const raw of body.milestones ?? []) {
+          const { kind, reachedAt } = z
+            .object({ kind: z.string(), reachedAt: z.string().optional() })
+            .parse(raw);
+          await storage.createMilestone(ownerId, {
+            kind,
+            reachedAt: reachedAt ?? new Date().toISOString(),
+          });
+          count++;
+        }
+        for (const raw of body.stickers ?? []) {
+          const { poseSlug, earnedAt } = z
+            .object({ poseSlug: z.string(), earnedAt: z.string().optional() })
+            .parse(raw);
+          await storage.createSticker(ownerId, {
+            poseSlug,
+            earnedAt: earnedAt ?? new Date().toISOString(),
+          });
+          count++;
+        }
+        for (const raw of body.poseNotes ?? []) {
+          const { slug, body: noteBody } = z
+            .object({ slug: z.string(), body: z.string() })
+            .parse(raw);
+          await storage.upsertPoseNote(ownerId, slug, noteBody);
+          count++;
+        }
+        if (body.activeProfileId) {
+          await storage.activateProfile(ownerId, body.activeProfileId);
+          count++;
+        }
+
+        return count;
+      });
 
       res.status(201).json({ imported });
     } catch (e) {

@@ -61,6 +61,9 @@ import {
   NotebookPen,
   Volume2,
   VolumeX,
+  RotateCcw,
+  Gauge,
+  Subtitles,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { WARMUP, asanaBySlug } from "@/data/content";
@@ -79,6 +82,7 @@ import {
 } from "@/data/quickSessions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useNarrationTiming } from "@/hooks/use-narration-timing";
+import { createVoiceController, readVoicePrefs, type VoiceCommand } from "@/lib/voiceControl";
 
 // ---- soft chime (shared with Practice) --------------------------------------
 function playChime() {
@@ -191,6 +195,9 @@ export default function GuidedSession() {
   // preference, so silencing the voice for one practice (e.g. to use your own
   // music) doesn't rewrite the user's global setting.
   const [muted, setMuted] = useState(false);
+  /** Playback pace for narration + countdown (0.75 / 1 / 1.25). */
+  const [pace, setPace] = useState<0.75 | 1 | 1.25>(1);
+  const [captionsOn, setCaptionsOn] = useState(true);
   const [elapsedTotal, setElapsedTotal] = useState(0);
   const [imgVisible, setImgVisible] = useState(true); // crossfade toggle
   const [cueIndex, setCueIndex] = useState(0);
@@ -206,6 +213,8 @@ export default function GuidedSession() {
   const [showPostMood, setShowPostMood] = useState(false);
   const [preMood, setPreMood] = useState<Mood | null>(meta.preMood ?? null);
   const [postMood, setPostMood] = useState<Mood | null>(null);
+  const [rpe, setRpe] = useState<number | null>(null);
+  const [showRpe, setShowRpe] = useState(false);
   const [started, setStarted] = useState(false);
   const [confetti, setConfetti] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -384,7 +393,7 @@ export default function GuidedSession() {
 
   // ---- persist + auto-journal + milestone (mirrors Practice.tsx) ------------
   const finalizeSession = useCallback(
-    async (resolvedPost: Mood | null) => {
+    async (resolvedPost: Mood | null, resolvedRpe: number | null = rpe) => {
       if (sessionLogged.current || saving) return;
       lastPostMood.current = resolvedPost;
       setSaving(true);
@@ -403,6 +412,7 @@ export default function GuidedSession() {
         pathwaySlug: meta.pathwaySlug ?? null,
         preMood,
         postMood: resolvedPost,
+        rpe: resolvedRpe,
         journalTags: [sessionLabel, "guided"],
       });
       setSaving(false);
@@ -428,7 +438,7 @@ export default function GuidedSession() {
         toast({ title: result.milestone.title, description: result.milestone.message });
       }
     },
-    [todays, meta, preMood, toast, saving, saveProgress],
+    [todays, meta, preMood, rpe, toast, saving, saveProgress],
   );
 
   const finish = useCallback(() => {
@@ -498,7 +508,7 @@ export default function GuidedSession() {
         return;
       }
       a.currentTime = 0;
-      a.playbackRate = 1;
+      a.playbackRate = pace;
       const p = a.play();
       if (p && typeof p.then === "function") {
         p.catch((err) => {
@@ -510,7 +520,7 @@ export default function GuidedSession() {
         });
       }
     },
-    [voiceEnabled],
+    [voiceEnabled, pace],
   );
 
   const enterHold = useCallback(() => {
@@ -539,9 +549,17 @@ export default function GuidedSession() {
     }
   }, [isEach, side, enterHold, speak]);
 
+  // Keep narration rate in sync when the practitioner changes pace mid-pose.
+  useEffect(() => {
+    const a = audioRef.current;
+    if (a) a.playbackRate = pace;
+  }, [pace]);
+
   // ---- master 1s tick -------------------------------------------------------
   useEffect(() => {
     if (!started || paused || finished) return;
+    // Pace slows/fastens the wall-clock of countdowns (not engagement scoring).
+    const intervalMs = Math.round(1000 / pace);
     const t = setInterval(() => {
       setElapsedTotal((e) => e + 1);
       setRemainingEstimate((r) => Math.max(0, r - 1));
@@ -582,13 +600,14 @@ export default function GuidedSession() {
         }
         return r - 1;
       });
-    }, 1000);
+    }, intervalMs);
     return () => clearInterval(t);
   }, [
     started,
     paused,
     finished,
     phase,
+    pace,
     voiceEnabled,
     index,
     todays.length,
@@ -663,6 +682,22 @@ export default function GuidedSession() {
     if (index === 0) enterTransition(0);
     else goToPose(index - 1);
   };
+  const handleRepeatCue = () => {
+    if (phase === "instruction") {
+      startInstruction(side);
+      toast({ title: "Repeating guidance", description: "Playing this pose’s cues again." });
+      return;
+    }
+    if (phase === "hold") {
+      setCueIndex(0);
+      toast({ title: "Cue restarted", description: "Form cues will cycle from the top." });
+      return;
+    }
+    enterTransition(index);
+  };
+  const cyclePace = () => {
+    setPace((p) => (p === 1 ? 1.25 : p === 1.25 ? 0.75 : 1));
+  };
   const handleAdd30 = () => {
     if (phase === "hold" || phase === "transitionIn" || phase === "sideSwitch") {
       setPhaseRemaining((r) => r + 30);
@@ -674,6 +709,41 @@ export default function GuidedSession() {
     }
     toast({ title: "+30 seconds", description: "Extended this hold." });
   };
+
+  // Auto-pause when the tab is hidden so timers/audio don't run off-screen.
+  useEffect(() => {
+    if (!started || finished) return;
+    const onVis = () => {
+      if (document.hidden) setPaused(true);
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [started, finished]);
+
+  // Hands-free voice commands (opt-in via Settings / voice prefs).
+  useEffect(() => {
+    if (!started || finished || !readVoicePrefs().enabled) return;
+    const apply = (cmd: VoiceCommand) => {
+      if (cmd === "pause") setPaused(true);
+      else if (cmd === "resume") setPaused(false);
+      else if (cmd === "repeat") handleRepeatCue();
+      else if (cmd === "skip") handleSkip();
+      else if (cmd === "slower") setPace((p) => (p === 1.25 ? 1 : 0.75));
+      else if (cmd === "faster") setPace((p) => (p === 0.75 ? 1 : 1.25));
+      else if (cmd === "modification") setTipsOpen(true);
+      else if (cmd === "stop") setConfirmExit(true);
+    };
+    const ctrl = createVoiceController({
+      onCommand: (cmd) => {
+        apply(cmd);
+        toast({ title: `Voice: ${cmd}`, description: "Hands-free control" });
+      },
+      onError: (message) => toast({ title: "Voice control", description: message, variant: "destructive" }),
+    });
+    ctrl.start();
+    return () => ctrl.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started, finished]);
 
   const attemptExit = () => {
     if (finished) {
@@ -801,13 +871,64 @@ export default function GuidedSession() {
           onPick={(m) => {
             setPostMood(m);
             setShowPostMood(false);
-            finalizeSession(m);
+            setShowRpe(true);
           }}
           onSkip={() => {
             setShowPostMood(false);
-            finalizeSession(null);
+            setShowRpe(true);
           }}
         />
+        {showRpe && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-background/95 p-6"
+            role="dialog"
+            aria-label="Rate of perceived exertion"
+            data-testid="rpe-dialog"
+          >
+            <div className="w-full max-w-md space-y-4 text-center">
+              <h2 className="font-serif text-2xl">How hard did that feel?</h2>
+              <p className="text-sm text-muted-foreground">
+                Rate of perceived exertion (1 easy – 10 maximal). Used only to ease tomorrow’s plan.
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                  <Button
+                    key={n}
+                    className="min-h-11 min-w-11"
+                    variant={rpe === n ? "default" : "outline"}
+                    onClick={() => setRpe(n)}
+                    data-testid={`rpe-${n}`}
+                  >
+                    {n}
+                  </Button>
+                ))}
+              </div>
+              <div className="flex justify-center gap-2">
+                <Button
+                  className="min-h-11"
+                  variant="outline"
+                  onClick={() => {
+                    setShowRpe(false);
+                    void finalizeSession(postMood, null);
+                  }}
+                >
+                  Skip
+                </Button>
+                <Button
+                  className="min-h-11"
+                  disabled={rpe == null}
+                  onClick={() => {
+                    setShowRpe(false);
+                    void finalizeSession(postMood, rpe);
+                  }}
+                  data-testid="rpe-confirm"
+                >
+                  Save effort
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         <div
           className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background px-6 text-center"
           data-testid="guided-complete"
@@ -1198,20 +1319,23 @@ export default function GuidedSession() {
           <p
             key={`${phase}-${stepIndex}-${cueIndex}`}
             className={cn(
-              "min-h-[3rem] animate-fade-in px-2 text-center transition-all",
+              "min-h-[3rem] animate-fade-in px-2 text-center transition-all motion-reduce:animate-none",
               isHold
                 ? "text-base text-muted-foreground"
                 : "text-lg font-medium text-foreground",
+              !captionsOn && "sr-only",
             )}
             data-testid="guided-caption"
+            aria-live="polite"
           >
             {activeCaption}
           </p>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <Button
               variant="outline"
               size="icon"
+              className="min-h-11 min-w-11"
               onClick={handlePrev}
               data-testid="button-prev-pose"
               aria-label="Previous pose"
@@ -1220,10 +1344,21 @@ export default function GuidedSession() {
               <SkipBack className="h-5 w-5" />
             </Button>
             <Button
+              variant="outline"
+              size="icon"
+              className="min-h-11 min-w-11"
+              onClick={handleRepeatCue}
+              data-testid="button-repeat-cue"
+              aria-label="Repeat current guidance"
+              title="Repeat current guidance"
+            >
+              <RotateCcw className="h-5 w-5" />
+            </Button>
+            <Button
               size="lg"
               onClick={() => setPaused((p) => !p)}
               data-testid="button-pause-guided"
-              className="min-w-[7rem]"
+              className="min-h-11 min-w-[7rem]"
             >
               {paused ? <Play className="mr-1.5 h-5 w-5" /> : <Pause className="mr-1.5 h-5 w-5" />}
               {paused ? "Resume" : "Pause"}
@@ -1231,6 +1366,7 @@ export default function GuidedSession() {
             <Button
               variant="outline"
               size="icon"
+              className="min-h-11 min-w-11"
               onClick={handleSkip}
               data-testid="button-skip-pose"
               aria-label="Skip to next pose"
@@ -1241,6 +1377,7 @@ export default function GuidedSession() {
             <Button
               variant="outline"
               size="icon"
+              className="min-h-11 min-w-11"
               onClick={handleAdd30}
               data-testid="button-add-30"
               aria-label="Add 30 seconds"
@@ -1251,6 +1388,7 @@ export default function GuidedSession() {
             <Button
               variant="outline"
               size="icon"
+              className="min-h-11 min-w-11"
               onClick={() => setMuted((m) => !m)}
               data-testid="button-mute-guided"
               aria-label={muted ? "Unmute narration" : "Mute narration"}
@@ -1259,12 +1397,37 @@ export default function GuidedSession() {
             >
               {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="min-h-11 min-w-11"
+              onClick={cyclePace}
+              data-testid="button-pace-guided"
+              aria-label={`Practice pace ${pace}x. Tap to change.`}
+              title={`Pace ${pace}×`}
+            >
+              <Gauge className="h-5 w-5" />
+              <span className="sr-only">Pace {pace}×</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="min-h-11 min-w-11"
+              onClick={() => setCaptionsOn((c) => !c)}
+              data-testid="button-captions-guided"
+              aria-label={captionsOn ? "Hide captions" : "Show captions"}
+              aria-pressed={captionsOn}
+              title={captionsOn ? "Hide captions" : "Show captions"}
+            >
+              <Subtitles className="h-5 w-5" />
+            </Button>
             <PoseTipsTrigger onClick={() => setTipsOpen(true)} />
           </div>
 
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid="guided-pace-label">
             <TimerIcon className="h-3.5 w-3.5" />
-            Time remaining in session: ~{Math.max(1, Math.round(remainingEstimate / 60))} min
+            ~{Math.max(1, Math.round(remainingEstimate / 60))} min left · pace {pace}×
+            {side === 2 ? " · side 2" : isEach ? " · side 1" : ""}
           </p>
         </div>
       </div>

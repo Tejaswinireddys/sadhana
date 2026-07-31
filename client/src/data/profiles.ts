@@ -274,6 +274,50 @@ export const PROFILES: Profile[] = [
     recommendedAffirmationsTag: "motherhood",
     why: "Pregnancy asks for mobility without compression or long flat-on-the-back holds. This profile favors wide-knee shapes, side-lying rest, and supported standing balance so practice stays nourishing across trimesters.",
   },
+  {
+    id: "postnatal",
+    name: "Postnatal",
+    tagline: "Gentle return after birth",
+    description:
+      "Short, restorative sessions that respect healing. Clear clinician clearance first; no intense core loading.",
+    icon: "Heart",
+    accent: "secondary",
+    minutesPerSession: 15,
+    daysPerWeek: 4,
+    recommendedAsanas: [
+      "sukhasana",
+      "marjaryasana-bitilasana",
+      "balasana",
+      "setu-bandhasana",
+      "viparita-karani",
+      "savasana",
+    ],
+    recommendedBreathing: ["four-seven-eight"],
+    recommendedAffirmationsTag: "motherhood",
+    why: "Postpartum recovery varies widely. This profile keeps load low, favors breath and rest, and pairs with the Foundations beginner week when you are ready to rebuild.",
+  },
+  {
+    id: "senior-mobility",
+    name: "Senior & limited mobility",
+    tagline: "Chair-friendly strength and ease",
+    description:
+      "Larger cues, shorter standing holds, and chair alternatives for balance and joint comfort.",
+    icon: "Compass",
+    accent: "primary",
+    minutesPerSession: 15,
+    daysPerWeek: 5,
+    recommendedAsanas: [
+      "sukhasana",
+      "chair-forward-fold",
+      "chair-viparita-karani",
+      "tadasana",
+      "virabhadrasana-ii",
+      "balasana",
+    ],
+    recommendedBreathing: ["box-breathing", "four-seven-eight"],
+    recommendedAffirmationsTag: "calm",
+    why: "Prioritizes stability and accessible range. Pair with the Chair & Limited Mobility program for a full week plan.",
+  },
 ];
 
 export function profileById(id: string | null | undefined): Profile | undefined {

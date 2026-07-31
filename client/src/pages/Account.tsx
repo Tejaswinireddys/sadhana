@@ -12,12 +12,16 @@ import {
   authErrorMessage,
   useAuth,
   useClaimDevice,
+  useDeleteAccount,
+  useForgotPassword,
+  useResetPassword,
   useSignIn,
   useSignOut,
   useSignUp,
 } from "@/lib/auth";
+import { hasCurrentLegalAck, writeLegalAck } from "@/lib/legal";
 import { formatDate } from "@/lib/sadhana";
-import { ArrowRight, LogOut, Merge, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowRight, LogOut, Merge, ShieldCheck, Trash2, UserRound } from "lucide-react";
 
 function FieldError({ id, message }: { id: string; message: string | null }) {
   if (!message) return null;
@@ -37,14 +41,22 @@ export default function Account() {
   const signUp = useSignUp();
   const signOut = useSignOut();
   const claimDevice = useClaimDevice();
+  const forgot = useForgotPassword();
+  const reset = useResetPassword();
+  const deleteAccount = useDeleteAccount();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [resetToken, setResetToken] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [forgotHint, setForgotHint] = useState<string | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [legalOk, setLegalOk] = useState(hasCurrentLegalAck());
 
-  const busy = signIn.isPending || signUp.isPending;
+  const busy = signIn.isPending || signUp.isPending || reset.isPending;
 
   const submitSignIn = async (e: FormEvent) => {
     e.preventDefault();
@@ -66,7 +78,12 @@ export default function Account() {
   const submitSignUp = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!legalOk) {
+      setError("Please acknowledge the Privacy Policy and Terms to create an account.");
+      return;
+    }
     try {
+      writeLegalAck();
       const { claimed } = await signUp.mutateAsync({
         email,
         password,
@@ -81,6 +98,46 @@ export default function Account() {
       });
     } catch (err) {
       setError(authErrorMessage(err, "Could not create the account. Try again."));
+    }
+  };
+
+  const submitForgot = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setForgotHint(null);
+    try {
+      const result = await forgot.mutateAsync({ email });
+      setForgotHint(result.message);
+      if (result.resetToken) {
+        setResetToken(result.resetToken);
+        setForgotHint(
+          `${result.message} A reset code was filled in below (development / self-host).`,
+        );
+      }
+      toast({ title: "Check for a reset code", description: result.message });
+    } catch (err) {
+      setError(authErrorMessage(err, "Could not start password reset."));
+    }
+  };
+
+  const submitReset = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      const { user: signedIn } = await reset.mutateAsync({
+        email,
+        token: resetToken.trim(),
+        password: resetPassword,
+      });
+      setPassword("");
+      setResetPassword("");
+      setResetToken("");
+      toast({
+        title: "Password updated",
+        description: `Signed in as ${signedIn.displayName || signedIn.email}.`,
+      });
+    } catch (err) {
+      setError(authErrorMessage(err, "Could not reset password."));
     }
   };
 
@@ -168,13 +225,63 @@ export default function Account() {
             </CardContent>
           </Card>
         )}
+
+        <Card className="border-destructive/30" data-testid="account-delete">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 font-serif text-xl text-destructive">
+              <Trash2 className="h-5 w-5" aria-hidden /> Delete account
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Permanently deletes your account, sessions, journal, and synced practice. Export a
+              backup from Settings first if you might want it later.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="delete-password">Confirm with your password</Label>
+              <Input
+                id="delete-password"
+                type="password"
+                autoComplete="current-password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                className="min-h-11"
+                data-testid="delete-password"
+              />
+            </div>
+            <Button
+              variant="destructive"
+              className="min-h-11 cursor-pointer"
+              disabled={deleteAccount.isPending || deletePassword.length < 1}
+              onClick={() => {
+                void deleteAccount
+                  .mutateAsync({ password: deletePassword })
+                  .then(() => {
+                    setDeletePassword("");
+                    toast({
+                      title: "Account deleted",
+                      description: "Your account and synced practice were removed.",
+                    });
+                  })
+                  .catch((err) => {
+                    toast({
+                      title: "Could not delete account",
+                      description: authErrorMessage(err, "Try again."),
+                      variant: "destructive",
+                    });
+                  });
+              }}
+              data-testid="account-delete-confirm"
+            >
+              {deleteAccount.isPending ? "Deleting…" : "Delete my account"}
+            </Button>
+          </CardContent>
+        </Card>
       </FadeIn>
     );
   }
 
   return (
-    // A 400px card pinned to the left of a 1050px viewport leaves ~650px of
-    // dead space and reads as a layout bug. A single-purpose form centres.
     <FadeIn className="mx-auto w-full max-w-md space-y-6">
       <header className="space-y-2 text-center">
         <h1 className="font-serif text-3xl font-semibold tracking-tight">Sign in to Sadhana</h1>
@@ -187,12 +294,15 @@ export default function Account() {
       <Card>
         <CardContent className="p-5">
           <Tabs defaultValue="signin" onValueChange={() => setError(null)}>
-            <TabsList className="mb-4 grid w-full grid-cols-2">
+            <TabsList className="mb-4 grid w-full grid-cols-3">
               <TabsTrigger value="signin" className="min-h-11 cursor-pointer" data-testid="tab-signin">
                 Sign in
               </TabsTrigger>
               <TabsTrigger value="signup" className="min-h-11 cursor-pointer" data-testid="tab-signup">
-                Create account
+                Create
+              </TabsTrigger>
+              <TabsTrigger value="reset" className="min-h-11 cursor-pointer" data-testid="tab-reset">
+                Reset
               </TabsTrigger>
             </TabsList>
 
@@ -212,12 +322,14 @@ export default function Account() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-baseline justify-between">
+                  <div className="flex items-baseline justify-between gap-2">
                     <Label htmlFor="signin-password">Password</Label>
                     <button
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
-                      className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                      aria-pressed={showPassword}
+                      aria-controls="signin-password"
                       data-testid="signin-toggle-password"
                     >
                       {showPassword ? "Hide" : "Show"}
@@ -225,8 +337,6 @@ export default function Account() {
                   </div>
                   <Input
                     id="signin-password"
-                    // A reveal toggle is the single highest-value thing you can
-                    // add to a sign-in form: most failures are typos.
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     required
@@ -247,20 +357,6 @@ export default function Account() {
                   {signIn.isPending ? "Signing in…" : "Sign in"}
                   <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Button>
-                {/* No reset flow exists yet. Saying so is better than an empty
-                    space where every user expects a link — and the export
-                    route is the honest recovery path we actually have. */}
-                <p className="text-center text-xs text-muted-foreground">
-                  Forgotten your password? Password reset isn't available yet — email{" "}
-                  <a
-                    className="underline underline-offset-2"
-                    href="mailto:hello@sadhana.app?subject=Password%20reset"
-                    data-testid="signin-forgot-password"
-                  >
-                    hello@sadhana.app
-                  </a>{" "}
-                  and we'll sort it out.
-                </p>
               </form>
             </TabsContent>
 
@@ -293,7 +389,19 @@ export default function Account() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                      aria-pressed={showPassword}
+                      aria-controls="signup-password"
+                      data-testid="signup-toggle-password"
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
                   <Input
                     id="signup-password"
                     type={showPassword ? "text" : "password"}
@@ -310,17 +418,117 @@ export default function Account() {
                     At least 8 characters.
                   </p>
                 </div>
+                <label className="flex items-start gap-3 text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4"
+                    checked={legalOk}
+                    onChange={(e) => setLegalOk(e.target.checked)}
+                    data-testid="signup-legal-ack"
+                  />
+                  <span>
+                    I have read the{" "}
+                    <Link href="/privacy" className="underline underline-offset-2">
+                      Privacy Policy
+                    </Link>
+                    ,{" "}
+                    <Link href="/terms" className="underline underline-offset-2">
+                      Terms
+                    </Link>
+                    , and{" "}
+                    <Link href="/health-disclaimer" className="underline underline-offset-2">
+                      Health disclaimer
+                    </Link>
+                    .
+                  </span>
+                </label>
                 <FieldError id="auth-error" message={error} />
                 <Button
                   type="submit"
                   className="min-h-11 w-full cursor-pointer"
                   disabled={busy}
+                  aria-busy={signUp.isPending}
                   data-testid="signup-submit"
                 >
-                  {signUp.isPending ? "Creating…" : "Create account"}
+                  {signUp.isPending ? "Creating account (up to ~25s)…" : "Create account"}
                   <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Button>
               </form>
+            </TabsContent>
+
+            <TabsContent value="reset">
+              <div className="space-y-6">
+                <form className="space-y-4" onSubmit={submitForgot}>
+                  <p className="text-sm text-muted-foreground">
+                    Request a one-time reset code for your email. On this open-source build the code
+                    appears in server logs (and below in development).
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email">Email</Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="min-h-11"
+                      data-testid="forgot-email"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    className="min-h-11 w-full cursor-pointer"
+                    disabled={forgot.isPending}
+                    data-testid="forgot-submit"
+                  >
+                    {forgot.isPending ? "Sending…" : "Email me a reset code"}
+                  </Button>
+                  {forgotHint && (
+                    <p className="text-sm text-muted-foreground" role="status" data-testid="forgot-hint">
+                      {forgotHint}
+                    </p>
+                  )}
+                </form>
+
+                <form className="space-y-4 border-t border-border pt-4" onSubmit={submitReset}>
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-token">Reset code</Label>
+                    <Input
+                      id="reset-token"
+                      required
+                      value={resetToken}
+                      onChange={(e) => setResetToken(e.target.value)}
+                      className="min-h-11 font-mono text-sm"
+                      data-testid="reset-token"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-password">New password</Label>
+                    <Input
+                      id="reset-password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      required
+                      minLength={8}
+                      value={resetPassword}
+                      onChange={(e) => setResetPassword(e.target.value)}
+                      className="min-h-11"
+                      data-testid="reset-password"
+                    />
+                  </div>
+                  <FieldError id="auth-error" message={error} />
+                  <Button
+                    type="submit"
+                    className="min-h-11 w-full cursor-pointer"
+                    disabled={busy}
+                    data-testid="reset-submit"
+                  >
+                    {reset.isPending ? "Updating…" : "Set new password"}
+                  </Button>
+                </form>
+              </div>
             </TabsContent>
           </Tabs>
         </CardContent>

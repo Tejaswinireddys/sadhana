@@ -68,7 +68,12 @@ const SPLITS_SLUG = "sixty-day-splits";
 
 // Three quick flows featured on Home for users who haven't enrolled in a
 // program yet — a light, one-tap on-ramp mirroring the Quick Start row.
-const FEATURED_FLOW_SLUGS = ["feel-good-reset", "sleep-wind-down", "morning-wake-up", "desk-break"];
+const FEATURED_FLOW_SLUGS = [
+  "better-sleep-flow",
+  "feel-good-reset",
+  "morning-wake-up",
+  "desk-break",
+];
 
 function StatCard({
   icon: Icon,
@@ -1198,6 +1203,7 @@ export default function Home() {
           {[
             { href: "/asanas", label: "Asana library", hint: `${ASANAS.length} illustrated poses`, icon: LayoutGrid },
             { href: "/pathways", label: "Pathways", hint: "Quick flows and programs", icon: RouteIcon },
+            { href: "/adaptive", label: "Adaptive plan", hint: "Safe practice for how you feel", icon: UserRound },
             { href: "/trainer", label: "Yoga Trainer", hint: "A practice for today", icon: UserRound },
             { href: "/builder", label: "Builder", hint: "Craft your own sequence", icon: PlusCircle },
             { href: "/breathing", label: "Breathing", hint: "Guided pranayama", icon: Wind },

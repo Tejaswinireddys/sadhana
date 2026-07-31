@@ -308,11 +308,14 @@ export default function Landing() {
             <Link href="/asanas" className="cursor-pointer transition-colors duration-200 hover:text-foreground" onClick={enterApp}>
               Asana library
             </Link>
-            <Link href="/profiles" className="cursor-pointer transition-colors duration-200 hover:text-foreground" onClick={enterApp}>
-              My path
+            <Link href="/privacy" className="cursor-pointer transition-colors duration-200 hover:text-foreground">
+              Privacy
             </Link>
-            <Link href="/kids" className="cursor-pointer transition-colors duration-200 hover:text-foreground" onClick={enterApp}>
-              Kids
+            <Link href="/terms" className="cursor-pointer transition-colors duration-200 hover:text-foreground">
+              Terms
+            </Link>
+            <Link href="/health-disclaimer" className="cursor-pointer transition-colors duration-200 hover:text-foreground">
+              Health disclaimer
             </Link>
           </div>
         </div>

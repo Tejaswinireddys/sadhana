@@ -47,40 +47,47 @@ type NavItem = { href: string; label: string; icon: typeof Home };
 
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
-    label: "Practice",
+    label: "Today",
     items: [
-      { href: "/", label: "Home", icon: Home },
-      { href: "/trainer", label: "Yoga Trainer", icon: UserRound },
-      { href: "/guided", label: "Start practice", icon: Timer },
-      { href: "/pathways", label: "Pathways", icon: RouteIcon },
-      { href: "/builder", label: "Builder", icon: PlusCircle },
+      { href: "/", label: "Today", icon: Home },
+      { href: "/adaptive", label: "Adaptive", icon: Sparkles },
+      { href: "/guided", label: "Practice", icon: Timer },
+      { href: "/trainer", label: "Coach", icon: UserRound },
     ],
   },
   {
     label: "Explore",
     items: [
-      { href: "/asanas", label: "Asana Library", icon: LayoutGrid },
+      { href: "/asanas", label: "Poses", icon: LayoutGrid },
+      { href: "/pathways", label: "Programs", icon: RouteIcon },
+      { href: "/instructors", label: "Teachers", icon: Compass },
+      { href: "/pose-coach", label: "Pose coach", icon: Smile },
       { href: "/breathing", label: "Breathing", icon: Wind },
       { href: "/affirmations", label: "Affirmations", icon: Sparkles },
       { href: "/kids", label: "Kids", icon: Smile },
+      { href: "/builder", label: "Builder", icon: PlusCircle },
+      { href: "/challenges", label: "Challenges", icon: Sparkles },
     ],
   },
   {
-    label: "You",
+    label: "Progress",
     items: [
       { href: "/journal", label: "Journal", icon: NotebookPen },
       { href: "/profiles", label: "My path", icon: Compass },
+      { href: "/household", label: "Household", icon: UserRound },
       { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/account", label: "Account", icon: UserRound },
+      { href: "/corporate", label: "Workplace", icon: Info },
     ],
   },
 ];
 
 const MOBILE_PRIMARY: NavItem[] = [
-  { href: "/", label: "Home", icon: Home },
+  { href: "/", label: "Today", icon: Home },
   { href: "/guided", label: "Practice", icon: Timer },
-  { href: "/trainer", label: "Trainer", icon: UserRound },
-  { href: "/pathways", label: "Pathways", icon: RouteIcon },
-  { href: "/asanas", label: "Library", icon: LayoutGrid },
+  { href: "/trainer", label: "Coach", icon: UserRound },
+  { href: "/pathways", label: "Programs", icon: RouteIcon },
+  { href: "/asanas", label: "Poses", icon: LayoutGrid },
 ];
 
 function SidebarSearch() {
@@ -386,12 +393,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             {theme === "dark" ? "Light mode" : "Dark mode"}
           </Button>
-          <Button variant="ghost" size="sm" className="w-full cursor-pointer justify-start gap-2" asChild>
+          <Button variant="ghost" size="sm" className="min-h-11 w-full cursor-pointer justify-start gap-2" asChild>
             <Link href="/welcome">
               <Info className="h-4 w-4" />
               About Sadhana
             </Link>
           </Button>
+          <p className="px-2 pt-1 text-xs text-muted-foreground">
+            <Link href="/privacy" className="underline-offset-2 hover:underline">
+              Privacy
+            </Link>
+            {" · "}
+            <Link href="/terms" className="underline-offset-2 hover:underline">
+              Terms
+            </Link>
+            {" · "}
+            <Link href="/health-disclaimer" className="underline-offset-2 hover:underline">
+              Health
+            </Link>
+          </p>
           <p className="px-2 pt-2 text-xs text-muted-foreground">
             Sādhanā — a daily, dedicated practice.
           </p>

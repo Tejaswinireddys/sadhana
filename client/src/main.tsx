@@ -8,6 +8,10 @@ if (!window.location.hash) {
 
 createRoot(document.getElementById("root")!).render(<App />);
 
+import("./lib/analytics")
+  .then(({ track }) => track("app_open"))
+  .catch(() => undefined);
+
 /**
  * Register the service worker.
  *

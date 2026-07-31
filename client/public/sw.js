@@ -1,28 +1,31 @@
 /**
  * Sadhana service worker.
  *
- * The app shipped a manifest, theme-color and icons but registered no service
- * worker at all — PWA scaffolding with nothing behind it. That matters more
- * here than for most apps: this is used on a mat, on hotel wifi, and (on the
- * free hosting tier) behind a cold start that can take ~40 seconds. A cached
- * shell turns that from a blank "service waking up" page into a usable app.
- *
  * Strategy:
  *   - App shell (navigations): network-first with a short timeout, falling back
  *     to the cached shell. This is what covers the cold start.
  *   - Static assets (hashed JS/CSS, pose images, audio): cache-first. They are
  *     content-hashed or immutable, so a stale hit is always safe.
+ *   - Explicit offline pack (`sadhana-offline-v1`): checked before network for assets.
  *   - API: never cached. Practice data must not be served stale.
  */
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL_CACHE = `sadhana-shell-${VERSION}`;
 const ASSET_CACHE = `sadhana-assets-${VERSION}`;
+const OFFLINE_CACHE = "sadhana-offline-v1";
 const SHELL_URL = "/index.html";
 
 /** How long to wait for the network before falling back to cache. */
 const NETWORK_TIMEOUT_MS = 3000;
 
-const PRECACHE = [SHELL_URL, "/", "/manifest.webmanifest", "/favicon.svg", "/icon-192.png"];
+const PRECACHE = [
+  SHELL_URL,
+  "/",
+  "/manifest.webmanifest",
+  "/favicon.svg",
+  "/icon-192.png",
+  "/robots.txt",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -40,7 +43,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((k) => k !== SHELL_CACHE && k !== ASSET_CACHE)
+            .filter((k) => k !== SHELL_CACHE && k !== ASSET_CACHE && k !== OFFLINE_CACHE)
             .map((k) => caches.delete(k)),
         ),
       )
@@ -79,6 +82,9 @@ async function cacheFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
   if (cached) return cached;
+  const offline = await caches.open(OFFLINE_CACHE);
+  const offlineHit = await offline.match(request);
+  if (offlineHit) return offlineHit;
   const response = await fetch(request);
   if (response && response.ok) cache.put(request, response.clone());
   return response;
@@ -91,18 +97,19 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Practice data is never served from cache — a stale streak is worse than
-  // an error the UI already knows how to show.
   if (url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
       networkFirst(request, SHELL_CACHE, SHELL_URL).catch(
         () =>
-          new Response("<h1>Offline</h1><p>Reconnect to load Sadhana.</p>", {
-            headers: { "Content-Type": "text/html" },
-            status: 503,
-          }),
+          new Response(
+            "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"/><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/><title>Sadhana offline</title></head><body style=\"font-family:system-ui;padding:2rem;max-width:28rem\"><h1>You're offline</h1><p>Reconnect to sync practice and load new poses.</p><p><a href=\"/\">Try again</a></p></body></html>",
+            {
+              headers: { "Content-Type": "text/html; charset=utf-8" },
+              status: 503,
+            },
+          ),
       ),
     );
     return;

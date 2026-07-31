@@ -43,7 +43,7 @@ export function useSignUp() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { email: string; password: string; displayName?: string }) => {
-      const res = await apiRequest("POST", "/api/auth/signup", input);
+      const res = await apiRequest("POST", "/api/auth/signup", input, { timeoutMs: 25_000 });
       return (await res.json()) as { user: PublicUser; claimed: number };
     },
     onSuccess: async ({ user }) => {
@@ -58,7 +58,7 @@ export function useSignIn() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { email: string; password: string }) => {
-      const res = await apiRequest("POST", "/api/auth/login", input);
+      const res = await apiRequest("POST", "/api/auth/login", input, { timeoutMs: 20_000 });
       return (await res.json()) as { user: PublicUser; deviceRows: number };
     },
     onSuccess: async ({ user, deviceRows }) => {
@@ -89,9 +89,43 @@ export function useClaimDevice() {
   });
 }
 
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: async (input: { email: string }) => {
+      const res = await apiRequest("POST", "/api/auth/forgot-password", input);
+      return (await res.json()) as { ok: boolean; message: string; resetToken?: string };
+    },
+  });
+}
+
+export function useResetPassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { email: string; token: string; password: string }) => {
+      const res = await apiRequest("POST", "/api/auth/reset-password", input);
+      return (await res.json()) as { user: PublicUser };
+    },
+    onSuccess: async ({ user }) => {
+      if (user.displayName) writeString(KEYS.practitionerName, user.displayName);
+      await resetOwnedCaches();
+      qc.setQueryData(AUTH_QUERY_KEY, { user, deviceRows: 0 } satisfies AuthState);
+    },
+  });
+}
+
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: async (input: { password: string }) => {
+      await apiRequest("DELETE", "/api/auth/account", input);
+    },
+    onSuccess: resetOwnedCaches,
+  });
+}
+
 /** Server errors arrive as `409: {"error":"…"}` — surface just the message. */
 export function authErrorMessage(error: unknown, fallback: string): string {
   const raw = error instanceof Error ? error.message : "";
+  if (raw.includes("timed out")) return raw;
   const match = raw.match(/\{.*\}$/);
   if (match) {
     try {

@@ -1,6 +1,9 @@
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { todayISO, type Stats } from "@/lib/sadhana";
 import { detectMilestones } from "@/lib/milestones";
+import { track } from "@/lib/analytics";
+import { recordOutcome, writeLastRpe, type RpeScore } from "@/lib/adaptiveRecovery";
+import { bumpCorporateAggregate } from "@/lib/corporate";
 import type { Milestone } from "@shared/schema";
 import type { Mood } from "@/data/content";
 
@@ -18,6 +21,8 @@ export type LogSessionInput = {
   pathwaySlug: string | null;
   preMood: Mood | null;
   postMood: Mood | null;
+  /** Rate of perceived exertion 1–10 */
+  rpe?: number | null;
   kind?: "asana" | "breathing";
   journalTags?: string[];
   journalBody?: string;
@@ -78,6 +83,7 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
     pathwaySlug,
     preMood,
     postMood,
+    rpe = null,
     kind = "asana",
     journalTags = [label],
     journalBody,
@@ -99,9 +105,24 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
       kind,
       preMood: preMood ?? null,
       postMood: postMood ?? null,
+      rpe: rpe ?? null,
     });
     queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
     queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
+    track("practice_complete", { minutes: Math.max(1, minutes), kind });
+    const totalPoses = Math.max(1, completed + skipped);
+    const skipRate = skipped / totalPoses;
+    if (rpe != null && rpe >= 1 && rpe <= 10) {
+      writeLastRpe(rpe as RpeScore);
+      recordOutcome({
+        at: new Date().toISOString(),
+        rpe: rpe as RpeScore,
+        skipRate,
+        minutes: Math.max(1, minutes),
+        pathwaySlug,
+      });
+    }
+    bumpCorporateAggregate(Math.max(1, minutes));
   } catch (e) {
     return { ok: false, error: (e as Error).message || "Could not save your session." };
   }

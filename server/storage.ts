@@ -13,6 +13,7 @@ import {
   customFlows,
   users,
   authSessions,
+  passwordResetTokens,
 } from "@shared/schema";
 import type {
   Session,
@@ -38,6 +39,7 @@ import type {
   InsertCustomFlow,
   User,
   AuthSession,
+  PasswordResetToken,
 } from "@shared/schema";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -47,9 +49,20 @@ export interface IStorage {
   createUser(email: string, passwordHash: string, displayName?: string): Promise<User>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(id: number): Promise<User | undefined>;
+  updateUserPassword(userId: number, passwordHash: string): Promise<void>;
+  deleteUser(userId: number): Promise<void>;
   createAuthSession(userId: number, token: string, expiresAt: string): Promise<AuthSession>;
   getAuthSession(token: string): Promise<AuthSession | undefined>;
   deleteAuthSession(token: string): Promise<void>;
+  deleteAuthSessionsForUser(userId: number): Promise<void>;
+  createPasswordResetToken(
+    userId: number,
+    tokenHash: string,
+    expiresAt: string,
+  ): Promise<PasswordResetToken>;
+  getPasswordResetToken(tokenHash: string): Promise<PasswordResetToken | undefined>;
+  deletePasswordResetToken(tokenHash: string): Promise<void>;
+  deletePasswordResetTokensForUser(userId: number): Promise<void>;
   /** Row counts per table for an owner — powers the "merge this device" prompt. */
   countOwnerData(ownerId: string): Promise<number>;
   /** Re-key every row from one owner to another (guest practice → account). */
@@ -58,6 +71,8 @@ export interface IStorage {
   createSession(ownerId: string, data: InsertSession): Promise<Session>;
   deleteSession(ownerId: string, id: number): Promise<boolean>;
   clearOwnerData(ownerId: string): Promise<void>;
+  /** Run a series of writes; MemoryStorage is sequential, Postgres uses a client transaction when possible. */
+  runInTransaction<T>(fn: () => Promise<T>): Promise<T>;
   getEnrollments(ownerId: string): Promise<Enrollment[]>;
   createEnrollment(ownerId: string, data: InsertEnrollment): Promise<Enrollment>;
   deleteEnrollment(ownerId: string, id: number): Promise<void>;
@@ -117,32 +132,37 @@ const OWNED_TABLES = [
 ] as const;
 
 export class DatabaseStorage implements IStorage {
+  /** Active drizzle transaction, if any — used by runInTransaction. */
+  private tx: ReturnType<typeof drizzle> | null = null;
   constructor(private readonly db: ReturnType<typeof drizzle>) {}
+  private get orm() {
+    return (this.tx ?? this.db) as typeof this.db;
+  }
 
   async createUser(email: string, passwordHash: string, displayName?: string): Promise<User> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(users)
       .values({ email, passwordHash, displayName, createdAt: new Date().toISOString() })
       .returning();
     return row;
   }
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [row] = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
+    const [row] = await this.orm.select().from(users).where(eq(users.email, email)).limit(1);
     return row;
   }
   async getUserById(id: number): Promise<User | undefined> {
-    const [row] = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
+    const [row] = await this.orm.select().from(users).where(eq(users.id, id)).limit(1);
     return row;
   }
   async createAuthSession(userId: number, token: string, expiresAt: string): Promise<AuthSession> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(authSessions)
       .values({ userId, token, expiresAt, createdAt: new Date().toISOString() })
       .returning();
     return row;
   }
   async getAuthSession(token: string): Promise<AuthSession | undefined> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .select()
       .from(authSessions)
       .where(eq(authSessions.token, token))
@@ -150,12 +170,64 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
   async deleteAuthSession(token: string): Promise<void> {
-    await this.db.delete(authSessions).where(eq(authSessions.token, token));
+    await this.orm.delete(authSessions).where(eq(authSessions.token, token));
+  }
+  async deleteAuthSessionsForUser(userId: number): Promise<void> {
+    await this.orm.delete(authSessions).where(eq(authSessions.userId, userId));
+  }
+  async updateUserPassword(userId: number, passwordHash: string): Promise<void> {
+    await this.orm.update(users).set({ passwordHash }).where(eq(users.id, userId));
+  }
+  async deleteUser(userId: number): Promise<void> {
+    await this.deleteAuthSessionsForUser(userId);
+    await this.deletePasswordResetTokensForUser(userId);
+    await this.clearOwnerData(`user:${userId}`);
+    await this.orm.delete(users).where(eq(users.id, userId));
+  }
+  async createPasswordResetToken(
+    userId: number,
+    tokenHash: string,
+    expiresAt: string,
+  ): Promise<PasswordResetToken> {
+    await this.deletePasswordResetTokensForUser(userId);
+    const [row] = await this.orm
+      .insert(passwordResetTokens)
+      .values({ userId, tokenHash, expiresAt, createdAt: new Date().toISOString() })
+      .returning();
+    return row;
+  }
+  async getPasswordResetToken(tokenHash: string): Promise<PasswordResetToken | undefined> {
+    const [row] = await this.orm
+      .select()
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.tokenHash, tokenHash))
+      .limit(1);
+    return row;
+  }
+  async deletePasswordResetToken(tokenHash: string): Promise<void> {
+    await this.orm
+      .delete(passwordResetTokens)
+      .where(eq(passwordResetTokens.tokenHash, tokenHash));
+  }
+  async deletePasswordResetTokensForUser(userId: number): Promise<void> {
+    await this.orm
+      .delete(passwordResetTokens)
+      .where(eq(passwordResetTokens.userId, userId));
+  }
+  async runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
+    return this.db.transaction(async (tx) => {
+      this.tx = tx as unknown as ReturnType<typeof drizzle>;
+      try {
+        return await fn();
+      } finally {
+        this.tx = null;
+      }
+    });
   }
   async countOwnerData(ownerId: string): Promise<number> {
     const counts = await Promise.all(
       OWNED_TABLES.map(async (table) => {
-        const rows = await this.db.select().from(table).where(eq(table.ownerId, ownerId));
+        const rows = await this.orm.select().from(table).where(eq(table.ownerId, ownerId));
         return rows.length;
       }),
     );
@@ -168,11 +240,11 @@ export class DatabaseStorage implements IStorage {
       // Preferences and the active profile are single-row-per-owner, so drop the
       // account's existing row first rather than ending up with two.
       if (table === preferences || table === userProfiles || table === poseNotes) {
-        const incoming = await this.db.select().from(table).where(eq(table.ownerId, fromOwnerId));
+        const incoming = await this.orm.select().from(table).where(eq(table.ownerId, fromOwnerId));
         if (incoming.length === 0) continue;
-        await this.db.delete(table).where(eq(table.ownerId, toOwnerId));
+        await this.orm.delete(table).where(eq(table.ownerId, toOwnerId));
       }
-      const rows = await this.db
+      const rows = await this.orm
         .update(table)
         .set({ ownerId: toOwnerId })
         .where(eq(table.ownerId, fromOwnerId))
@@ -183,21 +255,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSessions(ownerId: string): Promise<Session[]> {
-    return this.db
+    return this.orm
       .select()
       .from(sessions)
       .where(eq(sessions.ownerId, ownerId))
       .orderBy(desc(sessions.date));
   }
   async createSession(ownerId: string, data: InsertSession): Promise<Session> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(sessions)
       .values({ ...data, ownerId })
       .returning();
     return row;
   }
   async deleteSession(ownerId: string, id: number): Promise<boolean> {
-    const rows = await this.db
+    const rows = await this.orm
       .delete(sessions)
       .where(and(eq(sessions.id, id), eq(sessions.ownerId, ownerId)))
       .returning();
@@ -205,69 +277,69 @@ export class DatabaseStorage implements IStorage {
   }
   async clearOwnerData(ownerId: string): Promise<void> {
     await Promise.all([
-      this.db.delete(sessions).where(eq(sessions.ownerId, ownerId)),
-      this.db.delete(pathwayEnrollments).where(eq(pathwayEnrollments.ownerId, ownerId)),
-      this.db.delete(favoriteAffirmations).where(eq(favoriteAffirmations.ownerId, ownerId)),
-      this.db.delete(journalEntries).where(eq(journalEntries.ownerId, ownerId)),
-      this.db.delete(preferences).where(eq(preferences.ownerId, ownerId)),
-      this.db.delete(userProfiles).where(eq(userProfiles.ownerId, ownerId)),
-      this.db.delete(kidsStickers).where(eq(kidsStickers.ownerId, ownerId)),
-      this.db.delete(favoriteAsanas).where(eq(favoriteAsanas.ownerId, ownerId)),
-      this.db.delete(milestones).where(eq(milestones.ownerId, ownerId)),
-      this.db.delete(poseNotes).where(eq(poseNotes.ownerId, ownerId)),
-      this.db.delete(mobilityCheckIns).where(eq(mobilityCheckIns.ownerId, ownerId)),
-      this.db.delete(customFlows).where(eq(customFlows.ownerId, ownerId)),
+      this.orm.delete(sessions).where(eq(sessions.ownerId, ownerId)),
+      this.orm.delete(pathwayEnrollments).where(eq(pathwayEnrollments.ownerId, ownerId)),
+      this.orm.delete(favoriteAffirmations).where(eq(favoriteAffirmations.ownerId, ownerId)),
+      this.orm.delete(journalEntries).where(eq(journalEntries.ownerId, ownerId)),
+      this.orm.delete(preferences).where(eq(preferences.ownerId, ownerId)),
+      this.orm.delete(userProfiles).where(eq(userProfiles.ownerId, ownerId)),
+      this.orm.delete(kidsStickers).where(eq(kidsStickers.ownerId, ownerId)),
+      this.orm.delete(favoriteAsanas).where(eq(favoriteAsanas.ownerId, ownerId)),
+      this.orm.delete(milestones).where(eq(milestones.ownerId, ownerId)),
+      this.orm.delete(poseNotes).where(eq(poseNotes.ownerId, ownerId)),
+      this.orm.delete(mobilityCheckIns).where(eq(mobilityCheckIns.ownerId, ownerId)),
+      this.orm.delete(customFlows).where(eq(customFlows.ownerId, ownerId)),
     ]);
   }
 
   async getEnrollments(ownerId: string): Promise<Enrollment[]> {
-    return this.db
+    return this.orm
       .select()
       .from(pathwayEnrollments)
       .where(eq(pathwayEnrollments.ownerId, ownerId));
   }
   async createEnrollment(ownerId: string, data: InsertEnrollment): Promise<Enrollment> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(pathwayEnrollments)
       .values({ ...data, ownerId })
       .returning();
     return row;
   }
   async deleteEnrollment(ownerId: string, id: number): Promise<void> {
-    await this.db
+    await this.orm
       .delete(pathwayEnrollments)
       .where(and(eq(pathwayEnrollments.id, id), eq(pathwayEnrollments.ownerId, ownerId)));
   }
 
   async getFavorites(ownerId: string): Promise<Favorite[]> {
-    return this.db
+    return this.orm
       .select()
       .from(favoriteAffirmations)
       .where(eq(favoriteAffirmations.ownerId, ownerId))
       .orderBy(desc(favoriteAffirmations.createdAt));
   }
   async createFavorite(ownerId: string, data: InsertFavorite): Promise<Favorite> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(favoriteAffirmations)
       .values({ ...data, ownerId })
       .returning();
     return row;
   }
   async deleteFavorite(ownerId: string, id: number): Promise<void> {
-    await this.db
+    await this.orm
       .delete(favoriteAffirmations)
       .where(and(eq(favoriteAffirmations.id, id), eq(favoriteAffirmations.ownerId, ownerId)));
   }
 
   async getJournal(ownerId: string): Promise<Journal[]> {
-    return this.db
+    return this.orm
       .select()
       .from(journalEntries)
       .where(eq(journalEntries.ownerId, ownerId))
       .orderBy(desc(journalEntries.date));
   }
   async createJournal(ownerId: string, data: InsertJournal): Promise<Journal> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(journalEntries)
       .values({ ...data, ownerId })
       .returning();
@@ -278,7 +350,7 @@ export class DatabaseStorage implements IStorage {
     id: number,
     data: Partial<InsertJournal>,
   ): Promise<Journal | undefined> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .update(journalEntries)
       .set(data)
       .where(and(eq(journalEntries.id, id), eq(journalEntries.ownerId, ownerId)))
@@ -286,19 +358,19 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
   async deleteJournal(ownerId: string, id: number): Promise<void> {
-    await this.db
+    await this.orm
       .delete(journalEntries)
       .where(and(eq(journalEntries.id, id), eq(journalEntries.ownerId, ownerId)));
   }
 
   async getPreferences(ownerId: string): Promise<Preferences> {
-    const [existing] = await this.db
+    const [existing] = await this.orm
       .select()
       .from(preferences)
       .where(eq(preferences.ownerId, ownerId))
       .limit(1);
     if (existing) return existing;
-    const [created] = await this.db
+    const [created] = await this.orm
       .insert(preferences)
       .values({ ownerId, motionEnabled: 1, voiceEnabled: 1 })
       .returning();
@@ -309,7 +381,7 @@ export class DatabaseStorage implements IStorage {
     data: Partial<InsertPreferences>,
   ): Promise<Preferences> {
     const current = await this.getPreferences(ownerId);
-    const [row] = await this.db
+    const [row] = await this.orm
       .update(preferences)
       .set(data)
       .where(and(eq(preferences.id, current.id), eq(preferences.ownerId, ownerId)))
@@ -318,7 +390,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getActiveProfile(ownerId: string): Promise<UserProfile | undefined> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .select()
       .from(userProfiles)
       .where(and(eq(userProfiles.ownerId, ownerId), eq(userProfiles.active, true)))
@@ -327,32 +399,32 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
   async activateProfile(ownerId: string, profileId: string): Promise<UserProfile> {
-    await this.db
+    await this.orm
       .update(userProfiles)
       .set({ active: false })
       .where(and(eq(userProfiles.ownerId, ownerId), eq(userProfiles.active, true)));
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(userProfiles)
       .values({ ownerId, profileId, activatedAt: new Date().toISOString(), active: true })
       .returning();
     return row;
   }
   async deactivateProfile(ownerId: string): Promise<void> {
-    await this.db
+    await this.orm
       .update(userProfiles)
       .set({ active: false })
       .where(and(eq(userProfiles.ownerId, ownerId), eq(userProfiles.active, true)));
   }
 
   async getStickers(ownerId: string): Promise<Sticker[]> {
-    return this.db
+    return this.orm
       .select()
       .from(kidsStickers)
       .where(eq(kidsStickers.ownerId, ownerId))
       .orderBy(desc(kidsStickers.earnedAt));
   }
   async createSticker(ownerId: string, data: InsertSticker): Promise<Sticker> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(kidsStickers)
       .values({ ...data, ownerId })
       .returning();
@@ -360,46 +432,46 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFavoriteAsanas(ownerId: string): Promise<FavoriteAsana[]> {
-    return this.db
+    return this.orm
       .select()
       .from(favoriteAsanas)
       .where(eq(favoriteAsanas.ownerId, ownerId))
       .orderBy(desc(favoriteAsanas.createdAt));
   }
   async addFavoriteAsana(ownerId: string, slug: string): Promise<FavoriteAsana> {
-    const [existing] = await this.db
+    const [existing] = await this.orm
       .select()
       .from(favoriteAsanas)
       .where(and(eq(favoriteAsanas.ownerId, ownerId), eq(favoriteAsanas.slug, slug)))
       .limit(1);
     if (existing) return existing;
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(favoriteAsanas)
       .values({ ownerId, slug, createdAt: new Date().toISOString() })
       .returning();
     return row;
   }
   async removeFavoriteAsana(ownerId: string, slug: string): Promise<void> {
-    await this.db
+    await this.orm
       .delete(favoriteAsanas)
       .where(and(eq(favoriteAsanas.ownerId, ownerId), eq(favoriteAsanas.slug, slug)));
   }
 
   async getMilestones(ownerId: string): Promise<Milestone[]> {
-    return this.db
+    return this.orm
       .select()
       .from(milestones)
       .where(eq(milestones.ownerId, ownerId))
       .orderBy(desc(milestones.reachedAt));
   }
   async createMilestone(ownerId: string, data: InsertMilestone): Promise<Milestone> {
-    const [existing] = await this.db
+    const [existing] = await this.orm
       .select()
       .from(milestones)
       .where(and(eq(milestones.ownerId, ownerId), eq(milestones.kind, data.kind)))
       .limit(1);
     if (existing) return existing;
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(milestones)
       .values({ ...data, ownerId })
       .returning();
@@ -407,7 +479,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPoseNote(ownerId: string, slug: string): Promise<PoseNote | undefined> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .select()
       .from(poseNotes)
       .where(and(eq(poseNotes.ownerId, ownerId), eq(poseNotes.slug, slug)))
@@ -418,14 +490,14 @@ export class DatabaseStorage implements IStorage {
     const now = new Date().toISOString();
     const existing = await this.getPoseNote(ownerId, slug);
     if (existing) {
-      const [row] = await this.db
+      const [row] = await this.orm
         .update(poseNotes)
         .set({ body, updatedAt: now })
         .where(and(eq(poseNotes.ownerId, ownerId), eq(poseNotes.slug, slug)))
         .returning();
       return row;
     }
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(poseNotes)
       .values({ ownerId, slug, body, updatedAt: now })
       .returning();
@@ -433,7 +505,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMobilityCheckIns(ownerId: string, pathwaySlug: string): Promise<MobilityCheckIn[]> {
-    return this.db
+    return this.orm
       .select()
       .from(mobilityCheckIns)
       .where(
@@ -445,27 +517,27 @@ export class DatabaseStorage implements IStorage {
     ownerId: string,
     data: InsertMobilityCheckIn,
   ): Promise<MobilityCheckIn> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(mobilityCheckIns)
       .values({ ...data, ownerId })
       .returning();
     return row;
   }
   async deleteMobilityCheckIn(ownerId: string, id: number): Promise<void> {
-    await this.db
+    await this.orm
       .delete(mobilityCheckIns)
       .where(and(eq(mobilityCheckIns.id, id), eq(mobilityCheckIns.ownerId, ownerId)));
   }
 
   async getCustomFlows(ownerId: string): Promise<CustomFlow[]> {
-    return this.db
+    return this.orm
       .select()
       .from(customFlows)
       .where(eq(customFlows.ownerId, ownerId))
       .orderBy(desc(customFlows.id));
   }
   async getCustomFlow(ownerId: string, id: number): Promise<CustomFlow | undefined> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .select()
       .from(customFlows)
       .where(and(eq(customFlows.id, id), eq(customFlows.ownerId, ownerId)))
@@ -473,7 +545,7 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
   async createCustomFlow(ownerId: string, data: InsertCustomFlow): Promise<CustomFlow> {
-    const [row] = await this.db
+    const [row] = await this.orm
       .insert(customFlows)
       .values({ ...data, ownerId })
       .returning();
@@ -484,14 +556,14 @@ export class DatabaseStorage implements IStorage {
     id: number,
     data: Partial<InsertCustomFlow>,
   ): Promise<CustomFlow | undefined> {
-    await this.db
+    await this.orm
       .update(customFlows)
       .set(data)
       .where(and(eq(customFlows.id, id), eq(customFlows.ownerId, ownerId)));
     return this.getCustomFlow(ownerId, id);
   }
   async deleteCustomFlow(ownerId: string, id: number): Promise<void> {
-    await this.db
+    await this.orm
       .delete(customFlows)
       .where(and(eq(customFlows.id, id), eq(customFlows.ownerId, ownerId)));
   }
@@ -514,6 +586,7 @@ export class MemoryStorage implements IStorage {
   private flows: CustomFlow[] = [];
   private users: User[] = [];
   private authSessions: AuthSession[] = [];
+  private resetTokens: PasswordResetToken[] = [];
 
   private nextId() {
     return this.seq++;
@@ -569,6 +642,43 @@ export class MemoryStorage implements IStorage {
   }
   async deleteAuthSession(token: string) {
     this.authSessions = this.authSessions.filter((s) => s.token !== token);
+  }
+  async deleteAuthSessionsForUser(userId: number) {
+    this.authSessions = this.authSessions.filter((s) => s.userId !== userId);
+  }
+  async updateUserPassword(userId: number, passwordHash: string) {
+    const user = this.users.find((u) => u.id === userId);
+    if (user) user.passwordHash = passwordHash;
+  }
+  async deleteUser(userId: number) {
+    await this.deleteAuthSessionsForUser(userId);
+    await this.deletePasswordResetTokensForUser(userId);
+    await this.clearOwnerData(`user:${userId}`);
+    this.users = this.users.filter((u) => u.id !== userId);
+  }
+  async createPasswordResetToken(userId: number, tokenHash: string, expiresAt: string) {
+    await this.deletePasswordResetTokensForUser(userId);
+    const row: PasswordResetToken = {
+      id: this.nextId(),
+      userId,
+      tokenHash,
+      expiresAt,
+      createdAt: new Date().toISOString(),
+    };
+    this.resetTokens.push(row);
+    return row;
+  }
+  async getPasswordResetToken(tokenHash: string) {
+    return this.resetTokens.find((t) => t.tokenHash === tokenHash);
+  }
+  async deletePasswordResetToken(tokenHash: string) {
+    this.resetTokens = this.resetTokens.filter((t) => t.tokenHash !== tokenHash);
+  }
+  async deletePasswordResetTokensForUser(userId: number) {
+    this.resetTokens = this.resetTokens.filter((t) => t.userId !== userId);
+  }
+  async runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
+    return fn();
   }
   async countOwnerData(ownerId: string) {
     const rows = this.ownedRows().reduce(

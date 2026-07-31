@@ -66,14 +66,28 @@ function AffirmationCard({
           <Button
             variant={fav ? "default" : "outline"}
             size="sm"
+            className="min-h-11"
             onClick={onToggle}
+            aria-pressed={!!fav}
+            aria-label={
+              fav
+                ? `Remove favorite: ${text.slice(0, 80)}`
+                : `Favorite affirmation: ${text.slice(0, 80)}`
+            }
             data-testid={`button-favorite-${text.slice(0, 12)}`}
           >
-            <Heart className={`mr-1.5 h-4 w-4 ${fav ? "fill-current" : ""}`} />
+            <Heart className={`mr-1.5 h-4 w-4 ${fav ? "fill-current" : ""}`} aria-hidden />
             {fav ? "Favorited" : "Favorite"}
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => readAloud(text)} data-testid={`button-read-${text.slice(0, 12)}`}>
-            <Volume2 className="h-4 w-4" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="min-h-11 min-w-11"
+            onClick={() => readAloud(text)}
+            aria-label={`Read aloud: ${text.slice(0, 80)}`}
+            data-testid={`button-read-${text.slice(0, 12)}`}
+          >
+            <Volume2 className="h-4 w-4" aria-hidden />
           </Button>
         </div>
       </CardContent>

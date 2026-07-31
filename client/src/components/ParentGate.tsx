@@ -89,12 +89,13 @@ export function ParentGate() {
       <DialogContent
         className="sm:max-w-md"
         data-testid="parent-gate"
+        hideClose
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-serif text-2xl">
-            <Lock className="h-5 w-5 text-primary" /> Grown-ups only
+            <Lock className="h-5 w-5 text-primary" aria-hidden /> Grown-ups only
           </DialogTitle>
           <DialogDescription>
             Ask a grown-up to solve this so we know it's okay to start the yoga adventure.
@@ -104,21 +105,34 @@ export function ParentGate() {
           <p className="text-center font-serif text-3xl" data-testid="text-parent-gate-question">
             What is {a} × {b}?
           </p>
-          <Input
-            type="number"
-            inputMode="numeric"
-            autoFocus
-            value={answer}
-            onChange={(e) => {
-              setAnswer(e.target.value);
-              setError(false);
-            }}
-            placeholder="Type the answer"
-            className="text-center text-lg"
-            data-testid="input-parent-gate"
-          />
+          <div className="space-y-2">
+            <label htmlFor="parent-gate-answer" className="sr-only">
+              Answer to {a} times {b}
+            </label>
+            <Input
+              id="parent-gate-answer"
+              type="number"
+              inputMode="numeric"
+              autoFocus
+              value={answer}
+              onChange={(e) => {
+                setAnswer(e.target.value);
+                setError(false);
+              }}
+              placeholder="Type the answer"
+              className="min-h-11 text-center text-lg"
+              aria-invalid={error || undefined}
+              aria-describedby={error ? "parent-gate-error" : undefined}
+              data-testid="input-parent-gate"
+            />
+          </div>
           {error && (
-            <p className="text-center text-sm text-destructive" data-testid="text-parent-gate-error">
+            <p
+              id="parent-gate-error"
+              className="text-center text-sm text-destructive"
+              role="alert"
+              data-testid="text-parent-gate-error"
+            >
               Not quite — try again.
             </p>
           )}
@@ -126,7 +140,7 @@ export function ParentGate() {
             <Button
               type="button"
               variant="outline"
-              className="flex-1"
+              className="min-h-11 flex-1"
               onClick={() => navigate("/")}
               data-testid="button-parent-gate-exit"
             >
@@ -136,7 +150,7 @@ export function ParentGate() {
                 through taps won't complete by accident. */}
             <Button
               type="button"
-              className="relative flex-1 overflow-hidden"
+              className="relative min-h-11 flex-1 overflow-hidden"
               onPointerDown={startHold}
               onPointerUp={stopHold}
               onPointerLeave={stopHold}
