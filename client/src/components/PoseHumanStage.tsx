@@ -82,7 +82,14 @@ export function PoseHumanStage({
       data-media="illustrated"
       aria-label={`Trainer demonstration of ${english}`}
     >
-      <div className={cn("absolute inset-0", moveFigure && momentum)}>
+      {/* Pad when caption/focus chrome is on so head & feet stay clear of overlays */}
+      <div
+        className={cn(
+          "absolute inset-0",
+          caption ? "px-2 pb-14 pt-9" : "p-2",
+          moveFigure && momentum,
+        )}
+      >
         {layers.map((layer, i) => {
           const isTop = i === layers.length - 1;
           return (
@@ -97,8 +104,9 @@ export function PoseHumanStage({
                 if (layer.slug !== slug) el.src = imgUrl(slug);
               }}
               className={cn(
-                "absolute inset-0 h-full w-full object-contain transition-opacity duration-700 ease-out",
-                isTop ? "opacity-100" : "opacity-0",
+                "h-full w-full object-contain object-center transition-opacity duration-700 ease-out",
+                layers.length > 1 ? "absolute inset-0" : "relative",
+                isTop ? "opacity-100" : "absolute inset-0 opacity-0",
               )}
               style={{ transform: side === 2 ? "scaleX(-1)" : undefined }}
             />
