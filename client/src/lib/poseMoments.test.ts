@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import {
   buildPoseMoment,
   cameraForMoment,
+  inferFocusZone,
   phaseFromStepIndex,
   resolvePosePhase,
+  resolveStepFocus,
 } from "./poseMoments.ts";
 
 describe("poseMoments", () => {
@@ -46,5 +48,20 @@ describe("poseMoments", () => {
     assert.equal(m.phase, "align");
     assert.equal(m.focusZone?.label, "Arms");
     assert.ok(m.camera.scale >= 0.86);
+  });
+
+  it("maps Mountain-style cues to body regions for clear training", () => {
+    assert.equal(inferFocusZone("weight even across both feet").label, "Feet & foundation");
+    assert.equal(inferFocusZone("Engage the thighs, lift the kneecaps").label, "Legs engaged");
+    assert.equal(inferFocusZone("Roll the shoulders back and down").label, "Shoulders & arms");
+    assert.equal(inferFocusZone("Crown of the head reaches upward").label, "Crown & gaze");
+  });
+
+  it("prefers authored focusZone over inference", () => {
+    const authored = { cx: 0.4, cy: 0.3, r: 0.2, label: "Authored" };
+    assert.equal(
+      resolveStepFocus({ text: "feet together", focusZone: authored }, 0, 4)?.label,
+      "Authored",
+    );
   });
 });

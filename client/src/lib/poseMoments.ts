@@ -109,6 +109,48 @@ export function cameraForMoment(
   };
 }
 
+/**
+ * Infer a teaching focus region from step copy when the asana has no authored
+ * focusZone. Keeps single-shape poses (e.g. Mountain) readable as a lesson
+ * instead of a bouncing still — the halo moves to feet → legs → shoulders → crown.
+ */
+export function inferFocusZone(
+  text: string,
+  stepIndex = 0,
+  stepCount = 1,
+): FocusZone {
+  const rules: [RegExp, FocusZone][] = [
+    [/\b(feet|foot|heels?|toes?|weight even|stand at|top of (your )?mat|root|ground)\b/i, { cx: 0.5, cy: 0.9, r: 0.17, label: "Feet & foundation" }],
+    [/\b(thighs?|kneecaps?|knees?|calves?|ankles?|legs?)\b/i, { cx: 0.5, cy: 0.68, r: 0.19, label: "Legs engaged" }],
+    [/\b(tailbone|hips?|pelvis|core|navel|belly|low back)\b/i, { cx: 0.5, cy: 0.55, r: 0.17, label: "Hips & core" }],
+    [/\b(shoulders?|arms?|palms?|hands?|chest|ribs?)\b/i, { cx: 0.5, cy: 0.36, r: 0.2, label: "Shoulders & arms" }],
+    [/\b(crown|head|gaze|face|neck|chin)\b/i, { cx: 0.5, cy: 0.12, r: 0.15, label: "Crown & gaze" }],
+    [/\b(breathe|breath|inhale|exhale)\b/i, { cx: 0.5, cy: 0.42, r: 0.18, label: "Breath" }],
+  ];
+  for (const [re, zone] of rules) {
+    if (re.test(text)) return zone;
+  }
+  const fallbacks: FocusZone[] = [
+    { cx: 0.5, cy: 0.88, r: 0.17, label: "Foundation" },
+    { cx: 0.5, cy: 0.62, r: 0.18, label: "Align the body" },
+    { cx: 0.5, cy: 0.38, r: 0.18, label: "Open & stack" },
+    { cx: 0.5, cy: 0.16, r: 0.15, label: "Lengthen up" },
+  ];
+  const t = stepCount <= 1 ? 0 : stepIndex / Math.max(1, stepCount - 1);
+  return fallbacks[Math.min(fallbacks.length - 1, Math.floor(t * fallbacks.length))];
+}
+
+/** Prefer authored focus; otherwise infer from the spoken cue. */
+export function resolveStepFocus(
+  step: { text?: string; focusZone?: FocusZone | null } | null | undefined,
+  stepIndex = 0,
+  stepCount = 1,
+): FocusZone | null {
+  if (step?.focusZone) return step.focusZone;
+  if (!step?.text) return null;
+  return inferFocusZone(step.text, stepIndex, stepCount);
+}
+
 export function buildPoseMoment(opts: {
   poseKey: string;
   focusZone?: FocusZone | null;

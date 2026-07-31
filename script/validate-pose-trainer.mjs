@@ -59,19 +59,47 @@ async function validatePose(page, slug) {
   });
 
   const watchBtn = page.locator(`[data-testid="button-watch-demo-${slug}"]`);
-  note(await watchBtn.isVisible(), `${slug}: Watch trainer demo CTA visible`);
+  note(await watchBtn.isVisible(), `${slug}: Start pose training CTA visible`);
+  // How-to steps should be visible before training starts (clear lesson, not a bobbing clip).
+  note(
+    (await page.locator(`[data-testid="demo-step-${slug}-0"]`).count()) > 0,
+    `${slug}: how-to steps visible before start`,
+  );
+
+  const idleMedia = await hero.getAttribute("data-media");
+  const idleMomentum = await hero.getAttribute("data-momentum");
+  note(
+    idleMedia === "illustrated" || idleMedia === null,
+    `${slug}: idle uses illustrated trainer (not Ken Burns bob)`,
+    { detail: `media=${idleMedia} momentum=${idleMomentum}` },
+  );
+
   await watchBtn.click();
   await page.waitForTimeout(1200);
 
   const step0 = page.locator(`[data-testid="demo-step-${slug}-0"]`);
   note(await step0.isVisible(), `${slug}: narration steps appear`);
 
-  await page.waitForTimeout(3500);
+  const focusLabel = page.locator(
+    `[data-testid="pose-human-focus-label-${slug}"], [data-testid="pose-demo-focus-label-${slug}"]`,
+  );
+  note(
+    (await focusLabel.count()) > 0,
+    `${slug}: body-region focus cue while training`,
+  );
+
+  const caption = page.locator(`[data-testid="pose-human-caption-${slug}"]`);
+  const captionText = (await caption.count()) > 0 ? (await caption.innerText()).trim() : "";
+  note(captionText.length > 8, `${slug}: live step caption while training`, {
+    detail: captionText.slice(0, 90),
+  });
+
+  await page.waitForTimeout(2500);
   await page.screenshot({ path: path.join(OUT, `${slug}-playing.png`), fullPage: false });
 
   note(
-    /trainer/i.test(label),
-    `${slug}: trainer chrome`,
+    /training|trainer|learn/i.test(label),
+    `${slug}: training chrome`,
     { detail: label },
   );
 

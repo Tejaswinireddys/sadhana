@@ -1,13 +1,9 @@
 /**
- * PoseTrainerStage — correct pose demonstration for teaching surfaces.
+ * PoseTrainerStage — clear pose teaching for detail / guided surfaces.
  *
- * Idle / single-shape: looping demo video for THIS pose slug when registered
- * (Ken Burns of the correct illustration), so users see the pose they opened.
- *
- * Multi-shape narration: PoseHumanStage crossfades entry → peak with body
- * momentum. Idle always pins to this pose's own artwork (never another asana).
- *
- * Filmed CDN overrides in POSE_MEDIA_OVERRIDES always prefer real video.
+ * Default: illustrated human figure with step focus + captions (readable
+ * training). Ken Burns looping clips are NOT used for teaching — they only
+ * bob a still image. Real filmed CDN overrides in POSE_MEDIA_OVERRIDES still win.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
@@ -19,6 +15,7 @@ import {
   poseHasVideo,
   poseMediaFor,
 } from "@/data/poseMedia";
+import type { FocusZone } from "@/lib/poseMoments";
 
 export type PoseTrainerStageProps = {
   slug: string;
@@ -32,9 +29,11 @@ export type PoseTrainerStageProps = {
   restartToken?: number;
   /**
    * True while the user is in an active step walkthrough (narration / guided
-   * instruction). When false, the stage always shows THIS pose (video or art).
+   * instruction). When false, the stage always shows THIS pose (still art).
    */
   guideActive?: boolean;
+  focusZone?: FocusZone | null;
+  caption?: string | null;
   side?: 1 | 2;
   variant?: "detail" | "practice";
   className?: string;
@@ -53,6 +52,8 @@ export function PoseTrainerStage({
   playing = false,
   restartToken = 0,
   guideActive = false,
+  focusZone = null,
+  caption = null,
   side = 1,
   variant = "detail",
   className,
@@ -79,12 +80,9 @@ export function PoseTrainerStage({
     setForceIllustrated(false);
   }, [slug]);
 
-  // Video of THIS pose when available — except mid multi-shape walkthrough,
-  // where the human stage must crossfade entry → peak. Filmed overrides always win.
-  const useVideo =
-    hasVideo &&
-    !forceIllustrated &&
-    (filmedOverride || !guideActive || !shapeJourney);
+  // Only real filmed overrides use video. Generated Ken Burns clips look like
+  // “moving up and down” — not a training explanation.
+  const useVideo = filmedOverride && hasVideo && !forceIllustrated;
 
   useEffect(() => {
     onModeChange?.(useVideo ? "video" : "illustrated");
@@ -94,8 +92,9 @@ export function PoseTrainerStage({
     setForceIllustrated(true);
   }, []);
 
-  // Idle / non-guide: pin to this pose's shape so Tree never opens as Mountain.
   const effectiveStepPose = guideActive ? stepPoseKey : poseKey;
+  // Whole-body bounce only when the illustration actually changes shape.
+  const effectiveMomentum = shapeJourney && guideActive ? momentum : "";
 
   if (!useVideo) {
     return (
@@ -104,10 +103,12 @@ export function PoseTrainerStage({
         english={english}
         poseKey={poseKey}
         stepPoseKey={effectiveStepPose}
-        momentum={momentum}
+        momentum={effectiveMomentum}
         stepIndex={stepIndex}
         playing={playing}
         side={side}
+        focusZone={guideActive ? focusZone : null}
+        caption={guideActive ? caption : null}
         variant={variant}
         className={className}
         data-testid={testId}
@@ -128,6 +129,7 @@ export function PoseTrainerStage({
       restartToken={restartToken}
       stepIndex={stepIndex}
       stepPoseKey={effectiveStepPose ?? undefined}
+      focusZone={guideActive ? focusZone : null}
       side={side}
       variant={variant}
       className={className}
