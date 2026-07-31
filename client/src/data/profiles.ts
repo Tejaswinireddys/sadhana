@@ -20,11 +20,11 @@ export type Profile = {
 export const PROFILES: Profile[] = [
   {
     id: "busy-mom",
-    name: "Busy Mom",
-    tagline: "Strength and breath in 15 minutes — between everything else",
+    name: "Busy Parent",
+    tagline: "15-minute practice when you barely have time",
     description:
-      "A quick, energizing flow designed to fit into the busiest day. Build strength, steady your breath, and reset — no mat-marathon required.",
-    icon: "Baby",
+      "For parents squeezed between school runs, work, and everything else. Short standing and balance poses to wake the body, then a brief rest — strength and calm without a long session.",
+    icon: "Clock",
     accent: "primary",
     minutesPerSession: 15,
     daysPerWeek: 4,
