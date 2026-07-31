@@ -272,7 +272,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
           <p className="text-sm text-muted-foreground">
             {asana.sanskrit}
             {" · "}
-            A demo video for each step, with cues on the body. Follow along, then practice.
+            A clear trainer figure for each step, with cues on the body. Follow along, then practice.
           </p>
         </div>
 

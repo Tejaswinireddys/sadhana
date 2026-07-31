@@ -1,17 +1,19 @@
 /**
- * PoseTrainerStage — large step video for teaching surfaces.
+ * PoseTrainerStage — human teaching figure for pose explanation & guided practice.
  *
- * While training, plays the demo clip for the current step’s shape (this pose,
- * or the entry shape on a multi-shape journey). Restarts on each step so the
- * clip reads as a fresh cue. Falls back to the illustrated figure when no
- * clip is registered.
+ * Prefer real motion over Ken Burns zooms on a still:
+ *   1. Rigged WebGL figurine when keyframes exist (limbs travel with the cue)
+ *   2. Illustrated PoseHumanStage that crossfades entry → peak per narration step
+ *
+ * Looping step-journey clips remain available for library cards via poseMedia.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
 import { PoseHumanStage } from "@/components/PoseHumanStage";
 import { asanaBySlug } from "@/data/content";
-import { humanStepSlug, poseHasShapeJourney } from "@/data/poseKeyImages";
-import { poseHasVideo, poseMediaFor } from "@/data/poseMedia";
+import { hasRigSequence } from "@/data/poseKeyframes";
+import { poseHasShapeJourney } from "@/data/poseKeyImages";
+import { poseMediaFor } from "@/data/poseMedia";
 import type { FocusZone } from "@/lib/poseMoments";
 
 export type PoseTrainerStageProps = {
@@ -22,6 +24,7 @@ export type PoseTrainerStageProps = {
   stepPoseKey?: string | null;
   momentum?: string;
   stepIndex?: number;
+  stepProgress?: number;
   playing?: boolean;
   restartToken?: number;
   guideActive?: boolean;
@@ -31,7 +34,7 @@ export type PoseTrainerStageProps = {
   variant?: "detail" | "practice";
   className?: string;
   "data-testid"?: string;
-  onModeChange?: (mode: "video" | "illustrated") => void;
+  onModeChange?: (mode: "video" | "illustrated" | "3d") => void;
 };
 
 export function PoseTrainerStage({
@@ -42,6 +45,7 @@ export function PoseTrainerStage({
   stepPoseKey,
   momentum,
   stepIndex = 0,
+  stepProgress = 1,
   playing = false,
   restartToken = 0,
   guideActive = false,
@@ -65,74 +69,60 @@ export function PoseTrainerStage({
     [asana, slug, poseKey],
   );
 
-  // Idle: this pose. Training: the step’s shape (e.g. Mountain → Tree).
-  const displaySlug = useMemo(
-    () => humanStepSlug(slug, poseKey, guideActive ? stepPoseKey : poseKey),
-    [slug, poseKey, guideActive, stepPoseKey],
-  );
-
-  const media = useMemo(() => poseMediaFor(displaySlug), [displaySlug]);
-  const hasVideo = poseHasVideo(displaySlug);
-  const [forceIllustrated, setForceIllustrated] = useState(false);
-
-  useEffect(() => {
-    setForceIllustrated(false);
-  }, [displaySlug]);
-
-  // Prefer registered demo clips so each step plays a video, not a tiny still.
-  const useVideo = hasVideo && !forceIllustrated;
-
-  useEffect(() => {
-    onModeChange?.(useVideo ? "video" : "illustrated");
-  }, [useVideo, onModeChange]);
-
-  const handleVideoUnavailable = useCallback(() => {
-    setForceIllustrated(true);
-  }, []);
+  const useRig = hasRigSequence(slug);
+  const media = useMemo(() => poseMediaFor(slug), [slug]);
 
   const effectiveStepPose = guideActive ? stepPoseKey : poseKey;
-  const effectiveMomentum = shapeJourney && guideActive && !useVideo ? momentum : "";
+  // Only apply whole-body momentum CSS when we are on the illustrated path and
+  // the pose actually changes shape — otherwise keep the figure steady.
+  const effectiveMomentum = !useRig && shapeJourney && guideActive ? momentum ?? "" : "";
 
-  if (!useVideo) {
+  useEffect(() => {
+    onModeChange?.(useRig ? "3d" : "illustrated");
+  }, [useRig, onModeChange]);
+
+  if (useRig) {
     return (
-      <PoseHumanStage
+      <PoseDemoStage
+        key={slug}
         slug={slug}
         english={english}
+        sanskrit={sanskrit}
         poseKey={poseKey}
-        stepPoseKey={effectiveStepPose}
-        momentum={effectiveMomentum}
-        stepIndex={stepIndex}
+        media={media}
+        prefer3D
+        preferVideo={false}
         playing={playing}
-        side={side}
+        restartToken={restartToken}
+        stepIndex={stepIndex}
+        stepProgress={stepProgress}
+        stepCount={asana?.steps.length ?? 1}
+        stepPoseKey={effectiveStepPose ?? undefined}
         focusZone={guideActive ? focusZone : null}
         caption={guideActive ? caption : null}
+        side={side}
         variant={variant}
         className={className}
+        onMediaModeChange={(mode) => onModeChange?.(mode === "3d" ? "3d" : "illustrated")}
         data-testid={testId}
       />
     );
   }
 
   return (
-    <PoseDemoStage
-      key={displaySlug}
-      slug={displaySlug}
+    <PoseHumanStage
+      slug={slug}
       english={english}
-      sanskrit={sanskrit}
       poseKey={poseKey}
-      media={media}
-      prefer3D={false}
-      preferVideo
-      playing={playing}
-      restartToken={restartToken}
+      stepPoseKey={effectiveStepPose}
+      momentum={effectiveMomentum}
       stepIndex={stepIndex}
-      stepPoseKey={effectiveStepPose ?? undefined}
+      playing={playing}
+      side={side}
       focusZone={guideActive ? focusZone : null}
       caption={guideActive ? caption : null}
-      side={side}
       variant={variant}
       className={className}
-      onVideoUnavailable={handleVideoUnavailable}
       data-testid={testId}
     />
   );
