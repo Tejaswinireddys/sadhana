@@ -76,7 +76,7 @@ test.describe("critical journeys", () => {
     await page.goto("/#/adaptive");
     await expect(page.getByTestId("adaptive-start")).toBeVisible();
     await page.goto("/#/pose-coach");
-    await expect(page.getByRole("heading", { name: /Pose coach/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Pose self-check/i })).toBeVisible();
   });
 
   test("platform API v1 is reachable", async ({ request }) => {

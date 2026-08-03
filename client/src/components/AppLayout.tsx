@@ -61,7 +61,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { href: "/asanas", label: "Poses", icon: LayoutGrid },
       { href: "/pathways", label: "Programs", icon: RouteIcon },
       { href: "/instructors", label: "Teachers", icon: Compass },
-      { href: "/pose-coach", label: "Pose coach", icon: Smile },
+      { href: "/pose-coach", label: "Pose self-check", icon: Smile },
       { href: "/breathing", label: "Breathing", icon: Wind },
       { href: "/affirmations", label: "Affirmations", icon: Sparkles },
       { href: "/kids", label: "Kids", icon: Smile },
@@ -77,7 +77,9 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { href: "/household", label: "Household", icon: UserRound },
       { href: "/settings", label: "Settings", icon: Settings },
       { href: "/account", label: "Account", icon: UserRound },
-      { href: "/corporate", label: "Workplace", icon: Info },
+      // Workplace/Corporate is an unfinished prototype (local-only, no real
+      // tenancy/SSO), so it is intentionally kept out of consumer navigation.
+      // The /corporate route still resolves for anyone with a direct link.
     ],
   },
 ];
