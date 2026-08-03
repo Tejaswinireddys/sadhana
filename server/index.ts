@@ -41,7 +41,7 @@ app.use(express.urlencoded({ extended: false, limit: "64kb" }));
 app.get("/healthz", (_req, res) => res.status(200).json({ ok: true }));
 
 const PUBLIC_ORIGIN =
-  process.env.PUBLIC_APP_URL?.replace(/\/$/, "") || "https://sadhana-yoga.onrender.com";
+  process.env.PUBLIC_APP_URL?.replace(/\/$/, "") || "https://sadhana-ou9m.onrender.com";
 
 /** Real XML sitemap (not the SPA shell) for marketing / SEO crawlers. */
 app.get("/sitemap.xml", (_req, res) => {
