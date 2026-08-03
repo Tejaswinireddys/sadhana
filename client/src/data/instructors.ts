@@ -1,6 +1,8 @@
 /**
- * Verified instructors and a small live-class pilot.
- * Join links open an external session (YouTube Live / Zoom) — no in-app streaming stack.
+ * Sample teacher profiles used to preview the (not-yet-operational) teachers
+ * surface. These are illustrative only: no credential-verification pipeline and
+ * no scheduled live classes exist yet, so `verified` is false and `live` is
+ * empty. Do not present these as real, bookable, or credential-checked teachers.
  */
 export type InstructorCredential = {
   title: string;
@@ -48,19 +50,8 @@ export const INSTRUCTORS: Instructor[] = [
       { title: "RYT-500", issuer: "Yoga Alliance", year: 2018 },
       { title: "Prenatal Yoga", issuer: "Birthlight", year: 2021 },
     ],
-    verified: true,
-    live: [
-      {
-        id: "maya-calm-thu",
-        title: "Evening calm (live pilot)",
-        startsAt: new Date(Date.now() + 2 * 86400000).toISOString(),
-        minutes: 45,
-        level: "All levels",
-        seats: 24,
-        joinUrl: "https://www.youtube.com/watch?v=sTANio7pLuA",
-        pilotNote: "Pilot class · public live room until studio Zoom is booked",
-      },
-    ],
+    verified: false,
+    live: [],
   },
   {
     id: "jon-k",
@@ -70,19 +61,8 @@ export const INSTRUCTORS: Instructor[] = [
     accessibility: ["Voice-first cues", "No floor required options"],
     bio: "Athletic mobility with conservative load progressions.",
     credentials: [{ title: "E-RYT-200", issuer: "Yoga Alliance", year: 2016 }],
-    verified: true,
-    live: [
-      {
-        id: "jon-am",
-        title: "Desk-to-mat reset (live pilot)",
-        startsAt: new Date(Date.now() + 86400000).toISOString(),
-        minutes: 30,
-        level: "Beginner",
-        seats: 40,
-        joinUrl: "https://www.youtube.com/watch?v=4pKly2JojMw",
-        pilotNote: "Pilot class · seats limited",
-      },
-    ],
+    verified: false,
+    live: [],
   },
   {
     id: "amira-s",
@@ -92,7 +72,7 @@ export const INSTRUCTORS: Instructor[] = [
     accessibility: ["Captions", "Reduced-motion friendly"],
     bio: "Long holds and nervous-system downshifts for stressed professionals.",
     credentials: [{ title: "Yin Yoga Teacher", issuer: "Paulie Zink lineage program", year: 2019 }],
-    verified: true,
+    verified: false,
     live: [],
   },
 ];

@@ -171,7 +171,7 @@ export default function AdaptivePlan() {
       </Button>
       <p className="text-center text-xs text-muted-foreground">
         <Link href="/pose-coach" className="underline underline-offset-2">
-          Optional on-device pose coach
+          Optional pose self-check
         </Link>{" "}
         · not medical care
       </p>

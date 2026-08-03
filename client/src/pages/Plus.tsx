@@ -41,9 +41,9 @@ export default function Plus() {
     }
     if (!billing.enabled) {
       toast({
-        title: `${PLANS.find((p) => p.id === id)?.name} selected`,
+        title: "You're on the waitlist",
         description:
-          "Paid checkout is not active on this deployment yet. Free practice continues — you will not be charged.",
+          "Paid plans aren't open yet, so nothing was purchased and you won't be charged. We'll note your interest and keep your free practice going.",
       });
       return;
     }
@@ -168,8 +168,8 @@ export default function Plus() {
                   : billing.enabled
                     ? `Subscribe · ${p.name}`
                     : plan === p.id
-                      ? "Selected"
-                      : `Choose ${p.name}`}
+                      ? "On the waitlist"
+                      : "Join waitlist"}
               </Button>
             </CardContent>
           </Card>

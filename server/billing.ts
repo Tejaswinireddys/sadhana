@@ -16,6 +16,15 @@ const priceCoachYear = process.env.STRIPE_PRICE_COACH_YEARLY || "";
 
 const stripe = stripeKey ? new Stripe(stripeKey) : null;
 
+// Billing must never run with signature verification disabled. The webhook route
+// fails closed without this secret; surface the misconfiguration loudly at boot.
+if (stripe && !webhookSecret) {
+  console.error(
+    "[billing] STRIPE_SECRET_KEY is set but STRIPE_WEBHOOK_SECRET is missing. " +
+      "Webhooks will be rejected until a signing secret is configured.",
+  );
+}
+
 type Entitlement = {
   plan: string;
   status: string;
@@ -138,14 +147,18 @@ export function registerBillingRoutes(app: Express) {
 
   app.post("/api/billing/webhook", async (req: Request, res: Response) => {
     if (!stripe) return res.status(503).end();
+    // Never trust an unsigned body. If billing is on but no webhook secret is
+    // configured, reject rather than accepting a forgeable event as truth.
+    if (!webhookSecret) {
+      console.error(
+        "[billing] Rejected webhook: STRIPE_WEBHOOK_SECRET is not set. Unsigned events are never accepted.",
+      );
+      return res.status(500).send("Webhook secret not configured");
+    }
     let event: Stripe.Event;
     try {
-      if (webhookSecret) {
-        const sig = req.get("stripe-signature") || "";
-        event = stripe.webhooks.constructEvent(req.rawBody as Buffer, sig, webhookSecret);
-      } else {
-        event = req.body as Stripe.Event;
-      }
+      const sig = req.get("stripe-signature") || "";
+      event = stripe.webhooks.constructEvent(req.rawBody as Buffer, sig, webhookSecret);
     } catch (e) {
       return res.status(400).send(`Webhook Error: ${(e as Error).message}`);
     }

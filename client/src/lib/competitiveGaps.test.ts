@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { buildTcx, buildWorkoutCsv } from "./healthExport.ts";
 import { pairBuddy, clearBuddyPair, readBuddy, writeBuddy } from "./practiceBuddy.ts";
-import { upcomingLive } from "../data/instructors.ts";
+import { upcomingLive, INSTRUCTORS } from "../data/instructors.ts";
 import { isHabitDay, readHabitPlan } from "./habitPlan.ts";
 import { QUICK_SESSIONS } from "../data/quickSessions.ts";
 import { PLANS } from "./plans.ts";
@@ -57,13 +57,16 @@ describe("practice buddy", () => {
   });
 });
 
-describe("live class pilot", () => {
-  it("exposes real join URLs and honest pilot notes", () => {
-    const live = upcomingLive();
-    assert.ok(live.length >= 1);
-    for (const c of live) {
-      assert.match(c.joinUrl, /^https:\/\//);
-      assert.ok(c.pilotNote);
+describe("teachers preview (no fabricated trust)", () => {
+  it("makes no unverified 'live class' or 'verified teacher' claims", () => {
+    // The product audit flagged hard-coded 'verified' teachers and fabricated
+    // live classes (relative Date.now() dates + generic YouTube links) as a
+    // trust/safety issue. Until a real credential + scheduling pipeline exists,
+    // there must be no scheduled live classes and no verified badges.
+    assert.equal(upcomingLive().length, 0);
+    for (const i of INSTRUCTORS) {
+      assert.equal(i.verified, false);
+      assert.equal(i.live.length, 0);
     }
   });
 });

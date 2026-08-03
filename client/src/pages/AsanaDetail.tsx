@@ -150,12 +150,19 @@ export default function AsanaDetail() {
 
   if (!asana) {
     return (
-      <div className="animate-fade-in">
-        <EmptyState title="Pose not found" description="That asana isn't in the library.">
+      <div className="animate-fade-in mx-auto max-w-xl space-y-4 py-10 text-center">
+        <h1 className="font-serif text-3xl font-semibold tracking-tight">Pose not found</h1>
+        <p className="text-muted-foreground">
+          That asana isn't in the library. Try searching, or browse all poses.
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
           <Button asChild>
             <Link href="/asanas">Back to library</Link>
           </Button>
-        </EmptyState>
+          <Button asChild variant="outline">
+            <Link href="/search">Search poses</Link>
+          </Button>
+        </div>
       </div>
     );
   }

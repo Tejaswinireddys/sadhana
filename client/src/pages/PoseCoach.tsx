@@ -8,25 +8,22 @@ import {
   PILOT_POSES,
   manualConfidence,
   requestCameraStream,
-  stabilityConfidence,
   type CoachFeedback,
 } from "@/lib/poseCoach";
 import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { Link } from "wouter";
 
 export default function PoseCoach() {
-  useDocumentTitle("Pose coach pilot · Sadhana");
+  useDocumentTitle("Pose self-check · Sadhana");
   const [slug, setSlug] = useState<(typeof PILOT_POSES)[number]["slug"]>("tadasana");
   const pose = PILOT_POSES.find((p) => p.slug === slug)!;
   const [consent, setConsent] = useState(() => readString(KEYS.poseCoachConsent) === "1");
-  const [mode, setMode] = useState<"manual" | "camera">("manual");
+  const [cameraOn, setCameraOn] = useState(false);
   const [checks, setChecks] = useState<boolean[]>(() => pose.cues.map(() => false));
   const [feedback, setFeedback] = useState<CoachFeedback | null>(null);
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const samplesRef = useRef<number[]>([]);
-  const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     setChecks(pose.cues.map(() => false));
@@ -35,56 +32,45 @@ export default function PoseCoach() {
 
   useEffect(() => {
     return () => {
-      if (intervalRef.current != null) window.clearInterval(intervalRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
   const stopCamera = () => {
-    if (intervalRef.current != null) {
-      window.clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-    setMode("manual");
+    setCameraOn(false);
   };
 
   const startCamera = async () => {
     setError(null);
     stopCamera();
     try {
+      // A private on-device preview only — we never read frame pixels, analyze
+      // the body, or score the pose. It's a mirror to help you frame yourself.
       const stream = await requestCameraStream();
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
-      setMode("camera");
-      samplesRef.current = [];
-      intervalRef.current = window.setInterval(() => {
-        const v = videoRef.current;
-        if (!v || !v.videoWidth) return;
-        // Proxy for “stability”: normalized frame brightness variance over time
-        // is a stand-in until a full MediaPipe build is bundled. Labeled as such.
-        const sample = (v.videoWidth * v.videoHeight) / 1_000_000;
-        samplesRef.current = [...samplesRef.current.slice(-12), sample + Math.random() * 0.02];
-        setFeedback(stabilityConfidence(samplesRef.current, pose.label));
-      }, 500);
+      setCameraOn(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not open camera");
-      setMode("manual");
+      setCameraOn(false);
     }
   };
 
   return (
     <FadeIn className="mx-auto max-w-2xl space-y-6">
       <header className="space-y-2">
-        <Badge variant="outline">Pilot · on-device only</Badge>
-        <h1 className="font-serif text-3xl font-semibold tracking-tight">Pose coach</h1>
+        <Badge variant="outline">Self-check · private on-device preview</Badge>
+        <h1 className="font-serif text-3xl font-semibold tracking-tight">Pose self-check</h1>
         <p className="text-muted-foreground">
-          Optional private feedback for 10 foundational poses. Frames never upload. Confidence is
-          probabilistic — never a “safe/unsafe” diagnosis.{" "}
+          A self-check list for 10 foundational poses, plus an optional private camera preview to
+          help you frame yourself. This does <strong>not</strong> analyze your body or judge your
+          posture — the camera is only a mirror, frames never upload, and the only score comes from
+          the cues you tick yourself.{" "}
           <Link href="/health-disclaimer" className="underline underline-offset-2">
             Health disclaimer
           </Link>
@@ -96,8 +82,8 @@ export default function PoseCoach() {
         <Card className="shadow-soft">
           <CardContent className="space-y-3 p-5">
             <p className="text-sm text-muted-foreground">
-              Enable the coach only if you understand camera use stays on this device and cues are
-              educational.
+              Turn on the optional camera preview only if you understand it stays on this device, is
+              never analyzed or uploaded, and the cues are educational self-checks.
             </p>
             <Button
               className="min-h-11"
@@ -107,7 +93,7 @@ export default function PoseCoach() {
               }}
               data-testid="pose-coach-consent"
             >
-              I understand — enable coach
+              I understand — continue
             </Button>
           </CardContent>
         </Card>
@@ -133,34 +119,31 @@ export default function PoseCoach() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
-                <Button
-                  className="min-h-11"
-                  variant={mode === "manual" ? "default" : "outline"}
-                  onClick={() => {
-                    stopCamera();
-                    setFeedback(manualConfidence(checks, checks.length));
-                  }}
-                >
-                  Manual / AT mode
-                </Button>
-                <Button className="min-h-11" variant="outline" onClick={() => void startCamera()}>
-                  Use camera (on-device)
-                </Button>
-                {mode === "camera" && (
+                {!cameraOn ? (
+                  <Button className="min-h-11" variant="outline" onClick={() => void startCamera()}>
+                    Show camera preview (optional)
+                  </Button>
+                ) : (
                   <Button className="min-h-11" variant="ghost" onClick={stopCamera}>
-                    Stop camera
+                    Stop camera preview
                   </Button>
                 )}
               </div>
 
-              {mode === "camera" && (
-                <video
-                  ref={videoRef}
-                  className="aspect-video w-full rounded-md bg-muted object-cover"
-                  muted
-                  playsInline
-                  aria-label="Private camera preview — not uploaded"
-                />
+              {cameraOn && (
+                <div className="space-y-1">
+                  <video
+                    ref={videoRef}
+                    className="aspect-video w-full rounded-md bg-muted object-cover"
+                    muted
+                    playsInline
+                    aria-label="Private camera mirror — not analyzed or uploaded"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Mirror only — your posture isn't analyzed or scored. Use the checklist below to
+                    self-check.
+                  </p>
+                </div>
               )}
 
               <ul className="space-y-2">
@@ -189,7 +172,7 @@ export default function PoseCoach() {
                   role="status"
                   data-testid="pose-coach-feedback"
                 >
-                  Confidence {(feedback.confidence * 100).toFixed(0)}% ({feedback.mode}) —{" "}
+                  Self-check: {(feedback.confidence * 100).toFixed(0)}% of cues confirmed —{" "}
                   {feedback.message}
                 </p>
               )}

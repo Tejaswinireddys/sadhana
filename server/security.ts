@@ -177,7 +177,13 @@ export function mountSecurity(app: Express) {
   app.use("/api/auth/signup", authStrict);
   app.use("/api/auth/forgot-password", authStrict);
   app.use("/api/auth/reset-password", authStrict);
-  app.use("/api/auth", authLimit);
+  // Only throttle state-changing auth actions. Read-only session checks
+  // (GET /api/auth/me) run on every page and must not exhaust the limiter,
+  // which previously returned 429 on ordinary navigation.
+  app.use("/api/auth", (req, res, next) => {
+    if (req.method === "GET" || req.method === "HEAD") return next();
+    return authLimit(req, res, next);
+  });
 
   const importLimit = createRateLimiter({ windowMs: 60 * 60_000, max: 10 });
   app.use("/api/account/import", importLimit);

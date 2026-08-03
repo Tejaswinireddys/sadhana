@@ -1,7 +1,11 @@
 /**
- * On-device pose estimation pilot for 10 foundational poses.
- * Camera frames never leave the device; confidence is shown explicitly.
- * Uses browser PoseDetector when available, otherwise manual checklist mode.
+ * Self-check helper for 10 foundational poses.
+ *
+ * There is NO body/pose estimation here. The optional camera is a private,
+ * on-device preview (a mirror) to help you frame yourself — frames never upload
+ * and the app does not analyze or score your posture. The only "confidence" is
+ * derived from the cues YOU manually check off. Do not present this as posture
+ * correction or a safe/unsafe verdict.
  */
 export const PILOT_POSES = [
   { slug: "tadasana", label: "Mountain", cues: ["Feet grounded", "Spine tall", "Arms soft"] },
@@ -19,10 +23,10 @@ export const PILOT_POSES = [
 export type PilotPoseSlug = (typeof PILOT_POSES)[number]["slug"];
 
 export type CoachFeedback = {
-  confidence: number; // 0–1
+  confidence: number; // 0–1, derived only from your own self-check toggles
   message: string;
-  /** Never binary "safe/unsafe" — only probabilistic coaching */
-  mode: "camera" | "manual";
+  /** Only "manual" — the app never scores your body from the camera. */
+  mode: "manual";
 };
 
 export function isPilotPose(slug: string): slug is PilotPoseSlug {
@@ -42,35 +46,6 @@ export function manualConfidence(checked: boolean[], total: number): CoachFeedba
         : confidence >= 0.4
           ? "A few cues still need attention — no rush."
           : "Take your time settling each cue. Pain means stop.",
-  };
-}
-
-/**
- * Very light on-device heuristic using face/body bounding box size stability
- * when PoseDetector isn't loaded. Not biomechanical — clearly labeled.
- */
-export function stabilityConfidence(
-  samples: number[],
-  poseLabel: string,
-): CoachFeedback {
-  if (samples.length < 4) {
-    return {
-      mode: "camera",
-      confidence: 0.2,
-      message: `Calibrating ${poseLabel}… hold still for a moment.`,
-    };
-  }
-  const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
-  const variance =
-    samples.reduce((a, b) => a + (b - mean) ** 2, 0) / samples.length;
-  const stability = Math.max(0, Math.min(1, 1 - variance * 8));
-  return {
-    mode: "camera",
-    confidence: stability,
-    message:
-      stability > 0.75
-        ? `Stable shape detected for ${poseLabel} (confidence ${(stability * 100).toFixed(0)}%). Still not medical advice.`
-        : `Movement variance is high — adjust slowly. Confidence ${(stability * 100).toFixed(0)}%.`,
   };
 }
 

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { readTenant, writeTenant, type CorporateTenant } from "@/lib/corporate";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,18 +21,23 @@ export default function Corporate() {
     }
     writeTenant(tenant);
     toast({
-      title: "Tenant saved locally",
-      description: "SSO and DPA wiring come next — aggregates never expose individuals.",
+      title: "Saved on this device only",
+      description:
+        "This is a prototype: there is no real organization account, SSO, or data-processing agreement yet.",
     });
   };
 
   return (
     <FadeIn className="mx-auto max-w-2xl space-y-6">
       <header className="space-y-2">
-        <h1 className="font-serif text-3xl font-semibold tracking-tight">Corporate wellness</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">Corporate wellness</h1>
+          <Badge variant="outline">Prototype</Badge>
+        </div>
         <p className="text-muted-foreground">
-          Tenant admin for desk, stress, and inclusive chair tracks. Reporting is aggregate-only —
-          no individual health disclosure.
+          A non-functional prototype of a future workplace offering. Anything you enter is saved only
+          in this browser — there is no real tenant, SSO, data-processing agreement, or aggregate
+          reporting yet, and nothing is sent to an employer.
         </p>
       </header>
 
