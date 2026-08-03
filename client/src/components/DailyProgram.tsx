@@ -324,7 +324,7 @@ export function DailyProgram({
       </section>
 
       {/* ---- Mobility check-in ---- */}
-      <MobilityCheckInCard pathwaySlug={pathway.slug} currentDay={currentDay} />
+      <MobilityCheckInCard pathwaySlug={pathway.slug} currentDay={currentDay} totalDays={totalDays} />
 
       {/* ---- Day modal ---- */}
       <Dialog open={modalDay != null} onOpenChange={(o) => !o && setModalDay(null)}>

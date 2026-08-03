@@ -19,7 +19,12 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Ruler, TrendingDown } from "lucide-react";
 import type { MobilityCheckIn as CheckIn } from "@shared/schema";
 
-const CHECKIN_DAYS = [1, 15, 30, 45, 60];
+/** Recommended check-in days, scaled to the program's real length. */
+function checkinDaysFor(totalDays: number): number[] {
+  if (totalDays <= 1) return [1];
+  if (totalDays <= 10) return [1, Math.max(1, Math.round(totalDays / 2)), totalDays];
+  return [...new Set([1, 15, 30, 45, 60].filter((d) => d <= totalDays).concat(totalDays))];
+}
 
 async function fetchCheckIns(pathwaySlug: string): Promise<CheckIn[]> {
   const res = await apiRequest("GET", `/api/mobility?pathwaySlug=${encodeURIComponent(pathwaySlug)}`);
@@ -29,10 +34,13 @@ async function fetchCheckIns(pathwaySlug: string): Promise<CheckIn[]> {
 export function MobilityCheckInCard({
   pathwaySlug,
   currentDay,
+  totalDays = 60,
 }: {
   pathwaySlug: string;
   currentDay: number;
+  totalDays?: number;
 }) {
+  const CHECKIN_DAYS = checkinDaysFor(totalDays);
   const { toast } = useToast();
   const { data: checkIns = [], isLoading } = useQuery<CheckIn[]>({
     queryKey: ["/api/mobility", pathwaySlug],
@@ -156,7 +164,7 @@ export function MobilityCheckInCard({
                   <XAxis
                     dataKey="day"
                     type="number"
-                    domain={[1, 60]}
+                    domain={[1, totalDays]}
                     ticks={CHECKIN_DAYS}
                     stroke="hsl(var(--muted-foreground))"
                     fontSize={12}

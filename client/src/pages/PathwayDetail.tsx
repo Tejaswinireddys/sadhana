@@ -176,7 +176,10 @@ export default function PathwayDetail() {
             )}
             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
               <Badge variant="outline" className="gap-1">
-                <CalendarDays className="h-3 w-3" /> 60 days
+                <CalendarDays className="h-3 w-3" />{" "}
+                {pathway.kind === "daily" && pathway.dailyPlan?.length
+                  ? `${pathway.dailyPlan.length} days`
+                  : `${pathway.weeks} ${pathway.weeks === 1 ? "week" : "weeks"}`}
               </Badge>
               <Badge variant="outline" className="gap-1">
                 <Repeat className="h-3 w-3" /> {pathway.sessionsPerWeek}x / week
