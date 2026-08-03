@@ -66,7 +66,13 @@ export function FadeIn({ children, className, delay = 0, ...rest }: FadeProps) {
   );
 }
 
-/** Scroll/section reveal — runs once when in view. */
+/**
+ * Section entrance — a gentle fade + rise. Animates on mount rather than only
+ * when scrolled into view, so core copy/cards are never left stranded at
+ * opacity:0 (which produced blank sections in full-page snapshots / when the
+ * intersection never fired). Motion is enhancement only; content is always
+ * present in the DOM and visible without JS or with reduced motion.
+ */
 export function Reveal({ children, className, delay = 0, ...rest }: FadeProps) {
   const enabled = useMotionEnabled();
   if (!enabled) {
@@ -80,8 +86,7 @@ export function Reveal({ children, className, delay = 0, ...rest }: FadeProps) {
     <motion.div
       className={className}
       initial={{ opacity: 0, y: motionTokens.distance }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{
         duration: motionTokens.duration.slow,
         ease: motionTokens.ease,
