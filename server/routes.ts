@@ -2,6 +2,7 @@ import type { Express } from "express";
 import type { Server } from "node:http";
 import { storage } from "./storage";
 import { ownerMiddleware } from "./owner";
+import { sendPasswordResetEmail } from "./email";
 import {
   insertSessionSchema,
   insertEnrollmentSchema,
@@ -227,11 +228,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     const token = newResetToken();
     await storage.createPasswordResetToken(user.id, hashResetToken(token), resetTokenExpiry());
-    // No SMTP in this stack — operators find the code in logs; local/dev also
-    // gets it in the JSON so automated tests and self-hosters can finish the flow.
-    console.info(
-      `[auth] password reset for user ${user.id} — enter code on Account → Reset password`,
-    );
+    // Deliver via the configured transactional-email provider (Resend / relay
+    // webhook). When none is configured, fall back to the operator log — the
+    // recipient address is never logged either way.
+    const delivery = await sendPasswordResetEmail(user.email, token);
+    if (delivery.delivered) {
+      console.info(`[auth] password reset email sent for user ${user.id} via ${delivery.provider}`);
+    } else {
+      console.info(
+        `[auth] password reset for user ${user.id} — no email delivered (${delivery.provider}` +
+          `${delivery.error ? `: ${delivery.error}` : ""}). Configure RESEND_API_KEY or EMAIL_WEBHOOK_URL.`,
+      );
+    }
     if (process.env.NODE_ENV !== "production" || process.env.EXPOSE_RESET_TOKEN === "1") {
       return res.json({ ...generic, resetToken: token });
     }
