@@ -69,6 +69,22 @@ export default function CancelConfirm() {
           <Button asChild variant="outline" className="min-h-11">
             <Link href="/cancel">How to cancel</Link>
           </Button>
+          {import.meta.env.DEV && (
+            <Button
+              variant="secondary"
+              className="min-h-11 w-full"
+              data-testid="button-demo-subscribe"
+              onClick={() => {
+                void fetch("/api/billing/demo-subscribe", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ plan: "plus", email: "demo@sadhana.app" }),
+                }).then(() => window.location.reload());
+              }}
+            >
+              Load demo subscription (dev)
+            </Button>
+          )}
         </div>
       )}
 
