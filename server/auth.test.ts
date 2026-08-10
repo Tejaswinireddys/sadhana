@@ -8,9 +8,13 @@ import {
   sessionExpiry,
   hashResetToken,
   newResetToken,
+  hashVerifyToken,
+  newVerifyToken,
+  verifyTokenExpiry,
 } from "./auth";
 import { MemoryStorage } from "./storage";
 import { redactForLog } from "./security";
+import { credentialsSchema, passwordSchema } from "@shared/schema";
 
 describe("password hashing", () => {
   it("verifies the right password and rejects the wrong one", async () => {
@@ -38,6 +42,46 @@ describe("cookies and session expiry", () => {
 
   it("expires in the future", () => {
     assert.ok(new Date(sessionExpiry()).getTime() > Date.now());
+  });
+});
+
+describe("registration validation", () => {
+  it("requires a letter and a number in new passwords", () => {
+    assert.equal(passwordSchema.safeParse("short").success, false);
+    assert.equal(passwordSchema.safeParse("longenough").success, false);
+    assert.equal(passwordSchema.safeParse("12345678").success, false);
+    assert.equal(passwordSchema.safeParse("password1").success, true);
+  });
+
+  it("validates signup credentials", () => {
+    assert.equal(
+      credentialsSchema.safeParse({ email: "not-an-email", password: "password1" }).success,
+      false,
+    );
+    assert.equal(
+      credentialsSchema.safeParse({ email: "maya@example.com", password: "password1" }).success,
+      true,
+    );
+  });
+});
+
+describe("email verification tokens", () => {
+  it("hashes verify tokens and stores them until consumed", async () => {
+    const store = new MemoryStorage();
+    const user = await store.createUser("new@example.com", await hashPassword("password1"));
+    assert.equal(user.emailVerified, false);
+
+    const raw = newVerifyToken();
+    await store.createEmailVerificationToken(user.id, hashVerifyToken(raw), verifyTokenExpiry());
+    const row = await store.getEmailVerificationToken(hashVerifyToken(raw));
+    assert.ok(row);
+    assert.notEqual(row!.tokenHash, raw);
+
+    await store.markEmailVerified(user.id);
+    await store.deleteEmailVerificationToken(row!.tokenHash);
+    const verified = await store.getUserById(user.id);
+    assert.equal(verified!.emailVerified, true);
+    assert.equal(await store.getEmailVerificationToken(hashVerifyToken(raw)), undefined);
   });
 });
 

@@ -12,6 +12,8 @@ export const users = pgTable(
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
     displayName: text("display_name"),
+    /** False until the user completes email verification after signup. */
+    emailVerified: boolean("email_verified").notNull().default(false),
     createdAt: text("created_at").notNull(),
   },
   (t) => [uniqueIndex("users_email_idx").on(t.email)],
@@ -19,7 +21,7 @@ export const users = pgTable(
 
 export type User = typeof users.$inferSelect;
 /** Never leaves the server with the hash attached. */
-export type PublicUser = Pick<User, "id" | "email" | "displayName" | "createdAt">;
+export type PublicUser = Pick<User, "id" | "email" | "displayName" | "emailVerified" | "createdAt">;
 
 export const authSessions = pgTable(
   "auth_sessions",
@@ -35,9 +37,16 @@ export const authSessions = pgTable(
 
 export type AuthSession = typeof authSessions.$inferSelect;
 
+/** Shared signup/reset password rules — letter + number, min 8. */
+export const passwordSchema = z
+  .string()
+  .min(8, "Use at least 8 characters")
+  .regex(/[A-Za-z]/, "Include at least one letter")
+  .regex(/[0-9]/, "Include at least one number");
+
 export const credentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email address"),
-  password: z.string().min(8, "Use at least 8 characters"),
+  password: passwordSchema,
   displayName: z.string().trim().min(1).max(48).optional(),
 });
 export type Credentials = z.infer<typeof credentialsSchema>;
@@ -60,7 +69,16 @@ export const forgotPasswordSchema = z.object({
 export const resetPasswordSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email address"),
   token: z.string().min(16, "Enter the reset code from your email"),
-  password: z.string().min(8, "Use at least 8 characters"),
+  password: passwordSchema,
+});
+
+export const verifyEmailSchema = z.object({
+  token: z.string().min(16, "Enter the verification code from your email"),
+  email: z.string().trim().toLowerCase().email("Enter a valid email address").optional(),
+});
+
+export const resendVerificationSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email address"),
 });
 
 export const deleteAccountSchema = z.object({
@@ -81,6 +99,21 @@ export const passwordResetTokens = pgTable(
 );
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+/** One-time email verification tokens (hashed at rest). */
+export const emailVerificationTokens = pgTable(
+  "email_verification_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("email_verification_tokens_hash_idx").on(t.tokenHash)],
+);
+
+export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
 
 // Practice sessions logged after completing a timed practice
 export const sessions = pgTable("sessions", {

@@ -39,17 +39,39 @@ async function resetOwnedCaches() {
   await queryClient.resetQueries();
 }
 
+export type SignUpResult =
+  | { needsVerification: true; email: string; message: string; verifyToken?: string }
+  | { needsVerification?: false; user: PublicUser; claimed: number };
+
 export function useSignUp() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { email: string; password: string; displayName?: string }) => {
       const res = await apiRequest("POST", "/api/auth/signup", input, { timeoutMs: 25_000 });
+      return (await res.json()) as SignUpResult;
+    },
+  });
+}
+
+export function useVerifyEmail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { token: string; email?: string }) => {
+      const res = await apiRequest("POST", "/api/auth/verify-email", input, { timeoutMs: 20_000 });
       return (await res.json()) as { user: PublicUser; claimed: number };
     },
     onSuccess: async ({ user }) => {
       if (user.displayName) writeString(KEYS.practitionerName, user.displayName);
       await resetOwnedCaches();
       qc.setQueryData(AUTH_QUERY_KEY, { user, deviceRows: 0 } satisfies AuthState);
+    },
+  });
+}
+
+export function useResendVerification() {
+  return useMutation({
+    mutationFn: async (input: { email: string }) => {
+      const res = await apiRequest("POST", "/api/auth/resend-verification", input);
+      return (await res.json()) as { ok: boolean; message: string; verifyToken?: string };
     },
   });
 }

@@ -45,18 +45,20 @@ test.describe("critical journeys", () => {
     await expect(page.getByTestId("forgot-submit")).toBeVisible();
   });
 
-  test("signup creates a session in memory store", async ({ page }) => {
+  test("signup requires email verification before session", async ({ page }) => {
     await page.goto("/#/account");
     await page.getByTestId("tab-signup").click();
     const email = `e2e-${Date.now()}@example.com`;
     await page.getByTestId("signup-email").fill(email);
     await page.getByTestId("signup-password").fill("password123");
+    await page.getByTestId("signup-confirm").fill("password123");
     // Legal may already be ack'd via init script; check the box if still required.
     const ack = page.getByTestId("signup-legal-ack");
     if (await ack.isVisible()) {
       await ack.check();
     }
     await page.getByTestId("signup-submit").click();
+    // Dev signup returns a verifyToken and navigates to /verify; auto-verify signs in.
     await expect(page.getByTestId("account-signed-in")).toBeVisible({ timeout: 25_000 });
   });
 

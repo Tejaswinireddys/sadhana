@@ -14,6 +14,8 @@ import {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
   deleteAccountSchema,
   type PublicUser,
   type User,
@@ -31,7 +33,11 @@ import {
   newResetToken,
   hashResetToken,
   resetTokenExpiry,
+  newVerifyToken,
+  hashVerifyToken,
+  verifyTokenExpiry,
 } from "./auth";
+import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
 import { z } from "zod";
 
 const IMPORT_MAX_ITEMS = 2_000;
@@ -127,8 +133,25 @@ function publicUser(user: User): PublicUser {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
+    emailVerified: user.emailVerified,
     createdAt: user.createdAt,
   };
+}
+
+function exposeSensitiveAuthToken(): boolean {
+  return process.env.NODE_ENV !== "production" || process.env.EXPOSE_VERIFY_TOKEN === "1";
+}
+
+async function issueVerification(user: User): Promise<string> {
+  const token = newVerifyToken();
+  await storage.createEmailVerificationToken(
+    user.id,
+    hashVerifyToken(token),
+    verifyTokenExpiry(),
+  );
+  await sendVerificationEmail({ to: user.email, token });
+  console.info(`[auth] email verification for user ${user.id} — open /verify`);
+  return token;
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
@@ -161,14 +184,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
 
     const user = await storage.createUser(email, await hashPassword(password), displayName);
-    // A brand-new account can safely adopt this device's practice — nobody else
-    // could own it, and losing a guest streak on signup would be cruel.
-    const claimed = await storage.transferOwnerData(req.deviceOwnerId, ownerIdForUser(user.id));
-
-    const token = newSessionToken();
-    await storage.createAuthSession(user.id, token, sessionExpiry());
-    res.setHeader("Set-Cookie", authCookie(token, isSecure(req)));
-    res.status(201).json({ user: publicUser(user), claimed });
+    const verifyToken = await issueVerification(user);
+    // No session until the email is verified — guest practice stays on this device.
+    const body: {
+      needsVerification: true;
+      email: string;
+      message: string;
+      verifyToken?: string;
+    } = {
+      needsVerification: true,
+      email: user.email,
+      message:
+        "Account created. Check your email for a verification link — it expires in 48 hours.",
+    };
+    if (exposeSensitiveAuthToken() || process.env.EXPOSE_RESET_TOKEN === "1") {
+      body.verifyToken = verifyToken;
+    }
+    res.status(201).json(body);
   });
 
   app.post("/api/auth/login", async (req, res) => {
@@ -184,6 +216,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
       return res.status(401).json({ error: "Email or password is incorrect" });
     }
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        error: "Verify your email before signing in. Check your inbox or resend the link.",
+        needsVerification: true,
+        email: user.email,
+      });
+    }
 
     const token = newSessionToken();
     await storage.createAuthSession(user.id, token, sessionExpiry());
@@ -193,6 +232,56 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // Reported, never merged automatically — this device may belong to someone else.
       deviceRows: await storage.countOwnerData(req.deviceOwnerId),
     });
+  });
+
+  app.post("/api/auth/verify-email", async (req, res) => {
+    const parsed = verifyEmailSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid code" });
+    }
+    const tokenRow = await storage.getEmailVerificationToken(hashVerifyToken(parsed.data.token));
+    if (!tokenRow || new Date(tokenRow.expiresAt).getTime() < Date.now()) {
+      return res.status(400).json({ error: "Verification code is invalid or expired" });
+    }
+    const user = await storage.getUserById(tokenRow.userId);
+    if (!user) {
+      return res.status(400).json({ error: "Verification code is invalid or expired" });
+    }
+    if (parsed.data.email && parsed.data.email !== user.email) {
+      return res.status(400).json({ error: "Verification code is invalid or expired" });
+    }
+
+    await storage.markEmailVerified(user.id);
+    await storage.deleteEmailVerificationToken(tokenRow.tokenHash);
+    await storage.deleteEmailVerificationTokensForUser(user.id);
+
+    // Safe to adopt this device's guest practice now that the account is real.
+    const claimed = await storage.transferOwnerData(req.deviceOwnerId, ownerIdForUser(user.id));
+    const sessionTok = newSessionToken();
+    await storage.createAuthSession(user.id, sessionTok, sessionExpiry());
+    res.setHeader("Set-Cookie", authCookie(sessionTok, isSecure(req)));
+    const verified = { ...user, emailVerified: true };
+    res.json({ user: publicUser(verified), claimed });
+  });
+
+  /** Always returns a generic message so we don't enumerate accounts. */
+  app.post("/api/auth/resend-verification", async (req, res) => {
+    const parsed = resendVerificationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid email" });
+    }
+    const generic = {
+      ok: true as const,
+      message: "If that email still needs verification, we sent a new link. It expires in 48 hours.",
+    };
+    const user = await storage.getUserByEmail(parsed.data.email);
+    if (!user || user.emailVerified) return res.json(generic);
+
+    const verifyToken = await issueVerification(user);
+    if (exposeSensitiveAuthToken() || process.env.EXPOSE_RESET_TOKEN === "1") {
+      return res.json({ ...generic, verifyToken });
+    }
+    return res.json(generic);
   });
 
   app.post("/api/auth/logout", async (req, res) => {
@@ -227,8 +316,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     const token = newResetToken();
     await storage.createPasswordResetToken(user.id, hashResetToken(token), resetTokenExpiry());
-    // No SMTP in this stack — operators find the code in logs; local/dev also
-    // gets it in the JSON so automated tests and self-hosters can finish the flow.
+    await sendPasswordResetEmail({ to: user.email, token });
     console.info(
       `[auth] password reset for user ${user.id} — enter code on Account → Reset password`,
     );
@@ -255,13 +343,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
 
     await storage.updateUserPassword(user.id, await hashPassword(parsed.data.password));
+    // Resetting via email also proves inbox access.
+    await storage.markEmailVerified(user.id);
     await storage.deletePasswordResetToken(tokenRow.tokenHash);
+    await storage.deleteEmailVerificationTokensForUser(user.id);
     await storage.deleteAuthSessionsForUser(user.id);
 
     const token = newSessionToken();
     await storage.createAuthSession(user.id, token, sessionExpiry());
     res.setHeader("Set-Cookie", authCookie(token, isSecure(req)));
-    res.json({ user: publicUser(user) });
+    res.json({ user: publicUser({ ...user, emailVerified: true }) });
   });
 
   /** Full account deletion: practice data + user row + sessions. Requires password. */

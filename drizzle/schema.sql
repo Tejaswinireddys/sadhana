@@ -152,9 +152,12 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT NOT NULL,
   password_hash TEXT NOT NULL,
   display_name TEXT,
+  email_verified BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users (email);
+-- Existing rows stay verified; new signups set email_verified = false explicitly.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT TRUE;
 
 CREATE TABLE IF NOT EXISTS auth_sessions (
   id SERIAL PRIMARY KEY,
@@ -175,6 +178,16 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS password_reset_tokens_hash_idx ON password_reset_tokens (token_hash);
 CREATE INDEX IF NOT EXISTS password_reset_tokens_user_idx ON password_reset_tokens (user_id);
+
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS email_verification_tokens_hash_idx ON email_verification_tokens (token_hash);
+CREATE INDEX IF NOT EXISTS email_verification_tokens_user_idx ON email_verification_tokens (user_id);
 
 -- Soft entitlements for future Sadhana Plus (local scaffolding; no payment processor yet).
 CREATE TABLE IF NOT EXISTS entitlements (
@@ -197,6 +210,12 @@ END $$;
 DO $$ BEGIN
   ALTER TABLE password_reset_tokens
     ADD CONSTRAINT password_reset_tokens_user_id_fkey
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE email_verification_tokens
+    ADD CONSTRAINT email_verification_tokens_user_id_fkey
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;

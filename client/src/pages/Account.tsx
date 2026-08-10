@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,8 @@ import {
 } from "@/lib/auth";
 import { hasCurrentLegalAck, writeLegalAck } from "@/lib/legal";
 import { formatDate } from "@/lib/sadhana";
-import { ArrowRight, LogOut, Merge, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { credentialsSchema } from "@shared/schema";
+import { ArrowRight, LogOut, MailCheck, Merge, ShieldCheck, Trash2, UserRound } from "lucide-react";
 
 function FieldError({ id, message }: { id: string; message: string | null }) {
   if (!message) return null;
@@ -32,9 +33,34 @@ function FieldError({ id, message }: { id: string; message: string | null }) {
   );
 }
 
+function validateSignup(input: {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  displayName: string;
+  legalOk: boolean;
+}): string | null {
+  if (!input.legalOk) {
+    return "Please acknowledge the Privacy Policy and Terms to create an account.";
+  }
+  if (input.password !== input.confirmPassword) {
+    return "Passwords do not match.";
+  }
+  const parsed = credentialsSchema.safeParse({
+    email: input.email,
+    password: input.password,
+    displayName: input.displayName.trim() || undefined,
+  });
+  if (!parsed.success) {
+    return parsed.error.issues[0]?.message ?? "Check your details and try again.";
+  }
+  return null;
+}
+
 export default function Account() {
   useDocumentTitle("Account · Sadhana");
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const { user, deviceRows, isLoading } = useAuth();
 
   const signIn = useSignIn();
@@ -47,6 +73,7 @@ export default function Account() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +82,7 @@ export default function Account() {
   const [forgotHint, setForgotHint] = useState<string | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
   const [legalOk, setLegalOk] = useState(hasCurrentLegalAck());
+  const [pendingVerifyEmail, setPendingVerifyEmail] = useState<string | null>(null);
 
   const busy = signIn.isPending || signUp.isPending || reset.isPending;
 
@@ -71,30 +99,51 @@ export default function Account() {
           : "Your practice is synced to this account.",
       });
     } catch (err) {
-      setError(authErrorMessage(err, "Could not sign in. Try again."));
+      const message = authErrorMessage(err, "Could not sign in. Try again.");
+      setError(message);
+      if (message.toLowerCase().includes("verify your email")) {
+        setPendingVerifyEmail(email.trim().toLowerCase());
+      }
     }
   };
 
   const submitSignUp = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!legalOk) {
-      setError("Please acknowledge the Privacy Policy and Terms to create an account.");
+    const validationError = validateSignup({
+      email,
+      password,
+      confirmPassword,
+      displayName,
+      legalOk,
+    });
+    if (validationError) {
+      setError(validationError);
       return;
     }
     try {
       writeLegalAck();
-      const { claimed } = await signUp.mutateAsync({
+      const result = await signUp.mutateAsync({
         email,
         password,
         displayName: displayName.trim() || undefined,
       });
       setPassword("");
+      setConfirmPassword("");
+      if ("needsVerification" in result && result.needsVerification) {
+        setPendingVerifyEmail(result.email);
+        const q = new URLSearchParams({ email: result.email });
+        if (result.verifyToken) q.set("token", result.verifyToken);
+        toast({
+          title: "Check your inbox",
+          description: result.message,
+        });
+        navigate(`/verify?${q.toString()}`);
+        return;
+      }
       toast({
         title: "Account created",
-        description: claimed
-          ? "Your practice on this device moved into the account."
-          : "You can now sign in from any device.",
+        description: "You can now sign in from any device.",
       });
     } catch (err) {
       setError(authErrorMessage(err, "Could not create the account. Try again."));
@@ -291,6 +340,28 @@ export default function Account() {
         </p>
       </header>
 
+      {pendingVerifyEmail ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-3">
+              <MailCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+              <div className="space-y-1 text-sm">
+                <p className="font-medium text-foreground">Verify {pendingVerifyEmail}</p>
+                <p className="text-muted-foreground">
+                  We sent a link to finish registration. Open it, or enter the code on the verify
+                  page.
+                </p>
+              </div>
+            </div>
+            <Button asChild className="min-h-11 cursor-pointer shrink-0">
+              <Link href={`/verify?email=${encodeURIComponent(pendingVerifyEmail)}`}>
+                Open verify page
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardContent className="p-5">
           <Tabs defaultValue="signin" onValueChange={() => setError(null)}>
@@ -415,8 +486,22 @@ export default function Account() {
                     data-testid="signup-password"
                   />
                   <p id="signup-password-hint" className="text-xs text-muted-foreground">
-                    At least 8 characters.
+                    At least 8 characters, with a letter and a number.
                   </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-confirm">Confirm password</Label>
+                  <Input
+                    id="signup-confirm"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="min-h-11"
+                    data-testid="signup-confirm"
+                  />
                 </div>
                 <label className="flex items-start gap-3 text-sm text-muted-foreground">
                   <input

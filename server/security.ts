@@ -177,6 +177,8 @@ export function mountSecurity(app: Express) {
   app.use("/api/auth/signup", authStrict);
   app.use("/api/auth/forgot-password", authStrict);
   app.use("/api/auth/reset-password", authStrict);
+  app.use("/api/auth/verify-email", authStrict);
+  app.use("/api/auth/resend-verification", authStrict);
   // Only throttle state-changing auth actions. Read-only session checks
   // (GET /api/auth/me) run on every page and must not exhaust the limiter,
   // which previously returned 429 on ordinary navigation.

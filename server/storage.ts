@@ -14,6 +14,7 @@ import {
   users,
   authSessions,
   passwordResetTokens,
+  emailVerificationTokens,
 } from "@shared/schema";
 import type {
   Session,
@@ -40,6 +41,7 @@ import type {
   User,
   AuthSession,
   PasswordResetToken,
+  EmailVerificationToken,
 } from "@shared/schema";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -50,6 +52,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(id: number): Promise<User | undefined>;
   updateUserPassword(userId: number, passwordHash: string): Promise<void>;
+  markEmailVerified(userId: number): Promise<void>;
   deleteUser(userId: number): Promise<void>;
   createAuthSession(userId: number, token: string, expiresAt: string): Promise<AuthSession>;
   getAuthSession(token: string): Promise<AuthSession | undefined>;
@@ -63,6 +66,14 @@ export interface IStorage {
   getPasswordResetToken(tokenHash: string): Promise<PasswordResetToken | undefined>;
   deletePasswordResetToken(tokenHash: string): Promise<void>;
   deletePasswordResetTokensForUser(userId: number): Promise<void>;
+  createEmailVerificationToken(
+    userId: number,
+    tokenHash: string,
+    expiresAt: string,
+  ): Promise<EmailVerificationToken>;
+  getEmailVerificationToken(tokenHash: string): Promise<EmailVerificationToken | undefined>;
+  deleteEmailVerificationToken(tokenHash: string): Promise<void>;
+  deleteEmailVerificationTokensForUser(userId: number): Promise<void>;
   /** Row counts per table for an owner — powers the "merge this device" prompt. */
   countOwnerData(ownerId: string): Promise<number>;
   /** Re-key every row from one owner to another (guest practice → account). */
@@ -142,7 +153,13 @@ export class DatabaseStorage implements IStorage {
   async createUser(email: string, passwordHash: string, displayName?: string): Promise<User> {
     const [row] = await this.orm
       .insert(users)
-      .values({ email, passwordHash, displayName, createdAt: new Date().toISOString() })
+      .values({
+        email,
+        passwordHash,
+        displayName,
+        emailVerified: false,
+        createdAt: new Date().toISOString(),
+      })
       .returning();
     return row;
   }
@@ -178,9 +195,13 @@ export class DatabaseStorage implements IStorage {
   async updateUserPassword(userId: number, passwordHash: string): Promise<void> {
     await this.orm.update(users).set({ passwordHash }).where(eq(users.id, userId));
   }
+  async markEmailVerified(userId: number): Promise<void> {
+    await this.orm.update(users).set({ emailVerified: true }).where(eq(users.id, userId));
+  }
   async deleteUser(userId: number): Promise<void> {
     await this.deleteAuthSessionsForUser(userId);
     await this.deletePasswordResetTokensForUser(userId);
+    await this.deleteEmailVerificationTokensForUser(userId);
     await this.clearOwnerData(`user:${userId}`);
     await this.orm.delete(users).where(eq(users.id, userId));
   }
@@ -213,6 +234,36 @@ export class DatabaseStorage implements IStorage {
     await this.orm
       .delete(passwordResetTokens)
       .where(eq(passwordResetTokens.userId, userId));
+  }
+  async createEmailVerificationToken(
+    userId: number,
+    tokenHash: string,
+    expiresAt: string,
+  ): Promise<EmailVerificationToken> {
+    await this.deleteEmailVerificationTokensForUser(userId);
+    const [row] = await this.orm
+      .insert(emailVerificationTokens)
+      .values({ userId, tokenHash, expiresAt, createdAt: new Date().toISOString() })
+      .returning();
+    return row;
+  }
+  async getEmailVerificationToken(tokenHash: string): Promise<EmailVerificationToken | undefined> {
+    const [row] = await this.orm
+      .select()
+      .from(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.tokenHash, tokenHash))
+      .limit(1);
+    return row;
+  }
+  async deleteEmailVerificationToken(tokenHash: string): Promise<void> {
+    await this.orm
+      .delete(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.tokenHash, tokenHash));
+  }
+  async deleteEmailVerificationTokensForUser(userId: number): Promise<void> {
+    await this.orm
+      .delete(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.userId, userId));
   }
   async runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
     return this.db.transaction(async (tx) => {
@@ -587,6 +638,7 @@ export class MemoryStorage implements IStorage {
   private users: User[] = [];
   private authSessions: AuthSession[] = [];
   private resetTokens: PasswordResetToken[] = [];
+  private verifyTokens: EmailVerificationToken[] = [];
 
   private nextId() {
     return this.seq++;
@@ -615,6 +667,7 @@ export class MemoryStorage implements IStorage {
       email,
       passwordHash,
       displayName: displayName ?? null,
+      emailVerified: false,
       createdAt: new Date().toISOString(),
     };
     this.users.push(row);
@@ -650,9 +703,14 @@ export class MemoryStorage implements IStorage {
     const user = this.users.find((u) => u.id === userId);
     if (user) user.passwordHash = passwordHash;
   }
+  async markEmailVerified(userId: number) {
+    const user = this.users.find((u) => u.id === userId);
+    if (user) user.emailVerified = true;
+  }
   async deleteUser(userId: number) {
     await this.deleteAuthSessionsForUser(userId);
     await this.deletePasswordResetTokensForUser(userId);
+    await this.deleteEmailVerificationTokensForUser(userId);
     await this.clearOwnerData(`user:${userId}`);
     this.users = this.users.filter((u) => u.id !== userId);
   }
@@ -676,6 +734,27 @@ export class MemoryStorage implements IStorage {
   }
   async deletePasswordResetTokensForUser(userId: number) {
     this.resetTokens = this.resetTokens.filter((t) => t.userId !== userId);
+  }
+  async createEmailVerificationToken(userId: number, tokenHash: string, expiresAt: string) {
+    await this.deleteEmailVerificationTokensForUser(userId);
+    const row: EmailVerificationToken = {
+      id: this.nextId(),
+      userId,
+      tokenHash,
+      expiresAt,
+      createdAt: new Date().toISOString(),
+    };
+    this.verifyTokens.push(row);
+    return row;
+  }
+  async getEmailVerificationToken(tokenHash: string) {
+    return this.verifyTokens.find((t) => t.tokenHash === tokenHash);
+  }
+  async deleteEmailVerificationToken(tokenHash: string) {
+    this.verifyTokens = this.verifyTokens.filter((t) => t.tokenHash !== tokenHash);
+  }
+  async deleteEmailVerificationTokensForUser(userId: number) {
+    this.verifyTokens = this.verifyTokens.filter((t) => t.userId !== userId);
   }
   async runInTransaction<T>(fn: () => Promise<T>): Promise<T> {
     return fn();
