@@ -6,11 +6,11 @@ import { serveStatic } from "./static";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { initStorage, pool } from "./storage";
+import { initStorage, pool, storage } from "./storage";
 import { mountSecurity, redactForLog } from "./security";
 import { registerPlatformApi } from "./platformApi";
 import { registerPushRoutes, startPushScheduler } from "./push";
-import { registerBillingRoutes } from "./billing";
+import { registerBillingRoutes, migrateBillingEntitlements } from "./billing";
 import { registerBuddyRoutes } from "./buddy";
 
 const app = express();
@@ -35,10 +35,20 @@ app.use(
 
 app.use(express.urlencoded({ extended: false, limit: "64kb" }));
 
-// Cheap liveness probe for Render health checks. The previous health check
-// pointed at /api/preferences, which opens a DB round-trip (and lazily INSERTs
-// a row) on every probe — wasteful on free-tier Postgres.
-app.get("/healthz", (_req, res) => res.status(200).json({ ok: true }));
+// Health probe for Render / uptime monitors. Returns 200 only when the backing
+// store is actually reachable — a DB `SELECT 1` in production (in-memory mode is
+// always reachable). A DB outage now fails the health check instead of serving
+// a green light over a broken database.
+app.get("/healthz", async (_req, res) => {
+  try {
+    if (!storage || !(await storage.ping())) {
+      return res.status(503).json({ ok: false, error: "database unreachable" });
+    }
+    res.status(200).json({ ok: true });
+  } catch {
+    res.status(503).json({ ok: false, error: "database unreachable" });
+  }
+});
 
 const PUBLIC_ORIGIN =
   process.env.PUBLIC_APP_URL?.replace(/\/$/, "") || "https://sadhana-ou9m.onrender.com";
@@ -113,6 +123,8 @@ async function ensureSchema() {
   } else {
     await ensureSchema();
   }
+  // One-time JSON→Postgres entitlement import (idempotent; no-op when empty).
+  await migrateBillingEntitlements();
 
   await registerRoutes(httpServer, app);
   registerPlatformApi(app);

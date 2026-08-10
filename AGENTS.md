@@ -21,5 +21,7 @@ run in one process — there is no separate frontend dev server.
 - **Postgres is optional locally.** If `DATABASE_URL` is unset, the server logs `DATABASE_URL unset — using in-memory store` and runs fully with an in-memory store that resets on restart. Guest practice, pose browsing, and guided sessions all work without a database. Set `DATABASE_URL` only when you need cross-restart persistence or to test account signup/login sync.
 - Practice data is scoped per browser via an anonymous device id sent as the `X-Device-Id` header; API calls without it are treated as a distinct/guest scope.
 - With Postgres configured, the schema is auto-applied on boot from `drizzle/schema.sql` (no manual migration step needed); `npm run db:push` is available for manual schema pushes.
+- **`/healthz` is DB-aware.** It returns 200 only when `storage.ping()` succeeds (always true in memory mode; `SELECT 1` against Postgres otherwise). A DB outage returns 503 so Render stops routing to a broken instance.
+- Stripe entitlements live in the `entitlements` table (not `.data/billing-entitlements.json`). Boot runs an idempotent JSON→Postgres import via `migrateBillingEntitlements()`.
 - The service worker / PWA (`client/public/sw.js`) is production-only and not active in `npm run dev`.
 - Optional Python scripts under `script/` (voice/asset generation) and the Playwright demo scripts are content pipelines, not needed to run or test the app.

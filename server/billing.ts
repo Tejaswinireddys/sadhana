@@ -5,7 +5,8 @@
 import type { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { createRateLimiter } from "./security";
-import { loadMap, saveMap } from "./jsonStore";
+import { loadMap } from "./jsonStore";
+import { storage } from "./storage";
 
 const stripeKey = process.env.STRIPE_SECRET_KEY || "";
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
@@ -25,18 +26,44 @@ if (stripe && !webhookSecret) {
   );
 }
 
-type Entitlement = {
+const LEGACY_STORE = "billing-entitlements";
+
+/** Shape of the retired JSON-file entitlement store, for one-time migration. */
+type LegacyEntitlement = {
   plan: string;
   status: string;
   renewsAt: string | null;
   stripeCustomerId?: string;
 };
 
-const STORE = "billing-entitlements";
-const entitlements = loadMap<Entitlement>(STORE);
-
-function persist() {
-  saveMap(STORE, entitlements);
+/**
+ * One-time import of any entitlements left in the old JSON file store (which sat
+ * on Render's ephemeral disk) into Postgres. Idempotent: only fills owners that
+ * don't already have a row, so it's safe to run on every boot.
+ */
+export async function migrateBillingEntitlements(): Promise<number> {
+  let imported = 0;
+  try {
+    const legacy = loadMap<LegacyEntitlement>(LEGACY_STORE);
+    for (const [ownerId, e] of legacy) {
+      if (!ownerId) continue;
+      if (await storage.getEntitlement(ownerId)) continue;
+      await storage.upsertEntitlement(ownerId, {
+        plan: e.plan,
+        status: e.status,
+        renewsAt: e.renewsAt ?? null,
+        stripeCustomerId: e.stripeCustomerId ?? null,
+        stripeSubscriptionId: null,
+      });
+      imported++;
+    }
+  } catch (err) {
+    console.warn("[billing] entitlement migration skipped:", (err as Error).message);
+  }
+  if (imported > 0) {
+    console.log(`[billing] migrated ${imported} entitlement(s) from JSON store to Postgres`);
+  }
+  return imported;
 }
 
 const billLimit = createRateLimiter({ windowMs: 60_000, max: 20 });
@@ -69,8 +96,8 @@ export function registerBillingRoutes(app: Express) {
     });
   });
 
-  app.get("/api/billing/entitlement", (req, res) => {
-    const row = entitlements.get(req.ownerId || "") || {
+  app.get("/api/billing/entitlement", async (req, res) => {
+    const row = (await storage.getEntitlement(req.ownerId || "")) ?? {
       plan: "free",
       status: "active",
       renewsAt: null,
@@ -99,7 +126,7 @@ export function registerBillingRoutes(app: Express) {
     }
     const origin = appOrigin(req);
     const ownerId = req.ownerId || "";
-    const existing = entitlements.get(ownerId);
+    const existing = await storage.getEntitlement(ownerId);
     try {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
@@ -127,7 +154,7 @@ export function registerBillingRoutes(app: Express) {
       return res.status(503).json({ error: "Billing is not configured on this deployment" });
     }
     const ownerId = req.ownerId || "";
-    const row = entitlements.get(ownerId);
+    const row = await storage.getEntitlement(ownerId);
     if (!row?.stripeCustomerId) {
       return res.status(404).json({
         error: "No Stripe customer on file",
@@ -169,43 +196,47 @@ export function registerBillingRoutes(app: Express) {
       const plan = session.metadata?.sadhanaPlan || "plus";
       const customerId =
         typeof session.customer === "string" ? session.customer : session.customer?.id;
+      const subscriptionId =
+        typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
       if (ownerId) {
-        entitlements.set(ownerId, {
+        const prev = await storage.getEntitlement(ownerId);
+        await storage.upsertEntitlement(ownerId, {
           plan,
           status: "active",
           renewsAt: null,
-          stripeCustomerId: customerId || entitlements.get(ownerId)?.stripeCustomerId,
+          stripeCustomerId: customerId || prev?.stripeCustomerId || null,
+          stripeSubscriptionId: subscriptionId || prev?.stripeSubscriptionId || null,
         });
-        persist();
       }
     }
     if (event.type === "customer.subscription.updated") {
       const sub = event.data.object as Stripe.Subscription;
       const ownerId = sub.metadata?.ownerId || "";
-      const plan = sub.metadata?.sadhanaPlan || entitlements.get(ownerId)?.plan || "plus";
       if (ownerId) {
-        entitlements.set(ownerId, {
+        const prev = await storage.getEntitlement(ownerId);
+        const plan = sub.metadata?.sadhanaPlan || prev?.plan || "plus";
+        await storage.upsertEntitlement(ownerId, {
           plan: sub.status === "active" || sub.status === "trialing" ? plan : "free",
           status: sub.status,
           renewsAt: null,
           stripeCustomerId:
-            typeof sub.customer === "string" ? sub.customer : entitlements.get(ownerId)?.stripeCustomerId,
+            (typeof sub.customer === "string" ? sub.customer : prev?.stripeCustomerId) || null,
+          stripeSubscriptionId: sub.id || prev?.stripeSubscriptionId || null,
         });
-        persist();
       }
     }
     if (event.type === "customer.subscription.deleted") {
       const sub = event.data.object as Stripe.Subscription;
       const ownerId = sub.metadata?.ownerId || "";
       if (ownerId) {
-        const prev = entitlements.get(ownerId);
-        entitlements.set(ownerId, {
+        const prev = await storage.getEntitlement(ownerId);
+        await storage.upsertEntitlement(ownerId, {
           plan: "free",
           status: "canceled",
           renewsAt: null,
-          stripeCustomerId: prev?.stripeCustomerId,
+          stripeCustomerId: prev?.stripeCustomerId ?? null,
+          stripeSubscriptionId: prev?.stripeSubscriptionId ?? null,
         });
-        persist();
       }
     }
     res.json({ received: true });

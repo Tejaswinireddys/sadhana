@@ -2,7 +2,9 @@ services:
   - type: web
     name: sadhana
     runtime: node
-    plan: free
+    # Starter keeps the web service warm (no free-tier spin-down) so /healthz
+    # and Stripe webhooks stay reachable between practice sessions.
+    plan: starter
     buildCommand: npm ci --include=dev && npm run build && npm prune --omit=dev
     startCommand: node dist/index.cjs
     envVars:
