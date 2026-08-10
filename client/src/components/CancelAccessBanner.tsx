@@ -26,7 +26,8 @@ export function CancelAccessBanner() {
   const [dismissed, setDismissed] = useState(false);
   const { data } = useQuery<Entitlement>({
     queryKey: ["/api/billing/entitlement"],
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   if (dismissed || !data?.cancelAtPeriodEnd || !data.accessUntil) return null;

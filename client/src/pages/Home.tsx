@@ -76,7 +76,8 @@ function HomeCancelSubscriptionCta() {
     status?: string;
   }>({
     queryKey: ["/api/billing/entitlement"],
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
   const paid =
     data &&
