@@ -26,6 +26,22 @@ import("./lib/analytics")
   .then(({ track }) => track("app_open"))
   .catch(() => undefined);
 
+import("./lib/productAnalytics")
+  .then(({ trackAppFirstOpen }) => {
+    const path = window.location.pathname || "/";
+    const source = path.startsWith("/start")
+      ? "quiz"
+      : path === "/welcome"
+        ? "landing"
+        : "app";
+    return trackAppFirstOpen(source);
+  })
+  .catch(() => undefined);
+
+import("./lib/posthogClient")
+  .then(({ initPostHog }) => initPostHog())
+  .catch(() => undefined);
+
 /**
  * Register the service worker.
  *

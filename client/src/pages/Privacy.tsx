@@ -87,11 +87,31 @@ export default function Privacy() {
       </section>
 
       <section className="space-y-3 text-sm leading-relaxed">
+        <h2 className="font-serif text-xl">Product analytics</h2>
+        <p className="text-muted-foreground">
+          When an operator configures PostHog (self-hosted or EU/US cloud), Sadhana may send
+          anonymous product events such as quiz steps, paywall views, practice session start/complete,
+          and subscription lifecycle — never journal text, emails, passwords, or injury notes. In-app
+          session analytics respect the Settings opt-in. Acquisition events on{" "}
+          <Link href="/start" className="underline underline-offset-2">
+            /start
+          </Link>{" "}
+          may be captured anonymously when PostHog is configured so operators can see per-question
+          drop-off. You can review aggregated funnel metrics at{" "}
+          <Link href="/analytics/funnel" className="underline underline-offset-2">
+            /analytics/funnel
+          </Link>
+          .
+        </p>
+      </section>
+
+      <section className="space-y-3 text-sm leading-relaxed">
         <h2 className="font-serif text-xl">Processors &amp; hosting</h2>
         <p className="text-muted-foreground">
           Self-hosted or cloud deployments may use a host (for example Render) and optional Postgres
           (for example Supabase). Operators of a deployment are responsible for their subprocessors,
-          backups, and regional compliance.
+          backups, and regional compliance. Optional analytics may use PostHog (self-hostable; EU
+          cloud available).
         </p>
       </section>
 

@@ -134,7 +134,7 @@ export default function Landing() {
               asChild
               data-testid="landing-cta-header"
             >
-              <Link href="/register">Create practice</Link>
+              <Link href="/start">Find your plan</Link>
             </Button>
           </div>
         </div>

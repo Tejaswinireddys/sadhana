@@ -6,6 +6,8 @@ import type { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { createRateLimiter } from "./security";
 import { loadMap, saveMap } from "./jsonStore";
+import { captureServerEvent } from "./productAnalytics";
+import { storage } from "./storage";
 
 const stripeKey = process.env.STRIPE_SECRET_KEY || "";
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
@@ -30,6 +32,9 @@ type Entitlement = {
   status: string;
   renewsAt: string | null;
   stripeCustomerId?: string;
+  /** ISO time when the paid entitlement first became active (for days_active). */
+  subscribedAt?: string;
+  flowId?: string;
 };
 
 const STORE = "billing-entitlements";
@@ -87,6 +92,7 @@ export function registerBillingRoutes(app: Express) {
     }
     const plan = String(req.body?.plan || "");
     const interval = String(req.body?.interval || "month") === "year" ? "year" : "month";
+    const flowId = String(req.body?.flow_id || req.body?.flowId || "plus_page").slice(0, 64);
     if (plan !== "plus" && plan !== "coach") {
       return res.status(400).json({ error: "Choose plus or coach" });
     }
@@ -104,16 +110,16 @@ export function registerBillingRoutes(app: Express) {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         line_items: [{ price, quantity: 1 }],
-        success_url: `${origin}/#/plus?checkout=success`,
-        cancel_url: `${origin}/#/plus?checkout=cancel`,
+        success_url: `${origin}/plus?checkout=success`,
+        cancel_url: `${origin}/plus?checkout=cancel`,
         allow_promotion_codes: true,
         billing_address_collection: "auto",
         customer: existing?.stripeCustomerId || undefined,
         client_reference_id: ownerId || undefined,
         subscription_data: {
-          metadata: { sadhanaPlan: plan, ownerId },
+          metadata: { sadhanaPlan: plan, ownerId, flow_id: flowId },
         },
-        metadata: { sadhanaPlan: plan, ownerId },
+        metadata: { sadhanaPlan: plan, ownerId, flow_id: flowId },
       });
       res.json({ url: session.url });
     } catch (e) {
@@ -137,7 +143,7 @@ export function registerBillingRoutes(app: Express) {
     try {
       const session = await stripe.billingPortal.sessions.create({
         customer: row.stripeCustomerId,
-        return_url: `${appOrigin(req)}/#/plus`,
+        return_url: `${appOrigin(req)}/plus`,
       });
       res.json({ url: session.url });
     } catch (e) {
@@ -167,16 +173,29 @@ export function registerBillingRoutes(app: Express) {
       const session = event.data.object as Stripe.Checkout.Session;
       const ownerId = session.metadata?.ownerId || session.client_reference_id || "";
       const plan = session.metadata?.sadhanaPlan || "plus";
+      const flowId = session.metadata?.flow_id || "plus_page";
       const customerId =
         typeof session.customer === "string" ? session.customer : session.customer?.id;
       if (ownerId) {
+        const prev = entitlements.get(ownerId);
         entitlements.set(ownerId, {
           plan,
           status: "active",
           renewsAt: null,
-          stripeCustomerId: customerId || entitlements.get(ownerId)?.stripeCustomerId,
+          stripeCustomerId: customerId || prev?.stripeCustomerId,
+          subscribedAt: prev?.subscribedAt || new Date().toISOString(),
+          flowId,
         });
         persist();
+        const amount =
+          typeof session.amount_total === "number" ? session.amount_total / 100 : 0;
+        const currency = (session.currency || "usd").toUpperCase();
+        void captureServerEvent(ownerId, "purchase_completed", {
+          flow_id: flowId,
+          plan,
+          amount,
+          currency,
+        });
       }
     }
     if (event.type === "customer.subscription.updated") {
@@ -204,8 +223,28 @@ export function registerBillingRoutes(app: Express) {
           status: "canceled",
           renewsAt: null,
           stripeCustomerId: prev?.stripeCustomerId,
+          subscribedAt: prev?.subscribedAt,
+          flowId: prev?.flowId,
         });
         persist();
+
+        let sessionsCompleted = 0;
+        try {
+          if (storage) {
+            const rows = await storage.getSessions(ownerId);
+            sessionsCompleted = rows.length;
+          }
+        } catch {
+          /* storage may be unavailable mid-boot */
+        }
+        const subscribedMs = prev?.subscribedAt ? Date.parse(prev.subscribedAt) : NaN;
+        const daysActive = Number.isFinite(subscribedMs)
+          ? Math.max(0, Math.floor((Date.now() - subscribedMs) / 86_400_000))
+          : 0;
+        void captureServerEvent(ownerId, "subscription_cancelled", {
+          days_active: daysActive,
+          sessions_completed: sessionsCompleted,
+        });
       }
     }
     res.json({ received: true });

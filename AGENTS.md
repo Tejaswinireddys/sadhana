@@ -23,3 +23,4 @@ run in one process — there is no separate frontend dev server.
 - With Postgres configured, the schema is auto-applied on boot from `drizzle/schema.sql` (no manual migration step needed); `npm run db:push` is available for manual schema pushes.
 - The service worker / PWA (`client/public/sw.js`) is production-only and not active in `npm run dev`.
 - Optional Python scripts under `script/` (voice/asset generation) and the Playwright demo scripts are content pipelines, not needed to run or test the app.
+- **Product analytics:** shared taxonomy + metric math live in `funnel/`. Client capture is `client/src/lib/productAnalytics.ts` (PostHog via `posthog-js` when `VITE_PUBLIC_POSTHOG_KEY` is set; always buffers locally). Server purchase/cancel capture is `server/productAnalytics.ts`. Acquisition quiz: `/start`. Operator dashboard: `/analytics/funnel` (works offline with demo data; set PostHog host to `https://eu.i.posthog.com` for EU).

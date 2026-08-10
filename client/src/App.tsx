@@ -25,6 +25,7 @@ import Register from "@/pages/Register";
 const MARKETING_PATHS = new Set([
   "/welcome",
   "/register",
+  "/start",
   "/privacy",
   "/terms",
   "/health-disclaimer",
@@ -64,6 +65,8 @@ const PoseCoach = lazyPage(() => import("@/pages/PoseCoach"));
 const Instructors = lazyPage(() => import("@/pages/Instructors"));
 const Household = lazyPage(() => import("@/pages/Household"));
 const Corporate = lazyPage(() => import("@/pages/Corporate"));
+const StartQuiz = lazyPage(() => import("@/pages/StartQuiz"));
+const FunnelDashboard = lazyPage(() => import("@/pages/FunnelDashboard"));
 
 function RouteFallback() {
   return (
@@ -100,6 +103,8 @@ function AppRouter() {
         <Switch>
           <Route path="/register" component={Register} />
           <Route path="/welcome" component={Landing} />
+          <Route path="/start" component={StartQuiz} />
+          <Route path="/analytics/funnel" component={FunnelDashboard} />
           <Route path="/" component={Home} />
           <Route path="/asanas" component={Asanas} />
           <Route path="/asanas/:slug" component={AsanaDetail} />

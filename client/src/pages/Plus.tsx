@@ -4,9 +4,11 @@ import { FadeIn } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PLANS, readPreferredPlan, writePreferredPlan, type PlanId } from "@/lib/plans";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Check } from "lucide-react";
+import { captureProduct, readRememberedFlowId } from "@/lib/productAnalytics";
+import { readUrlParam } from "@/lib/hashQuery";
 
 type BillingConfig = {
   enabled: boolean;
@@ -22,12 +24,33 @@ export default function Plus() {
   const [billing, setBilling] = useState<BillingConfig>({ enabled: false, note: "" });
   const [busy, setBusy] = useState(false);
 
+  const paywallTracked = useRef(false);
+  const flowId = readRememberedFlowId() || "plus_page";
+
   useEffect(() => {
     void fetch("/api/billing/config")
       .then((r) => r.json())
       .then((c: BillingConfig) => setBilling(c))
       .catch(() => setBilling({ enabled: false, note: "Billing unavailable right now." }));
   }, []);
+
+  useEffect(() => {
+    if (paywallTracked.current) return;
+    paywallTracked.current = true;
+    const preferred = PLANS.find((p) => p.id === plan && p.id !== "free") ?? PLANS.find((p) => p.id === "plus")!;
+    void captureProduct("paywall_viewed", {
+      flow_id: flowId,
+      price_shown: interval === "year" ? preferred.yearlyUsd : preferred.monthlyUsd,
+      currency: "USD",
+    });
+    const checkout = readUrlParam("checkout");
+    if (checkout === "success") {
+      toast({
+        title: "Welcome to Sadhana Plus",
+        description: "Your subscription is active. Cancel anytime from Manage subscription.",
+      });
+    }
+  }, [flowId, interval, plan, toast]);
 
   const selectPlan = async (id: PlanId) => {
     writePreferredPlan(id);
@@ -47,12 +70,13 @@ export default function Plus() {
       });
       return;
     }
+    void captureProduct("checkout_started", { flow_id: flowId, plan: id });
     setBusy(true);
     try {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: id, interval }),
+        body: JSON.stringify({ plan: id, interval, flow_id: flowId }),
       });
       const data = (await res.json()) as { url?: string; error?: string; hint?: string };
       if (!res.ok || !data.url) {
