@@ -382,29 +382,27 @@ export default function Home() {
                 <Sparkles className="h-5 w-5" />
               </span>
               <div className="space-y-1">
-                <p className="font-serif text-xl leading-tight">New here? Start with a gentle warm-up</p>
+                <p className="font-serif text-xl leading-tight">New here? Get a personal plan</p>
                 <p className="text-sm text-muted-foreground">
-                  A voice-guided 5-minute warm-up to wake up your spine — no experience needed.
-                  Everything else can wait.
+                  A two-minute quiz builds a gentle first session — or jump straight into a 5-minute
+                  warm-up.
                 </p>
               </div>
             </div>
             <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-              <Button
-                className="min-h-11 w-full cursor-pointer sm:w-auto"
-                onClick={startWarmup}
-                data-testid="button-new-here-warmup"
-              >
-                <Play className="mr-1.5 h-4 w-4" /> Start 5-minute warm-up
+              <Button asChild className="min-h-11 w-full cursor-pointer sm:w-auto" data-testid="button-new-here-quiz">
+                <Link href="/start">
+                  <Sparkles className="mr-1.5 h-4 w-4" /> Get my plan
+                </Link>
               </Button>
               <Button
-                asChild
                 variant="ghost"
                 size="sm"
                 className="min-h-11 cursor-pointer"
-                data-testid="button-new-here-trainer"
+                onClick={startWarmup}
+                data-testid="button-new-here-warmup"
               >
-                <Link href="/trainer">Or answer 4 quick questions</Link>
+                <Play className="mr-1.5 h-4 w-4" /> Or start 5-minute warm-up
               </Button>
             </div>
           </CardContent>

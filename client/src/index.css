@@ -854,3 +854,23 @@ html.motion-off .kids-bob { animation: none !important; }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 .star-pop { animation: star-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* BetterMe-style acquisition funnel helpers */
+@keyframes funnel-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.06); opacity: 0.92; }
+}
+.funnel-pulse {
+  animation: funnel-pulse 1.2s ease-in-out infinite;
+}
+html.motion-off .funnel-pulse {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .funnel-pulse {
+    animation: none !important;
+  }
+}
+.funnel-option:active {
+  transform: scale(0.985);
+}

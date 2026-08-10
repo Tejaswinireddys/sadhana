@@ -1,21 +1,15 @@
+/**
+ * BetterMe-inspired marketing landing: quiz-first CTA, program tiles, social proof,
+ * sticky mobile Get started. Keeps Sadhana brand (Lora/Raleway, sage/teal) and ethics.
+ */
 import { Link } from "wouter";
 import { lazy, Suspense, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { LotusMark } from "@/components/Logo";
 import { KEYS, writeString } from "@/lib/localPrefs";
 import { FadeIn, Reveal } from "@/components/motion";
-import {
-  ArrowRight,
-  BookOpen,
-  Compass,
-  Github,
-  Play,
-  Shield,
-  Smile,
-  UserRound,
-} from "lucide-react";
+import { ArrowRight, Check, Shield } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { CONTENT_REVIEW } from "@/data/contentProvenance";
 
 const ProductDemoVideo = lazy(() =>
   import("@/components/ProductDemoVideo").then((m) => ({ default: m.ProductDemoVideo })),
@@ -23,59 +17,55 @@ const ProductDemoVideo = lazy(() =>
 
 const HERO_SRC = `${import.meta.env.BASE_URL}poses/vrksasana.png`;
 
-const FEATURES = [
+const PROGRAMS = [
   {
-    icon: BookOpen,
-    title: "Privacy-first, no signup wall",
-    body: "Start as a guest — no email required. Open source, exportable data, and optional accounts only when you want sync.",
+    title: "Morning wake-up",
+    body: "Low-impact flow to open the spine and start clear.",
+    img: `${import.meta.env.BASE_URL}poses/tadasana.png`,
+    href: "/start?ref=program-morning",
   },
   {
-    icon: Play,
-    title: "Never shame you for missing a day",
-    body: "Compassionate recovery instead of streak punishment. Private challenges — no body-comparison leaderboards.",
+    title: "Desk reset",
+    body: "Neck, shoulders, and hips after sitting too long.",
+    img: `${import.meta.env.BASE_URL}poses/balasana.png`,
+    href: "/start?ref=program-desk",
   },
   {
-    icon: Compass,
-    title: "Safety-deep pose library",
-    body: "200+ illustrated poses with contraindications, modifications, and voice-guided sessions in minutes.",
+    title: "Better sleep",
+    body: "Slow shapes and breath to wind down at night.",
+    img: `${import.meta.env.BASE_URL}poses/supta-baddha-konasana.png`,
+    href: "/start?ref=program-sleep",
   },
   {
-    icon: Smile,
-    title: "Kids, household & workplace",
-    body: "Parent-gated kids stories, household profiles, and aggregate-only corporate wellness.",
+    title: "Beginner foundations",
+    body: "Simple poses with clear cues — no experience needed.",
+    img: `${import.meta.env.BASE_URL}poses/adho-mukha-svanasana.png`,
+    href: "/start?ref=program-beginner",
   },
 ];
 
-const STEPS = [
-  { n: "1", title: "Begin without an account", body: "Answer a few gentle questions — practice starts the same day." },
-  { n: "2", title: "Follow the guide", body: "Illustrated trainers and optional calm voice narration." },
-  { n: "3", title: "Track without pressure", body: "Minutes and milestones — missed days get a soft reset, not guilt." },
+const PROOF = [
+  { label: "Pose library", value: "200+" },
+  { label: "Account needed", value: "Never" },
+  { label: "Streak shame", value: "Zero" },
 ];
 
 const FAQ = [
   {
-    q: "What makes Sadhana different?",
-    a: "It's the privacy-first, no-signup yoga app that never shames you for missing a day — open source, no App Store account wall, and no public body-comparison boards.",
-  },
-  {
-    q: "Is Sadhana free?",
-    a: "Yes. The core library and guest practice stay free forever. Optional Plus/Coach plans fund deeper features with clear pricing and cancel-anytime billing — no dark patterns.",
+    q: "Is this like BetterMe?",
+    a: "You get a quiz-first path to a personal plan — but Sadhana stays privacy-first, open source, and free to practice without a hard paywall trap.",
   },
   {
     q: "Do I need an account?",
-    a: "No. Accounts are optional. If you make one later, the practice already saved on this device moves across with you.",
+    a: "No. Start as a guest. Optional accounts are only for sync across devices.",
   },
   {
-    q: "Do I need yoga experience?",
-    a: "No. Beginner variations, props cues, and short mood sessions make it easy to start in five minutes.",
+    q: "How long is the quiz?",
+    a: "About two minutes — five short questions, then your plan and a first session.",
   },
   {
-    q: "Is it safe in pregnancy?",
-    a: "There is a dedicated Pregnancy profile with belly-friendly shapes. Always follow your clinician’s guidance.",
-  },
-  {
-    q: "Can kids use it?",
-    a: "Yes — the Kids section uses story poses and breath games, unlocked with a simple parent math gate.",
+    q: "Is Sadhana free?",
+    a: "Core practice and the safety library stay free. Optional Plus/Coach is clearly priced with cancel in two taps.",
   },
 ];
 
@@ -83,10 +73,9 @@ export default function Landing() {
   useDocumentTitle("Welcome · Sadhana");
 
   useEffect(() => {
-    document.title = "Sadhana — Calm guided yoga practice";
+    document.title = "Sadhana — Personalized yoga practice in minutes";
   }, []);
 
-  /** Enter the app without bouncing back through WelcomeRedirect. */
   const enterApp = () => writeString(KEYS.welcomeSeen, "1");
 
   return (
@@ -108,40 +97,18 @@ export default function Landing() {
             <LotusMark size={26} />
             <span className="font-serif text-xl font-semibold tracking-tight">Sadhana</span>
           </Link>
-          <nav className="hidden items-center gap-6 text-sm text-primary-foreground/85 md:flex" aria-label="Landing">
-            <a href="#features" className="transition-colors duration-200 hover:text-primary-foreground">
-              Features
-            </a>
-            <a href="#how" className="transition-colors duration-200 hover:text-primary-foreground">
-              How it works
-            </a>
-            <a href="#faq" className="transition-colors duration-200 hover:text-primary-foreground">
-              FAQ
-            </a>
-          </nav>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              className="hidden min-h-11 cursor-pointer text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground sm:inline-flex"
-              asChild
-            >
-              <Link href="/asanas" onClick={enterApp}>
-                Browse poses
-              </Link>
-            </Button>
-            <Button
-              className="min-h-11 cursor-pointer bg-primary-foreground text-foreground hover:bg-primary-foreground/90"
-              asChild
-              data-testid="landing-cta-header"
-            >
-              <Link href="/register">Create practice</Link>
-            </Button>
-          </div>
+          <Button
+            className="min-h-11 cursor-pointer bg-primary-foreground text-foreground hover:bg-primary-foreground/90"
+            asChild
+            data-testid="landing-cta-header"
+          >
+            <Link href="/start">Get started</Link>
+          </Button>
         </div>
       </header>
 
       <main id="landing-main">
-        {/* Hero-centric: brand + one headline + support + CTAs on full-bleed yoga visual */}
+        {/* Hero: brand-first, one CTA — BetterMe conversion shape, Sadhana voice */}
         <section className="relative min-h-[100svh] overflow-hidden">
           <img
             src={HERO_SRC}
@@ -154,15 +121,11 @@ export default function Landing() {
             aria-hidden
           />
           <div
-            className="absolute inset-0 bg-[linear-gradient(180deg,hsl(165_28%_8%/0.55)_0%,hsl(165_28%_8%/0.28)_42%,hsl(165_28%_8%/0.78)_100%)]"
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_70%_40%,hsl(var(--primary)/0.22),transparent_55%)]"
+            className="absolute inset-0 bg-[linear-gradient(180deg,hsl(165_28%_8%/0.5)_0%,hsl(165_28%_8%/0.22)_40%,hsl(165_28%_8%/0.82)_100%)]"
             aria-hidden
           />
 
-          <div className="relative mx-auto flex min-h-[100svh] max-w-5xl flex-col justify-end px-4 pb-16 pt-28 md:justify-center md:px-6 md:pb-24 md:pt-24">
+          <div className="relative mx-auto flex min-h-[100svh] max-w-5xl flex-col justify-end px-4 pb-28 pt-28 md:justify-center md:px-6 md:pb-24">
             <FadeIn className="max-w-xl space-y-5 text-primary-foreground">
               <p
                 className="font-serif text-5xl font-semibold tracking-tight md:text-7xl"
@@ -170,79 +133,150 @@ export default function Landing() {
               >
                 Sadhana
               </p>
-              <h1 className="font-serif text-2xl font-semibold leading-tight tracking-tight md:text-3xl">
-                The privacy-first yoga app that never shames you for missing a day.
+              <h1 className="max-w-md font-serif text-2xl font-semibold leading-tight tracking-tight md:text-4xl">
+                Fun and simple yoga — personalized to how you feel today.
               </h1>
               <p className="max-w-md text-base leading-relaxed text-primary-foreground/85 md:text-lg">
-                No email required. Open source. Gentle habits — start a session in minutes on this
-                device.
+                Answer a few quick questions. Get a gentle plan. Practice in minutes — no email wall,
+                no streak shame.
               </p>
               <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center">
                 <Button
                   size="lg"
-                  className="min-h-12 cursor-pointer bg-primary-foreground text-foreground hover:bg-primary-foreground/90"
+                  className="min-h-14 cursor-pointer bg-primary-foreground px-8 text-base font-semibold text-foreground hover:bg-primary-foreground/90"
                   asChild
                   data-testid="landing-cta-primary"
                 >
-                  <Link href="/register">
-                    Create your practice <ArrowRight className="ml-1.5 h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="min-h-12 cursor-pointer border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
-                  asChild
-                >
-                  <Link href="/trainer" onClick={enterApp}>
-                    <UserRound className="mr-1.5 h-4 w-4" /> Try Yoga Trainer
+                  <Link href="/start">
+                    Get started <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Link>
                 </Button>
               </div>
+              <p className="text-xs text-primary-foreground/70">Takes about 2 minutes · Free to start</p>
             </FadeIn>
           </div>
         </section>
 
-        <section id="features" className="relative overflow-hidden yoga-atmosphere">
-          <div className="pointer-events-none absolute inset-0 yoga-grain" aria-hidden />
+        {/* Social-proof strip — honest metrics, not fake reviews */}
+        <section className="border-b border-border/60 bg-card" data-testid="landing-proof">
+          <div className="mx-auto grid max-w-5xl grid-cols-3 gap-2 px-4 py-8 text-center md:px-6">
+            {PROOF.map((p) => (
+              <div key={p.label} className="space-y-1">
+                <p className="font-serif text-2xl font-semibold tracking-tight md:text-3xl">{p.value}</p>
+                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground md:text-xs">
+                  {p.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Program tiles — BetterMe “Wall Pilates / Calisthenics” pattern */}
+        <section id="programs" className="yoga-atmosphere">
           <div className="relative mx-auto max-w-5xl px-4 py-16 md:px-6 md:py-20">
-            <Reveal className="mb-12 max-w-xl space-y-2">
-              <h2 className="font-serif text-3xl font-semibold tracking-tight">Built for real practice</h2>
+            <Reveal className="mb-10 max-w-xl space-y-2">
+              <h2 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">
+                Pick a path — or let the quiz choose
+              </h2>
               <p className="text-muted-foreground">
-                Everything you need to show up for a few mindful minutes — or a longer journey.
+                Theme-based on-ramps inspired by modern wellness funnels. Every path stays kind.
               </p>
             </Reveal>
-            <div className="grid gap-10 sm:grid-cols-2">
-              {FEATURES.map((f, i) => {
-                const Icon = f.icon;
-                return (
-                  <Reveal key={f.title} delay={i * 0.05} className="space-y-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      <Icon className="h-5 w-5" aria-hidden />
-                    </span>
-                    <h3 className="font-serif text-xl font-semibold">{f.title}</h3>
-                    <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">{f.body}</p>
-                  </Reveal>
-                );
-              })}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {PROGRAMS.map((p, i) => (
+                <Reveal key={p.title} delay={i * 0.04}>
+                  <Link
+                    href={p.href}
+                    onClick={enterApp}
+                    className="group relative block overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-soft"
+                    data-testid={`program-card-${i}`}
+                  >
+                    <div className="relative aspect-[16/10] overflow-hidden bg-muted">
+                      <img
+                        src={p.img}
+                        alt=""
+                        className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <div
+                        className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/15 to-transparent"
+                        aria-hidden
+                      />
+                      <div className="absolute inset-x-0 bottom-0 space-y-1 p-5 text-primary-foreground">
+                        <h3 className="font-serif text-xl font-semibold">{p.title}</h3>
+                        <p className="text-sm text-primary-foreground/85">{p.body}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between px-5 py-3 text-sm font-semibold text-primary">
+                      Get started
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </div>
+                  </Link>
+                </Reveal>
+              ))}
             </div>
+          </div>
+        </section>
+
+        <section id="how" className="border-y border-border/50 bg-card/50">
+          <div className="mx-auto max-w-5xl px-4 py-16 md:px-6">
+            <h2 className="mb-10 font-serif text-3xl font-semibold tracking-tight">How it works</h2>
+            <ol className="grid gap-8 md:grid-cols-3">
+              {[
+                { n: "1", t: "Take the quiz", b: "Five quick questions about goal, body, time, and habits." },
+                { n: "2", t: "See your plan", b: "A personal session length and focus — no generic one-size list." },
+                { n: "3", t: "Practice today", b: "Guided poses with voice and safety notes. Miss a day? Soft reset." },
+              ].map((s, i) => (
+                <Reveal key={s.n} delay={i * 0.05} className="space-y-2">
+                  <span className="font-serif text-4xl text-primary/80">{s.n}</span>
+                  <h3 className="font-serif text-xl font-semibold">{s.t}</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{s.b}</p>
+                </Reveal>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section id="why" className="yoga-atmosphere">
+          <div className="mx-auto max-w-5xl px-4 py-16 md:px-6">
+            <Reveal className="mb-8 max-w-xl space-y-2">
+              <h2 className="font-serif text-3xl font-semibold tracking-tight">Why people stay</h2>
+            </Reveal>
+            <div className="grid gap-4 md:grid-cols-2">
+              {[
+                "Quiz-personal plan without a signup wall",
+                "Illustrated poses with contraindications",
+                "Compassionate recovery — no public body boards",
+                "Cancel subscription in two taps if you ever upgrade",
+              ].map((line, i) => (
+                <Reveal key={line} delay={i * 0.04} className="flex gap-3 rounded-2xl border border-border/70 bg-card/80 px-4 py-4">
+                  <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+                  <p className="text-sm font-medium leading-relaxed">{line}</p>
+                </Reveal>
+              ))}
+            </div>
+            <Reveal delay={0.1} className="mt-8 flex items-start gap-3 text-sm text-muted-foreground">
+              <Shield className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              <p>
+                Privacy-first and open source — guest practice stays on this device until you choose an
+                account.
+              </p>
+            </Reveal>
           </div>
         </section>
 
         <section id="demo" className="border-y border-border/50 bg-card/40">
           <div className="mx-auto max-w-5xl px-4 py-16 md:px-6">
             <Reveal className="mb-8 max-w-xl space-y-2">
-              <h2 className="font-serif text-3xl font-semibold tracking-tight">See it in practice</h2>
+              <h2 className="font-serif text-3xl font-semibold tracking-tight">See a real session</h2>
               <p className="text-muted-foreground">
-                A real one-minute walkthrough: answer four questions, flow through a guided voice
-                session, then browse pathways, the illustrated pose library, and breathing — light or dark.
+                A short walkthrough of quiz → guided practice → pose library.
               </p>
             </Reveal>
             <Reveal delay={0.06}>
               <Suspense
-                fallback={
-                  <div className="aspect-video animate-pulse rounded-2xl bg-muted/40" aria-hidden />
-                }
+                fallback={<div className="aspect-video animate-pulse rounded-2xl bg-muted/40" aria-hidden />}
               >
                 <ProductDemoVideo title="A real walkthrough of the Sadhana app" />
               </Suspense>
@@ -250,102 +284,12 @@ export default function Landing() {
           </div>
         </section>
 
-        <section id="trust" className="yoga-atmosphere" data-testid="landing-trust">
-          <div className="mx-auto max-w-5xl px-4 py-16 md:px-6 md:py-20">
-            <Reveal className="mb-10 max-w-xl space-y-2">
-              <h2 className="font-serif text-3xl font-semibold tracking-tight">Trust without an App Store wall</h2>
-              <p className="text-muted-foreground">
-                No star-farm yet — instead, open source, privacy you can inspect, and safety notes that
-                admit their limits.
-              </p>
-            </Reveal>
-            <div className="grid gap-8 sm:grid-cols-3">
-              <Reveal className="space-y-2">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Github className="h-5 w-5" aria-hidden />
-                </span>
-                <h3 className="font-serif text-lg font-semibold">MIT open source</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Read the code on{" "}
-                  <a
-                    href="https://github.com/Tejaswinireddys/sadhana"
-                    className="underline underline-offset-2"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    GitHub
-                  </a>
-                  . No black-box habit guilt loops.
-                </p>
-              </Reveal>
-              <Reveal delay={0.05} className="space-y-2">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Shield className="h-5 w-5" aria-hidden />
-                </span>
-                <h3 className="font-serif text-lg font-semibold">Privacy-first by design</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Guest practice on-device. Optional account only for sync. Export or delete anytime —
-                  no App Store login required to start.
-                </p>
-              </Reveal>
-              <Reveal delay={0.1} className="space-y-2">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <BookOpen className="h-5 w-5" aria-hidden />
-                </span>
-                <h3 className="font-serif text-lg font-semibold">Safety notes you can audit</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Content review {CONTENT_REVIEW.version} · {CONTENT_REVIEW.reviewedAt}. Educational
-                  guidance, not clinical clearance.
-                </p>
-              </Reveal>
-            </div>
-          </div>
-        </section>
-
-        <section id="how" className="yoga-atmosphere">
-          <div className="mx-auto max-w-5xl px-4 py-16 md:px-6 md:py-20">
-            <h2 className="mb-12 font-serif text-3xl font-semibold tracking-tight">How it works</h2>
-            <ol className="grid gap-10 md:grid-cols-3">
-              {STEPS.map((s, i) => (
-                <Reveal key={s.n} delay={i * 0.06} className="space-y-2">
-                  <span className="font-serif text-4xl text-primary/80">{s.n}</span>
-                  <h3 className="font-serif text-xl font-semibold">{s.title}</h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{s.body}</p>
-                </Reveal>
-              ))}
-            </ol>
-          </div>
-        </section>
-
-        <section className="relative overflow-hidden border-y border-border/50">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,_hsl(var(--primary)/0.14),_transparent_65%)]" aria-hidden />
-          <div className="relative mx-auto max-w-5xl px-4 py-16 text-center md:px-6 md:py-20">
-            <FadeIn className="mx-auto max-w-lg space-y-4">
-              <p className="font-serif text-4xl font-semibold tracking-tight md:text-5xl">Sadhana</p>
-              <h2 className="font-serif text-2xl font-semibold tracking-tight md:text-3xl">
-                Begin your practice today
-              </h2>
-              <p className="text-muted-foreground">
-                A one-minute setup — intent, name, path, and preferences — then Home greets you clearly.
-              </p>
-              <Button size="lg" className="mt-2 min-h-12 cursor-pointer" asChild data-testid="landing-cta-final">
-                <Link href="/register">
-                  Create your practice <ArrowRight className="ml-1.5 h-4 w-4" />
-                </Link>
-              </Button>
-            </FadeIn>
-          </div>
-        </section>
-
         <section id="faq" className="mx-auto max-w-5xl px-4 py-16 md:px-6">
           <h2 className="mb-8 font-serif text-3xl font-semibold tracking-tight">FAQ</h2>
           <div className="space-y-3">
             {FAQ.map((item) => (
-              <details
-                key={item.q}
-                className="group border-b border-border/70 py-3 open:pb-4"
-              >
-                <summary className="cursor-pointer list-none font-medium outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              <details key={item.q} className="group border-b border-border/70 py-3 open:pb-4">
+                <summary className="cursor-pointer list-none font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
                   {item.q}
                 </summary>
                 <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{item.a}</p>
@@ -353,33 +297,54 @@ export default function Landing() {
             ))}
           </div>
         </section>
+
+        <section className="border-t border-border/50 bg-primary px-4 py-16 text-primary-foreground md:px-6">
+          <FadeIn className="mx-auto max-w-lg space-y-4 text-center">
+            <p className="font-serif text-4xl font-semibold tracking-tight md:text-5xl">Sadhana</p>
+            <h2 className="font-serif text-2xl font-semibold md:text-3xl">Your plan is one quiz away</h2>
+            <Button
+              size="lg"
+              className="min-h-14 bg-primary-foreground px-8 text-base font-semibold text-foreground hover:bg-primary-foreground/90"
+              asChild
+              data-testid="landing-cta-final"
+            >
+              <Link href="/start">
+                Get started <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Link>
+            </Button>
+          </FadeIn>
+        </section>
       </main>
 
-      <footer className="border-t border-border/60 py-10">
+      <footer className="border-t border-border/60 py-10 pb-28 md:pb-10">
         <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-6">
           <p>Sadhana — a daily, dedicated practice. MIT open source.</p>
           <div className="flex flex-wrap gap-4">
-            <Link href="/register" className="cursor-pointer transition-colors duration-200 hover:text-foreground">
-              Create practice
+            <Link href="/start" className="hover:text-foreground">
+              Get started
             </Link>
-            <Link href="/" className="cursor-pointer transition-colors duration-200 hover:text-foreground" onClick={enterApp}>
+            <Link href="/" className="hover:text-foreground" onClick={enterApp}>
               App home
             </Link>
-            <Link href="/asanas" className="cursor-pointer transition-colors duration-200 hover:text-foreground" onClick={enterApp}>
-              Asana library
-            </Link>
-            <Link href="/privacy" className="cursor-pointer transition-colors duration-200 hover:text-foreground">
+            <Link href="/privacy" className="hover:text-foreground">
               Privacy
             </Link>
-            <Link href="/terms" className="cursor-pointer transition-colors duration-200 hover:text-foreground">
+            <Link href="/terms" className="hover:text-foreground">
               Terms
             </Link>
-            <Link href="/health-disclaimer" className="cursor-pointer transition-colors duration-200 hover:text-foreground">
-              Health disclaimer
+            <Link href="/health-disclaimer" className="hover:text-foreground">
+              Health
             </Link>
           </div>
         </div>
       </footer>
+
+      {/* Sticky mobile CTA — BetterMe-style conversion chrome */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 p-3 backdrop-blur md:hidden">
+        <Button size="lg" className="min-h-12 w-full text-base font-semibold" asChild data-testid="landing-cta-sticky">
+          <Link href="/start">Get started</Link>
+        </Button>
+      </div>
     </div>
   );
 }

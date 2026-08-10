@@ -23,3 +23,4 @@ run in one process — there is no separate frontend dev server.
 - With Postgres configured, the schema is auto-applied on boot from `drizzle/schema.sql` (no manual migration step needed); `npm run db:push` is available for manual schema pushes.
 - The service worker / PWA (`client/public/sw.js`) is production-only and not active in `npm run dev`.
 - Optional Python scripts under `script/` (voice/asset generation) and the Playwright demo scripts are content pipelines, not needed to run or test the app.
+- **Marketing UX:** `/welcome` is quiz-first (primary CTA → `/start`). `/start` is chrome-free (no sidebar). The practice app shell stays for `/` and in-app routes.
