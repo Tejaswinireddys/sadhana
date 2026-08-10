@@ -2,8 +2,22 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 
-if (!window.location.hash) {
-  window.location.hash = "#/";
+/**
+ * Legacy hash-route redirect (301-equivalent).
+ *
+ * The app used to route on the fragment (`/#/asanas/tadasana`). It now uses real
+ * paths (`/asanas/tadasana`). Old bookmarks, shared links, and search-engine
+ * entries still carry the hash, so rewrite them to the canonical path *before*
+ * React mounts — the router then only ever sees the real path. `replaceState`
+ * drops the hash URL from history, so it never resolves to content again (the
+ * client-side equivalent of a 301).
+ */
+if (window.location.hash.startsWith("#/")) {
+  const target = window.location.hash.slice(1); // "#/foo?x=1" -> "/foo?x=1"
+  window.history.replaceState(null, "", target || "/");
+} else if (window.location.hash === "#") {
+  // Bare "#" left over from an old link — drop it.
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

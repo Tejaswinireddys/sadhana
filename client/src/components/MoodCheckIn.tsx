@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { MOODS, type Mood } from "@/data/content";
 import { MOOD_ICONS } from "@/lib/moods";
+import { requestWellnessConsent } from "@/lib/legal";
 
 export function MoodCheckIn({
   open,

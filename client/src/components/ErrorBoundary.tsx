@@ -29,7 +29,8 @@ export class ErrorBoundary extends Component<Props, State> {
               className="min-h-11 cursor-pointer"
               onClick={() => {
                 this.setState({ error: null });
-                window.location.hash = "#/";
+                window.history.pushState(null, "", "/");
+                window.dispatchEvent(new PopStateEvent("popstate"));
               }}
               data-testid="button-error-home"
             >

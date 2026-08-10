@@ -1,6 +1,5 @@
 // Search — global search across poses, breathing, pathways, affirmations, and kids.
-//   - Reads the query from the URL hash (`#/search?q=...`) since the app uses
-//     hash routing.
+//   - Reads the query from the URL (`/search?q=...`).
 //   - Case-insensitive substring match. No artificial result limit.
 //   - Groups results by type with section headers and per-group counts.
 //   - Each result links to its detail page; affirmations link to /affirmations.
@@ -28,15 +27,16 @@ const diffColor: Record<string, string> = {
 };
 
 function readQuery(): string {
-  // The hash is canonical (`#/search?q=warrior`). `location.search` is only a
-  // fallback for links shared before the URL format was fixed.
+  // `/search?q=warrior` — the query lives on `location.search` now.
+  const fromSearch = new URLSearchParams(window.location.search).get("q");
+  if (fromSearch) return fromSearch;
+  // Fallback for legacy `#/search?q=warrior` links shared before the migration.
   const hash = window.location.hash;
   const qIndex = hash.indexOf("?");
   if (qIndex !== -1) {
-    const fromHash = new URLSearchParams(hash.slice(qIndex + 1)).get("q");
-    if (fromHash) return fromHash;
+    return new URLSearchParams(hash.slice(qIndex + 1)).get("q") ?? "";
   }
-  return new URLSearchParams(window.location.search).get("q") ?? "";
+  return "";
 }
 
 export default function Search() {
@@ -47,19 +47,17 @@ export default function Search() {
   const [draft, setDraft] = useState(readQuery());
 
   // Keep query in sync as navigation changes (sidebar live-typing navigation).
-  // wouter dispatches a `hashchange` event on every navigate().
+  // wouter v3 dispatches `pushState`/`replaceState` events on every navigate();
+  // popstate/hashchange cover the back button and legacy hash links.
   useEffect(() => {
     const onChange = () => {
       const next = readQuery();
       setQuery(next);
       setDraft(next);
     };
-    window.addEventListener("hashchange", onChange);
-    window.addEventListener("popstate", onChange);
-    return () => {
-      window.removeEventListener("hashchange", onChange);
-      window.removeEventListener("popstate", onChange);
-    };
+    const events = ["pushState", "replaceState", "popstate", "hashchange"];
+    events.forEach((e) => window.addEventListener(e, onChange));
+    return () => events.forEach((e) => window.removeEventListener(e, onChange));
   }, []);
 
   const commitSearch = (value: string) => {

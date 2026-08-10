@@ -49,7 +49,7 @@ app.get("/sitemap.xml", (_req, res) => {
   const urls = paths
     .map(
       (p) =>
-        `  <url><loc>${PUBLIC_ORIGIN}/#${p === "/" ? "/" : p}</loc><changefreq>weekly</changefreq></url>`,
+        `  <url><loc>${PUBLIC_ORIGIN}${p}</loc><changefreq>weekly</changefreq></url>`,
     )
     .join("\n");
   res

@@ -1,7 +1,8 @@
 /**
- * Hash-routing query helpers.
- * wouter's hash navigate stores `?…` on `location.search` (and sometimes in the hash).
- * Read both so deep links work; clear sticky search when navigating without a query.
+ * URL query helpers.
+ * With path-based routing the query lives on `location.search` (e.g.
+ * `/breathing?slug=box`). A legacy hash query (`#/breathing?slug=box`) is read
+ * as a fallback so links shared before the routing migration still resolve.
  */
 
 export function readUrlParam(name: string): string | null {
@@ -14,7 +15,7 @@ export function readUrlParam(name: string): string | null {
   return new URLSearchParams(hash.slice(qIndex + 1)).get(name);
 }
 
-/** Drop sticky `location.search` left over from a previous hash navigation. */
+/** Drop a one-shot `location.search` (e.g. deep-link prefill params) from the URL. */
 export function clearStickySearchParams(): void {
   if (typeof window === "undefined") return;
   if (!window.location.search) return;

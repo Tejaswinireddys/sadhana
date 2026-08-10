@@ -20,12 +20,15 @@ export function serveStatic(app: Express) {
   });
 
   // Fall through to index.html for any other unmatched route (SPA client-side
-  // routing via wouter hash router). Requests for a static asset (has a file
-  // extension, e.g. a missing /poses/*.png or /voice/*.mp3) get a real 404
-  // instead — otherwise <img onError> / <audio onError> handlers never fire
-  // because the "missing" file silently resolves as a 200 HTML page.
+  // routing via wouter's path-based browser router). Two exceptions get a real
+  // 404 instead of the shell:
+  //   - Unmatched /api/* paths — an unknown API call must fail as an API call,
+  //     never resolve to an HTML page.
+  //   - Static assets (path has a file extension, e.g. a missing /poses/*.png or
+  //     /voice/*.mp3) — otherwise <img onError> / <audio onError> handlers never
+  //     fire because the "missing" file silently resolves as a 200 HTML page.
   app.use("/{*path}", (req, res) => {
-    if (path.extname(req.path)) {
+    if (req.path.startsWith("/api/") || path.extname(req.path)) {
       res.status(404).end();
       return;
     }

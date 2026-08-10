@@ -3,17 +3,23 @@
  *  soft gradient, depth, and gentle breath motion (reduced-motion / motion-off safe).
  */
 import { useCallback, useState } from "react";
+import { welcomeHeaderTitle } from "@/lib/welcomeTitle";
 
 const HERO_POSES = ["vrksasana", "tadasana", "balasana"];
 
 export function HomeWelcomeHeader({
-  title,
+  hasCompletedSessions,
+  displayName,
   dateLabel,
 }: {
-  title: string;
+  /** True once the practitioner has ≥1 completed session (a returning visitor). */
+  hasCompletedSessions: boolean;
+  /** The practitioner's display name, if we have a real one. */
+  displayName?: string | null;
   dateLabel: string;
 }) {
   const base = import.meta.env.BASE_URL;
+  const title = welcomeHeaderTitle({ hasCompletedSessions, displayName });
   // Pale watercolour figures on a white card render as a blank white rectangle
   // for the whole load. Hold a visible placeholder until the front pose lands.
   const [heroReady, setHeroReady] = useState(false);

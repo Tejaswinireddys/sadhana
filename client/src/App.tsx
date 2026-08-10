@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import { Switch, Route, Router, useLocation } from "wouter";
-import { useHashLocation } from "wouter/use-hash-location";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -17,43 +16,6 @@ import { Onboarding } from "@/components/Onboarding";
 import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageFade } from "@/components/motion";
-import { clearStickySearchParams } from "@/lib/hashQuery";
-
-/**
- * Hash routing with query support (`#/search?q=tree`).
- * wouter's useHashLocation includes `?…` in the path, which breaks <Route path="/search" />.
- * Strip the query for matching; pages still read `window.location.hash` / `location.search` for params.
- * Also clear sticky `location.search` when navigating to a path without a query.
- */
-function useAppHashLocation(options?: { ssrPath?: string }): [string, ReturnType<typeof useHashLocation>[1]] {
-  const [loc, navigate] = useHashLocation(options);
-  const path = loc.split("?")[0] || "/";
-  const nav: ReturnType<typeof useHashLocation>[1] = (to, opts) => {
-    const target = String(to);
-    if (target.includes("?")) {
-      // wouter's hash navigate puts the query on `location.search`, producing
-      // `/?q=warrior#/search` — the query lands *before* the fragment, so the
-      // link is order-dependent, easy to mangle, and sends the query to the
-      // server on every share. Write the hash ourselves so the canonical
-      // `#/search?q=warrior` is what appears in the address bar.
-      clearStickySearchParams();
-      const next = `#${target.startsWith("/") ? target : `/${target}`}`;
-      if (opts?.replace) {
-        window.history.replaceState(null, "", next);
-        window.dispatchEvent(new HashChangeEvent("hashchange"));
-      } else {
-        window.location.hash = next.slice(1);
-      }
-      return;
-    }
-    navigate(to, opts);
-    clearStickySearchParams();
-  };
-  return [path, nav];
-}
-// Preserve hash Link formatting used by wouter's hash location hook.
-(useAppHashLocation as { hrefs?: (href: string) => string }).hrefs = (href) =>
-  "#" + href;
 
 /** Eager: first paint + marketing / registration entry. Everything else is route-split. */
 import Home from "@/pages/Home";
@@ -214,7 +176,7 @@ function App() {
                 <Toaster />
                 <ConnectivityBanner />
                 <LegalConsentBanner />
-                <Router hook={useAppHashLocation}>
+                <Router>
                   <AppShell />
                 </Router>
               </RecentSearchesProvider>

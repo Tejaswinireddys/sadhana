@@ -35,12 +35,9 @@ export default function Breathing() {
         setRounds(BREATHING.find((b) => b.slug === fromUrl)!.defaultRounds);
       }
     };
-    window.addEventListener("hashchange", onChange);
-    window.addEventListener("popstate", onChange);
-    return () => {
-      window.removeEventListener("hashchange", onChange);
-      window.removeEventListener("popstate", onChange);
-    };
+    const events = ["pushState", "replaceState", "popstate", "hashchange"];
+    events.forEach((e) => window.addEventListener(e, onChange));
+    return () => events.forEach((e) => window.removeEventListener(e, onChange));
   }, []);
 
   const selectTechnique = (slug: string) => {
@@ -48,9 +45,9 @@ export default function Breathing() {
     setActiveSlug(slug);
     setRounds(t.defaultRounds);
     // Keep deep links shareable / back-button friendly.
-    const next = `#/breathing?slug=${encodeURIComponent(slug)}`;
-    if (window.location.hash !== next) {
-      window.history.replaceState(window.history.state, "", `${window.location.pathname}${next}`);
+    const next = `/breathing?slug=${encodeURIComponent(slug)}`;
+    if (`${window.location.pathname}${window.location.search}` !== next) {
+      window.history.replaceState(window.history.state, "", next);
     }
   };
 

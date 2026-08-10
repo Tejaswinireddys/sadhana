@@ -66,10 +66,8 @@ export default function Journal() {
       body: readUrlParam("body") || "",
     });
     setOpen(true);
+    // Drop the one-shot `?new=1&title=…&body=…` prefill params from the URL.
     clearStickySearchParams();
-    if (window.location.hash.includes("?")) {
-      window.location.hash = "#/journal";
-    }
   }, []);
 
   const save = useMutation({

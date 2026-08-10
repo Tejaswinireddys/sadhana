@@ -1,19 +1,34 @@
 /**
- * Lightweight first-run trust notice for privacy / health data acknowledgement.
+ * Trust notice for privacy / health data acknowledgement.
+ *
+ * It is deliberately NOT shown on page load — a notice over the header before
+ * the user has done anything is noise and pushes the app down on first paint.
+ * Instead it appears the first time the user takes an action that stores
+ * wellness data (mood check-in, journal entry, profile creation), via
+ * `requestWellnessConsent()`. It is pinned to the bottom of the viewport so it
+ * never occupies or blocks the header.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { hasCurrentLegalAck, writeLegalAck } from "@/lib/legal";
+import { hasCurrentLegalAck, writeLegalAck, WELLNESS_CONSENT_EVENT } from "@/lib/legal";
 import { Button } from "@/components/ui/button";
 
 export function LegalConsentBanner() {
-  const [visible, setVisible] = useState(() => !hasCurrentLegalAck());
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const onIntent = () => {
+      if (!hasCurrentLegalAck()) setVisible(true);
+    };
+    window.addEventListener(WELLNESS_CONSENT_EVENT, onIntent);
+    return () => window.removeEventListener(WELLNESS_CONSENT_EVENT, onIntent);
+  }, []);
 
   if (!visible) return null;
 
   return (
     <div
-      className="relative z-30 border-b border-border bg-muted/95 px-4 py-3 text-sm backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-muted/95 px-4 py-3 text-sm shadow-soft-lg backdrop-blur"
       role="region"
       aria-label="Privacy and health notice"
       data-testid="banner-legal-consent"

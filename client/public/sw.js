@@ -10,7 +10,7 @@
  *   - API: never cached. Practice data must not be served stale.
  *   - Push: show gentle practice reminders when the tab is closed.
  */
-const VERSION = "v3";
+const VERSION = "v4";
 const SHELL_CACHE = `sadhana-shell-${VERSION}`;
 const ASSET_CACHE = `sadhana-assets-${VERSION}`;
 const OFFLINE_CACHE = "sadhana-offline-v1";
@@ -56,7 +56,7 @@ self.addEventListener("push", (event) => {
   let data = {
     title: "Sadhana",
     body: "A gentle reminder to practice — no streak guilt.",
-    url: "/#/",
+    url: "/",
   };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
@@ -68,7 +68,7 @@ self.addEventListener("push", (event) => {
       body: data.body,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      data: { url: data.url || "/#/" },
+      data: { url: data.url || "/" },
       tag: "sadhana-reminder",
     }),
   );
@@ -76,7 +76,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || "/#/";
+  const target = (event.notification.data && event.notification.data.url) || "/";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const c of clients) {
@@ -140,6 +140,10 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
+    // Path-based routing: a navigation can be any real path (`/asanas/tadasana`),
+    // not just `/`. The server returns the SPA shell for every non-asset path, so
+    // we cache and fall back under a single canonical SHELL_URL key — a deep link
+    // offline resolves to the cached shell and the client router renders the page.
     event.respondWith(
       networkFirst(request, SHELL_CACHE, SHELL_URL).catch(
         () =>
