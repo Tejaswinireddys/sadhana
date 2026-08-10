@@ -174,14 +174,14 @@ export default function Landing() {
         {/* Program tiles — BetterMe “Wall Pilates / Calisthenics” pattern */}
         <section id="programs" className="yoga-atmosphere">
           <div className="relative mx-auto max-w-5xl px-4 py-16 md:px-6 md:py-20">
-            <Reveal className="mb-10 max-w-xl space-y-2">
+            <div className="mb-12 max-w-xl space-y-2">
               <h2 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">
                 Pick a path — or let the quiz choose
               </h2>
               <p className="text-muted-foreground">
                 Theme-based on-ramps inspired by modern wellness funnels. Every path stays kind.
               </p>
-            </Reveal>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {PROGRAMS.map((p, i) => (
                 <Reveal key={p.title} delay={i * 0.04}>
