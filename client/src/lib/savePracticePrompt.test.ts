@@ -4,6 +4,7 @@ import {
   BANNER_AFTER_SESSIONS,
   BLOCKING_AFTER_SESSIONS,
   savePromptLevel,
+  shouldShowSaveBanner,
   stakeSummary,
 } from "./savePracticePrompt";
 
@@ -53,6 +54,48 @@ describe("savePromptLevel", () => {
     assert.equal(
       savePromptLevel({ isSignedIn: true, totalSessions: 99, atSessionBoundary: true, now: {} }),
       "none",
+    );
+  });
+});
+
+describe("shouldShowSaveBanner", () => {
+  it("stays hidden until there has been repeated value (2 sessions on 2 days)", () => {
+    // Before value: banner level, but not enough sessions/days.
+    assert.equal(
+      shouldShowSaveBanner({ level: "banner", totalSessions: 1, daysPracticed: 1 }),
+      false,
+    );
+    // Two sessions but all on a single day — not yet.
+    assert.equal(
+      shouldShowSaveBanner({ level: "banner", totalSessions: 2, daysPracticed: 1 }),
+      false,
+    );
+    // Active two days but only one session — not yet.
+    assert.equal(
+      shouldShowSaveBanner({ level: "banner", totalSessions: 1, daysPracticed: 2 }),
+      false,
+    );
+  });
+
+  it("shows once both thresholds are met", () => {
+    assert.equal(
+      shouldShowSaveBanner({ level: "banner", totalSessions: 2, daysPracticed: 2 }),
+      true,
+    );
+    assert.equal(
+      shouldShowSaveBanner({ level: "banner", totalSessions: 5, daysPracticed: 3 }),
+      true,
+    );
+  });
+
+  it("never shows when the base level isn't a banner", () => {
+    assert.equal(
+      shouldShowSaveBanner({ level: "none", totalSessions: 9, daysPracticed: 9 }),
+      false,
+    );
+    assert.equal(
+      shouldShowSaveBanner({ level: "blocking", totalSessions: 9, daysPracticed: 9 }),
+      false,
     );
   });
 });

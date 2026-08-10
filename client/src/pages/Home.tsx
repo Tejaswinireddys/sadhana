@@ -33,7 +33,7 @@ import { ScrollRow } from "@/components/ScrollRow";
 import { ResponsiveDetails } from "@/components/ResponsiveDetails";
 import { HomeWelcomeHeader } from "@/components/home/HomeWelcomeHeader";
 import { SavePracticeBanner } from "@/components/SavePracticePrompt";
-import { dismissBanner, savePromptLevel } from "@/lib/savePracticePrompt";
+import { dismissBanner, savePromptLevel, shouldShowSaveBanner } from "@/lib/savePracticePrompt";
 import { Reveal } from "@/components/motion";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
@@ -344,6 +344,12 @@ export default function Home() {
   const savePrompt = savePromptDismissed
     ? "none"
     : savePromptLevel({ isSignedIn, totalSessions: stats?.totalSessions ?? 0 });
+  // Only nudge to save once there's been repeated value: 2+ sessions on 2+ days.
+  const showSaveBanner = shouldShowSaveBanner({
+    level: savePrompt,
+    totalSessions: stats?.totalSessions ?? 0,
+    daysPracticed: stats?.daysPracticed ?? 0,
+  });
 
   return (
     <div className="space-y-10">
@@ -353,8 +359,8 @@ export default function Home() {
         displayName={practitionerName}
       />
 
-      {/* Guests with practice on the line get one honest heads-up per day. */}
-      {savePrompt === "banner" && (
+      {/* Guests with repeated practice on the line get one honest heads-up per day. */}
+      {showSaveBanner && (
         <SavePracticeBanner
           totalSessions={stats?.totalSessions ?? 0}
           currentStreak={stats?.currentStreak ?? 0}
