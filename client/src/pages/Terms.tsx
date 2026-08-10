@@ -73,11 +73,19 @@ export default function Terms() {
         <p className="text-muted-foreground">
           Core guest practice, the pose safety library, captions, and basic modifications stay free.
           Optional Plus and Coach plans are clearly priced on the Plans page. When Stripe checkout is
-          configured on a deployment: (1) you are charged only after completing checkout, (2) you can
-          cancel anytime via Manage subscription (Stripe Customer Portal) with no chatbot gate, (3) we
-          do not use countdown-discount paywalls or pre-checked upsells, and (4) canceling stops future
-          renewals at period end — you keep access until then. If paid checkout is not configured, you
-          will not be charged.
+          configured: (1) you are charged only after completing checkout with a recorded consent
+          audit (timestamp, IP, exact price and terms shown, and the rendered paywall HTML); (2) you
+          can cancel in exactly two taps from Home — one confirmation screen stating your
+          access-until date, then done — with no chat, phone, email, or retention interstitial; (3)
+          we send an immediate cancellation confirmation email and show an in-app banner with the
+          access-until date; (4) we email a renewal reminder 3 days before every charge (monthly and
+          annual) with amount, date, and a one-click cancel link; (5) first-charge refunds are
+          self-serve for 14 days and auto-approved; (6){" "}
+          <Link href="/cancel" className="underline underline-offset-2">
+            /cancel
+          </Link>{" "}
+          publishes plain cancel instructions with no upsell; (7) we do not use countdown-discount
+          paywalls or pre-checked upsells. If paid checkout is not configured, you will not be charged.
         </p>
       </section>
 

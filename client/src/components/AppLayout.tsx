@@ -339,7 +339,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
   const [location] = useLocation();
   const { user, isSignedIn } = useAuth();
-  const isChromeFree = location === "/welcome" || location === "/register";
+  const isChromeFree =
+    location === "/welcome" ||
+    location === "/register" ||
+    location === "/cancel" ||
+    location.startsWith("/cancel/");
 
   if (isChromeFree) {
     return <>{children}</>;
@@ -408,6 +412,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {" · "}
             <Link href="/terms" className="underline-offset-2 hover:underline">
               Terms
+            </Link>
+            {" · "}
+            <Link href="/cancel" className="underline-offset-2 hover:underline" data-testid="footer-cancel">
+              Cancel
             </Link>
             {" · "}
             <Link href="/health-disclaimer" className="underline-offset-2 hover:underline">

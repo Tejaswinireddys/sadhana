@@ -25,6 +25,7 @@ import Register from "@/pages/Register";
 const MARKETING_PATHS = new Set([
   "/welcome",
   "/register",
+  "/cancel",
   "/privacy",
   "/terms",
   "/health-disclaimer",
@@ -64,6 +65,8 @@ const PoseCoach = lazyPage(() => import("@/pages/PoseCoach"));
 const Instructors = lazyPage(() => import("@/pages/Instructors"));
 const Household = lazyPage(() => import("@/pages/Household"));
 const Corporate = lazyPage(() => import("@/pages/Corporate"));
+const Cancel = lazyPage(() => import("@/pages/Cancel"));
+const CancelConfirm = lazyPage(() => import("@/pages/CancelConfirm"));
 
 function RouteFallback() {
   return (
@@ -123,6 +126,8 @@ function AppRouter() {
           <Route path="/terms" component={Terms} />
           <Route path="/health-disclaimer" component={HealthDisclaimer} />
           <Route path="/plus" component={Plus} />
+          <Route path="/cancel/confirm" component={CancelConfirm} />
+          <Route path="/cancel" component={Cancel} />
           <Route path="/challenges" component={Challenges} />
           <Route path="/adaptive" component={AdaptivePlan} />
           <Route path="/pose-coach" component={PoseCoach} />

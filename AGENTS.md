@@ -23,3 +23,4 @@ run in one process — there is no separate frontend dev server.
 - With Postgres configured, the schema is auto-applied on boot from `drizzle/schema.sql` (no manual migration step needed); `npm run db:push` is available for manual schema pushes.
 - The service worker / PWA (`client/public/sw.js`) is production-only and not active in `npm run dev`.
 - Optional Python scripts under `script/` (voice/asset generation) and the Playwright demo scripts are content pipelines, not needed to run or test the app.
+- **Subscription compliance:** cancel is two taps from Home (`/` → `/cancel/confirm` → Confirm). Public instructions at `/cancel`. Consent audit + paywall HTML snapshots live under `.data/` (`billing-consent-audit.jsonl`, `billing-paywall-snapshots/`). Renewal reminders run via `startBillingScheduler()` (every 6h). Seed a demo entitlement locally with `POST /api/billing/demo-subscribe`. Email uses `RESEND_API_KEY` or `EMAIL_WEBHOOK_URL` (otherwise logs).

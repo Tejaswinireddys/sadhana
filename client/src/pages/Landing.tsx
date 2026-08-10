@@ -374,6 +374,9 @@ export default function Landing() {
             <Link href="/terms" className="cursor-pointer transition-colors duration-200 hover:text-foreground">
               Terms
             </Link>
+            <Link href="/cancel" className="cursor-pointer transition-colors duration-200 hover:text-foreground">
+              Cancel
+            </Link>
             <Link href="/health-disclaimer" className="cursor-pointer transition-colors duration-200 hover:text-foreground">
               Health disclaimer
             </Link>
