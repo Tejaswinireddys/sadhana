@@ -340,7 +340,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user, isSignedIn } = useAuth();
   const isChromeFree =
-    location === "/welcome" || location === "/register" || location === "/start";
+    location === "/welcome" ||
+    location === "/register" ||
+    location === "/start" ||
+    location === "/verify";
 
   if (isChromeFree) {
     return <>{children}</>;

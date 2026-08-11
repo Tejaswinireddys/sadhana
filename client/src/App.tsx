@@ -26,6 +26,7 @@ const MARKETING_PATHS = new Set([
   "/welcome",
   "/register",
   "/start",
+  "/verify",
   "/privacy",
   "/terms",
   "/health-disclaimer",
@@ -55,6 +56,7 @@ const Search = lazyPage(() => import("@/pages/Search"));
 const DesignSystem = lazyPage(() => import("@/pages/DesignSystem"));
 const Settings = lazyPage(() => import("@/pages/Settings"));
 const Account = lazyPage(() => import("@/pages/Account"));
+const VerifyEmail = lazyPage(() => import("@/pages/VerifyEmail"));
 const Privacy = lazyPage(() => import("@/pages/Privacy"));
 const Terms = lazyPage(() => import("@/pages/Terms"));
 const HealthDisclaimer = lazyPage(() => import("@/pages/HealthDisclaimer"));
@@ -122,6 +124,7 @@ function AppRouter() {
           <Route path="/search" component={Search} />
           <Route path="/settings" component={Settings} />
           <Route path="/account" component={Account} />
+          <Route path="/verify" component={VerifyEmail} />
           <Route path="/privacy" component={Privacy} />
           <Route path="/terms" component={Terms} />
           <Route path="/health-disclaimer" component={HealthDisclaimer} />

@@ -17,6 +17,8 @@ export const AUTH_COOKIE = "sadhana_session";
 export const SESSION_DAYS = 90;
 /** Password-reset codes expire quickly and are single-use. */
 export const RESET_TOKEN_MINUTES = 60;
+/** Email verification links stay valid longer so inbox delay is forgiving. */
+export const VERIFY_TOKEN_HOURS = 48;
 
 /** `scrypt$<salt-hex>$<key-hex>` — self-describing so the format can evolve. */
 export async function hashPassword(password: string): Promise<string> {
@@ -88,4 +90,16 @@ export function hashResetToken(token: string): string {
 
 export function resetTokenExpiry(from = new Date()): string {
   return new Date(from.getTime() + RESET_TOKEN_MINUTES * 60_000).toISOString();
+}
+
+export function newVerifyToken(): string {
+  return newResetToken();
+}
+
+export function hashVerifyToken(token: string): string {
+  return hashResetToken(token);
+}
+
+export function verifyTokenExpiry(from = new Date()): string {
+  return new Date(from.getTime() + VERIFY_TOKEN_HOURS * 3_600_000).toISOString();
 }
