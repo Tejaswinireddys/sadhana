@@ -298,6 +298,14 @@ export function PoseDemoStage({
       data-testid={testId ?? `pose-demo-stage-${slug}`}
       data-media={useVideo && videoReady ? "video" : "illustration"}
     >
+      {useVideo && videoReady && variant === "detail" && (
+        <span
+          className="absolute left-3 top-3 z-20 rounded-full bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary shadow-soft backdrop-blur-sm"
+          data-testid={`pose-demo-badge-${slug}`}
+        >
+          Demo video
+        </span>
+      )}
       <div className={cn("absolute inset-0", caption ? "px-2 pb-14 pt-9" : "p-2")}>
         {useVideo && showSources && (
           <video
@@ -317,8 +325,8 @@ export function PoseDemoStage({
             onError={() => setVideoFailed(true)}
             data-testid={`pose-demo-video-${slug}`}
           >
-            <source src={media.mp4} type="video/mp4" />
             <source src={media.webm} type="video/webm" />
+            <source src={media.mp4} type="video/mp4" />
             {media.captions ? (
               <track kind="captions" src={media.captions} srcLang="en" label="English" />
             ) : null}

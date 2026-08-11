@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PoseImage } from "@/components/PoseImage";
+import { PoseCardVideo } from "@/components/PoseCardVideo";
 import { usePractice } from "@/context/PracticeContext";
 import { asanaBySlug } from "@/data/content";
 import { audienceChipFromProfileId, profileById } from "@/data/profiles";
@@ -345,14 +345,11 @@ export default function Trainer() {
                         {i + 1}
                       </span>
                       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-20">
-                        <PoseImage
+                        <PoseCardVideo
                           slug={p.slug}
                           alt={asana?.english ?? p.slug}
-                          aspect="aspect-square"
-                          thumb
-                          rounded="rounded-lg"
-                          breath={false}
-                          shadow={false}
+                          className="h-full w-full"
+                          testId={`trainer-pose-video-${p.slug}`}
                         />
                       </div>
                       <div className="min-w-0 flex-1">

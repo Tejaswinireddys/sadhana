@@ -13,6 +13,7 @@ import { todayISO } from "@/lib/sadhana";
 import { ArrowLeft, Check, Star } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Pressable } from "@/components/motion";
+import { KidsPoseVideo } from "@/components/KidsPoseVideo";
 
 export default function KidsPose() {
   const { slug } = useParams();
@@ -72,12 +73,10 @@ export default function KidsPose() {
 
           <div className="grid items-center gap-6 md:grid-cols-2">
             <div className="flex items-center justify-center rounded-2xl bg-[hsl(41_80%_88%)] p-6 dark:bg-white/5">
-              <img
-                src={`${import.meta.env.BASE_URL}kids/${pose.image}.png`}
+              <KidsPoseVideo
+                slug={pose.slug}
                 alt={pose.poseName}
-                className="kids-bob h-64 w-64 object-contain"
-                draggable={false}
-                data-testid={`img-kids-${pose.slug}`}
+                testId={`img-kids-${pose.slug}`}
               />
             </div>
             <div className="space-y-3">

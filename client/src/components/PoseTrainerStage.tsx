@@ -1,19 +1,19 @@
 /**
- * PoseTrainerStage — human teaching figure for pose explanation & guided practice.
+ * PoseTrainerStage — BetterMe-style presentation + teaching figure.
  *
- * Prefer real motion over Ken Burns zooms on a still:
- *   1. Rigged WebGL figurine when keyframes exist (limbs travel with the cue)
- *   2. Illustrated PoseHumanStage that crossfades entry → peak per narration step
+ * Idle / watch: looping step-journey demo video for every pose that ships a clip
+ * (library + detail + guided intro moments).
  *
- * Looping step-journey clips remain available for library cards via poseMedia.
+ * Active cue teaching: narration-synced human illustration or rigged WebGL so
+ * limbs/focus follow each step — clearer than a looping clip alone.
  */
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
 import { PoseHumanStage } from "@/components/PoseHumanStage";
 import { asanaBySlug } from "@/data/content";
 import { hasRigSequence } from "@/data/poseKeyframes";
 import { poseHasShapeJourney } from "@/data/poseKeyImages";
-import { poseMediaFor } from "@/data/poseMedia";
+import { poseHasVideo, poseMediaFor } from "@/data/poseMedia";
 import type { FocusZone } from "@/lib/poseMoments";
 
 export type PoseTrainerStageProps = {
@@ -58,6 +58,8 @@ export function PoseTrainerStage({
   onModeChange,
 }: PoseTrainerStageProps) {
   const asana = asanaBySlug(slug);
+  const [videoBlocked, setVideoBlocked] = useState(false);
+
   const shapeJourney = useMemo(
     () =>
       !!asana &&
@@ -71,20 +73,59 @@ export function PoseTrainerStage({
 
   const useRig = hasRigSequence(slug);
   const media = useMemo(() => poseMediaFor(slug), [slug]);
+  const hasClip = poseHasVideo(slug);
 
-  const effectiveStepPose = guideActive ? stepPoseKey : poseKey;
-  // Only apply whole-body momentum CSS when we are on the illustrated path and
-  // the pose actually changes shape — otherwise keep the figure steady.
-  const effectiveMomentum = !useRig && shapeJourney && guideActive ? momentum ?? "" : "";
+  /** Looping presentation video whenever we are not mid-cue teaching. */
+  const wantPresentation = hasClip && !guideActive && !videoBlocked;
 
   useEffect(() => {
-    onModeChange?.(useRig ? "3d" : "illustrated");
-  }, [useRig, onModeChange]);
+    setVideoBlocked(false);
+  }, [slug]);
+
+  useEffect(() => {
+    if (wantPresentation) onModeChange?.("video");
+    else onModeChange?.(useRig ? "3d" : "illustrated");
+  }, [wantPresentation, useRig, onModeChange]);
+
+  const effectiveStepPose = guideActive ? stepPoseKey : poseKey;
+  const effectiveMomentum = !useRig && shapeJourney && guideActive ? momentum ?? "" : "";
+
+  if (wantPresentation) {
+    return (
+      <PoseDemoStage
+        key={`video-${slug}`}
+        slug={slug}
+        english={english}
+        sanskrit={sanskrit}
+        poseKey={poseKey}
+        media={media}
+        prefer3D={false}
+        preferVideo
+        // Presentation loops even during quiet transitions (guided idle).
+        playing={true}
+        restartToken={restartToken}
+        stepIndex={stepIndex}
+        stepProgress={stepProgress}
+        stepCount={asana?.steps.length ?? 1}
+        stepPoseKey={effectiveStepPose ?? undefined}
+        focusZone={null}
+        caption={null}
+        side={side}
+        variant={variant}
+        className={className}
+        onMediaModeChange={(mode) =>
+          onModeChange?.(mode === "video" ? "video" : "illustrated")
+        }
+        onVideoUnavailable={() => setVideoBlocked(true)}
+        data-testid={testId}
+      />
+    );
+  }
 
   if (useRig) {
     return (
       <PoseDemoStage
-        key={slug}
+        key={`rig-${slug}`}
         slug={slug}
         english={english}
         sanskrit={sanskrit}

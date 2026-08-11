@@ -41,11 +41,15 @@ The script writes files to `client/public/videos/poses/` and regenerates
 **Coverage rule:** every entry in `ASANAS` must have both `.webm` and `.mp4` and
 appear in `POSE_VIDEOS_READY`. Unit tests enforce this.
 
-**Teaching UI:** pose detail and guided practice use the illustrated / 3D trainer
-(`PoseTrainerStage`) so limbs and shapes change with each cue. Journey clips
-power the asana library cards.
+**Presentation UI (BetterMe-style):** idle pose detail, asana library cards,
+Trainer composed lists, Search results, and guided transition/idle moments play
+the looping journey clip via `PoseTrainerStage` / `PoseCardVideo`.
 
-Kids story poses use illustrated stills (story art), generated optionally via:
+**Teaching UI:** once step-by-step training or a guided hold/instruction is
+active, `PoseTrainerStage` switches to the illustrated / 3D trainer so limbs and
+focus cues follow narration.
+
+Kids story poses play Ken Burns clips when generated:
 
 ```bash
 npm run gen:kids-pose-videos

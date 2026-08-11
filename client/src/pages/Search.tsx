@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/EmptyState";
-import { PoseImage } from "@/components/PoseImage";
+import { PoseCardVideo } from "@/components/PoseCardVideo";
 import { ASANAS, PATHWAYS, BREATHING, AFFIRMATIONS } from "@/data/content";
 import { KIDS_POSES, KIDS_BREATH } from "@/data/kids";
 import { Wind, Route as RouteIcon, Sparkles, LayoutGrid, Smile, Search as SearchIcon } from "lucide-react";
@@ -199,14 +199,11 @@ export default function Search() {
                     >
                       <CardContent className="flex items-center gap-3 p-3">
                         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg">
-                          <PoseImage
+                          <PoseCardVideo
                             slug={a.slug}
                             alt={a.english}
-                            rounded="rounded-lg"
-                            aspect="aspect-square"
-                        thumb
-                            shadow={false}
-                            breath={false}
+                            className="h-full w-full"
+                            testId={`search-pose-video-${a.slug}`}
                           />
                         </div>
                         <div className="min-w-0 flex-1">

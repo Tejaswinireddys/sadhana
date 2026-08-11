@@ -24,3 +24,4 @@ run in one process — there is no separate frontend dev server.
 - The service worker / PWA (`client/public/sw.js`) is production-only and not active in `npm run dev`.
 - Optional Python scripts under `script/` (voice/asset generation) and the Playwright demo scripts are content pipelines, not needed to run or test the app.
 - **Marketing UX:** `/welcome` is quiz-first (primary CTA → `/start`). `/start` is chrome-free (no sidebar). The practice app shell stays for `/` and in-app routes.
+- **Pose presentation videos:** every catalog pose has `client/public/videos/poses/{slug}.{webm,mp4}` (regen with `npm run gen:pose-videos`). Idle detail / library / search / trainer show looping clips; active teaching uses illustrated/3D (`PoseTrainerStage`). Kids clips: `npm run gen:kids-pose-videos`. See `docs/pose-videos.md`.
