@@ -37,6 +37,11 @@ import {
 } from "./billingCompliance";
 import { captureServerEvent } from "./productAnalytics";
 import { storage } from "./storage";
+import {
+  appBaseUrl,
+  sendPaymentFailedEmail,
+  sendSubscriptionStartedEmail,
+} from "./email";
 
 const stripeKey = process.env.STRIPE_SECRET_KEY || "";
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
@@ -616,6 +621,53 @@ export function registerBillingRoutes(app: Express) {
           stripeCheckoutSessionId: session.id,
           isFirstCharge: isFirst,
           refundedAt: null,
+        });
+        void storage.upsertEntitlement(ownerId, {
+          plan,
+          status: "active",
+          renewsAt,
+          stripeCustomerId: customerId || prev?.stripeCustomerId || null,
+          stripeSubscriptionId: subscriptionId || prev?.stripeSubscriptionId || null,
+        });
+        void captureServerEvent(ownerId, "purchase_completed", {
+          flow_id: session.metadata?.flow_id || "plus_page",
+          plan,
+          amount,
+          currency,
+        });
+        if (email) {
+          void sendSubscriptionStartedEmail({
+            to: email,
+            plan,
+            manageUrl: `${appBaseUrl()}/plus`,
+          });
+        }
+      }
+    }
+
+    if (event.type === "invoice.payment_failed") {
+      const invoice = event.data.object as Stripe.Invoice;
+      const subId = invoiceSubscriptionId(invoice);
+      let ownerId = "";
+      let plan = "plus";
+      if (subId) {
+        for (const [oid, ent] of allEntitlements()) {
+          if (ent.stripeSubscriptionId !== subId) continue;
+          ownerId = oid;
+          plan = ent.plan || "plus";
+          setEntitlement(oid, { ...ent, status: "past_due" });
+          break;
+        }
+      }
+      const email =
+        (ownerId ? getEntitlement(ownerId)?.email : undefined) ||
+        invoice.customer_email ||
+        undefined;
+      if (email) {
+        void sendPaymentFailedEmail({
+          to: email,
+          plan,
+          manageUrl: `${appBaseUrl()}/plus`,
         });
       }
     }
