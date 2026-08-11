@@ -632,9 +632,13 @@ export default function Settings() {
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            Off by default. Never includes journal text, emails, or injury notes — only event names
-            like practice_start.
+            Off by default for in-app session events. Never includes journal text, emails, or injury
+            notes. When PostHog is configured, anonymous acquisition-funnel events from /start may
+            still be captured so we can fix drop-off — see Privacy for details.
           </p>
+          <Button variant="outline" className="min-h-11 w-full justify-start" asChild>
+            <Link href="/analytics/funnel">Open funnel analytics dashboard</Link>
+          </Button>
           <div className="flex items-center justify-between gap-3">
             <Label htmlFor="voice-control">Hands-free voice control in guided practice</Label>
             <Switch

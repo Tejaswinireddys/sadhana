@@ -8,6 +8,7 @@ import type { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { createRateLimiter } from "./security";
 import { loadMap, saveMap } from "./jsonStore";
+import { captureServerEvent } from "./productAnalytics";
 import { storage } from "./storage";
 import {
   appBaseUrl,
@@ -49,11 +50,13 @@ type LegacyEntitlement = {
   lastRenewalReminderAt?: string;
 };
 
-/** Sidecar for fields not yet on the entitlements table (email ops / dedupe). */
+/** Sidecar for fields not yet on the entitlements table (email ops / analytics). */
 type EmailMeta = {
   email?: string;
   cancelAtPeriodEnd?: boolean;
   lastRenewalReminderAt?: string;
+  subscribedAt?: string;
+  flowId?: string;
 };
 
 const emailMeta = loadMap<EmailMeta>(EMAIL_META_STORE);
@@ -243,6 +246,7 @@ export function registerBillingRoutes(app: Express) {
     }
     const origin = appOrigin(req);
     const ownerId = req.ownerId || "";
+    const flowId = String(req.body?.flow_id || req.body?.flowId || "plus_page").slice(0, 64);
     const existing = await storage.getEntitlement(ownerId);
     let customerEmail: string | undefined;
     if (req.userId) {
@@ -261,9 +265,9 @@ export function registerBillingRoutes(app: Express) {
         customer_email: existing?.stripeCustomerId ? undefined : customerEmail,
         client_reference_id: ownerId || undefined,
         subscription_data: {
-          metadata: { sadhanaPlan: plan, ownerId },
+          metadata: { sadhanaPlan: plan, ownerId, flow_id: flowId },
         },
-        metadata: { sadhanaPlan: plan, ownerId },
+        metadata: { sadhanaPlan: plan, ownerId, flow_id: flowId },
       });
       res.json({ url: session.url });
     } catch (e) {
@@ -331,12 +335,14 @@ export function registerBillingRoutes(app: Express) {
         typeof session.customer === "string" ? session.customer : session.customer?.id;
       const subscriptionId =
         typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+      const flowId = session.metadata?.flow_id || "plus_page";
       const email = await emailForOwner(
         ownerId,
         session.customer_details?.email || session.customer_email,
       );
       if (ownerId) {
         const prev = await storage.getEntitlement(ownerId);
+        const prevMeta = emailMeta.get(ownerId) || {};
         await storage.upsertEntitlement(ownerId, {
           plan,
           status: "active",
@@ -345,12 +351,23 @@ export function registerBillingRoutes(app: Express) {
           stripeSubscriptionId: subscriptionId || prev?.stripeSubscriptionId || null,
         });
         setEmailMeta(ownerId, {
-          email: email || emailMeta.get(ownerId)?.email,
+          email: email || prevMeta.email,
           cancelAtPeriodEnd: false,
+          subscribedAt: prevMeta.subscribedAt || new Date().toISOString(),
+          flowId,
         });
         if (email) {
           void sendSubscriptionStartedEmail({ to: email, plan, manageUrl: manageUrl() });
         }
+        const amount =
+          typeof session.amount_total === "number" ? session.amount_total / 100 : 0;
+        const currency = (session.currency || "usd").toUpperCase();
+        void captureServerEvent(ownerId, "purchase_completed", {
+          flow_id: flowId,
+          plan,
+          amount,
+          currency,
+        });
       }
     }
 
@@ -406,6 +423,8 @@ export function registerBillingRoutes(app: Express) {
         setEmailMeta(ownerId, {
           email: email || prevMeta.email,
           cancelAtPeriodEnd: false,
+          subscribedAt: prevMeta.subscribedAt,
+          flowId: prevMeta.flowId,
         });
         // If they canceled immediately (not via period-end flag), still notify.
         if (email && !prevMeta.cancelAtPeriodEnd) {
@@ -416,6 +435,21 @@ export function registerBillingRoutes(app: Express) {
             manageUrl: manageUrl(),
           });
         }
+        let sessionsCompleted = 0;
+        try {
+          const rows = await storage.getSessions(ownerId);
+          sessionsCompleted = rows.length;
+        } catch {
+          /* storage may be unavailable mid-boot */
+        }
+        const subscribedMs = prevMeta.subscribedAt ? Date.parse(prevMeta.subscribedAt) : NaN;
+        const daysActive = Number.isFinite(subscribedMs)
+          ? Math.max(0, Math.floor((Date.now() - subscribedMs) / 86_400_000))
+          : 0;
+        void captureServerEvent(ownerId, "subscription_cancelled", {
+          days_active: daysActive,
+          sessions_completed: sessionsCompleted,
+        });
       }
     }
 

@@ -1,17 +1,21 @@
 /**
  * Premium acquisition quiz: large option tiles → building → plan with pose previews
  * → loads a real guided session (not an empty Practice hub).
+ * Emits funnel product analytics events (PostHog + local buffer).
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Button } from "@/components/ui/button";
 import { LotusMark } from "@/components/Logo";
 import { KEYS, writeString, type ExperienceLevel, type PracticeIntent } from "@/lib/localPrefs";
+import { captureProduct, rememberFunnelFlowId, trackAppFirstOpen } from "@/lib/productAnalytics";
 import { cn } from "@/lib/utils";
 import { usePractice } from "@/context/PracticeContext";
 import { asanaBySlug } from "@/data/content";
 import { buildQuizPlan, parseProgramRef, type QuizAnswers } from "@/data/quizPlan";
+import { parseAttribution, attributionProps } from "../../../funnel/attribution";
+import { resolveFlowId } from "../../../funnel/flows";
 import { ArrowLeft, ArrowRight, Check, ChevronRight, Sparkles } from "lucide-react";
 
 type Option = { id: string; label: string; hint?: string };
@@ -85,6 +89,24 @@ export default function StartQuiz() {
   const [selected, setSelected] = useState<string | null>(null);
   const [seeded, setSeeded] = useState(false);
 
+  const attr = useMemo(() => {
+    if (typeof window === "undefined") return parseAttribution({});
+    return parseAttribution(new URLSearchParams(window.location.search));
+  }, []);
+  const flowId = useMemo(
+    () => resolveFlowId(attr.flow_id, attr.ref),
+    [attr.flow_id, attr.ref],
+  );
+  const utm = useMemo(() => attributionProps(attr), [attr]);
+
+  const startedRef = useRef(false);
+  const quizStartedAt = useRef(Date.now());
+  const questionShownAt = useRef(Date.now());
+  const lastQuestionId = useRef(QUESTIONS[0]?.id ?? "goal");
+  const abandonedRef = useRef(false);
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+
   const question = QUESTIONS[index];
   const progress = ((index + (phase === "quiz" ? 1 : QUESTIONS.length)) / QUESTIONS.length) * 100;
   const plan = useMemo(() => buildQuizPlan(answers), [answers]);
@@ -102,21 +124,95 @@ export default function StartQuiz() {
   }, [seeded]);
 
   useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    rememberFunnelFlowId(flowId);
+    quizStartedAt.current = Date.now();
+    void trackAppFirstOpen(attr.ref ? `quiz:${attr.ref}` : "quiz");
+    void captureProduct("quiz_started", {
+      flow_id: flowId,
+      ref: attr.ref,
+      ...utm,
+    });
+    const q0 = QUESTIONS[0];
+    if (q0) {
+      lastQuestionId.current = q0.id;
+      questionShownAt.current = Date.now();
+      void captureProduct("quiz_question_shown", {
+        flow_id: flowId,
+        question_id: q0.id,
+        index: 0,
+      });
+    }
+  }, [flowId, attr.ref, utm]);
+
+  useEffect(() => {
+    const onLeave = () => {
+      if (abandonedRef.current || phaseRef.current !== "quiz") return;
+      abandonedRef.current = true;
+      void captureProduct("quiz_abandoned", {
+        flow_id: flowId,
+        last_question_id: lastQuestionId.current,
+      });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") onLeave();
+    };
+    window.addEventListener("pagehide", onLeave);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", onLeave);
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (!abandonedRef.current && phaseRef.current === "quiz") onLeave();
+    };
+  }, [flowId]);
+
+  useEffect(() => {
     if (phase !== "building") return;
-    const t = window.setTimeout(() => setPhase("plan"), 1400);
+    const t = window.setTimeout(() => {
+      void captureProduct("plan_revealed", { flow_id: flowId });
+      setPhase("plan");
+    }, 1400);
     return () => window.clearTimeout(t);
-  }, [phase]);
+  }, [phase, flowId]);
+
+  const showQuestion = useCallback(
+    (nextIndex: number) => {
+      const q = QUESTIONS[nextIndex];
+      if (!q) return;
+      lastQuestionId.current = q.id;
+      questionShownAt.current = Date.now();
+      void captureProduct("quiz_question_shown", {
+        flow_id: flowId,
+        question_id: q.id,
+        index: nextIndex,
+      });
+    },
+    [flowId],
+  );
 
   const pick = (optionId: string) => {
     if (!question) return;
+    const ms = Math.max(0, Date.now() - questionShownAt.current);
+    void captureProduct("quiz_answered", {
+      flow_id: flowId,
+      question_id: question.id,
+      answer: optionId,
+      ms_on_screen: ms,
+    });
     setSelected(optionId);
     const nextAnswers = { ...answers, [question.id]: optionId };
     setAnswers(nextAnswers);
     window.setTimeout(() => {
       setSelected(null);
       if (index + 1 < QUESTIONS.length) {
-        setIndex(index + 1);
+        const next = index + 1;
+        setIndex(next);
+        showQuestion(next);
       } else {
+        abandonedRef.current = true;
+        const duration = Math.max(0, Date.now() - quizStartedAt.current);
+        void captureProduct("quiz_completed", { flow_id: flowId, duration_ms: duration });
         const built = buildQuizPlan(nextAnswers);
         persistQuizPrefs(built.intent, built.experience);
         setPhase("building");

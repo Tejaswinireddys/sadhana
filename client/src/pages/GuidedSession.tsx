@@ -41,6 +41,7 @@ import { usePractice } from "@/context/PracticeContext";
 import { useToast } from "@/hooks/use-toast";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { logPracticeSession } from "@/lib/logPracticeSession";
+import { captureProduct } from "@/lib/productAnalytics";
 import { unlockAudio } from "@/lib/audioUnlock";
 import { type Mood } from "@/data/content";
 import type { Preferences } from "@shared/schema";
@@ -672,6 +673,10 @@ export default function GuidedSession() {
     pendingExtension.current = 0;
     setPostMood(null);
     enterTransition(0);
+    void captureProduct("session_started", {
+      pathway: meta.pathwaySlug || meta.label || "guided",
+      planned_minutes: meta.plannedMinutes ?? Math.max(1, Math.round(todays.length * 2)),
+    });
   };
 
   const handleSkip = () => {

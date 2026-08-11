@@ -2,6 +2,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { todayISO, type Stats } from "@/lib/sadhana";
 import { detectMilestones } from "@/lib/milestones";
 import { track } from "@/lib/analytics";
+import { captureProduct } from "@/lib/productAnalytics";
 import { recordOutcome, writeLastRpe, type RpeScore } from "@/lib/adaptiveRecovery";
 import { bumpCorporateAggregate } from "@/lib/corporate";
 import type { Milestone } from "@shared/schema";
@@ -110,6 +111,11 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
     queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
     queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
     track("practice_complete", { minutes: Math.max(1, minutes), kind });
+    void captureProduct("session_completed", {
+      actual_minutes: Math.max(1, minutes),
+      poses_completed: completed,
+      poses_skipped: skipped,
+    });
     const totalPoses = Math.max(1, completed + skipped);
     const skipRate = skipped / totalPoses;
     if (rpe != null && rpe >= 1 && rpe <= 10) {
