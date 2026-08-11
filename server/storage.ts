@@ -15,6 +15,7 @@ import {
   authSessions,
   passwordResetTokens,
   emailVerificationTokens,
+  entitlements,
 } from "@shared/schema";
 import type {
   Session,
@@ -42,10 +43,20 @@ import type {
   AuthSession,
   PasswordResetToken,
   EmailVerificationToken,
+  Entitlement,
 } from "@shared/schema";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
+
+/** Fields a caller supplies when writing an entitlement (owner/id/updatedAt are managed). */
+export type EntitlementInput = {
+  plan: string;
+  status: string;
+  renewsAt?: string | null;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+};
 
 export interface IStorage {
   createUser(email: string, passwordHash: string, displayName?: string): Promise<User>;
@@ -103,6 +114,14 @@ export interface IStorage {
   getActiveProfile(ownerId: string): Promise<UserProfile | undefined>;
   activateProfile(ownerId: string, profileId: string): Promise<UserProfile>;
   deactivateProfile(ownerId: string): Promise<void>;
+  /** Billing entitlement for an owner (one row per owner), or undefined. */
+  getEntitlement(ownerId: string): Promise<Entitlement | undefined>;
+  /** Insert or update the owner's single entitlement row. */
+  upsertEntitlement(ownerId: string, data: EntitlementInput): Promise<Entitlement>;
+  /** All entitlement rows (renewal reminders / ops). */
+  listEntitlements(): Promise<Entitlement[]>;
+  /** True when the backing store is reachable (DB SELECT 1 / in-memory always). */
+  ping(): Promise<boolean>;
   getStickers(ownerId: string): Promise<Sticker[]>;
   createSticker(ownerId: string, data: InsertSticker): Promise<Sticker>;
   getFavoriteAsanas(ownerId: string): Promise<FavoriteAsana[]>;
@@ -467,6 +486,50 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(userProfiles.ownerId, ownerId), eq(userProfiles.active, true)));
   }
 
+  async getEntitlement(ownerId: string): Promise<Entitlement | undefined> {
+    const [row] = await this.orm
+      .select()
+      .from(entitlements)
+      .where(eq(entitlements.ownerId, ownerId))
+      .limit(1);
+    return row;
+  }
+  async upsertEntitlement(ownerId: string, data: EntitlementInput): Promise<Entitlement> {
+    const values = {
+      plan: data.plan,
+      status: data.status,
+      renewsAt: data.renewsAt ?? null,
+      stripeCustomerId: data.stripeCustomerId ?? null,
+      stripeSubscriptionId: data.stripeSubscriptionId ?? null,
+      updatedAt: new Date().toISOString(),
+    };
+    const existing = await this.getEntitlement(ownerId);
+    if (existing) {
+      const [row] = await this.orm
+        .update(entitlements)
+        .set(values)
+        .where(eq(entitlements.ownerId, ownerId))
+        .returning();
+      return row;
+    }
+    const [row] = await this.orm
+      .insert(entitlements)
+      .values({ ownerId, ...values })
+      .returning();
+    return row;
+  }
+  async listEntitlements(): Promise<Entitlement[]> {
+    return this.orm.select().from(entitlements);
+  }
+  async ping(): Promise<boolean> {
+    try {
+      await this.db.execute(sql`select 1`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async getStickers(ownerId: string): Promise<Sticker[]> {
     return this.orm
       .select()
@@ -629,6 +692,7 @@ export class MemoryStorage implements IStorage {
   private journal: Journal[] = [];
   private prefs = new Map<string, Preferences>();
   private profiles: UserProfile[] = [];
+  private entitlements = new Map<string, Entitlement>();
   private stickers: Sticker[] = [];
   private favAsanas: FavoriteAsana[] = [];
   private milestones: Milestone[] = [];
@@ -908,6 +972,31 @@ export class MemoryStorage implements IStorage {
     for (const p of this.profiles) {
       if (p.ownerId === ownerId && p.active) p.active = false;
     }
+  }
+
+  async getEntitlement(ownerId: string) {
+    return this.entitlements.get(ownerId);
+  }
+  async upsertEntitlement(ownerId: string, data: EntitlementInput) {
+    const existing = this.entitlements.get(ownerId);
+    const row: Entitlement = {
+      id: existing?.id ?? this.nextId(),
+      ownerId,
+      plan: data.plan,
+      status: data.status,
+      renewsAt: data.renewsAt ?? null,
+      stripeCustomerId: data.stripeCustomerId ?? null,
+      stripeSubscriptionId: data.stripeSubscriptionId ?? null,
+      updatedAt: new Date().toISOString(),
+    };
+    this.entitlements.set(ownerId, row);
+    return row;
+  }
+  async listEntitlements() {
+    return [...this.entitlements.values()];
+  }
+  async ping() {
+    return true;
   }
 
   async getStickers(ownerId: string) {

@@ -220,6 +220,26 @@ export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
 export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
 export type UserProfile = typeof userProfiles.$inferSelect;
 
+// Billing entitlements — one row per owner (device/account). Durable in Postgres
+// so a Stripe subscription's access survives Render's ephemeral filesystem.
+export const entitlements = pgTable(
+  "entitlements",
+  {
+    id: serial("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    plan: text("plan").notNull().default("free"),
+    status: text("status").notNull().default("active"),
+    renewsAt: text("renews_at"),
+    stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => ({
+    ownerUnique: uniqueIndex("entitlements_owner_id_unique").on(t.ownerId),
+  }),
+);
+export type Entitlement = typeof entitlements.$inferSelect;
+
 // Kids stickers earned by completing a kids pose
 export const kidsStickers = pgTable("kids_stickers", {
   id: serial("id").primaryKey(),

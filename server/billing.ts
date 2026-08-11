@@ -1,6 +1,7 @@
 /**
  * Stripe Checkout for Plus / Coach — only active when STRIPE_SECRET_KEY is set.
  * Clear pricing, Billing Portal cancel path, no dark patterns.
+ * Entitlements persist in Postgres (with a one-time JSON→DB migration).
  * Sends transactional billing emails when a recipient address is known.
  */
 import type { Express, Request, Response } from "express";
@@ -34,23 +35,74 @@ if (stripe && !webhookSecret) {
   );
 }
 
-type Entitlement = {
+const LEGACY_STORE = "billing-entitlements";
+const EMAIL_META_STORE = "billing-email-meta";
+
+/** Shape of the retired JSON-file entitlement store, for one-time migration. */
+type LegacyEntitlement = {
   plan: string;
   status: string;
   renewsAt: string | null;
   stripeCustomerId?: string;
-  /** Best-known billing contact (Stripe customer / checkout / account). */
   email?: string;
   cancelAtPeriodEnd?: boolean;
-  /** ISO day we last sent a renewal reminder (dedupe). */
   lastRenewalReminderAt?: string;
 };
 
-const STORE = "billing-entitlements";
-const entitlements = loadMap<Entitlement>(STORE);
+/** Sidecar for fields not yet on the entitlements table (email ops / dedupe). */
+type EmailMeta = {
+  email?: string;
+  cancelAtPeriodEnd?: boolean;
+  lastRenewalReminderAt?: string;
+};
 
-function persist() {
-  saveMap(STORE, entitlements);
+const emailMeta = loadMap<EmailMeta>(EMAIL_META_STORE);
+
+function persistEmailMeta() {
+  saveMap(EMAIL_META_STORE, emailMeta);
+}
+
+function setEmailMeta(ownerId: string, patch: EmailMeta) {
+  const prev = emailMeta.get(ownerId) || {};
+  emailMeta.set(ownerId, { ...prev, ...patch });
+  persistEmailMeta();
+}
+
+/**
+ * One-time import of any entitlements left in the old JSON file store (which sat
+ * on Render's ephemeral disk) into Postgres. Idempotent: only fills owners that
+ * don't already have a row, so it's safe to run on every boot.
+ */
+export async function migrateBillingEntitlements(): Promise<number> {
+  let imported = 0;
+  try {
+    const legacy = loadMap<LegacyEntitlement>(LEGACY_STORE);
+    for (const [ownerId, e] of legacy) {
+      if (!ownerId) continue;
+      if (await storage.getEntitlement(ownerId)) continue;
+      await storage.upsertEntitlement(ownerId, {
+        plan: e.plan,
+        status: e.status,
+        renewsAt: e.renewsAt ?? null,
+        stripeCustomerId: e.stripeCustomerId ?? null,
+        stripeSubscriptionId: null,
+      });
+      if (e.email || e.cancelAtPeriodEnd || e.lastRenewalReminderAt) {
+        setEmailMeta(ownerId, {
+          email: e.email,
+          cancelAtPeriodEnd: e.cancelAtPeriodEnd,
+          lastRenewalReminderAt: e.lastRenewalReminderAt,
+        });
+      }
+      imported++;
+    }
+  } catch (err) {
+    console.warn("[billing] entitlement migration skipped:", (err as Error).message);
+  }
+  if (imported > 0) {
+    console.log(`[billing] migrated ${imported} entitlement(s) from JSON store to Postgres`);
+  }
+  return imported;
 }
 
 const billLimit = createRateLimiter({ windowMs: 60_000, max: 20 });
@@ -78,7 +130,7 @@ function priceId(plan: string, interval: string): string | null {
 async function emailForOwner(ownerId: string, fallback?: string | null): Promise<string | undefined> {
   const trimmed = fallback?.trim().toLowerCase();
   if (trimmed && trimmed.includes("@")) return trimmed;
-  const existing = entitlements.get(ownerId)?.email;
+  const existing = emailMeta.get(ownerId)?.email;
   if (existing) return existing;
   const match = /^user:(\d+)$/.exec(ownerId);
   if (!match) return undefined;
@@ -109,25 +161,26 @@ function subscriptionIdFromInvoice(invoice: Stripe.Invoice): string | undefined 
 export async function dispatchRenewalReminders(now = new Date()): Promise<number> {
   const horizon = now.getTime() + 3 * 86_400_000;
   let sent = 0;
-  for (const [ownerId, row] of entitlements) {
-    if (!row.email || !row.renewsAt) continue;
+  const rows = await storage.listEntitlements();
+  for (const row of rows) {
+    const meta = emailMeta.get(row.ownerId) || {};
+    if (!meta.email || !row.renewsAt) continue;
     if (row.plan === "free") continue;
     if (row.status !== "active" && row.status !== "trialing") continue;
-    if (row.cancelAtPeriodEnd) continue;
+    if (meta.cancelAtPeriodEnd) continue;
     const renewMs = new Date(row.renewsAt).getTime();
     if (Number.isNaN(renewMs) || renewMs < now.getTime() || renewMs > horizon) continue;
     const dayKey = row.renewsAt.slice(0, 10);
-    if (row.lastRenewalReminderAt === dayKey) continue;
+    if (meta.lastRenewalReminderAt === dayKey) continue;
     await sendRenewalReminderEmail({
-      to: row.email,
+      to: meta.email,
       plan: row.plan,
       chargeDate: row.renewsAt,
       manageUrl: manageUrl(),
     });
-    entitlements.set(ownerId, { ...row, lastRenewalReminderAt: dayKey });
+    setEmailMeta(row.ownerId, { ...meta, lastRenewalReminderAt: dayKey });
     sent += 1;
   }
-  if (sent) persist();
   return sent;
 }
 
@@ -154,17 +207,18 @@ export function registerBillingRoutes(app: Express) {
     });
   });
 
-  app.get("/api/billing/entitlement", (req, res) => {
-    const row = entitlements.get(req.ownerId || "") || {
+  app.get("/api/billing/entitlement", async (req, res) => {
+    const row = (await storage.getEntitlement(req.ownerId || "")) ?? {
       plan: "free",
       status: "active",
       renewsAt: null,
     };
+    const meta = emailMeta.get(req.ownerId || "") || {};
     res.json({
       plan: row.plan,
       status: row.status,
       renewsAt: row.renewsAt,
-      cancelAtPeriodEnd: row.cancelAtPeriodEnd ?? false,
+      cancelAtPeriodEnd: meta.cancelAtPeriodEnd ?? false,
     });
   });
 
@@ -189,7 +243,7 @@ export function registerBillingRoutes(app: Express) {
     }
     const origin = appOrigin(req);
     const ownerId = req.ownerId || "";
-    const existing = entitlements.get(ownerId);
+    const existing = await storage.getEntitlement(ownerId);
     let customerEmail: string | undefined;
     if (req.userId) {
       const user = await storage.getUserById(req.userId);
@@ -223,7 +277,7 @@ export function registerBillingRoutes(app: Express) {
       return res.status(503).json({ error: "Billing is not configured on this deployment" });
     }
     const ownerId = req.ownerId || "";
-    const row = entitlements.get(ownerId);
+    const row = await storage.getEntitlement(ownerId);
     if (!row?.stripeCustomerId) {
       return res.status(404).json({
         error: "No Stripe customer on file",
@@ -275,21 +329,25 @@ export function registerBillingRoutes(app: Express) {
       const plan = session.metadata?.sadhanaPlan || "plus";
       const customerId =
         typeof session.customer === "string" ? session.customer : session.customer?.id;
+      const subscriptionId =
+        typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
       const email = await emailForOwner(
         ownerId,
         session.customer_details?.email || session.customer_email,
       );
       if (ownerId) {
-        const prev = entitlements.get(ownerId);
-        entitlements.set(ownerId, {
+        const prev = await storage.getEntitlement(ownerId);
+        await storage.upsertEntitlement(ownerId, {
           plan,
           status: "active",
           renewsAt: prev?.renewsAt ?? null,
-          stripeCustomerId: customerId || prev?.stripeCustomerId,
-          email: email || prev?.email,
+          stripeCustomerId: customerId || prev?.stripeCustomerId || null,
+          stripeSubscriptionId: subscriptionId || prev?.stripeSubscriptionId || null,
+        });
+        setEmailMeta(ownerId, {
+          email: email || emailMeta.get(ownerId)?.email,
           cancelAtPeriodEnd: false,
         });
-        persist();
         if (email) {
           void sendSubscriptionStartedEmail({ to: email, plan, manageUrl: manageUrl() });
         }
@@ -299,25 +357,28 @@ export function registerBillingRoutes(app: Express) {
     if (event.type === "customer.subscription.updated") {
       const sub = event.data.object as Stripe.Subscription;
       const ownerId = sub.metadata?.ownerId || "";
-      const prev = ownerId ? entitlements.get(ownerId) : undefined;
-      const plan = sub.metadata?.sadhanaPlan || prev?.plan || "plus";
       if (ownerId) {
+        const prev = await storage.getEntitlement(ownerId);
+        const prevMeta = emailMeta.get(ownerId) || {};
+        const plan = sub.metadata?.sadhanaPlan || prev?.plan || "plus";
         const renewsAt = periodEndIso(sub);
-        const email = await emailForOwner(ownerId, prev?.email);
+        const email = await emailForOwner(ownerId, prevMeta.email);
         const cancelAtPeriodEnd = Boolean(sub.cancel_at_period_end);
-        entitlements.set(ownerId, {
+        await storage.upsertEntitlement(ownerId, {
           plan: sub.status === "active" || sub.status === "trialing" ? plan : "free",
           status: sub.status,
           renewsAt,
           stripeCustomerId:
-            typeof sub.customer === "string" ? sub.customer : prev?.stripeCustomerId,
+            (typeof sub.customer === "string" ? sub.customer : prev?.stripeCustomerId) || null,
+          stripeSubscriptionId: sub.id || prev?.stripeSubscriptionId || null,
+        });
+        setEmailMeta(ownerId, {
           email,
           cancelAtPeriodEnd,
-          lastRenewalReminderAt: prev?.lastRenewalReminderAt,
+          lastRenewalReminderAt: prevMeta.lastRenewalReminderAt,
         });
-        persist();
         // Fire cancel confirmation once when cancel-at-period-end flips on.
-        if (cancelAtPeriodEnd && !prev?.cancelAtPeriodEnd && email) {
+        if (cancelAtPeriodEnd && !prevMeta.cancelAtPeriodEnd && email) {
           void sendCancelConfirmationEmail({
             to: email,
             plan,
@@ -332,19 +393,22 @@ export function registerBillingRoutes(app: Express) {
       const sub = event.data.object as Stripe.Subscription;
       const ownerId = sub.metadata?.ownerId || "";
       if (ownerId) {
-        const prev = entitlements.get(ownerId);
-        const email = await emailForOwner(ownerId, prev?.email);
-        entitlements.set(ownerId, {
+        const prev = await storage.getEntitlement(ownerId);
+        const prevMeta = emailMeta.get(ownerId) || {};
+        const email = await emailForOwner(ownerId, prevMeta.email);
+        await storage.upsertEntitlement(ownerId, {
           plan: "free",
           status: "canceled",
           renewsAt: null,
-          stripeCustomerId: prev?.stripeCustomerId,
-          email: email || prev?.email,
+          stripeCustomerId: prev?.stripeCustomerId ?? null,
+          stripeSubscriptionId: prev?.stripeSubscriptionId ?? null,
+        });
+        setEmailMeta(ownerId, {
+          email: email || prevMeta.email,
           cancelAtPeriodEnd: false,
         });
-        persist();
         // If they canceled immediately (not via period-end flag), still notify.
-        if (email && !prev?.cancelAtPeriodEnd) {
+        if (email && !prevMeta.cancelAtPeriodEnd) {
           void sendCancelConfirmationEmail({
             to: email,
             plan: prev?.plan || "plus",
@@ -364,21 +428,23 @@ export function registerBillingRoutes(app: Express) {
         try {
           const sub = await stripe.subscriptions.retrieve(subId);
           ownerId = sub.metadata?.ownerId || "";
-          plan = sub.metadata?.sadhanaPlan || entitlements.get(ownerId)?.plan || "plus";
+          const prev = ownerId ? await storage.getEntitlement(ownerId) : undefined;
+          const prevMeta = ownerId ? emailMeta.get(ownerId) || {} : {};
+          plan = sub.metadata?.sadhanaPlan || prev?.plan || "plus";
           if (ownerId) {
-            const prev = entitlements.get(ownerId);
-            entitlements.set(ownerId, {
-              ...(prev || { plan, status: "past_due", renewsAt: null }),
+            await storage.upsertEntitlement(ownerId, {
               plan: prev?.plan || plan,
               status: "past_due",
               renewsAt: periodEndIso(sub),
               stripeCustomerId:
-                typeof sub.customer === "string" ? sub.customer : prev?.stripeCustomerId,
-              email: prev?.email,
-              cancelAtPeriodEnd: prev?.cancelAtPeriodEnd,
-              lastRenewalReminderAt: prev?.lastRenewalReminderAt,
+                (typeof sub.customer === "string" ? sub.customer : prev?.stripeCustomerId) || null,
+              stripeSubscriptionId: sub.id || prev?.stripeSubscriptionId || null,
             });
-            persist();
+            setEmailMeta(ownerId, {
+              email: prevMeta.email,
+              cancelAtPeriodEnd: prevMeta.cancelAtPeriodEnd,
+              lastRenewalReminderAt: prevMeta.lastRenewalReminderAt,
+            });
           }
         } catch {
           // fall through with invoice customer email only

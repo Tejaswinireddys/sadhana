@@ -189,16 +189,34 @@ CREATE TABLE IF NOT EXISTS email_verification_tokens (
 CREATE UNIQUE INDEX IF NOT EXISTS email_verification_tokens_hash_idx ON email_verification_tokens (token_hash);
 CREATE INDEX IF NOT EXISTS email_verification_tokens_user_idx ON email_verification_tokens (user_id);
 
--- Soft entitlements for future Sadhana Plus (local scaffolding; no payment processor yet).
+-- Billing entitlements, keyed by owner id (device/account). One durable row per
+-- owner — this is where Stripe subscription state lives now (was a JSON file on
+-- Render's ephemeral disk). Mirrors shared/schema.ts.
 CREATE TABLE IF NOT EXISTS entitlements (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  owner_id TEXT NOT NULL,
   plan TEXT NOT NULL DEFAULT 'free',
   status TEXT NOT NULL DEFAULT 'active',
   renews_at TEXT,
-  created_at TEXT NOT NULL
+  stripe_customer_id TEXT,
+  stripe_subscription_id TEXT,
+  updated_at TEXT NOT NULL DEFAULT ''
 );
-CREATE INDEX IF NOT EXISTS entitlements_user_idx ON entitlements (user_id);
+-- Migrate an earlier user_id-based scaffold (if present) to the owner-based shape.
+ALTER TABLE entitlements ADD COLUMN IF NOT EXISTS owner_id TEXT;
+ALTER TABLE entitlements ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE entitlements ADD COLUMN IF NOT EXISTS renews_at TEXT;
+ALTER TABLE entitlements ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+ALTER TABLE entitlements ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
+ALTER TABLE entitlements ADD COLUMN IF NOT EXISTS updated_at TEXT NOT NULL DEFAULT '';
+-- Legacy NOT NULL columns must not block owner-based inserts. Ignore if absent.
+DO $$ BEGIN
+  ALTER TABLE entitlements ALTER COLUMN user_id DROP NOT NULL;
+EXCEPTION WHEN undefined_column THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE entitlements ALTER COLUMN created_at DROP NOT NULL;
+EXCEPTION WHEN undefined_column THEN NULL; END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS entitlements_owner_id_unique ON entitlements (owner_id);
 
 -- Backfill FKs on databases created before REFERENCES existed (ignore if already present).
 DO $$ BEGIN
