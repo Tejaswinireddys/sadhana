@@ -15,6 +15,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { requestWellnessConsent } from "@/lib/legal";
 import { useToast } from "@/hooks/use-toast";
 import { resolveIcon } from "@/lib/icons";
 import type { Profile } from "@/data/profiles";
@@ -36,7 +37,11 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
   const audience = AUDIENCE_BADGE[profile.id];
 
   const activate = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/profile/activate", { profileId: profile.id }),
+    mutationFn: () => {
+      // Activating a profile stores wellness data — surface consent now.
+      requestWellnessConsent();
+      return apiRequest("POST", "/api/profile/activate", { profileId: profile.id });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/profile/active"] });
       toast({

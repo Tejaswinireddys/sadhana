@@ -27,6 +27,7 @@ import {
 import { EmptyState } from "@/components/EmptyState";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { requestWellnessConsent } from "@/lib/legal";
 import { MOODS, type Mood } from "@/data/content";
 import { MOOD_ICONS } from "@/lib/moods";
 import type { Journal as JournalEntry } from "@shared/schema";
@@ -72,6 +73,8 @@ export default function Journal() {
 
   const save = useMutation({
     mutationFn: (d: Draft) => {
+      // Writing a journal entry stores wellness data — surface consent now.
+      requestWellnessConsent();
       const payload = {
         date: todayISO(),
         title: d.title || null,

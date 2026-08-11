@@ -46,7 +46,11 @@ export function MoodCheckIn({
                 type="button"
                 variant="outline"
                 className="flex h-auto flex-col gap-1.5 px-4 py-3"
-                onClick={() => onPick(m)}
+                onClick={() => {
+                  // Picking a mood stores wellness data — surface consent now.
+                  requestWellnessConsent();
+                  onPick(m);
+                }}
                 data-testid={`${testIdPrefix}-mood-${m.toLowerCase()}`}
               >
                 <Icon className="h-6 w-6 text-primary" />

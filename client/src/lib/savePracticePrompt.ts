@@ -32,6 +32,15 @@ import { readJson, writeJson } from "@/lib/localPrefs";
 export const BANNER_AFTER_SESSIONS = 1;
 export const BLOCKING_AFTER_SESSIONS = 3;
 
+/**
+ * The Home "saved only on this device" banner asks a guest to commit (create an
+ * account / download a backup). It must not precede value: only surface it once
+ * the practitioner has had real, repeated benefit — at least this many completed
+ * sessions across at least this many separate active days.
+ */
+export const BANNER_MIN_SESSIONS = 2;
+export const BANNER_MIN_ACTIVE_DAYS = 2;
+
 const DISMISS_KEY = "sadhana.savePrompt.dismissed";
 
 type DismissState = {
@@ -75,6 +84,23 @@ export function savePromptLevel(args: {
 
   if (state.bannerDay === today()) return "none";
   return "banner";
+}
+
+/**
+ * Whether the Home save-your-practice banner should show right now. Beyond the
+ * base prompt ladder, it waits until the guest has completed
+ * BANNER_MIN_SESSIONS sessions on BANNER_MIN_ACTIVE_DAYS separate days — so we
+ * never ask for commitment before delivering repeated value.
+ */
+export function shouldShowSaveBanner(args: {
+  level: SavePromptLevel;
+  totalSessions: number;
+  daysPracticed: number;
+}): boolean {
+  if (args.level !== "banner") return false;
+  return (
+    args.totalSessions >= BANNER_MIN_SESSIONS && args.daysPracticed >= BANNER_MIN_ACTIVE_DAYS
+  );
 }
 
 export function readDismissState(): DismissState {
