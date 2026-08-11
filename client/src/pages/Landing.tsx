@@ -1,6 +1,6 @@
 /**
- * BetterMe-inspired marketing landing: quiz-first CTA, program tiles, social proof,
- * sticky mobile Get started. Keeps Sadhana brand (Lora/Raleway, sage/teal) and ethics.
+ * Quiz-first marketing landing — conversion clarity of modern wellness funnels,
+ * with Sadhana’s sage/teal brand, privacy ethics, and a real practice payoff.
  */
 import { Link } from "wouter";
 import { lazy, Suspense, useEffect } from "react";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { LotusMark } from "@/components/Logo";
 import { KEYS, writeString } from "@/lib/localPrefs";
 import { FadeIn, Reveal } from "@/components/motion";
-import { ArrowRight, Check, Shield } from "lucide-react";
+import { ArrowDown, ArrowRight, Check, Shield, Sparkles } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 const ProductDemoVideo = lazy(() =>
@@ -20,48 +20,52 @@ const HERO_SRC = `${import.meta.env.BASE_URL}poses/vrksasana.png`;
 const PROGRAMS = [
   {
     title: "Morning wake-up",
-    body: "Low-impact flow to open the spine and start clear.",
+    body: "Open the spine. Start clear.",
     img: `${import.meta.env.BASE_URL}poses/tadasana.png`,
     href: "/start?ref=program-morning",
+    tone: "from-[hsl(165_35%_12%/0.75)]",
   },
   {
     title: "Desk reset",
-    body: "Neck, shoulders, and hips after sitting too long.",
+    body: "Neck, shoulders, hips after sitting.",
     img: `${import.meta.env.BASE_URL}poses/balasana.png`,
     href: "/start?ref=program-desk",
+    tone: "from-[hsl(175_30%_10%/0.78)]",
   },
   {
     title: "Better sleep",
-    body: "Slow shapes and breath to wind down at night.",
+    body: "Slow shapes and breath at night.",
     img: `${import.meta.env.BASE_URL}poses/supta-baddha-konasana.png`,
     href: "/start?ref=program-sleep",
+    tone: "from-[hsl(200_28%_12%/0.78)]",
   },
   {
     title: "Beginner foundations",
-    body: "Simple poses with clear cues — no experience needed.",
+    body: "Clear cues. No experience needed.",
     img: `${import.meta.env.BASE_URL}poses/adho-mukha-svanasana.png`,
     href: "/start?ref=program-beginner",
+    tone: "from-[hsl(155_28%_12%/0.78)]",
   },
 ];
 
 const PROOF = [
-  { label: "Pose library", value: "200+" },
-  { label: "Account needed", value: "Never" },
+  { label: "Illustrated poses", value: "200+" },
+  { label: "Account required", value: "Never" },
   { label: "Streak shame", value: "Zero" },
 ];
 
 const FAQ = [
   {
-    q: "Is this like BetterMe?",
-    a: "You get a quiz-first path to a personal plan — but Sadhana stays privacy-first, open source, and free to practice without a hard paywall trap.",
+    q: "How is Sadhana different from other wellness apps?",
+    a: "You still get a quiz-first personal plan — but practice starts free, without signup walls, fake reviews, or streak guilt. Privacy-first and open source.",
   },
   {
     q: "Do I need an account?",
-    a: "No. Start as a guest. Optional accounts are only for sync across devices.",
+    a: "No. Start as a guest. Optional accounts are only for sync across devices, with email verification when you choose one.",
   },
   {
     q: "How long is the quiz?",
-    a: "About two minutes — five short questions, then your plan and a first session.",
+    a: "About two minutes — five short questions, then a real guided session matched to your answers.",
   },
   {
     q: "Is Sadhana free?",
@@ -88,17 +92,19 @@ export default function Landing() {
       </a>
 
       <header className="absolute inset-x-0 top-0 z-30">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4 pt-3 md:px-6">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 pt-3 md:px-8">
           <Link
             href="/welcome"
-            className="flex cursor-pointer items-center gap-2 text-primary-foreground drop-shadow-sm"
+            className="landing-nav-brand flex cursor-pointer items-center gap-2.5 text-primary-foreground"
             aria-label="Sadhana home"
           >
-            <LotusMark size={26} />
-            <span className="font-serif text-xl font-semibold tracking-tight">Sadhana</span>
+            <LotusMark size={28} />
+            <span className="font-serif text-xl font-semibold tracking-tight drop-shadow-sm md:text-2xl">
+              Sadhana
+            </span>
           </Link>
           <Button
-            className="min-h-11 cursor-pointer bg-primary-foreground text-foreground hover:bg-primary-foreground/90"
+            className="min-h-11 cursor-pointer bg-primary-foreground text-foreground shadow-soft hover:bg-primary-foreground/92"
             asChild
             data-testid="landing-cta-header"
           >
@@ -108,12 +114,12 @@ export default function Landing() {
       </header>
 
       <main id="landing-main">
-        {/* Hero: brand-first, one CTA — BetterMe conversion shape, Sadhana voice */}
+        {/* Hero: one composition — brand, headline, support, CTA, full-bleed visual */}
         <section className="relative min-h-[100svh] overflow-hidden">
           <img
             src={HERO_SRC}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover object-[center_28%] hero-photo-breath"
+            className="absolute inset-0 h-full w-full object-cover object-[center_26%] hero-photo-breath scale-[1.02]"
             width={1200}
             height={1600}
             decoding="async"
@@ -121,49 +127,57 @@ export default function Landing() {
             aria-hidden
           />
           <div
-            className="absolute inset-0 bg-[linear-gradient(180deg,hsl(165_28%_8%/0.5)_0%,hsl(165_28%_8%/0.22)_40%,hsl(165_28%_8%/0.82)_100%)]"
+            className="absolute inset-0 bg-[linear-gradient(165deg,hsl(165_32%_7%/0.55)_0%,hsl(165_28%_10%/0.18)_38%,hsl(160_30%_8%/0.88)_100%)]"
             aria-hidden
           />
+          <div className="yoga-grain absolute inset-0 opacity-[0.07]" aria-hidden />
 
-          <div className="relative mx-auto flex min-h-[100svh] max-w-5xl flex-col justify-end px-4 pb-28 pt-28 md:justify-center md:px-6 md:pb-24">
-            <FadeIn className="max-w-xl space-y-5 text-primary-foreground">
+          <div className="relative mx-auto flex min-h-[100svh] max-w-6xl flex-col justify-end px-4 pb-32 pt-28 md:justify-center md:px-8 md:pb-28">
+            <FadeIn className="max-w-xl space-y-6 text-primary-foreground">
               <p
-                className="font-serif text-5xl font-semibold tracking-tight md:text-7xl"
+                className="landing-brand-rise font-serif text-6xl font-semibold tracking-tight md:text-8xl"
                 data-testid="landing-brand"
               >
                 Sadhana
               </p>
-              <h1 className="max-w-md font-serif text-2xl font-semibold leading-tight tracking-tight md:text-4xl">
-                Fun and simple yoga — personalized to how you feel today.
+              <h1 className="max-w-lg font-serif text-2xl font-semibold leading-[1.15] tracking-tight md:text-4xl">
+                Yoga that meets you where you are — in minutes, not months.
               </h1>
-              <p className="max-w-md text-base leading-relaxed text-primary-foreground/85 md:text-lg">
-                Answer a few quick questions. Get a gentle plan. Practice in minutes — no email wall,
-                no streak shame.
+              <p className="max-w-md text-base leading-relaxed text-primary-foreground/88 md:text-lg">
+                A short quiz builds a gentle first session around how you feel today. No email wall.
+                No streak shame.
               </p>
               <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center">
                 <Button
                   size="lg"
-                  className="min-h-14 cursor-pointer bg-primary-foreground px-8 text-base font-semibold text-foreground hover:bg-primary-foreground/90"
+                  className="landing-cta-glow min-h-14 cursor-pointer bg-primary-foreground px-9 text-base font-semibold text-foreground hover:bg-primary-foreground/92"
                   asChild
                   data-testid="landing-cta-primary"
                 >
                   <Link href="/start">
-                    Get started <ArrowRight className="ml-1.5 h-4 w-4" />
+                    Get my plan <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Link>
                 </Button>
+                <p className="text-sm text-primary-foreground/75 sm:pl-1">~2 min · Free to start</p>
               </div>
-              <p className="text-xs text-primary-foreground/70">Takes about 2 minutes · Free to start</p>
             </FadeIn>
+
+            <a
+              href="#programs"
+              className="landing-scroll-cue absolute bottom-8 left-1/2 hidden -translate-x-1/2 items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary-foreground/70 md:flex"
+            >
+              Explore paths
+              <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+            </a>
           </div>
         </section>
 
-        {/* Social-proof strip — honest metrics, not fake reviews */}
-        <section className="border-b border-border/60 bg-card" data-testid="landing-proof">
-          <div className="mx-auto grid max-w-5xl grid-cols-3 gap-2 px-4 py-8 text-center md:px-6">
+        <section className="relative border-b border-border/50 bg-card" data-testid="landing-proof">
+          <div className="mx-auto grid max-w-6xl grid-cols-3 gap-2 px-4 py-9 text-center md:px-8">
             {PROOF.map((p) => (
               <div key={p.label} className="space-y-1">
                 <p className="font-serif text-2xl font-semibold tracking-tight md:text-3xl">{p.value}</p>
-                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground md:text-xs">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground md:text-xs">
                   {p.label}
                 </p>
               </div>
@@ -171,46 +185,51 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Program tiles — BetterMe “Wall Pilates / Calisthenics” pattern */}
-        <section id="programs" className="yoga-atmosphere">
-          <div className="relative mx-auto max-w-5xl px-4 py-16 md:px-6 md:py-20">
-            <div className="mb-12 max-w-xl space-y-2">
-              <h2 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">
-                Pick a path — or let the quiz choose
+        <section id="programs" className="yoga-atmosphere relative">
+          <div className="yoga-grain pointer-events-none absolute inset-0" aria-hidden />
+          <div className="relative mx-auto max-w-6xl px-4 py-16 md:px-8 md:py-20">
+            <div className="mb-10 max-w-xl space-y-3 md:mb-14">
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                Paths
+              </p>
+              <h2 className="font-serif text-3xl font-semibold tracking-tight md:text-5xl">
+                Choose a mood — or let the quiz decide
               </h2>
-              <p className="text-muted-foreground">
-                Theme-based on-ramps inspired by modern wellness funnels. Every path stays kind.
+              <p className="text-base text-muted-foreground md:text-lg">
+                Every path opens the same kind funnel: five questions, then a session you can start
+                today.
               </p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:gap-4">
               {PROGRAMS.map((p, i) => (
-                <Reveal key={p.title} delay={i * 0.04}>
+                <Reveal key={p.title} delay={i * 0.05}>
                   <Link
                     href={p.href}
                     onClick={enterApp}
-                    className="group relative block overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-soft"
+                    className="group relative block min-h-[14rem] overflow-hidden rounded-[1.5rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-[16rem]"
                     data-testid={`program-card-${i}`}
                   >
-                    <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-                      <img
-                        src={p.img}
-                        alt=""
-                        className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <div
-                        className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/15 to-transparent"
-                        aria-hidden
-                      />
-                      <div className="absolute inset-x-0 bottom-0 space-y-1 p-5 text-primary-foreground">
-                        <h3 className="font-serif text-xl font-semibold">{p.title}</h3>
-                        <p className="text-sm text-primary-foreground/85">{p.body}</p>
+                    <img
+                      src={p.img}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-t ${p.tone} via-transparent to-transparent`}
+                      aria-hidden
+                    />
+                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-5 text-primary-foreground md:p-6">
+                      <div className="space-y-1">
+                        <h3 className="font-serif text-2xl font-semibold tracking-tight">{p.title}</h3>
+                        <p className="max-w-xs text-sm text-primary-foreground/85">{p.body}</p>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between px-5 py-3 text-sm font-semibold text-primary">
-                      Get started
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                      <span className="inline-flex items-center gap-1 text-sm font-semibold">
+                        Start
+                        <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                      </span>
                     </div>
                   </Link>
                 </Reveal>
@@ -219,59 +238,84 @@ export default function Landing() {
           </div>
         </section>
 
-        <section id="how" className="border-y border-border/50 bg-card/50">
-          <div className="mx-auto max-w-5xl px-4 py-16 md:px-6">
-            <h2 className="mb-10 font-serif text-3xl font-semibold tracking-tight">How it works</h2>
-            <ol className="grid gap-8 md:grid-cols-3">
+        <section id="how" className="border-y border-border/40 bg-card/60">
+          <div className="mx-auto max-w-6xl px-4 py-16 md:px-8 md:py-20">
+            <h2 className="mb-12 font-serif text-3xl font-semibold tracking-tight md:text-4xl">
+              Three steps. Real practice.
+            </h2>
+            <ol className="grid gap-10 md:grid-cols-3 md:gap-8">
               {[
-                { n: "1", t: "Take the quiz", b: "Five quick questions about goal, body, time, and habits." },
-                { n: "2", t: "See your plan", b: "A personal session length and focus — no generic one-size list." },
-                { n: "3", t: "Practice today", b: "Guided poses with voice and safety notes. Miss a day? Soft reset." },
+                {
+                  n: "01",
+                  t: "Answer five questions",
+                  b: "Goal, body, experience, time, and what usually gets in the way.",
+                },
+                {
+                  n: "02",
+                  t: "See your session",
+                  b: "Pose previews and a length matched to you — not a vague “plan PDF”.",
+                },
+                {
+                  n: "03",
+                  t: "Practice today",
+                  b: "Guided holds with voice and safety notes. Miss a day? Soft reset.",
+                },
               ].map((s, i) => (
-                <Reveal key={s.n} delay={i * 0.05} className="space-y-2">
-                  <span className="font-serif text-4xl text-primary/80">{s.n}</span>
-                  <h3 className="font-serif text-xl font-semibold">{s.t}</h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{s.b}</p>
+                <Reveal key={s.n} delay={i * 0.06} className="space-y-3">
+                  <span className="font-serif text-4xl text-primary/70 md:text-5xl">{s.n}</span>
+                  <h3 className="font-serif text-xl font-semibold tracking-tight md:text-2xl">{s.t}</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground md:text-base">{s.b}</p>
                 </Reveal>
               ))}
             </ol>
           </div>
         </section>
 
-        <section id="why" className="yoga-atmosphere">
-          <div className="mx-auto max-w-5xl px-4 py-16 md:px-6">
-            <Reveal className="mb-8 max-w-xl space-y-2">
-              <h2 className="font-serif text-3xl font-semibold tracking-tight">Why people stay</h2>
+        <section id="why" className="yoga-atmosphere relative">
+          <div className="mx-auto max-w-6xl px-4 py-16 md:px-8">
+            <Reveal className="mb-10 max-w-xl space-y-2">
+              <h2 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">
+                Built to stay kind
+              </h2>
+              <p className="text-muted-foreground">
+                Conversion without dark patterns — the product you can recommend.
+              </p>
             </Reveal>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               {[
-                "Quiz-personal plan without a signup wall",
+                "Personal session without a signup wall",
                 "Illustrated poses with contraindications",
                 "Compassionate recovery — no public body boards",
-                "Cancel subscription in two taps if you ever upgrade",
+                "Cancel any upgrade in two taps",
               ].map((line, i) => (
-                <Reveal key={line} delay={i * 0.04} className="flex gap-3 rounded-2xl border border-border/70 bg-card/80 px-4 py-4">
+                <Reveal
+                  key={line}
+                  delay={i * 0.04}
+                  className="flex gap-3 border-b border-border/50 px-1 py-4 md:border-b-0 md:rounded-2xl md:border md:border-border/60 md:bg-card/70 md:px-4"
+                >
                   <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
-                  <p className="text-sm font-medium leading-relaxed">{line}</p>
+                  <p className="text-sm font-medium leading-relaxed md:text-base">{line}</p>
                 </Reveal>
               ))}
             </div>
-            <Reveal delay={0.1} className="mt-8 flex items-start gap-3 text-sm text-muted-foreground">
+            <Reveal delay={0.12} className="mt-8 flex items-start gap-3 text-sm text-muted-foreground">
               <Shield className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <p>
-                Privacy-first and open source — guest practice stays on this device until you choose an
-                account.
+                Privacy-first and open source — guest practice stays on this device until you choose
+                an account.
               </p>
             </Reveal>
           </div>
         </section>
 
-        <section id="demo" className="border-y border-border/50 bg-card/40">
-          <div className="mx-auto max-w-5xl px-4 py-16 md:px-6">
+        <section id="demo" className="border-y border-border/40 bg-card/50">
+          <div className="mx-auto max-w-6xl px-4 py-16 md:px-8">
             <Reveal className="mb-8 max-w-xl space-y-2">
-              <h2 className="font-serif text-3xl font-semibold tracking-tight">See a real session</h2>
+              <h2 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">
+                See a real session
+              </h2>
               <p className="text-muted-foreground">
-                A short walkthrough of quiz → guided practice → pose library.
+                Quiz → guided practice → pose library — no stock montage.
               </p>
             </Reveal>
             <Reveal delay={0.06}>
@@ -284,44 +328,55 @@ export default function Landing() {
           </div>
         </section>
 
-        <section id="faq" className="mx-auto max-w-5xl px-4 py-16 md:px-6">
-          <h2 className="mb-8 font-serif text-3xl font-semibold tracking-tight">FAQ</h2>
-          <div className="space-y-3">
+        <section id="faq" className="mx-auto max-w-6xl px-4 py-16 md:px-8">
+          <h2 className="mb-8 font-serif text-3xl font-semibold tracking-tight md:text-4xl">FAQ</h2>
+          <div className="divide-y divide-border/70">
             {FAQ.map((item) => (
-              <details key={item.q} className="group border-b border-border/70 py-3 open:pb-4">
+              <details key={item.q} className="group py-4 open:pb-5">
                 <summary className="cursor-pointer list-none font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
                   {item.q}
                 </summary>
-                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{item.a}</p>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+                  {item.a}
+                </p>
               </details>
             ))}
           </div>
         </section>
 
-        <section className="border-t border-border/50 bg-primary px-4 py-16 text-primary-foreground md:px-6">
-          <FadeIn className="mx-auto max-w-lg space-y-4 text-center">
-            <p className="font-serif text-4xl font-semibold tracking-tight md:text-5xl">Sadhana</p>
-            <h2 className="font-serif text-2xl font-semibold md:text-3xl">Your plan is one quiz away</h2>
+        <section className="relative overflow-hidden border-t border-border/40 bg-primary px-4 py-20 text-primary-foreground md:px-8">
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_80%_at_50%_120%,hsl(0_0%_100%/0.12),transparent_55%)]"
+            aria-hidden
+          />
+          <FadeIn className="relative mx-auto max-w-lg space-y-5 text-center">
+            <p className="font-serif text-5xl font-semibold tracking-tight md:text-6xl">Sadhana</p>
+            <h2 className="font-serif text-2xl font-semibold md:text-3xl">
+              Your first session is one quiz away
+            </h2>
             <Button
               size="lg"
-              className="min-h-14 bg-primary-foreground px-8 text-base font-semibold text-foreground hover:bg-primary-foreground/90"
+              className="min-h-14 bg-primary-foreground px-9 text-base font-semibold text-foreground hover:bg-primary-foreground/92"
               asChild
               data-testid="landing-cta-final"
             >
               <Link href="/start">
-                Get started <ArrowRight className="ml-1.5 h-4 w-4" />
+                Get my plan <ArrowRight className="ml-1.5 h-4 w-4" />
               </Link>
             </Button>
           </FadeIn>
         </section>
       </main>
 
-      <footer className="border-t border-border/60 py-10 pb-28 md:pb-10">
-        <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-6">
+      <footer className="border-t border-border/50 py-10 pb-28 md:pb-12">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-8">
           <p>Sadhana — a daily, dedicated practice. MIT open source.</p>
           <div className="flex flex-wrap gap-4">
             <Link href="/start" className="hover:text-foreground">
               Get started
+            </Link>
+            <Link href="/account" className="hover:text-foreground" onClick={enterApp}>
+              Account
             </Link>
             <Link href="/" className="hover:text-foreground" onClick={enterApp}>
               App home
@@ -339,10 +394,14 @@ export default function Landing() {
         </div>
       </footer>
 
-      {/* Sticky mobile CTA — BetterMe-style conversion chrome */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 p-3 backdrop-blur md:hidden">
-        <Button size="lg" className="min-h-12 w-full text-base font-semibold" asChild data-testid="landing-cta-sticky">
-          <Link href="/start">Get started</Link>
+      <div className="landing-sticky-cta fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/92 p-3 backdrop-blur-md md:hidden">
+        <Button
+          size="lg"
+          className="min-h-12 w-full text-base font-semibold"
+          asChild
+          data-testid="landing-cta-sticky"
+        >
+          <Link href="/start">Get my plan</Link>
         </Button>
       </div>
     </div>
