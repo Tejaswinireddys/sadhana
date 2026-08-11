@@ -2,6 +2,7 @@ import type { Express } from "express";
 import type { Server } from "node:http";
 import { storage } from "./storage";
 import { ownerMiddleware } from "./owner";
+import { sendPasswordResetEmail } from "./email";
 import {
   insertSessionSchema,
   insertEnrollmentSchema,
@@ -323,9 +324,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     const token = newResetToken();
     await storage.createPasswordResetToken(user.id, hashResetToken(token), resetTokenExpiry());
-    await sendPasswordResetEmail({ to: user.email, token });
+    const delivery = await sendPasswordResetEmail({ to: user.email, token });
     console.info(
-      `[auth] password reset for user ${user.id} — enter code on Account → Reset password`,
+      `[auth] password reset for user ${user.id} via ${delivery.mode}` +
+        (delivery.sent ? "" : " (logged; set RESEND_API_KEY or EMAIL_WEBHOOK_URL for delivery)"),
     );
     if (process.env.NODE_ENV !== "production" || process.env.EXPOSE_RESET_TOKEN === "1") {
       return res.json({ ...generic, resetToken: token });
