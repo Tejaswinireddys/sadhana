@@ -59,7 +59,16 @@ const PUBLIC_ORIGIN =
 
 /** Real XML sitemap (not the SPA shell) for marketing / SEO crawlers. */
 app.get("/sitemap.xml", (_req, res) => {
-  const paths = ["/", "/welcome", "/start", "/register", "/privacy", "/terms", "/health-disclaimer"];
+  const paths = [
+    "/",
+    "/welcome",
+    "/start",
+    "/register",
+    "/cancel",
+    "/privacy",
+    "/terms",
+    "/health-disclaimer",
+  ];
   const urls = paths
     .map(
       (p) =>

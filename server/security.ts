@@ -122,7 +122,12 @@ export function requireSameOrigin(req: Request, res: Response, next: NextFunctio
     return next();
   }
   // Stripe webhooks are signed; Origin is absent by design.
-  if (req.originalUrl.startsWith("/api/billing/webhook")) {
+  // Stripe webhooks + emailed one-click cancel links are cross-origin by design.
+  if (
+    req.originalUrl.startsWith("/api/billing/webhook") ||
+    req.originalUrl.startsWith("/api/billing/cancel-token") ||
+    req.originalUrl.startsWith("/api/billing/dispatch-renewal-reminders")
+  ) {
     return next();
   }
   if (req.get("x-api-key")) return next();

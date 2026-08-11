@@ -33,6 +33,7 @@ import { ScrollRow } from "@/components/ScrollRow";
 import { ResponsiveDetails } from "@/components/ResponsiveDetails";
 import { HomeWelcomeHeader } from "@/components/home/HomeWelcomeHeader";
 import { SavePracticeBanner } from "@/components/SavePracticePrompt";
+import { CancelAccessBanner } from "@/components/CancelAccessBanner";
 import { dismissBanner, savePromptLevel, shouldShowSaveBanner } from "@/lib/savePracticePrompt";
 import { Reveal } from "@/components/motion";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -66,6 +67,42 @@ import {
 
 const MS_PER_DAY = 86400000;
 const SPLITS_SLUG = "sixty-day-splits";
+
+/** Tap 1 of cancel — always one hop from Home to the confirmation screen. */
+function HomeCancelSubscriptionCta() {
+  const { data } = useQuery<{
+    plan: string;
+    cancelAtPeriodEnd?: boolean;
+    status?: string;
+  }>({
+    queryKey: ["/api/billing/entitlement"],
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  const paid =
+    data &&
+    data.plan !== "free" &&
+    data.status !== "refunded" &&
+    (data.status === "active" || data.status === "trialing" || data.cancelAtPeriodEnd);
+  if (!paid) return null;
+  return (
+    <div
+      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3"
+      data-testid="home-cancel-cta"
+    >
+      <p className="text-sm text-muted-foreground">
+        {data.cancelAtPeriodEnd
+          ? "Subscription canceled — review your access end date."
+          : "Need to leave? Cancel in one more tap. No chat, phone, or retention screen."}
+      </p>
+      <Button asChild variant="outline" className="min-h-11 shrink-0" data-testid="button-home-cancel">
+        <Link href="/cancel/confirm">
+          {data.cancelAtPeriodEnd ? "Cancellation details" : "Cancel subscription"}
+        </Link>
+      </Button>
+    </div>
+  );
+}
 
 // Three quick flows featured on Home for users who haven't enrolled in a
 // program yet — a light, one-tap on-ramp mirroring the Quick Start row.
@@ -358,6 +395,9 @@ export default function Home() {
         hasCompletedSessions={!!hasPracticed}
         displayName={practitionerName}
       />
+
+      <CancelAccessBanner />
+      <HomeCancelSubscriptionCta />
 
       {/* Guests with repeated practice on the line get one honest heads-up per day. */}
       {showSaveBanner && (

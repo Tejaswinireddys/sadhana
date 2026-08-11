@@ -18,6 +18,42 @@ export type SendEmailResult = {
   error?: string;
 };
 
+/** Compatibility shape used by subscription-compliance helpers. */
+export type EmailMessage = {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  kind: string;
+};
+
+export type EmailResult = {
+  ok: boolean;
+  id?: string;
+  skipped?: boolean;
+  error?: string;
+};
+
+/** Thin adapter for billingCompliance — same transport as sendAppEmail. */
+export async function sendEmail(msg: EmailMessage): Promise<EmailResult> {
+  const r = await sendAppEmail({
+    to: msg.to,
+    subject: msg.subject,
+    html: msg.html,
+    text: msg.text,
+    kind: msg.kind,
+  });
+  if (r.error && r.mode !== "log" && !r.sent) {
+    return { ok: false, error: r.error, id: r.id };
+  }
+  return {
+    ok: r.sent || r.mode === "log",
+    id: r.id,
+    skipped: r.mode === "log" && !r.sent,
+    error: r.error,
+  };
+}
+
 function fromAddress(): string {
   return process.env.EMAIL_FROM?.trim() || "Sadhana <onboarding@resend.dev>";
 }
