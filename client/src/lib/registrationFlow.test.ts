@@ -30,5 +30,17 @@ describe("registration + email verification contract", () => {
     assert.match(routes, /needsVerification:\s*true/);
     assert.match(routes, /if\s*\(!user\.emailVerified\)/);
     assert.match(routes, /sendVerificationEmail/);
+    assert.match(routes, /sendWelcomeEmail/);
+    assert.match(routes, /sendPasswordChangedEmail/);
+    assert.match(routes, /sendAccountDeletedEmail/);
+  });
+
+  it("ships billing email notifications for subscribe/cancel/renewal/payment failure", () => {
+    const billing = readFileSync(resolve("server/billing.ts"), "utf8");
+    assert.match(billing, /sendSubscriptionStartedEmail/);
+    assert.match(billing, /sendCancelConfirmationEmail/);
+    assert.match(billing, /sendRenewalReminderEmail/);
+    assert.match(billing, /sendPaymentFailedEmail/);
+    assert.match(billing, /dispatchRenewalReminders/);
   });
 });

@@ -37,7 +37,13 @@ import {
   hashVerifyToken,
   verifyTokenExpiry,
 } from "./auth";
-import { sendPasswordResetEmail, sendVerificationEmail } from "./email";
+import {
+  sendAccountDeletedEmail,
+  sendPasswordChangedEmail,
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+  sendWelcomeEmail,
+} from "./email";
 import { z } from "zod";
 
 const IMPORT_MAX_ITEMS = 2_000;
@@ -261,6 +267,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     await storage.createAuthSession(user.id, sessionTok, sessionExpiry());
     res.setHeader("Set-Cookie", authCookie(sessionTok, isSecure(req)));
     const verified = { ...user, emailVerified: true };
+    void sendWelcomeEmail({ to: user.email, displayName: user.displayName });
     res.json({ user: publicUser(verified), claimed });
   });
 
@@ -348,6 +355,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     await storage.deletePasswordResetToken(tokenRow.tokenHash);
     await storage.deleteEmailVerificationTokensForUser(user.id);
     await storage.deleteAuthSessionsForUser(user.id);
+    void sendPasswordChangedEmail({ to: user.email });
 
     const token = newSessionToken();
     await storage.createAuthSession(user.id, token, sessionExpiry());
@@ -366,7 +374,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
       return res.status(401).json({ error: "Password is incorrect" });
     }
+    const email = user.email;
     await storage.deleteUser(user.id);
+    void sendAccountDeletedEmail({ to: email });
     res.setHeader("Set-Cookie", clearedAuthCookie(isSecure(req)));
     res.status(204).end();
   });

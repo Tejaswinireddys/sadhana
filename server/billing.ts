@@ -1,11 +1,20 @@
 /**
  * Stripe Checkout for Plus / Coach — only active when STRIPE_SECRET_KEY is set.
  * Clear pricing, Billing Portal cancel path, no dark patterns.
+ * Sends transactional billing emails when a recipient address is known.
  */
 import type { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { createRateLimiter } from "./security";
 import { loadMap, saveMap } from "./jsonStore";
+import { storage } from "./storage";
+import {
+  appBaseUrl,
+  sendCancelConfirmationEmail,
+  sendPaymentFailedEmail,
+  sendRenewalReminderEmail,
+  sendSubscriptionStartedEmail,
+} from "./email";
 
 const stripeKey = process.env.STRIPE_SECRET_KEY || "";
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
@@ -30,6 +39,11 @@ type Entitlement = {
   status: string;
   renewsAt: string | null;
   stripeCustomerId?: string;
+  /** Best-known billing contact (Stripe customer / checkout / account). */
+  email?: string;
+  cancelAtPeriodEnd?: boolean;
+  /** ISO day we last sent a renewal reminder (dedupe). */
+  lastRenewalReminderAt?: string;
 };
 
 const STORE = "billing-entitlements";
@@ -49,12 +63,83 @@ function appOrigin(req: Request): string {
   return `${proto}://${host}`;
 }
 
+function manageUrl(): string {
+  return `${appBaseUrl()}/plus`;
+}
+
 function priceId(plan: string, interval: string): string | null {
   if (plan === "plus" && interval === "month") return pricePlusMonth || null;
   if (plan === "plus" && interval === "year") return pricePlusYear || null;
   if (plan === "coach" && interval === "month") return priceCoachMonth || null;
   if (plan === "coach" && interval === "year") return priceCoachYear || null;
   return null;
+}
+
+async function emailForOwner(ownerId: string, fallback?: string | null): Promise<string | undefined> {
+  const trimmed = fallback?.trim().toLowerCase();
+  if (trimmed && trimmed.includes("@")) return trimmed;
+  const existing = entitlements.get(ownerId)?.email;
+  if (existing) return existing;
+  const match = /^user:(\d+)$/.exec(ownerId);
+  if (!match) return undefined;
+  const user = await storage.getUserById(Number(match[1]));
+  return user?.email;
+}
+
+function periodEndIso(sub: Stripe.Subscription): string | null {
+  // Newer Stripe APIs expose period bounds on subscription items, not the sub root.
+  const ends = (sub.items?.data || [])
+    .map((item) => item.current_period_end)
+    .filter((n): n is number => typeof n === "number" && n > 0);
+  const end = ends.length ? Math.max(...ends) : (sub.cancel_at ?? null);
+  if (!end) return null;
+  return new Date(end * 1000).toISOString();
+}
+
+function subscriptionIdFromInvoice(invoice: Stripe.Invoice): string | undefined {
+  const parentSub = invoice.parent?.subscription_details?.subscription;
+  if (typeof parentSub === "string") return parentSub;
+  if (parentSub && typeof parentSub === "object" && "id" in parentSub) {
+    return (parentSub as { id: string }).id;
+  }
+  return undefined;
+}
+
+/** Email anyone whose renewsAt falls within the next 3 days (once per charge window). */
+export async function dispatchRenewalReminders(now = new Date()): Promise<number> {
+  const horizon = now.getTime() + 3 * 86_400_000;
+  let sent = 0;
+  for (const [ownerId, row] of entitlements) {
+    if (!row.email || !row.renewsAt) continue;
+    if (row.plan === "free") continue;
+    if (row.status !== "active" && row.status !== "trialing") continue;
+    if (row.cancelAtPeriodEnd) continue;
+    const renewMs = new Date(row.renewsAt).getTime();
+    if (Number.isNaN(renewMs) || renewMs < now.getTime() || renewMs > horizon) continue;
+    const dayKey = row.renewsAt.slice(0, 10);
+    if (row.lastRenewalReminderAt === dayKey) continue;
+    await sendRenewalReminderEmail({
+      to: row.email,
+      plan: row.plan,
+      chargeDate: row.renewsAt,
+      manageUrl: manageUrl(),
+    });
+    entitlements.set(ownerId, { ...row, lastRenewalReminderAt: dayKey });
+    sent += 1;
+  }
+  if (sent) persist();
+  return sent;
+}
+
+export function startBillingScheduler() {
+  // Light touch — same spirit as push reminders; safe when Stripe is off.
+  const tick = () => {
+    void dispatchRenewalReminders().catch((err) => {
+      console.error("[billing] renewal reminder dispatch failed", err);
+    });
+  };
+  setInterval(tick, 6 * 60 * 60_000);
+  setTimeout(tick, 45_000);
 }
 
 export function registerBillingRoutes(app: Express) {
@@ -75,7 +160,12 @@ export function registerBillingRoutes(app: Express) {
       status: "active",
       renewsAt: null,
     };
-    res.json(row);
+    res.json({
+      plan: row.plan,
+      status: row.status,
+      renewsAt: row.renewsAt,
+      cancelAtPeriodEnd: row.cancelAtPeriodEnd ?? false,
+    });
   });
 
   app.post("/api/billing/checkout", billLimit, async (req: Request, res: Response) => {
@@ -100,15 +190,21 @@ export function registerBillingRoutes(app: Express) {
     const origin = appOrigin(req);
     const ownerId = req.ownerId || "";
     const existing = entitlements.get(ownerId);
+    let customerEmail: string | undefined;
+    if (req.userId) {
+      const user = await storage.getUserById(req.userId);
+      customerEmail = user?.email;
+    }
     try {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         line_items: [{ price, quantity: 1 }],
-        success_url: `${origin}/#/plus?checkout=success`,
-        cancel_url: `${origin}/#/plus?checkout=cancel`,
+        success_url: `${origin}/plus?checkout=success`,
+        cancel_url: `${origin}/plus?checkout=cancel`,
         allow_promotion_codes: true,
         billing_address_collection: "auto",
         customer: existing?.stripeCustomerId || undefined,
+        customer_email: existing?.stripeCustomerId ? undefined : customerEmail,
         client_reference_id: ownerId || undefined,
         subscription_data: {
           metadata: { sadhanaPlan: plan, ownerId },
@@ -137,12 +233,22 @@ export function registerBillingRoutes(app: Express) {
     try {
       const session = await stripe.billingPortal.sessions.create({
         customer: row.stripeCustomerId,
-        return_url: `${appOrigin(req)}/#/plus`,
+        return_url: `${appOrigin(req)}/plus`,
       });
       res.json({ url: session.url });
     } catch (e) {
       res.status(502).json({ error: (e as Error).message || "Portal unavailable" });
     }
+  });
+
+  /** Operator / cron hook for renewal reminders (also runs in-process). */
+  app.post("/api/billing/dispatch-renewal-reminders", async (req, res) => {
+    const secret = process.env.BILLING_DISPATCH_SECRET || process.env.PUSH_DISPATCH_SECRET;
+    if (secret && req.get("x-billing-secret") !== secret && req.get("x-push-secret") !== secret) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const sent = await dispatchRenewalReminders();
+    res.json({ ok: true, sent });
   });
 
   app.post("/api/billing/webhook", async (req: Request, res: Response) => {
@@ -169,45 +275,121 @@ export function registerBillingRoutes(app: Express) {
       const plan = session.metadata?.sadhanaPlan || "plus";
       const customerId =
         typeof session.customer === "string" ? session.customer : session.customer?.id;
+      const email = await emailForOwner(
+        ownerId,
+        session.customer_details?.email || session.customer_email,
+      );
       if (ownerId) {
+        const prev = entitlements.get(ownerId);
         entitlements.set(ownerId, {
           plan,
           status: "active",
-          renewsAt: null,
-          stripeCustomerId: customerId || entitlements.get(ownerId)?.stripeCustomerId,
+          renewsAt: prev?.renewsAt ?? null,
+          stripeCustomerId: customerId || prev?.stripeCustomerId,
+          email: email || prev?.email,
+          cancelAtPeriodEnd: false,
         });
         persist();
+        if (email) {
+          void sendSubscriptionStartedEmail({ to: email, plan, manageUrl: manageUrl() });
+        }
       }
     }
+
     if (event.type === "customer.subscription.updated") {
       const sub = event.data.object as Stripe.Subscription;
       const ownerId = sub.metadata?.ownerId || "";
-      const plan = sub.metadata?.sadhanaPlan || entitlements.get(ownerId)?.plan || "plus";
+      const prev = ownerId ? entitlements.get(ownerId) : undefined;
+      const plan = sub.metadata?.sadhanaPlan || prev?.plan || "plus";
       if (ownerId) {
+        const renewsAt = periodEndIso(sub);
+        const email = await emailForOwner(ownerId, prev?.email);
+        const cancelAtPeriodEnd = Boolean(sub.cancel_at_period_end);
         entitlements.set(ownerId, {
           plan: sub.status === "active" || sub.status === "trialing" ? plan : "free",
           status: sub.status,
-          renewsAt: null,
+          renewsAt,
           stripeCustomerId:
-            typeof sub.customer === "string" ? sub.customer : entitlements.get(ownerId)?.stripeCustomerId,
+            typeof sub.customer === "string" ? sub.customer : prev?.stripeCustomerId,
+          email,
+          cancelAtPeriodEnd,
+          lastRenewalReminderAt: prev?.lastRenewalReminderAt,
         });
         persist();
+        // Fire cancel confirmation once when cancel-at-period-end flips on.
+        if (cancelAtPeriodEnd && !prev?.cancelAtPeriodEnd && email) {
+          void sendCancelConfirmationEmail({
+            to: email,
+            plan,
+            accessUntil: renewsAt,
+            manageUrl: manageUrl(),
+          });
+        }
       }
     }
+
     if (event.type === "customer.subscription.deleted") {
       const sub = event.data.object as Stripe.Subscription;
       const ownerId = sub.metadata?.ownerId || "";
       if (ownerId) {
         const prev = entitlements.get(ownerId);
+        const email = await emailForOwner(ownerId, prev?.email);
         entitlements.set(ownerId, {
           plan: "free",
           status: "canceled",
           renewsAt: null,
           stripeCustomerId: prev?.stripeCustomerId,
+          email: email || prev?.email,
+          cancelAtPeriodEnd: false,
         });
         persist();
+        // If they canceled immediately (not via period-end flag), still notify.
+        if (email && !prev?.cancelAtPeriodEnd) {
+          void sendCancelConfirmationEmail({
+            to: email,
+            plan: prev?.plan || "plus",
+            accessUntil: null,
+            manageUrl: manageUrl(),
+          });
+        }
       }
     }
+
+    if (event.type === "invoice.payment_failed") {
+      const invoice = event.data.object as Stripe.Invoice;
+      const subId = subscriptionIdFromInvoice(invoice);
+      let ownerId = "";
+      let plan = "plus";
+      if (subId) {
+        try {
+          const sub = await stripe.subscriptions.retrieve(subId);
+          ownerId = sub.metadata?.ownerId || "";
+          plan = sub.metadata?.sadhanaPlan || entitlements.get(ownerId)?.plan || "plus";
+          if (ownerId) {
+            const prev = entitlements.get(ownerId);
+            entitlements.set(ownerId, {
+              ...(prev || { plan, status: "past_due", renewsAt: null }),
+              plan: prev?.plan || plan,
+              status: "past_due",
+              renewsAt: periodEndIso(sub),
+              stripeCustomerId:
+                typeof sub.customer === "string" ? sub.customer : prev?.stripeCustomerId,
+              email: prev?.email,
+              cancelAtPeriodEnd: prev?.cancelAtPeriodEnd,
+              lastRenewalReminderAt: prev?.lastRenewalReminderAt,
+            });
+            persist();
+          }
+        } catch {
+          // fall through with invoice customer email only
+        }
+      }
+      const email = await emailForOwner(ownerId, invoice.customer_email);
+      if (email) {
+        void sendPaymentFailedEmail({ to: email, plan, manageUrl: manageUrl() });
+      }
+    }
+
     res.json({ received: true });
   });
 }
