@@ -855,7 +855,13 @@ html.motion-off .kids-bob { animation: none !important; }
 }
 .star-pop { animation: star-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
-/* BetterMe-style acquisition funnel helpers */
+/* Acquisition funnel + marketing motion */
+.funnel-shell {
+  position: relative;
+  isolation: isolate;
+  background-color: hsl(var(--background));
+}
+
 @keyframes funnel-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.06); opacity: 0.92; }
@@ -873,4 +879,63 @@ html.motion-off .funnel-pulse {
 }
 .funnel-option:active {
   transform: scale(0.985);
+}
+
+@keyframes funnel-step-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.funnel-step {
+  animation: funnel-step-in 0.35s ease-out both;
+}
+html.motion-off .funnel-step {
+  animation: none !important;
+}
+
+@keyframes landing-brand-rise {
+  from { opacity: 0; transform: translateY(18px); letter-spacing: 0.04em; }
+  to { opacity: 1; transform: translateY(0); letter-spacing: -0.01em; }
+}
+.landing-brand-rise {
+  animation: landing-brand-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes landing-scroll-cue {
+  0%, 100% { opacity: 0.55; transform: translate(-50%, 0); }
+  50% { opacity: 1; transform: translate(-50%, 4px); }
+}
+.landing-scroll-cue {
+  animation: landing-scroll-cue 2.4s ease-in-out infinite;
+}
+
+@keyframes landing-cta-glow {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(0 0% 100% / 0); }
+  50% { box-shadow: 0 0 0 6px hsl(0 0% 100% / 0.12); }
+}
+.landing-cta-glow {
+  animation: landing-cta-glow 2.8s ease-in-out infinite;
+}
+
+@keyframes landing-sticky-in {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.landing-sticky-cta {
+  animation: landing-sticky-in 0.45s ease-out 0.6s both;
+}
+
+html.motion-off .landing-brand-rise,
+html.motion-off .landing-scroll-cue,
+html.motion-off .landing-cta-glow,
+html.motion-off .landing-sticky-cta {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-brand-rise,
+  .landing-scroll-cue,
+  .landing-cta-glow,
+  .landing-sticky-cta,
+  .funnel-step {
+    animation: none !important;
+  }
 }
