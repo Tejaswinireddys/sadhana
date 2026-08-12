@@ -147,7 +147,7 @@ function PathwayCard({ p, enrolled }: { p: Pathway; enrolled: boolean }) {
                   key={slug}
                   className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md border border-border bg-background"
                 >
-                  <img
+                  <img width={600} height={1200}
                     src={`${import.meta.env.BASE_URL}poses/${slug}.png`}
                     alt=""
                     aria-hidden

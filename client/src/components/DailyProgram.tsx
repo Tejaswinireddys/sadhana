@@ -56,7 +56,7 @@ function PoseRow({ p }: { p: DailyPlan["poses"][number] }) {
   return (
     <div className="flex items-center gap-3 rounded-md border border-border bg-background p-2">
       <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-accent/30">
-        <img
+        <img width={600} height={1200}
           src={`${import.meta.env.BASE_URL}poses/${p.asanaSlug}.png`}
           alt={asana?.english ?? p.asanaSlug}
           className="h-full w-full object-contain"
@@ -173,7 +173,7 @@ export function DailyProgram({
               <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-4">
                   <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background">
-                    <img
+                    <img loading="lazy" width={600} height={1200}
                       src={`${import.meta.env.BASE_URL}poses/balasana.png`}
                       alt="Child's pose"
                       className="h-full w-full object-contain"

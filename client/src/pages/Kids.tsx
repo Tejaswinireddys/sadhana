@@ -53,7 +53,7 @@ export default function Kids() {
                 </Link>
               </Button>
             </div>
-            <img
+            <img loading="lazy" width={600} height={1200}
               src={`${import.meta.env.BASE_URL}kids/_hero.png`}
               alt="A cheerful child practicing yoga"
               className="kids-bob mx-auto w-full max-w-sm rounded-2xl object-contain"
@@ -76,7 +76,7 @@ export default function Kids() {
                   data-testid={`card-kids-${p.slug}`}
                 >
                   <div className="flex items-center justify-center bg-accent/50 p-4">
-                    <img
+                    <img width={600} height={1200}
                       src={`${import.meta.env.BASE_URL}kids/${p.image}.png`}
                       alt={p.poseName}
                       className="h-40 w-40 object-contain"
@@ -118,7 +118,7 @@ export default function Kids() {
                   data-testid={`card-kids-breath-${b.slug}`}
                 >
                   <div className="flex items-center justify-center bg-secondary/15 p-4">
-                    <img
+                    <img loading="lazy" width={600} height={1200}
                       src={`${import.meta.env.BASE_URL}kids/${b.image}.png`}
                       alt={b.techniqueName}
                       className="h-32 w-32 object-contain"

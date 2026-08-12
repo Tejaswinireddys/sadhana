@@ -1237,7 +1237,7 @@ export default function GuidedSession() {
         {/* prev thumb */}
         {prev && (
           <div className="absolute left-3 top-1/2 hidden -translate-y-1/2 flex-col items-center gap-1 opacity-40 sm:flex">
-            <img
+            <img width={80} height={160}
               src={`${import.meta.env.BASE_URL}poses/${prev.slug}.png`}
               alt={prev.english}
               className="h-20 w-20 rounded-xl object-contain"
@@ -1256,7 +1256,7 @@ export default function GuidedSession() {
         {/* next thumb */}
         {next && (
           <div className="absolute right-3 top-1/2 hidden -translate-y-1/2 flex-col items-center gap-1 opacity-40 sm:flex">
-            <img
+            <img width={80} height={160}
               src={`${import.meta.env.BASE_URL}poses/${next.slug}.png`}
               alt={next.english}
               className="h-20 w-20 rounded-xl object-contain"

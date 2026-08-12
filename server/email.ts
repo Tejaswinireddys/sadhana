@@ -59,12 +59,12 @@ function fromAddress(): string {
 }
 
 export function appBaseUrl(): string {
-  return (
-    process.env.PUBLIC_APP_URL?.replace(/\/$/, "") ||
-    (process.env.NODE_ENV === "production"
-      ? "https://sadhana-ou9m.onrender.com"
-      : "http://localhost:5000")
-  );
+  if (process.env.PUBLIC_APP_URL?.trim()) {
+    return process.env.PUBLIC_APP_URL.trim().replace(/\/$/, "");
+  }
+  return process.env.NODE_ENV === "production"
+    ? "https://sadhana-ou9m.onrender.com"
+    : "http://localhost:5000";
 }
 
 export function formatMoney(amount: number, currency: string): string {

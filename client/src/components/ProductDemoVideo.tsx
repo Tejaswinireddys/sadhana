@@ -148,7 +148,7 @@ export function ProductDemoVideo({
             <p className="max-w-sm text-sm text-muted-foreground">
               Demo video couldn’t load. Check your connection, then try Play again.
             </p>
-            <img
+            <img loading="lazy" width={1280} height={720}
               src={poster}
               alt=""
               className="mt-2 max-h-40 rounded-xl object-cover opacity-80"

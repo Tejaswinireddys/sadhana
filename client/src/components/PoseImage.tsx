@@ -1,7 +1,7 @@
 /**
- * PoseImage — illustrated pose photo (/poses/<slug>.png).
+ * PoseImage — illustrated pose photo (`/poses/<slug>.{webp,png}`).
  * Lazy decode, soft fade-in, optional breath scale, skeleton + SVG fallback.
- * Blur-up uses a tiny same-asset preview (no separate WebP set required).
+ * Serves WebP via `<picture>` when generated (`npm run gen:pose-webp`), PNG fallback.
  *
  * Fit: every pose source is authored at 600x1200 (1:2, full standing figure).
  * `object-cover` in any wider container clips the top and bottom of the frame —
@@ -36,7 +36,7 @@ export function PoseImage({
   rounded?: string;
   aspect?: string;
   shadow?: boolean;
-  /** Hint for responsive layout; single PNG source until WebP variants exist. */
+  /** Hint for responsive layout. */
   sizes?: string;
   /** Eager load for LCP heroes */
   priority?: boolean;
@@ -58,8 +58,12 @@ export function PoseImage({
   const [useFullSize, setUseFullSize] = useState(false);
   const asana = asanaBySlug(slug);
   const poseKey = asana?.pose ?? "mountain";
-  const full = `${import.meta.env.BASE_URL}poses/${slug}.png`;
-  const src = thumb && !useFullSize ? `${import.meta.env.BASE_URL}poses/thumbs/${slug}.png` : full;
+  const fullPng = `${import.meta.env.BASE_URL}poses/${slug}.png`;
+  const fullWebp = `${import.meta.env.BASE_URL}poses/${slug}.webp`;
+  const thumbPng = `${import.meta.env.BASE_URL}poses/thumbs/${slug}.png`;
+  const thumbWebp = `${import.meta.env.BASE_URL}poses/thumbs/${slug}.webp`;
+  const src = thumb && !useFullSize ? thumbPng : fullPng;
+  const webpSrc = thumb && !useFullSize ? thumbWebp : fullWebp;
   const eager = priority || thumb;
 
   /**
@@ -109,33 +113,35 @@ export function PoseImage({
         </>
       )}
       {!errored && (
-        <img
-          ref={attachImg}
-          key={src}
-          src={src}
-          alt={alt}
-          width={thumb ? 96 : 600}
-          height={thumb ? 192 : 1200}
-          sizes={sizes}
-          loading={eager ? "eager" : "lazy"}
-          decoding={eager ? "sync" : "async"}
-          fetchPriority={priority ? "high" : "auto"}
-          onLoad={() => setLoaded(true)}
-          onError={handleError}
-          className={cn(
-            "relative z-[1] block select-none transition-opacity duration-300",
-            fit === "cover" ? "object-cover" : "object-contain",
-            // A full-body figure shrunk to a row thumbnail is a few faint
-            // pixels. Scaling up inside the clip keeps it legible.
-            thumb ? "scale-[1.35]" : "",
-            rounded,
-            aspect ? "h-full w-full" : "w-full",
-            shadow ? "shadow-soft-lg" : "",
-            loaded ? "opacity-100" : "opacity-0",
-            loaded && breath ? "photo-breath" : "",
-          )}
-          draggable={false}
-        />
+        <picture key={src}>
+          <source srcSet={webpSrc} type="image/webp" sizes={sizes} />
+          <img
+            ref={attachImg}
+            src={src}
+            alt={alt}
+            width={thumb ? 96 : 600}
+            height={thumb ? 192 : 1200}
+            sizes={sizes}
+            loading={eager ? "eager" : "lazy"}
+            decoding={eager ? "sync" : "async"}
+            fetchPriority={priority ? "high" : "auto"}
+            onLoad={() => setLoaded(true)}
+            onError={handleError}
+            className={cn(
+              "relative z-[1] block select-none transition-opacity duration-300",
+              fit === "cover" ? "object-cover" : "object-contain",
+              // A full-body figure shrunk to a row thumbnail is a few faint
+              // pixels. Scaling up inside the clip keeps it legible.
+              thumb ? "scale-[1.35]" : "",
+              rounded,
+              aspect ? "h-full w-full" : "w-full",
+              shadow ? "shadow-soft-lg" : "",
+              loaded ? "opacity-100" : "opacity-0",
+              loaded && breath ? "photo-breath" : "",
+            )}
+            draggable={false}
+          />
+        </picture>
       )}
       {errored && (
         <div

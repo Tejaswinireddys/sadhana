@@ -349,7 +349,7 @@ export function PoseDemoStage({
               <span className="text-xs">Pose guide unavailable</span>
             </div>
           ) : (
-            <img
+            <img loading="lazy" width={1280} height={720}
               src={media.poster}
               alt={alt}
               draggable={false}

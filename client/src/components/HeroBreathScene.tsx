@@ -68,6 +68,7 @@ export default function HeroBreathScene({
             "relative z-[1] aspect-[3/4] w-full object-cover",
             animate && "hero-photo-breath",
           )}
+          loading="eager"
           decoding="async"
           fetchPriority="high"
         />

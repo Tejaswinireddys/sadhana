@@ -5,6 +5,7 @@ import viteConfig from "../vite.config";
 import fs from "node:fs";
 import path from "node:path";
 import { nanoid } from "nanoid";
+import { brandPublicHtml, publicAppOrigin, robotsTxt } from "./publicUrl";
 
 const viteLogger = createLogger();
 
@@ -27,6 +28,10 @@ export async function setupVite(server: Server, app: Express) {
     },
     server: serverOptions,
     appType: "custom",
+  });
+
+  app.get("/robots.txt", (_req, res) => {
+    res.status(200).type("text/plain").send(robotsTxt(publicAppOrigin()));
   });
 
   app.use(vite.middlewares);
@@ -58,6 +63,7 @@ export async function setupVite(server: Server, app: Express) {
 
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = brandPublicHtml(template);
       template = template.replace(
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,

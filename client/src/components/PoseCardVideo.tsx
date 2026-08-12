@@ -87,7 +87,7 @@ export function PoseCardVideo({
       data-media={ready ? "video" : "poster"}
     >
       {!ready && (
-        <img
+        <img width={1280} height={720}
           src={media.poster}
           alt=""
           aria-hidden

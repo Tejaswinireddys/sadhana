@@ -50,7 +50,8 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
     "camera=(self), microphone=(self), geolocation=(), payment=(self), usb=()",
   );
   // Theme boot script in client/index.html is hashed (no 'unsafe-inline' for scripts).
-  // style-src still allows 'unsafe-inline' for React style={} attributes.
+  // style-src keeps 'unsafe-inline' because React `style={}` attributes cannot use
+  // nonces/hashes in current browsers — migrating those to classes is the only path.
   const themeScriptHash = "'sha256-j8vcGdgVnZoGpKZl63DFAOCBCzW6WFpK9VyyQ9914XU='";
   const connect = [
     "'self'",

@@ -23,8 +23,9 @@ run in one process — there is no separate frontend dev server.
 - **Rate limits:** strict on auth login/signup/reset/verify; `/api/auth/me` 120/min; mutating `/api/*` 90/min; account export/wipe 20/hour.
 - Unknown `/api/*` routes return **JSON 404** (never the SPA HTML shell) in both Vite and production static modes.
 - CSP `script-src` is `'self'` + the hashed theme boot script (no `'unsafe-inline'` for scripts). `style-src` still allows `'unsafe-inline'` for React `style={}`.
-- **Hosting:** Render free tier cold-starts ~30–50s after idle — use a paid/always-on instance before public launch. Set `PUBLIC_APP_URL` to a real custom domain (not `*.onrender.com`) for trust + OG/canonical.
-- **Error monitoring:** set `SENTRY_DSN` to forward server 500s and `POST /api/client-errors` beacons. PostHog is product analytics only.
+- **Hosting:** Render free tier cold-starts ~30–50s after idle — use a paid/always-on instance before public launch. Set `PUBLIC_APP_URL` to a real custom domain (not `*.onrender.com`); HTML OG/canonical + `/robots.txt` are rewritten from that value at serve time.
+- **Error monitoring:** `@sentry/node` + `@sentry/react` when `SENTRY_DSN` / `VITE_SENTRY_DSN` are set. Also `POST /api/client-errors` + ErrorBoundary beacons. PostHog is product analytics only.
+- **Images:** `PoseImage` uses `<picture>` WebP + PNG fallback (`npm run gen:pose-webp`). Pose sources are 600×1200; raw `<img>` tags should set intrinsic width/height and `loading`.
 - With Postgres configured, the schema is auto-applied on boot from `drizzle/schema.sql` (no manual migration step needed); `npm run db:push` is available for manual schema pushes.
 - **`/healthz` is DB-aware.** It returns 200 only when `storage.ping()` succeeds (always true in memory mode; `SELECT 1` against Postgres otherwise). A DB outage returns 503 so Render stops routing to a broken instance.
 - Stripe entitlements live in the `entitlements` table (not `.data/billing-entitlements.json`). Boot runs an idempotent JSON→Postgres import via `migrateBillingEntitlements()`.

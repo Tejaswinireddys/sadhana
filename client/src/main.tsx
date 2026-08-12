@@ -42,6 +42,10 @@ import("./lib/posthogClient")
   .then(({ initPostHog }) => initPostHog())
   .catch(() => undefined);
 
+import("./lib/sentryClient")
+  .then(({ initSentry }) => initSentry())
+  .catch(() => undefined);
+
 /**
  * Register the service worker.
  *
@@ -85,6 +89,9 @@ function reportClientError(message: string, stack?: string) {
 
 window.addEventListener("error", (ev) => {
   reportClientError(ev.message || "window.error", ev.error?.stack);
+  void import("./lib/sentryClient")
+    .then(({ captureClientException }) => captureClientException(ev.error || ev.message))
+    .catch(() => undefined);
 });
 window.addEventListener("unhandledrejection", (ev) => {
   const reason = ev.reason;
@@ -92,4 +99,7 @@ window.addEventListener("unhandledrejection", (ev) => {
     reason instanceof Error ? reason.message : typeof reason === "string" ? reason : "unhandledrejection";
   const stack = reason instanceof Error ? reason.stack : undefined;
   reportClientError(message, stack);
+  void import("./lib/sentryClient")
+    .then(({ captureClientException }) => captureClientException(reason))
+    .catch(() => undefined);
 });

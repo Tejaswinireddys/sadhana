@@ -16,6 +16,8 @@ import {
   startBillingScheduler,
 } from "./billing";
 import { registerBuddyRoutes } from "./buddy";
+import { publicAppOrigin } from "./publicUrl";
+import { captureServerException, initServerSentry } from "./sentry";
 
 const app = express();
 const httpServer = createServer(app);
@@ -54,8 +56,7 @@ app.get("/healthz", async (_req, res) => {
   }
 });
 
-const PUBLIC_ORIGIN =
-  process.env.PUBLIC_APP_URL?.replace(/\/$/, "") || "https://sadhana-ou9m.onrender.com";
+const PUBLIC_ORIGIN = publicAppOrigin();
 
 /** Real XML sitemap (not the SPA shell) for marketing / SEO crawlers. */
 app.get("/sitemap.xml", (_req, res) => {
@@ -130,6 +131,8 @@ async function ensureSchema() {
 }
 
 (async () => {
+  await initServerSentry();
+
   const { usingMemory } = initStorage();
   if (usingMemory) {
     log("DATABASE_URL unset — using in-memory store (data resets on restart)");
@@ -153,6 +156,7 @@ async function ensureSchema() {
 
     console.error("Internal Server Error:", err);
     if (status >= 500) {
+      void captureServerException(err, { path: req.originalUrl });
       void import("./errorReporting")
         .then(({ reportError }) =>
           reportError({

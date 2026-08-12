@@ -325,6 +325,7 @@ export default function Register() {
               className="absolute inset-0 h-full w-full object-cover object-[center_30%]"
               width={1200}
               height={1600}
+              loading="eager"
               decoding="async"
               fetchPriority="high"
               aria-hidden

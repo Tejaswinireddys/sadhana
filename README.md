@@ -117,7 +117,11 @@ The app runs on Render's free tier. Free-tier apps spin down after 15
 minutes of inactivity; the first visit after that takes ~30–50 seconds to wake.
 **Before sharing the product publicly, move the web service to a paid always-on
 plan** and attach a custom domain via `PUBLIC_APP_URL` (the default
-`*.onrender.com` URL is fine for demos only).
+`*.onrender.com` URL is fine for demos only). With `PUBLIC_APP_URL` set, OG tags,
+canonical URLs, and `/robots.txt` rewrite automatically at serve time.
+
+For error monitoring set `SENTRY_DSN` (server) and `VITE_SENTRY_DSN` (browser).
+Regenerate pose WebP siblings with `npm run gen:pose-webp` after adding PNGs.
 
 ### Privacy / account controls
 

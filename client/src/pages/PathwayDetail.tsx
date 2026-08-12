@@ -326,7 +326,7 @@ export default function PathwayDetail() {
                             className="flex flex-col items-center gap-1.5 rounded-md border border-border bg-background p-2 text-center"
                           >
                             <span className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md bg-accent/30">
-                              <img
+                              <img width={600} height={1200}
                                 src={`${import.meta.env.BASE_URL}poses/${p.asanaSlug}.png`}
                                 alt={asana?.english ?? p.asanaSlug}
                                 className="h-full w-full object-cover"
