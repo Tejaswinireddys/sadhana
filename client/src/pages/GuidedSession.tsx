@@ -210,6 +210,7 @@ export default function GuidedSession() {
   const [stepIndex, setStepIndex] = useState(0);
   // 0–1 through the spoken step — drives limb interpolation on rigged poses.
   const [stepProgress, setStepProgress] = useState(1);
+  const [narrationTime, setNarrationTime] = useState(0);
   const [paused, setPaused] = useState(false);
   // Session-local narration mute — independent of the saved `voiceEnabled`
   // preference, so silencing the voice for one practice (e.g. to use your own
@@ -596,6 +597,8 @@ export default function GuidedSession() {
       setPhase("instruction");
       setSide(whichSide);
       setStepIndex(0);
+      setStepProgress(0);
+      setNarrationTime(0);
       // Restart muted pose video with this pose's narration (or silent guide).
       setVideoRestartToken((n) => n + 1);
       const a = audioRef.current;
@@ -631,6 +634,12 @@ export default function GuidedSession() {
     setPhaseRemaining(remaining);
     setHoldBudget(remaining);
     setStepIndex(Math.max(0, stepCount - 1));
+    setStepProgress(1);
+    setNarrationTime(
+      voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
+        ? voiceDuration
+        : SILENT_INSTRUCTION_SECONDS,
+    );
     setCueIndex(0);
     setPhase("hold");
   }, [current, voiceDuration, voiceEnabled, stepCount]);
@@ -696,6 +705,7 @@ export default function GuidedSession() {
           const { index: idx, progress } = resolveStep(elapsed);
           setStepIndex(idx);
           setStepProgress(progress);
+          setNarrationTime(elapsed);
         }
         return r - 1;
       });
@@ -1354,6 +1364,7 @@ export default function GuidedSession() {
             const { index: idx, progress } = resolveStep(a.currentTime);
             setStepIndex(idx);
             setStepProgress(progress);
+            setNarrationTime(a.currentTime);
           }
         }}
         onEnded={onVoiceEnded}
@@ -1498,12 +1509,33 @@ export default function GuidedSession() {
                           : Math.max(0, stepCount - 1)
                         : 0
                     }
+                    stepProgress={
+                      live
+                        ? phase === "instruction"
+                          ? stepProgress
+                          : 1
+                        : 1
+                    }
                     playing={
                       live && !paused && (phase === "instruction" || phase === "hold")
                     }
                     restartToken={live ? videoRestartToken : 0}
+                    syncVideoToVoice
+                    narrationTime={live ? narrationTime : 0}
+                    narrationDuration={
+                      live
+                        ? voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
+                          ? voiceDuration
+                          : SILENT_INSTRUCTION
+                        : 0
+                    }
                     guideActive={
                       live && (phase === "instruction" || phase === "hold")
+                    }
+                    caption={
+                      live && (phase === "instruction" || phase === "hold")
+                        ? activeCaption
+                        : null
                     }
                     side={live && isEach ? (side as 1 | 2) : 1}
                     variant="practice"

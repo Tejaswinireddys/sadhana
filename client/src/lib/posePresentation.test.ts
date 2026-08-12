@@ -17,15 +17,26 @@ describe("pose presentation videos", () => {
     assert.match(src, /onVideoUnavailable/);
   });
 
-  it("keeps teaching figure during guided instruction and holds", () => {
+  it("scrubs how-to video to the spoken cue during teaching", () => {
+    const src = readFileSync(resolve("client/src/components/PoseTrainerStage.tsx"), "utf8");
+    assert.match(src, /wantSyncedHowTo/);
+    assert.match(src, /syncToVoice=\{wantSyncedHowTo\}/);
+    const demo = readFileSync(resolve("client/src/components/PoseDemoStage.tsx"), "utf8");
+    assert.match(demo, /videoTimeForNarration/);
+    assert.match(demo, /syncToVoice/);
     const guided = readFileSync(resolve("client/src/pages/GuidedSession.tsx"), "utf8");
-    // Dual-layer crossfade: only the live (top) stage is guideActive while
-    // teaching; outgoing layers stay idle so the swap can fade cleanly.
+    assert.match(guided, /narrationTime=\{live \? narrationTime : 0\}/);
+    assert.match(guided, /syncVideoToVoice/);
+    assert.match(guided, /guided-stage-crossfade/);
     assert.match(
       guided,
       /guideActive=\{\s*(?:live\s*&&\s*)?\(?\s*phase === "instruction" \|\| phase === "hold"\s*\)?\s*\}/,
     );
     assert.match(guided, /guided-stage-crossfade/);
+    assert.match(
+      guided,
+      /guideActive=\{\s*(?:live\s*&&\s*)?\(?\s*phase === "instruction" \|\| phase === "hold"\s*\)?\s*\}/,
+    );
   });
 
   it("wires kids, trainer, and search surfaces to pose videos", () => {
