@@ -2,10 +2,31 @@
 
 Sadhana’s pose explanation UI leads with a narration-synced **3D figurine
 stage** (CSS perspective + PoseSvg mannequin, focus halo, stepMotion cue).
-Looping Ken Burns clips from still PNGs are optional fallbacks when `prefer3D`
-is turned off — not the primary teaching visual.
+Looping presentation clips play when idle; on failure the illustrated figure
+keeps the session running (never a blocking spinner).
 
-## File convention
+## Adaptive streaming (production)
+
+Production playback uses **Bunny Stream** by default (`STREAM_PROVIDER=bunny`),
+with Mux / Cloudflare Stream selectable via the same env surface.
+
+1. Upload each pose MP4 to your Bunny Stream library; note the **video GUID**
+   (playback ID).
+2. Store it per slug:
+   - `PUT /api/poses/:slug/stream` with `{ "playbackId": "<guid>" }`  
+     (send `x-stream-admin-key: $STREAM_ADMIN_KEY`), or
+   - insert into `pose_media`, or
+   - seed `.data/pose-stream-ids.json` / `POSE_STREAM_IDS_JSON`
+3. Set `BUNNY_STREAM_CDN_HOSTNAME` (pull zone host). The media manifest then
+   returns HLS + progressive URLs; the client plays via **hls.js** (native HLS
+   on Safari), `poster` = pose PNG, `preload="metadata"`.
+4. Guided sessions **preload the next clip** during the current pose so
+   transitions stay buffer-free on Fast 3G.
+
+If the stream host is blocked or slow, `PoseDemoStage` falls back to the
+animated illustration and the session continues.
+
+## Local file convention (dev / offline)
 
 For each asana slug (e.g. `tadasana`, `adho-mukha-svanasana`):
 

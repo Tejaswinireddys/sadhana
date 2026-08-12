@@ -25,12 +25,17 @@
 import { POSE_VIDEOS_READY_LIST } from "./poseVideosReady.generated";
 
 export type PoseMediaSources = {
-  /** Absolute or root-relative WebM URL */
-  webm: string;
-  /** Absolute or root-relative MP4 URL */
-  mp4: string;
+  /** Adaptive HLS playlist (Bunny / Mux / Cloudflare / local .m3u8) */
+  hls?: string | null;
+  /** Absolute or root-relative WebM URL (local progressive) */
+  webm?: string;
+  /** Absolute or root-relative MP4 URL (progressive fallback) */
+  mp4?: string | null;
   /** Poster / still fallback (defaults to pose PNG) */
   poster: string;
+  /** Stream playback id when served from an ABR host */
+  playbackId?: string | null;
+  provider?: string | null;
   /** WebVTT captions when a real caption file exists (omit otherwise — avoids 404 tracks) */
   captions?: string;
 };
@@ -80,9 +85,12 @@ export function poseMediaFor(slug: string): PoseMediaSources {
   const base = appBase();
   const override = POSE_MEDIA_OVERRIDES[slug] ?? {};
   return {
+    hls: override.hls ?? null,
     webm: override.webm ?? `${base}videos/poses/${slug}.webm`,
     mp4: override.mp4 ?? `${base}videos/poses/${slug}.mp4`,
     poster: override.poster ?? `${base}poses/${slug}.png`,
+    playbackId: override.playbackId ?? null,
+    provider: override.provider ?? "local",
     // Only attach a track when an override provides captions — convention VTTs are not shipped yet.
     ...(override.captions ? { captions: override.captions } : {}),
   };

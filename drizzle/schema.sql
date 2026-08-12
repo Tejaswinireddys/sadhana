@@ -146,6 +146,16 @@ CREATE INDEX IF NOT EXISTS milestones_owner_idx ON milestones (owner_id);
 CREATE INDEX IF NOT EXISTS mobility_check_ins_owner_idx ON mobility_check_ins (owner_id);
 CREATE INDEX IF NOT EXISTS custom_flows_owner_idx ON custom_flows (owner_id);
 
+-- Adaptive stream playback IDs per pose (Bunny Stream / Mux / Cloudflare Stream).
+CREATE TABLE IF NOT EXISTS pose_media (
+  id SERIAL PRIMARY KEY,
+  slug TEXT NOT NULL,
+  playback_id TEXT NOT NULL,
+  provider TEXT,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS pose_media_slug_idx ON pose_media (slug);
+
 -- Optional accounts (v6). Guests keep using an anonymous device owner id.
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,

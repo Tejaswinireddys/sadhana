@@ -18,7 +18,8 @@ import { hasRigSequence } from "@/data/poseKeyframes";
 import type { StepMotionKey } from "@/components/StepMotion";
 import type { PoseMediaSources } from "@/data/poseMedia";
 import type { FocusZone } from "@/lib/poseMoments";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { attachHls, type HlsAttachHandle } from "@/lib/hlsAttach";
+import { AlertCircle } from "lucide-react";
 
 export type { FocusZone };
 
@@ -110,6 +111,7 @@ export function PoseDemoStage({
 }: PoseDemoStageProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsRef = useRef<HlsAttachHandle | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0, offsetX: 0, offsetY: 0, wrapW: 0, wrapH: 0 });
   const [imgErrored, setImgErrored] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
@@ -168,13 +170,35 @@ export function PoseDemoStage({
     return () => io.disconnect();
   }, [slug, use3D, variant]);
 
-  // Explicit load() after <source> children mount — required by HTMLMediaElement.
+  // Attach HLS (preferred) or progressive sources. Poster/illustration stays
+  // visible underneath — never a blocking spinner.
   useEffect(() => {
     const v = videoRef.current;
     if (!v || !useVideo || !showSources) return;
     setVideoReady(false);
+    hlsRef.current?.destroy();
+    hlsRef.current = null;
+
+    const hlsUrl = media.hls || null;
+    if (hlsUrl) {
+      hlsRef.current = attachHls(v, hlsUrl, {
+        onError: () => setVideoFailed(true),
+        onManifestParsed: () => {
+          /* ready flagged via canplay / loadeddata */
+        },
+      });
+      return () => {
+        hlsRef.current?.destroy();
+        hlsRef.current = null;
+      };
+    }
+
+    // Progressive local / CDN MP4 (+ optional webm).
     v.load();
-  }, [useVideo, showSources, slug, media.mp4, media.webm]);
+    return () => {
+      /* no-op */
+    };
+  }, [useVideo, showSources, slug, media.hls, media.mp4, media.webm]);
 
   // Measure for focus halo (object-contain letterboxing aware for practice).
   useEffect(() => {
@@ -234,9 +258,11 @@ export function PoseDemoStage({
     }
   }, [playing, useVideo, reduceMotion, slug, videoReady, restartToken]);
 
+  // On slow networks, fall back to the illustration quickly so the session
+  // never stalls waiting on video. Poster is already showing underneath.
   useEffect(() => {
     if (!useVideo || !showSources || videoReady || videoFailed) return;
-    const t = window.setTimeout(() => setVideoFailed(true), 15000);
+    const t = window.setTimeout(() => setVideoFailed(true), 8000);
     return () => window.clearTimeout(t);
   }, [useVideo, showSources, videoReady, videoFailed]);
 
@@ -311,35 +337,27 @@ export function PoseDemoStage({
           <video
             ref={videoRef}
             className={cn(
-              "h-full w-full object-contain object-center",
+              "relative z-[1] h-full w-full object-contain object-center",
               (!videoReady || videoFailed) && "invisible absolute inset-0",
             )}
             poster={media.poster}
             playsInline
             muted
             loop
-            preload={saveData ? "none" : "auto"}
+            preload={saveData ? "none" : "metadata"}
             aria-label={alt}
             onLoadedData={() => setVideoReady(true)}
             onCanPlay={() => setVideoReady(true)}
             onError={() => setVideoFailed(true)}
             data-testid={`pose-demo-video-${slug}`}
           >
-            <source src={media.webm} type="video/webm" />
-            <source src={media.mp4} type="video/mp4" />
+            {/* HLS is attached via hls.js / native src — progressive sources only when no HLS. */}
+            {!media.hls && media.webm ? <source src={media.webm} type="video/webm" /> : null}
+            {!media.hls && media.mp4 ? <source src={media.mp4} type="video/mp4" /> : null}
             {media.captions ? (
               <track kind="captions" src={media.captions} srcLang="en" label="English" />
             ) : null}
           </video>
-        )}
-
-        {useVideo && showSources && !videoReady && !videoFailed && (
-          <div
-            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-accent/10"
-            aria-hidden
-          >
-            <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
-          </div>
         )}
 
         {showIllustration &&

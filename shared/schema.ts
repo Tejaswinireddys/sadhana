@@ -279,6 +279,27 @@ export const insertMilestoneSchema = createInsertSchema(milestones).omit({ id: t
 export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
 export type Milestone = typeof milestones.$inferSelect;
 
+/**
+ * Global per-pose adaptive stream playback IDs (Bunny / Mux / Cloudflare).
+ * Not owner-scoped — catalog media, not user data.
+ */
+export const poseMedia = pgTable(
+  "pose_media",
+  {
+    id: serial("id").primaryKey(),
+    slug: text("slug").notNull(),
+    playbackId: text("playback_id").notNull(),
+    /** Optional per-row override; otherwise STREAM_PROVIDER env applies. */
+    provider: text("provider"),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("pose_media_slug_idx").on(t.slug)],
+);
+
+export const insertPoseMediaSchema = createInsertSchema(poseMedia).omit({ id: true });
+export type InsertPoseMedia = z.infer<typeof insertPoseMediaSchema>;
+export type PoseMedia = typeof poseMedia.$inferSelect;
+
 // Personal notes per pose (v3.4) — one row per (owner, slug)
 export const poseNotes = pgTable(
   "pose_notes",

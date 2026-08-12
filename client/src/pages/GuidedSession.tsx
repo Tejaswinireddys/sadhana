@@ -79,6 +79,8 @@ import {
   manifestToVideoSources,
   usePoseMedia,
 } from "@/lib/poseMediaApi";
+import { preloadPoseVideo, clearPreloadedPoseVideo } from "@/lib/videoPreload";
+import { StreamVideo } from "@/components/StreamVideo";
 import {
   QUICK_SESSIONS,
   sessionMinutes,
@@ -268,7 +270,20 @@ export default function GuidedSession() {
     setTipsOpen(false);
   }, [current?.slug]);
 
-  // Prefetch the next pose narration during hold — one file, skip on save-data.
+  // Prefetch the next pose narration + video during hold so transitions stay smooth.
+  useEffect(() => {
+    if (!next) return;
+    // Warm the next clip as soon as we know it — not only in hold — so Fast 3G
+    // sessions don't buffer between poses.
+    if (phase === "instruction" || phase === "hold" || phase === "sideSwitch") {
+      void preloadPoseVideo(next.slug);
+    }
+  }, [phase, next?.slug]);
+
+  useEffect(() => {
+    return () => clearPreloadedPoseVideo();
+  }, []);
+
   useEffect(() => {
     if (phase !== "hold" || !next || !voiceEnabled) return;
     const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
@@ -276,7 +291,7 @@ export default function GuidedSession() {
     let link: HTMLLinkElement | null = null;
     let cancelled = false;
     void fetchPoseMedia(next.slug).then((m) => {
-      if (cancelled) return;
+      if (cancelled || !m.audio?.url) return;
       link = document.createElement("link");
       link.rel = "prefetch";
       link.as = "fetch";
@@ -1116,23 +1131,12 @@ export default function GuidedSession() {
             {todays.length} poses · a continuous voice-narrated flow.
           </p>
           {introVideo && (
-            <div
-              className="w-full max-w-sm overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft"
-              data-testid="mood-intro-video"
-            >
-              <video
-                className="aspect-video w-full object-cover"
-                autoPlay
-                muted
-                loop
-                playsInline
-                poster={introVideo.poster}
-                aria-label={`Illustrated intro for ${meta.label ?? "this session"}`}
-              >
-                <source src={introVideo.webm} type="video/webm" />
-                <source src={introVideo.mp4} type="video/mp4" />
-              </video>
-            </div>
+            <StreamVideo
+              media={introVideo}
+              className="aspect-video w-full max-w-sm rounded-2xl border border-border/60 bg-card shadow-soft"
+              aria-label={`Illustrated intro for ${meta.label ?? "this session"}`}
+              testId="mood-intro-video"
+            />
           )}
           {/* Guided is primary; timer-only is the secondary mode */}
           <div className="inline-flex rounded-full border border-border bg-card p-0.5 text-sm" data-testid="mode-toggle">
