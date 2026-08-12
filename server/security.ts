@@ -49,10 +49,21 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
     "Permissions-Policy",
     "camera=(self), microphone=(self), geolocation=(), payment=(self), usb=()",
   );
-  // Theme boot script in client/index.html is hashed (no 'unsafe-inline' for scripts).
+  // Theme boot script in client/index.html is hashed (no 'unsafe-inline' for scripts
+  // in production). Vite's React-refresh preamble is an inline <script type="module">
+  // in development — allow 'unsafe-inline' only outside production so HMR can boot.
   // style-src keeps 'unsafe-inline' because React `style={}` attributes cannot use
   // nonces/hashes in current browsers — migrating those to classes is the only path.
   const themeScriptHash = "'sha256-j8vcGdgVnZoGpKZl63DFAOCBCzW6WFpK9VyyQ9914XU='";
+  const isProd = process.env.NODE_ENV === "production";
+  // A CSP hash/nonce disables 'unsafe-inline' for scripts. In production we hash
+  // the theme boot script; in development Vite injects an inline React-refresh
+  // preamble that cannot share that hash — so drop the hash and allow inline.
+  const scriptSrc = [
+    "script-src",
+    "'self'",
+    ...(isProd ? [themeScriptHash] : ["'unsafe-inline'"]),
+  ].join(" ");
   const connect = [
     "'self'",
     "https://*.posthog.com",
@@ -65,7 +76,7 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      `script-src 'self' ${themeScriptHash}`,
+      scriptSrc,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",

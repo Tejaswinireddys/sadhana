@@ -40,7 +40,8 @@ import { todayISO, type Stats } from "@/lib/sadhana";
 import { usePractice } from "@/context/PracticeContext";
 import { useToast } from "@/hooks/use-toast";
 import { useWakeLock } from "@/hooks/use-wake-lock";
-import { logPracticeSession } from "@/lib/logPracticeSession";
+import { buildJournalEntry, logPracticeSession } from "@/lib/logPracticeSession";
+import { estimateBreathCount } from "@/lib/sessionBreaths";
 import { captureProduct } from "@/lib/productAnalytics";
 import { unlockAudio } from "@/lib/audioUnlock";
 import { type Mood } from "@/data/content";
@@ -118,6 +119,10 @@ function playChime() {
 
 /** Reading window used when narration is off or unavailable. */
 const SILENT_INSTRUCTION_SECONDS = 12;
+/** Dual-layer pose swap duration — matches PoseHumanStage. */
+const CROSSFADE_MS = 700;
+/** Hide transport / chrome after this idle window on hold. */
+const IDLE_CHROME_MS = 3200;
 const FALLBACK_HOLD_CUES = [
   "Inhale…",
   "Exhale…",
@@ -127,6 +132,14 @@ const FALLBACK_HOLD_CUES = [
 ];
 
 type Phase = "transitionIn" | "instruction" | "sideSwitch" | "hold" | "complete";
+
+type StageLayer = {
+  id: number;
+  slug: string;
+  english: string;
+  sanskrit: string;
+  poseKey: string;
+};
 
 /** Live countdown uses clock notation; everything else uses formatDuration. */
 const mmss = formatClock;
@@ -206,12 +219,20 @@ export default function GuidedSession() {
   const [pace, setPace] = useState<0.75 | 1 | 1.25>(1);
   const [captionsOn, setCaptionsOn] = useState(true);
   const [elapsedTotal, setElapsedTotal] = useState(0);
-  const [imgVisible, setImgVisible] = useState(true); // crossfade toggle
+  const [stageLayers, setStageLayers] = useState<StageLayer[]>([]);
+  const stageIdRef = useRef(0);
+  const [chromeVisible, setChromeVisible] = useState(true);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cueIndex, setCueIndex] = useState(0);
   const [tipsOpen, setTipsOpen] = useState(false);
-
-  // ---- premium: breath cycle + image key for crossfade ----------------------
   const [confirmExit, setConfirmExit] = useState(false);
+  const holdSecondsRef = useRef(0);
+  const finishedBreaths = useRef(0);
+  const motionPrefOn = prefs ? prefs.motionEnabled !== 0 : true;
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const smoothCrossfade = motionPrefOn && !reduceMotion;
 
   // ---- completion / mood state ----------------------------------------------
   const [finished, setFinished] = useState(false);
@@ -347,9 +368,20 @@ export default function GuidedSession() {
     (i: number) => {
       const pose = todays[i];
       if (!pose) return;
-      setImgVisible(false);
-      // Crossfade: fade out, swap, fade in.
-      setTimeout(() => setImgVisible(true), 60);
+      const nextLayer: StageLayer = {
+        id: ++stageIdRef.current,
+        slug: pose.slug,
+        english: pose.english,
+        sanskrit: pose.sanskrit,
+        poseKey: pose.pose,
+      };
+      setStageLayers((prev) => {
+        if (!smoothCrossfade || prev.length === 0) return [nextLayer];
+        const top = prev[prev.length - 1];
+        if (top?.slug === nextLayer.slug) return prev;
+        return [...prev, nextLayer].slice(-2);
+      });
+      setChromeVisible(true);
       setPhase("transitionIn");
       setSide(1);
       setStepIndex(0);
@@ -360,8 +392,49 @@ export default function GuidedSession() {
       playChime();
       speak(`Next: ${pose.english}. Take a breath, and prepare.`);
     },
-    [todays, speak],
+    [todays, speak, smoothCrossfade],
   );
+
+  // After cross-fade settles, keep only the top stage layer.
+  useEffect(() => {
+    if (stageLayers.length < 2) return;
+    const t = setTimeout(() => {
+      setStageLayers((prev) => (prev.length > 1 ? prev.slice(-1) : prev));
+    }, CROSSFADE_MS + 40);
+    return () => clearTimeout(t);
+  }, [stageLayers]);
+
+  const bumpChrome = useCallback(() => {
+    setChromeVisible(true);
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      // Idle hide only during calm holds — keep chrome while teaching/navigating.
+      if (!paused && phase === "hold") setChromeVisible(false);
+    }, IDLE_CHROME_MS);
+  }, [paused, phase]);
+
+  useEffect(() => {
+    if (!started || finished) return;
+    bumpChrome();
+    const onPointer = () => bumpChrome();
+    const onKey = () => bumpChrome();
+    window.addEventListener("pointerdown", onPointer);
+    window.addEventListener("pointermove", onPointer);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("touchstart", onPointer, { passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", onPointer);
+      window.removeEventListener("pointermove", onPointer);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("touchstart", onPointer);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [started, finished, bumpChrome]);
+
+  // Keep chrome visible when paused or outside hold.
+  useEffect(() => {
+    if (paused || phase !== "hold") setChromeVisible(true);
+  }, [paused, phase]);
 
   // Restore mid-session progress after refresh.
   useEffect(() => {
@@ -431,6 +504,7 @@ export default function GuidedSession() {
         preMood,
         postMood: resolvedPost,
         rpe: resolvedRpe,
+        breathCount: finishedBreaths.current,
         journalTags: [sessionLabel, "guided"],
       });
       setSaving(false);
@@ -469,19 +543,25 @@ export default function GuidedSession() {
     }
     setPhase("complete");
     setFinished(true);
+    setChromeVisible(true);
     posesCompleted.current = Math.max(0, todays.length - skippedIndices.current.size);
     const newSeconds = Math.max(0, elapsedTotal - loggedSeconds.current);
     loggedSeconds.current = elapsedTotal;
     const minutes = Math.max(1, Math.round(newSeconds / 60));
     finishedMinutes.current = minutes;
+    finishedBreaths.current = estimateBreathCount(
+      holdSecondsRef.current,
+      meta.breathSlug ?? null,
+    );
     setConfetti(true);
     setTimeout(() => setConfetti(false), 2800);
     playChime();
-    // Let the summary land first. Opening the mood dialog immediately covered
-    // "Beautiful practice / 5 minutes / 8 poses" — the thing they just earned —
-    // with another question.
-    setTimeout(() => setShowPostMood(true), 2200);
-  }, [elapsedTotal, todays.length]);
+    // Hands-free: persist summary → journal without covering the card in dialogs.
+    // Optional mood/RPE stay available on the summary card before/after save.
+    setTimeout(() => {
+      void finalizeSession(lastPostMood.current, rpe);
+    }, 1200);
+  }, [elapsedTotal, todays.length, meta.breathSlug, finalizeSession, rpe]);
 
   // ---- advance to the next pose (or finish) ---------------------------------
   const goToPose = useCallback(
@@ -581,6 +661,7 @@ export default function GuidedSession() {
     const t = setInterval(() => {
       setElapsedTotal((e) => e + 1);
       setRemainingEstimate((r) => Math.max(0, r - 1));
+      if (phase === "hold") holdSecondsRef.current += 1;
 
       setPhaseRemaining((r) => {
         // instruction phase with working voice is driven by audio, not this countdown
@@ -687,6 +768,10 @@ export default function GuidedSession() {
     sessionLogged.current = false;
     loggedSeconds.current = 0;
     pendingExtension.current = 0;
+    holdSecondsRef.current = 0;
+    finishedBreaths.current = 0;
+    setStageLayers([]);
+    setChromeVisible(true);
     setPostMood(null);
     enterTransition(0);
     void captureProduct("session_started", {
@@ -881,6 +966,17 @@ export default function GuidedSession() {
   if (finished) {
     const reflection =
       preMood && postMood ? `You moved from ${preMood} → ${postMood}. Beautiful.` : null;
+    const summaryEntry = buildJournalEntry({
+      label: meta.label ?? "Guided session",
+      minutes: finishedMinutes.current,
+      plannedMinutes: meta.plannedMinutes ?? null,
+      poseNames: todays.map((a) => a.english),
+      posesCompleted: posesCompleted.current,
+      posesSkipped: skippedIndices.current.size,
+      preMood,
+      postMood,
+      breathCount: finishedBreaths.current,
+    });
     return (
       <FullScreenOverlay label="Practice complete">
         <Confetti active={confetti} />
@@ -892,6 +988,7 @@ export default function GuidedSession() {
           testIdPrefix="postmood"
           onPick={(m) => {
             setPostMood(m);
+            lastPostMood.current = m;
             setShowPostMood(false);
             setShowRpe(true);
           }}
@@ -931,7 +1028,7 @@ export default function GuidedSession() {
                   variant="outline"
                   onClick={() => {
                     setShowRpe(false);
-                    void finalizeSession(postMood, null);
+                    if (!sessionLogged.current) void finalizeSession(postMood, null);
                   }}
                 >
                   Skip
@@ -941,7 +1038,7 @@ export default function GuidedSession() {
                   disabled={rpe == null}
                   onClick={() => {
                     setShowRpe(false);
-                    void finalizeSession(postMood, rpe);
+                    if (!sessionLogged.current) void finalizeSession(postMood, rpe);
                   }}
                   data-testid="rpe-confirm"
                 >
@@ -971,7 +1068,7 @@ export default function GuidedSession() {
             />
           </div>
           <h1 className="font-serif text-4xl">Beautiful practice</h1>
-          <div className="flex gap-8 text-center">
+          <div className="flex flex-wrap items-start justify-center gap-8 text-center">
             <div>
               <p className="font-serif text-3xl tabular-nums text-primary" data-testid="text-complete-minutes">
                 {finishedMinutes.current}
@@ -992,7 +1089,27 @@ export default function GuidedSession() {
                   : "poses"}
               </p>
             </div>
+            <div>
+              <p
+                className="font-serif text-3xl tabular-nums text-primary"
+                data-testid="text-complete-breaths"
+              >
+                {finishedBreaths.current}
+              </p>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                {finishedBreaths.current === 1 ? "breath" : "breaths"}
+              </p>
+            </div>
           </div>
+          <p className="max-w-md text-sm text-muted-foreground" data-testid="text-summary-saved">
+            {saving
+              ? "Saving to your journal…"
+              : sessionLogged.current
+                ? "Saved to your journal."
+                : saveFailed
+                  ? "Couldn’t save yet — retry below."
+                  : "Writing your session summary…"}
+          </p>
           {meta.pathwaySlug && (
             <p className="text-sm text-muted-foreground">Day marked complete · {meta.label}</p>
           )}
@@ -1000,6 +1117,17 @@ export default function GuidedSession() {
             <p className="font-serif text-lg text-primary" data-testid="text-mood-reflection">
               {reflection}
             </p>
+          )}
+          {!showPostMood && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="min-h-11"
+              onClick={() => setShowPostMood(true)}
+              data-testid="button-optional-mood"
+            >
+              Add mood (optional)
+            </Button>
           )}
           {saveFailed && (
             <Button
@@ -1014,8 +1142,8 @@ export default function GuidedSession() {
             <Button
               size="lg"
               onClick={async () => {
-                if (!showPostMood && !sessionLogged.current) {
-                  await finalizeSession(postMood);
+                if (!sessionLogged.current) {
+                  await finalizeSession(postMood, rpe);
                 }
                 // Only leave if the session actually persisted (or was already logged).
                 if (sessionLogged.current) {
@@ -1032,13 +1160,14 @@ export default function GuidedSession() {
               size="lg"
               variant="outline"
               onClick={async () => {
-                if (!showPostMood && !sessionLogged.current) {
-                  await finalizeSession(postMood);
+                if (!sessionLogged.current) {
+                  await finalizeSession(postMood, rpe);
                 }
                 if (sessionLogged.current) {
-                  const title = meta.label ?? "Practice reflection";
                   clear();
-                  navigate(`/journal?new=1&title=${encodeURIComponent(title)}`);
+                  navigate(
+                    `/journal?new=1&title=${encodeURIComponent(summaryEntry.title)}&body=${encodeURIComponent(summaryEntry.body)}`,
+                  );
                 }
               }}
               data-testid="button-journal-prompt"
@@ -1186,11 +1315,27 @@ export default function GuidedSession() {
           ? holdCues[cueIndex % holdCues.length]
           : steps[stepIndex]?.text ?? "";
 
+  const layersForStage =
+    stageLayers.length > 0
+      ? stageLayers
+      : current
+        ? [
+            {
+              id: 0,
+              slug: current.slug,
+              english: current.english,
+              sanskrit: current.sanskrit,
+              poseKey: current.pose,
+            } satisfies StageLayer,
+          ]
+        : [];
+
   return (
     <FullScreenOverlay label="Guided practice session">
     <div
       className="fixed inset-0 z-50 flex flex-col bg-background"
       data-testid="guided-session"
+      data-chrome={chromeVisible ? "visible" : "idle"}
     >
       <audio
         ref={audioRef}
@@ -1221,19 +1366,29 @@ export default function GuidedSession() {
         }}
       />
 
+      {/* Thin progress always on; full top chrome fades when idle. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-20 h-1 bg-accent/40"
+        aria-hidden
+      >
+        <div
+          className="h-full bg-primary transition-[width] duration-500"
+          style={{ width: `${progress}%` }}
+          data-testid="guided-progress"
+        />
+      </div>
+
       {/* ── TOP STRIP ─────────────────────────────────────────────── */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
+      <div
+        className={cn(
+          "flex shrink-0 items-center gap-3 border-b border-border px-4 py-3 transition-opacity duration-500 motion-reduce:transition-none",
+          chromeVisible ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      >
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium" data-testid="text-session-name">
             {meta.label ?? "Guided flow"}
           </p>
-          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-accent/50">
-            <div
-              className="h-full rounded-full bg-primary transition-[width] duration-500"
-              style={{ width: `${progress}%` }}
-              data-testid="guided-progress"
-            />
-          </div>
           <p className="mt-1 text-[11px] text-muted-foreground">
             Pose {index + 1} of {todays.length}
           </p>
@@ -1247,12 +1402,27 @@ export default function GuidedSession() {
           <X className="h-6 w-6" />
         </button>
       </div>
+      {!chromeVisible && (
+        <button
+          onClick={attemptExit}
+          className="absolute right-3 top-3 z-30 rounded-full bg-background/70 p-2 text-muted-foreground backdrop-blur-sm hover:bg-accent hover:text-foreground"
+          data-testid="button-exit-guided-idle"
+          aria-label="Exit session"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      )}
 
       {/* ── MIDDLE (the star) ─────────────────────────────────────── */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-2 sm:px-4">
         {/* prev thumb */}
         {prev && (
-          <div className="absolute left-3 top-1/2 hidden -translate-y-1/2 flex-col items-center gap-1 opacity-40 sm:flex">
+          <div
+            className={cn(
+              "absolute left-3 top-1/2 hidden -translate-y-1/2 flex-col items-center gap-1 transition-opacity duration-500 sm:flex motion-reduce:transition-none",
+              chromeVisible ? "opacity-40" : "pointer-events-none opacity-0",
+            )}
+          >
             <img width={80} height={160}
               src={`${import.meta.env.BASE_URL}poses/${prev.slug}.png`}
               alt={prev.english}
@@ -1271,7 +1441,12 @@ export default function GuidedSession() {
         )}
         {/* next thumb */}
         {next && (
-          <div className="absolute right-3 top-1/2 hidden -translate-y-1/2 flex-col items-center gap-1 opacity-40 sm:flex">
+          <div
+            className={cn(
+              "absolute right-3 top-1/2 hidden -translate-y-1/2 flex-col items-center gap-1 transition-opacity duration-500 sm:flex motion-reduce:transition-none",
+              chromeVisible ? "opacity-40" : "pointer-events-none opacity-0",
+            )}
+          >
             <img width={80} height={160}
               src={`${import.meta.env.BASE_URL}poses/${next.slug}.png`}
               alt={next.english}
@@ -1289,49 +1464,87 @@ export default function GuidedSession() {
           </div>
         )}
 
-        <div className="flex w-full max-w-lg flex-col items-center">
+        <div className="flex w-full max-w-xl flex-col items-center">
           <div
-            className={cn(
-              "relative flex h-[46vh] w-full items-center justify-center transition-opacity duration-500 ease-out",
-              imgVisible ? "opacity-100" : "opacity-0",
-            )}
+            className="relative flex h-[min(58vh,560px)] w-full items-center justify-center"
+            data-testid="guided-stage-crossfade"
           >
-            {current && (
-              <PoseTrainerStage
-                key={current.slug}
-                slug={current.slug}
-                english={current.english}
-                sanskrit={current.sanskrit}
-                poseKey={current.pose}
-                stepPoseKey={activeStepPose}
-                momentum={activeMomentum}
-                stepIndex={phase === "instruction" ? stepIndex : Math.max(0, stepCount - 1)}
-                playing={!paused && (phase === "instruction" || phase === "hold")}
-                restartToken={videoRestartToken}
-                // Keep teaching figure through holds; presentation video loops
-                // on transitions / idle when guideActive is false.
-                guideActive={phase === "instruction" || phase === "hold"}
-                side={isEach ? (side as 1 | 2) : 1}
-                variant="practice"
-                data-testid="guided-hero"
-              />
-            )}
+            {layersForStage.map((layer, i) => {
+              const isTop = i === layersForStage.length - 1;
+              const live = isTop && current?.slug === layer.slug;
+              return (
+                <div
+                  key={layer.id}
+                  className={cn(
+                    "inset-0 flex items-center justify-center",
+                    layersForStage.length > 1 ? "absolute" : "relative h-full w-full",
+                    smoothCrossfade
+                      ? "transition-opacity duration-700 ease-out motion-reduce:transition-none"
+                      : "",
+                    isTop ? "z-10 opacity-100" : "z-0 opacity-0",
+                  )}
+                >
+                  <PoseTrainerStage
+                    slug={layer.slug}
+                    english={layer.english}
+                    sanskrit={layer.sanskrit}
+                    poseKey={layer.poseKey}
+                    stepPoseKey={live ? activeStepPose : layer.poseKey}
+                    momentum={live ? activeMomentum : undefined}
+                    stepIndex={
+                      live
+                        ? phase === "instruction"
+                          ? stepIndex
+                          : Math.max(0, stepCount - 1)
+                        : 0
+                    }
+                    playing={
+                      live && !paused && (phase === "instruction" || phase === "hold")
+                    }
+                    restartToken={live ? videoRestartToken : 0}
+                    guideActive={
+                      live && (phase === "instruction" || phase === "hold")
+                    }
+                    side={live && isEach ? (side as 1 | 2) : 1}
+                    variant="practice"
+                    data-testid={isTop ? "guided-hero" : `guided-hero-prev-${layer.slug}`}
+                  />
+                </div>
+              );
+            })}
           </div>
 
-          <h1 className="mt-3 font-serif text-3xl" data-testid="text-current-pose">
+          <h1
+            className={cn(
+              "mt-3 font-serif text-3xl transition-opacity duration-500 motion-reduce:transition-none",
+              chromeVisible ? "opacity-100" : "opacity-70",
+            )}
+            data-testid="text-current-pose"
+          >
             {current?.english}
             {isEach && (
               <span className="ml-2 text-base text-muted-foreground">· side {side}</span>
             )}
           </h1>
-          <p className="italic text-muted-foreground" data-testid="text-current-sanskrit">
+          <p
+            className={cn(
+              "italic text-muted-foreground transition-opacity duration-500 motion-reduce:transition-none",
+              chromeVisible ? "opacity-100" : "opacity-0",
+            )}
+            data-testid="text-current-sanskrit"
+          >
             {current?.sanskrit}
           </p>
         </div>
       </div>
 
       {/* ── BOTTOM STRIP ──────────────────────────────────────────── */}
-      <div className="shrink-0 border-t border-border px-4 pb-5 pt-4">
+      <div
+        className={cn(
+          "shrink-0 px-4 pb-5 pt-4 transition-[opacity,border-color] duration-500 motion-reduce:transition-none",
+          chromeVisible ? "border-t border-border" : "border-t border-transparent",
+        )}
+      >
         <div className="mx-auto flex max-w-lg flex-col items-center gap-3">
           <span
             className="font-serif text-5xl tabular-nums"
@@ -1374,7 +1587,13 @@ export default function GuidedSession() {
             {activeCaption}
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-2">
+          <div
+            className={cn(
+              "flex flex-wrap items-center justify-center gap-2 transition-opacity duration-500 motion-reduce:transition-none",
+              chromeVisible ? "opacity-100" : "pointer-events-none h-0 overflow-hidden opacity-0",
+            )}
+            data-testid="guided-transport"
+          >
             <Button
               variant="outline"
               size="icon"
@@ -1467,7 +1686,13 @@ export default function GuidedSession() {
             <PoseTipsTrigger onClick={() => setTipsOpen(true)} />
           </div>
 
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid="guided-pace-label">
+          <p
+            className={cn(
+              "flex items-center gap-1.5 text-xs text-muted-foreground transition-opacity duration-500 motion-reduce:transition-none",
+              chromeVisible ? "opacity-100" : "opacity-0",
+            )}
+            data-testid="guided-pace-label"
+          >
             <TimerIcon className="h-3.5 w-3.5" />
             ~{Math.max(1, Math.round(remainingEstimate / 60))} min left · pace {pace}×
             {side === 2 ? " · side 2" : isEach ? " · side 1" : ""}

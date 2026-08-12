@@ -25,6 +25,8 @@ export type LogSessionInput = {
   /** Rate of perceived exertion 1–10 */
   rpe?: number | null;
   kind?: "asana" | "breathing";
+  /** Estimated breaths from hold time (guided sessions). */
+  breathCount?: number | null;
   journalTags?: string[];
   journalBody?: string;
 };
@@ -44,6 +46,7 @@ export function buildJournalEntry(args: {
   posesSkipped: number;
   preMood: Mood | null;
   postMood: Mood | null;
+  breathCount?: number | null;
 }): { title: string; body: string } {
   const { label, minutes, plannedMinutes, poseNames, posesCompleted, posesSkipped } = args;
   const moodLine =
@@ -60,9 +63,13 @@ export function buildJournalEntry(args: {
       : poseNames.join(", ");
   const plannedLine =
     plannedMinutes && plannedMinutes !== minutes ? ` (planned ${plannedMinutes} min)` : "";
+  const breathLine =
+    args.breathCount != null && args.breathCount > 0
+      ? ` ~${args.breathCount} breath${args.breathCount === 1 ? "" : "s"}.`
+      : "";
   return {
     title: `${label} · ${minutes} min`,
-    body: `${label} — practiced ${poseLine}. ${minutes} min${plannedLine}. ${moodLine}`.trim(),
+    body: `${label} — practiced ${poseLine}. ${minutes} min${plannedLine}.${breathLine} ${moodLine}`.trim(),
   };
 }
 
@@ -86,6 +93,7 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
     postMood,
     rpe = null,
     kind = "asana",
+    breathCount = null,
     journalTags = [label],
     journalBody,
   } = input;
@@ -143,6 +151,7 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
       posesSkipped: skipped,
       preMood,
       postMood,
+      breathCount,
     });
     await apiRequest("POST", "/api/journal", {
       date: todayISO(),

@@ -40,4 +40,14 @@ describe("buildJournalEntry — one definition of duration", () => {
     const e = buildJournalEntry({ ...base, poseNames: ["Mountain Pose"], posesCompleted: 1 });
     assert.match(e.body, /practiced Mountain Pose\./);
   });
+
+  it("includes estimated breath count in the journal body", () => {
+    const e = buildJournalEntry({ ...base, minutes: 5, breathCount: 42 });
+    assert.match(e.body, /~42 breaths/);
+  });
+
+  it("omits breath line when count is zero or missing", () => {
+    assert.ok(!/breath/.test(buildJournalEntry({ ...base }).body));
+    assert.ok(!/breath/.test(buildJournalEntry({ ...base, breathCount: 0 }).body));
+  });
 });
