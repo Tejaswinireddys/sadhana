@@ -19,10 +19,13 @@ describe("pose presentation videos", () => {
 
   it("keeps teaching figure during guided instruction and holds", () => {
     const guided = readFileSync(resolve("client/src/pages/GuidedSession.tsx"), "utf8");
+    // Dual-layer crossfade: only the live (top) stage is guideActive while
+    // teaching; outgoing layers stay idle so the swap can fade cleanly.
     assert.match(
       guided,
-      /guideActive=\{phase === "instruction" \|\| phase === "hold"\}/,
+      /guideActive=\{\s*(?:live\s*&&\s*)?\(?\s*phase === "instruction" \|\| phase === "hold"\s*\)?\s*\}/,
     );
+    assert.match(guided, /guided-stage-crossfade/);
   });
 
   it("wires kids, trainer, and search surfaces to pose videos", () => {
