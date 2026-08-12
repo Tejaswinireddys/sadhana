@@ -3,9 +3,9 @@
  * Loads only when near the viewport; falls back to PoseImage if the clip
  * is missing or fails. Keeps the grid light (no autoplay for off-screen cards).
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PoseImage } from "@/components/PoseImage";
-import { poseHasVideo, poseMediaFor } from "@/data/poseMedia";
+import { manifestToVideoSources, usePoseMedia } from "@/lib/poseMediaApi";
 import { cn } from "@/lib/utils";
 
 export function PoseCardVideo({
@@ -24,8 +24,9 @@ export function PoseCardVideo({
   const [near, setNear] = useState(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
-  const hasVideo = poseHasVideo(slug);
-  const media = hasVideo ? poseMediaFor(slug) : null;
+  const { data: manifest } = usePoseMedia(slug);
+  const media = useMemo(() => manifestToVideoSources(slug, manifest), [slug, manifest]);
+  const hasVideo = Boolean(media);
 
   useEffect(() => {
     if (!hasVideo) return;
@@ -83,11 +84,12 @@ export function PoseCardVideo({
     <div
       ref={wrapRef}
       className={cn("relative aspect-square w-full overflow-hidden bg-accent/30", className)}
+      style={{ aspectRatio: "1 / 1" }}
       data-testid={testId ?? `pose-card-video-${slug}`}
       data-media={ready ? "video" : "poster"}
     >
       {!ready && (
-        <img width={1280} height={720}
+        <img width={600} height={1200}
           src={media.poster}
           alt=""
           aria-hidden

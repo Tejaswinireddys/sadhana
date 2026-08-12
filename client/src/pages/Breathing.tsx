@@ -175,7 +175,7 @@ export default function Breathing() {
 
           {/* Guided audio for this technique */}
           <VoicePlayer
-            src={`${import.meta.env.BASE_URL}voice/breath-${active.slug}.mp3`}
+            src={`${import.meta.env.BASE_URL}audio/breath-${active.slug}.mp3`}
             slug={active.slug}
             label={`Guided audio — ${active.name}`}
           />

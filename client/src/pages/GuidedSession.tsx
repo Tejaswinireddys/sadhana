@@ -72,8 +72,13 @@ import { PoseTrainerStage } from "@/components/PoseTrainerStage";
 import { momentumClass } from "@/lib/poseMomentum";
 import { PoseImage } from "@/components/PoseImage";
 import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
-import { poseNarrationSrc, poseHasVideo, poseMediaFor } from "@/data/poseMedia";
 import { practiceHoldCues } from "@/lib/poseExplanation";
+import {
+  fetchPoseMedia,
+  manifestAudioUrl,
+  manifestToVideoSources,
+  usePoseMedia,
+} from "@/lib/poseMediaApi";
 import {
   QUICK_SESSIONS,
   sessionMinutes,
@@ -241,12 +246,18 @@ export default function GuidedSession() {
   const audioBrokenRef = useRef(false);
   const [voiceDuration, setVoiceDuration] = useState(0);
   // Bumped when instruction (narration) starts so the muted demo clip restarts
-  // in sync with this pose's /voice/pose-{slug}.mp3.
+  // in sync with this pose's /audio/pose-{slug}.mp3 (via media manifest).
   const [videoRestartToken, setVideoRestartToken] = useState(0);
 
   const current = todays[index];
   const prev = index > 0 ? todays[index - 1] : null;
   const next = index + 1 < todays.length ? todays[index + 1] : null;
+  const { data: currentMedia } = usePoseMedia(current?.slug);
+  const { data: introMedia } = usePoseMedia(meta.introPoseSlug || undefined);
+  const introVideo = useMemo(
+    () => (meta.introPoseSlug ? manifestToVideoSources(meta.introPoseSlug, introMedia) : null),
+    [meta.introPoseSlug, introMedia],
+  );
   const holdCues = useMemo(
     () => (current ? practiceHoldCues(current) : FALLBACK_HOLD_CUES),
     [current],
@@ -262,15 +273,20 @@ export default function GuidedSession() {
     if (phase !== "hold" || !next || !voiceEnabled) return;
     const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
     if (conn?.saveData) return;
-    const href = poseNarrationSrc(next.slug);
-    const link = document.createElement("link");
-    link.rel = "prefetch";
-    link.as = "fetch";
-    link.href = href;
-    link.crossOrigin = "anonymous";
-    document.head.appendChild(link);
+    let link: HTMLLinkElement | null = null;
+    let cancelled = false;
+    void fetchPoseMedia(next.slug).then((m) => {
+      if (cancelled) return;
+      link = document.createElement("link");
+      link.rel = "prefetch";
+      link.as = "fetch";
+      link.href = manifestAudioUrl(next.slug, m);
+      link.crossOrigin = "anonymous";
+      document.head.appendChild(link);
+    });
     return () => {
-      link.remove();
+      cancelled = true;
+      link?.remove();
     };
   }, [phase, next, voiceEnabled]);
 
@@ -278,7 +294,7 @@ export default function GuidedSession() {
   const stepCount = steps.length || 1;
   const isEach = current?.sides === "each";
 
-  const src = current ? poseNarrationSrc(current.slug) : "";
+  const src = current ? manifestAudioUrl(current.slug, currentMedia) : "";
 
   // Per-step narration boundaries — replaces dividing the audio evenly, which
   // put the focus halo and camera on the wrong words for uneven step texts.
@@ -1099,7 +1115,7 @@ export default function GuidedSession() {
             {meta.label ? `${meta.label} · ` : ""}
             {todays.length} poses · a continuous voice-narrated flow.
           </p>
-          {meta.introPoseSlug && poseHasVideo(meta.introPoseSlug) && (
+          {introVideo && (
             <div
               className="w-full max-w-sm overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft"
               data-testid="mood-intro-video"
@@ -1110,11 +1126,11 @@ export default function GuidedSession() {
                 muted
                 loop
                 playsInline
-                poster={poseMediaFor(meta.introPoseSlug).poster}
+                poster={introVideo.poster}
                 aria-label={`Illustrated intro for ${meta.label ?? "this session"}`}
               >
-                <source src={poseMediaFor(meta.introPoseSlug).webm} type="video/webm" />
-                <source src={poseMediaFor(meta.introPoseSlug).mp4} type="video/mp4" />
+                <source src={introVideo.webm} type="video/webm" />
+                <source src={introVideo.mp4} type="video/mp4" />
               </video>
             </div>
           )}
@@ -1178,12 +1194,12 @@ export default function GuidedSession() {
     >
       <audio
         ref={audioRef}
-        src={src}
+        {...(src ? { src } : {})}
         // Session-local mute. Kept on the element (rather than skipping
         // playback) so narration still drives step timing — silencing the voice
         // must not change the pace of the practice.
         muted={muted}
-        preload={voiceEnabled ? "metadata" : "none"}
+        preload={voiceEnabled && src ? "metadata" : "none"}
         data-testid="guided-audio"
         onLoadedMetadata={(e) => setVoiceDuration((e.target as HTMLAudioElement).duration)}
         onTimeUpdate={(e) => {

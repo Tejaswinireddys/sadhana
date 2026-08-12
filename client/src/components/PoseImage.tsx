@@ -65,6 +65,18 @@ export function PoseImage({
   const src = thumb && !useFullSize ? thumbPng : fullPng;
   const webpSrc = thumb && !useFullSize ? thumbWebp : fullWebp;
   const eager = priority || thumb;
+  // Always reserve a sized box (authored pose frame is 1:2) to keep CLS near zero.
+  const aspectClass = aspect ?? "aspect-[1/2]";
+  const aspectRatioCss = (() => {
+    if (!aspect) return "1 / 2";
+    if (aspect.includes("aspect-square") || aspect.includes("aspect-[1/1]")) return "1 / 1";
+    if (aspect.includes("aspect-[4/3]")) return "4 / 3";
+    if (aspect.includes("aspect-[3/4]")) return "3 / 4";
+    if (aspect.includes("aspect-[1/2]")) return "1 / 2";
+    const m = aspect.match(/aspect-\[(\d+)\s*\/\s*(\d+)\]/);
+    if (m) return `${m[1]} / ${m[2]}`;
+    return "1 / 2";
+  })();
 
   /**
    * A cached image can finish decoding before React attaches `onLoad`, so the
@@ -87,7 +99,8 @@ export function PoseImage({
 
   return (
     <div
-      className={cn("relative w-full overflow-hidden bg-accent/30", rounded, aspect, className)}
+      className={cn("relative w-full overflow-hidden bg-accent/30", rounded, aspectClass, className)}
+      style={{ aspectRatio: aspectRatioCss }}
       data-testid={testId ?? `pose-image-${slug}`}
     >
       {!loaded && !errored && (
@@ -133,12 +146,12 @@ export function PoseImage({
               // A full-body figure shrunk to a row thumbnail is a few faint
               // pixels. Scaling up inside the clip keeps it legible.
               thumb ? "scale-[1.35]" : "",
-              rounded,
-              aspect ? "h-full w-full" : "w-full",
-              shadow ? "shadow-soft-lg" : "",
-              loaded ? "opacity-100" : "opacity-0",
-              loaded && breath ? "photo-breath" : "",
-            )}
+            rounded,
+            "h-full w-full",
+            shadow ? "shadow-soft-lg" : "",
+            loaded ? "opacity-100" : "opacity-0",
+            loaded && breath ? "photo-breath" : "",
+          )}
             draggable={false}
           />
         </picture>
@@ -146,9 +159,9 @@ export function PoseImage({
       {errored && (
         <div
           className={cn(
-            "flex w-full flex-col items-center justify-center gap-2 bg-accent/40 text-primary",
+            "flex h-full w-full flex-col items-center justify-center gap-2 bg-accent/40 text-primary",
             rounded,
-            aspect ?? "aspect-square",
+            aspectClass,
           )}
           data-testid={`pose-image-fallback-${slug}`}
           role="img"

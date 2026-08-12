@@ -13,7 +13,8 @@ import { PoseHumanStage } from "@/components/PoseHumanStage";
 import { asanaBySlug } from "@/data/content";
 import { hasRigSequence } from "@/data/poseKeyframes";
 import { poseHasShapeJourney } from "@/data/poseKeyImages";
-import { poseHasVideo, poseMediaFor } from "@/data/poseMedia";
+import { poseMediaFor } from "@/data/poseMedia";
+import { manifestToVideoSources, usePoseMedia } from "@/lib/poseMediaApi";
 import type { FocusZone } from "@/lib/poseMoments";
 
 export type PoseTrainerStageProps = {
@@ -72,8 +73,9 @@ export function PoseTrainerStage({
   );
 
   const useRig = hasRigSequence(slug);
-  const media = useMemo(() => poseMediaFor(slug), [slug]);
-  const hasClip = poseHasVideo(slug);
+  const { data: manifest } = usePoseMedia(slug);
+  const media = useMemo(() => manifestToVideoSources(slug, manifest), [slug, manifest]);
+  const hasClip = Boolean(media);
 
   /** Looping presentation video whenever we are not mid-cue teaching. */
   const wantPresentation = hasClip && !guideActive && !videoBlocked;
@@ -90,7 +92,7 @@ export function PoseTrainerStage({
   const effectiveStepPose = guideActive ? stepPoseKey : poseKey;
   const effectiveMomentum = !useRig && shapeJourney && guideActive ? momentum ?? "" : "";
 
-  if (wantPresentation) {
+  if (wantPresentation && media) {
     return (
       <PoseDemoStage
         key={`video-${slug}`}
@@ -130,7 +132,7 @@ export function PoseTrainerStage({
         english={english}
         sanskrit={sanskrit}
         poseKey={poseKey}
-        media={media}
+        media={media ?? poseMediaFor(slug)}
         prefer3D
         preferVideo={false}
         playing={playing}

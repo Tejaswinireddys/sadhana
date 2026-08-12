@@ -46,6 +46,7 @@ import {
 } from "./email";
 import { z } from "zod";
 import { reportError } from "./errorReporting";
+import { buildPoseMediaManifest, isSafeSlug } from "./poseMediaManifest";
 
 const IMPORT_MAX_ITEMS = 2_000;
 const IMPORT_MAX_BODY_BYTES = 2 * 1024 * 1024;
@@ -847,6 +848,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       source: "client",
     });
     res.status(204).end();
+  });
+
+  /**
+   * Pose media manifest — client uses this instead of guessing file paths.
+   * Only reports assets that exist on disk (video/audio may each be null).
+   */
+  app.get("/api/poses/:slug/media", (req, res) => {
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!isSafeSlug(slug)) {
+      return res.status(400).json({ error: "Invalid pose slug" });
+    }
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.json(buildPoseMediaManifest(slug));
   });
 
   return httpServer;

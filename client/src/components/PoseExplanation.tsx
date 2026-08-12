@@ -12,13 +12,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { asanaBySlug } from "@/data/content";
-import { poseNarrationSrc } from "@/data/poseMedia";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
 import { PoseTrainerStage } from "@/components/PoseTrainerStage";
 import { momentumClass } from "@/lib/poseMomentum";
 import { resolveStepFocus } from "@/lib/poseMoments";
 import { useNarrationTiming } from "@/hooks/use-narration-timing";
 import { unlockAudio } from "@/lib/audioUnlock";
+import { manifestAudioUrl, usePoseMedia } from "@/lib/poseMediaApi";
 import { cn } from "@/lib/utils";
 import type { Preferences } from "@shared/schema";
 import {
@@ -47,6 +47,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const asana = asanaBySlug(slug);
   const { toast } = useToast();
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
+  const { data: poseMedia } = usePoseMedia(slug);
   const voiceEnabled = prefs ? prefs.voiceEnabled !== 0 : true;
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -158,7 +159,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
 
   if (!asana || !expl) return null;
 
-  const src = poseNarrationSrc(asana.slug);
+  const src = manifestAudioUrl(asana.slug, poseMedia);
   const progress =
     effectiveDuration > 0 ? Math.min(100, (current / effectiveDuration) * 100) : 0;
 

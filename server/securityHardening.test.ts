@@ -84,27 +84,14 @@ describe("security hardening", () => {
   });
 
   it("production static fallback returns JSON 404 for unknown /api/*", async () => {
-    // serveStatic requires dist/public — skip gracefully if not built.
-    const distPublic = resolve("dist/public");
-    try {
-      readFileSync(resolve(distPublic, "index.html"));
-    } catch {
-      // Build a tiny fake dist for this assertion.
-      const { mkdirSync, writeFileSync } = await import("node:fs");
-      mkdirSync(distPublic, { recursive: true });
-      writeFileSync(resolve(distPublic, "index.html"), "<!doctype html><title>t</title>");
-    }
-
-    // serveStatic resolves __dirname/public relative to compiled output; in
-    // tsx it is server/ → use a minimal express mirror of the API 404 rule.
+    const { sendJson404 } = await import("./json404");
     await withServer(
       (app) => {
         app.use(applySecurityHeaders);
+        app.get("/api/health", (_req, res) => res.json({ ok: true }));
+        // Mirror server/index.ts: terminal /api JSON 404 before SPA shell.
+        app.use("/api", (_req, res) => sendJson404(res, "Not found"));
         app.use((req, res) => {
-          if (req.path.startsWith("/api/")) {
-            res.status(404).json({ error: "Not found" });
-            return;
-          }
           res.status(200).type("html").send("<html>shell</html>");
         });
       },

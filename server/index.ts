@@ -18,6 +18,7 @@ import {
 import { registerBuddyRoutes } from "./buddy";
 import { publicAppOrigin } from "./publicUrl";
 import { captureServerException, initServerSentry } from "./sentry";
+import { sendJson404 } from "./json404";
 
 const app = express();
 const httpServer = createServer(app);
@@ -149,6 +150,12 @@ async function ensureSchema() {
   registerBuddyRoutes(app);
   startPushScheduler();
   startBillingScheduler();
+
+  // After every API mount: unknown /api/* must be JSON 404, never the SPA shell.
+  // Registered here (before Vite/static) so HTML fallbacks cannot win.
+  app.use("/api", (_req, res) => {
+    sendJson404(res, "Not found");
+  });
 
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
