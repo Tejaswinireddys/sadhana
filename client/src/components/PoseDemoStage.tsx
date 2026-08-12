@@ -18,6 +18,7 @@ import { hasRigSequence } from "@/data/poseKeyframes";
 import type { StepMotionKey } from "@/components/StepMotion";
 import type { PoseMediaSources } from "@/data/poseMedia";
 import type { FocusZone } from "@/lib/poseMoments";
+import { shouldSeekVideo, videoTimeForNarration } from "@/lib/videoNarrationSync";
 import { AlertCircle, Loader2 } from "lucide-react";
 
 export type { FocusZone };
@@ -42,9 +43,18 @@ type PoseDemoStageProps = {
   playing?: boolean;
   /**
    * Bump when narration starts (or pose instruction begins) so a video clip
-   * seeks to 0; 3D resets via slug/step props.
+   * seeks to 0; 3D resets via slug/step props. Ignored when syncToVoice.
    */
   restartToken?: number;
+  /**
+   * Scrub the how-to clip to the spoken cue instead of looping independently.
+   * Used during guided instruction / pose training.
+   */
+  syncToVoice?: boolean;
+  /** Seconds into the narration (audio.currentTime or silent elapsed). */
+  narrationTime?: number;
+  /** Decoded narration length (or silent window). */
+  narrationDuration?: number;
   focusZone?: FocusZone | null;
   /** Live step caption overlaid on the demo (training clarity). */
   caption?: string | null;
@@ -94,6 +104,9 @@ export function PoseDemoStage({
   preferVideo = true,
   playing = false,
   restartToken = 0,
+  syncToVoice = false,
+  narrationTime = 0,
+  narrationDuration = 0,
   focusZone = null,
   caption = null,
   stepIndex = 0,
@@ -211,20 +224,59 @@ export function PoseDemoStage({
   }, [variant, slug, use3D]);
 
   // Restart clip with narration (seek + play) when parent bumps restartToken.
+  // Voice-sync mode owns the playhead — do not yank it back to 0.
   useEffect(() => {
     const v = videoRef.current;
-    if (!v || !useVideo || !videoReady || restartToken <= 0) return;
+    if (!v || !useVideo || !videoReady || restartToken <= 0 || syncToVoice) return;
     try {
       v.currentTime = 0;
     } catch {
       /* ignore seek errors on unloaded media */
     }
-  }, [restartToken, useVideo, videoReady, slug]);
+  }, [restartToken, useVideo, videoReady, slug, syncToVoice]);
 
-  // Sync muted play/pause with parent.
+  // Scrub the how-to clip to the spoken cue. Pause native playback so the
+  // decoder cannot drift off the narration clock.
   useEffect(() => {
     const v = videoRef.current;
-    if (!v || !useVideo || !videoReady) return;
+    if (!v || !useVideo || !videoReady || !syncToVoice) return;
+    v.muted = true;
+    const dur = v.duration;
+    if (!isFinite(dur) || dur <= 0) return;
+    const progress = reduceMotion ? 1 : stepProgress;
+    const target = videoTimeForNarration({
+      videoDuration: dur,
+      stepIndex,
+      stepProgress: progress,
+      stepCount,
+      narrationTime,
+      narrationDuration,
+    });
+    if (shouldSeekVideo(v.currentTime, target)) {
+      try {
+        v.currentTime = target;
+      } catch {
+        /* ignore seek errors on unloaded media */
+      }
+    }
+    v.pause();
+  }, [
+    syncToVoice,
+    useVideo,
+    videoReady,
+    stepIndex,
+    stepProgress,
+    stepCount,
+    narrationTime,
+    narrationDuration,
+    reduceMotion,
+    slug,
+  ]);
+
+  // Sync muted play/pause with parent (idle looping preview only).
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !useVideo || !videoReady || syncToVoice) return;
     v.muted = true;
     if (!reduceMotion && playing) {
       const p = v.play();
@@ -232,7 +284,7 @@ export function PoseDemoStage({
     } else {
       v.pause();
     }
-  }, [playing, useVideo, reduceMotion, slug, videoReady, restartToken]);
+  }, [playing, useVideo, reduceMotion, slug, videoReady, restartToken, syncToVoice]);
 
   useEffect(() => {
     if (!useVideo || !showSources || videoReady || videoFailed) return;
@@ -297,6 +349,7 @@ export function PoseDemoStage({
       )}
       data-testid={testId ?? `pose-demo-stage-${slug}`}
       data-media={useVideo && videoReady ? "video" : "illustration"}
+      data-sync={syncToVoice ? "voice" : "loop"}
     >
       {useVideo && videoReady && variant === "detail" && (
         <span
@@ -317,13 +370,14 @@ export function PoseDemoStage({
             poster={media.poster}
             playsInline
             muted
-            loop
+            loop={!syncToVoice}
             preload={saveData ? "none" : "auto"}
             aria-label={alt}
             onLoadedData={() => setVideoReady(true)}
             onCanPlay={() => setVideoReady(true)}
             onError={() => setVideoFailed(true)}
             data-testid={`pose-demo-video-${slug}`}
+            data-sync={syncToVoice ? "voice" : "loop"}
           >
             <source src={media.webm} type="video/webm" />
             <source src={media.mp4} type="video/mp4" />

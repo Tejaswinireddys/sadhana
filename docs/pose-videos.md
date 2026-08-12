@@ -46,8 +46,11 @@ Trainer composed lists, Search results, and guided transition/idle moments play
 the looping journey clip via `PoseTrainerStage` / `PoseCardVideo`.
 
 **Teaching UI:** once step-by-step training or a guided hold/instruction is
-active, `PoseTrainerStage` switches to the illustrated / 3D trainer so limbs and
-focus cues follow narration.
+active, `PoseTrainerStage` keeps the how-to clip on screen and **scrubs it to
+the spoken cue** (`videoTimeForNarration` in `client/src/lib/videoNarrationSync.ts`).
+Each narration step owns a slice of the journey; progress within the sentence
+advances that slice so the demonstrated action lands with the voice. Illustration
+/ 3D remain the fallback when video cannot play (save-data, error, missing clip).
 
 Kids story poses play Ken Burns clips when generated:
 

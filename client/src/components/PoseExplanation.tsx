@@ -273,7 +273,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
           <p className="text-sm text-muted-foreground">
             {asana.sanskrit}
             {" · "}
-            Watch a looping pose demo, then train step-by-step with cues on the body.
+            Watch the how-to video follow each spoken cue, then hold the shape.
           </p>
         </div>
 
@@ -286,8 +286,12 @@ export function PoseExplanation({ slug }: { slug: string }) {
             stepPoseKey={activeStepPose}
             momentum={activeMomentum}
             stepIndex={started ? stepIndex : 0}
+            stepProgress={started ? stepProgress : 1}
             playing={stagePlaying}
             restartToken={restartToken}
+            syncVideoToVoice
+            narrationTime={started ? current : 0}
+            narrationDuration={started ? effectiveDuration : 0}
             guideActive={started && !completed}
             focusZone={activeFocus}
             caption={

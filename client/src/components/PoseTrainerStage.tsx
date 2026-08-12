@@ -4,8 +4,8 @@
  * Idle / watch: looping step-journey demo video for every pose that ships a clip
  * (library + detail + guided intro moments).
  *
- * Active cue teaching: narration-synced human illustration or rigged WebGL so
- * limbs/focus follow each step — clearer than a looping clip alone.
+ * Active cue teaching: the same how-to clip, scrubbed to the spoken narration
+ * step. Illustration / 3D remain the fallback when video is unavailable.
  */
 import { useEffect, useMemo, useState } from "react";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
@@ -28,6 +28,13 @@ export type PoseTrainerStageProps = {
   stepProgress?: number;
   playing?: boolean;
   restartToken?: number;
+  /**
+   * When true (guided instruction / pose training), keep the how-to video
+   * visible and scrub it to the spoken cue instead of switching to illustration.
+   */
+  syncVideoToVoice?: boolean;
+  narrationTime?: number;
+  narrationDuration?: number;
   guideActive?: boolean;
   focusZone?: FocusZone | null;
   caption?: string | null;
@@ -49,6 +56,9 @@ export function PoseTrainerStage({
   stepProgress = 1,
   playing = false,
   restartToken = 0,
+  syncVideoToVoice = true,
+  narrationTime = 0,
+  narrationDuration = 0,
   guideActive = false,
   focusZone = null,
   caption = null,
@@ -79,20 +89,22 @@ export function PoseTrainerStage({
 
   /** Looping presentation video whenever we are not mid-cue teaching. */
   const wantPresentation = hasClip && !guideActive && !videoBlocked;
+  /** How-to clip scrubbed to the spoken cue during instruction / training. */
+  const wantSyncedHowTo = hasClip && guideActive && !videoBlocked && syncVideoToVoice;
 
   useEffect(() => {
     setVideoBlocked(false);
   }, [slug]);
 
   useEffect(() => {
-    if (wantPresentation) onModeChange?.("video");
+    if (wantSyncedHowTo || wantPresentation) onModeChange?.("video");
     else onModeChange?.(useRig ? "3d" : "illustrated");
-  }, [wantPresentation, useRig, onModeChange]);
+  }, [wantPresentation, wantSyncedHowTo, useRig, onModeChange]);
 
   const effectiveStepPose = guideActive ? stepPoseKey : poseKey;
   const effectiveMomentum = !useRig && shapeJourney && guideActive ? momentum ?? "" : "";
 
-  if (wantPresentation && media) {
+  if ((wantSyncedHowTo || wantPresentation) && media) {
     return (
       <PoseDemoStage
         key={`video-${slug}`}
@@ -103,15 +115,17 @@ export function PoseTrainerStage({
         media={media}
         prefer3D={false}
         preferVideo
-        // Presentation loops even during quiet transitions (guided idle).
-        playing={true}
+        playing={wantSyncedHowTo ? playing : true}
         restartToken={restartToken}
+        syncToVoice={wantSyncedHowTo}
+        narrationTime={narrationTime}
+        narrationDuration={narrationDuration}
         stepIndex={stepIndex}
         stepProgress={stepProgress}
         stepCount={asana?.steps.length ?? 1}
         stepPoseKey={effectiveStepPose ?? undefined}
-        focusZone={null}
-        caption={null}
+        focusZone={wantSyncedHowTo ? focusZone : null}
+        caption={wantSyncedHowTo ? caption : null}
         side={side}
         variant={variant}
         className={className}
