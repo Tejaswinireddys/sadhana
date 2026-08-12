@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { MotionToggle } from "@/components/MotionToggle";
 import { VoiceToggle } from "@/components/VoiceToggle";
+import { RobotVoiceToggle } from "@/components/RobotVoiceToggle";
 import { useTheme } from "@/components/ThemeProvider";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -311,6 +312,12 @@ export default function Settings() {
           </div>
           <div className="rounded-md border border-border p-3">
             <VoiceToggle />
+          </div>
+          <div className="rounded-md border border-border p-3">
+            <RobotVoiceToggle />
+            <p className="mt-2 text-xs text-muted-foreground">
+              When a recorded guide is missing, use the device voice. Off by default.
+            </p>
           </div>
           <div className="rounded-md border border-border p-3">
             <MotionToggle />

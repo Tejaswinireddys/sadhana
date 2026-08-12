@@ -442,7 +442,7 @@ export class DatabaseStorage implements IStorage {
     if (existing) return existing;
     const [created] = await this.orm
       .insert(preferences)
-      .values({ ownerId, motionEnabled: 1, voiceEnabled: 1 })
+      .values({ ownerId, motionEnabled: 1, voiceEnabled: 1, allowRobotVoice: 0 })
       .returning();
     return created;
   }
@@ -940,7 +940,7 @@ export class MemoryStorage implements IStorage {
   async getPreferences(ownerId: string) {
     let p = this.prefs.get(ownerId);
     if (!p) {
-      p = { id: this.nextId(), ownerId, motionEnabled: 1, voiceEnabled: 1 };
+      p = { id: this.nextId(), ownerId, motionEnabled: 1, voiceEnabled: 1, allowRobotVoice: 0 };
       this.prefs.set(ownerId, p);
     }
     return p;

@@ -5,12 +5,17 @@
 import { useQuery } from "@tanstack/react-query";
 import type { PoseMediaSources } from "@/data/poseMedia";
 import { poseHasVideo, poseMediaFor, poseNarrationSrc } from "@/data/poseMedia";
+import type { NarrationCue } from "@/lib/narrationCues";
 
-export type MediaCue = { start: number; end: number; text?: string };
+export type MediaCue = NarrationCue | { start: number; end: number; text?: string };
 
 export type PoseMediaManifest = {
   video: { hls: string | null; mp4: string; poster: string } | null;
-  audio: { url: string; cues: MediaCue[] | null } | null;
+  audio: {
+    url: string;
+    source?: "human" | "neural";
+    cues: MediaCue[] | null;
+  } | null;
 };
 
 const cache = new Map<string, PoseMediaManifest>();
@@ -21,7 +26,6 @@ export async function fetchPoseMedia(slug: string): Promise<PoseMediaManifest> {
     credentials: "include",
   });
   if (!res.ok) {
-    // Fall back to local convention so offline / older deploys still work.
     const fallback = conventionFallback(slug);
     cache.set(slug, fallback);
     return fallback;
@@ -29,6 +33,11 @@ export async function fetchPoseMedia(slug: string): Promise<PoseMediaManifest> {
   const data = (await res.json()) as PoseMediaManifest;
   cache.set(slug, data);
   return data;
+}
+
+/** Drop a cached manifest entry after TTS generation. */
+export function invalidatePoseMedia(slug: string) {
+  cache.delete(slug);
 }
 
 /** Map API video → PoseDemoStage sources (adds webm sibling when mp4 is local). */
@@ -73,6 +82,7 @@ function conventionFallback(slug: string): PoseMediaManifest {
       : null,
     audio: {
       url: `/audio/pose-${slug}.mp3`,
+      source: "neural",
       cues: null,
     },
   };

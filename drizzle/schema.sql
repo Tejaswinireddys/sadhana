@@ -24,8 +24,11 @@ CREATE TABLE IF NOT EXISTS preferences (
   id SERIAL PRIMARY KEY,
   owner_id TEXT NOT NULL DEFAULT '',
   motion_enabled INTEGER NOT NULL DEFAULT 1,
-  voice_enabled INTEGER NOT NULL DEFAULT 1
+  voice_enabled INTEGER NOT NULL DEFAULT 1,
+  allow_robot_voice INTEGER NOT NULL DEFAULT 0
 );
+
+ALTER TABLE preferences ADD COLUMN IF NOT EXISTS allow_robot_voice INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS pathway_enrollments (
   id SERIAL PRIMARY KEY,
