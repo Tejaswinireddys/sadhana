@@ -64,7 +64,7 @@ export function downloadReminderIcs(hour: number) {
     `DTEND:${fmt(end)}`,
     "RRULE:FREQ=DAILY",
     "SUMMARY:Sadhana practice",
-    "DESCRIPTION:Five mindful minutes. Open https://sadhana-ou9m.onrender.com",
+    `DESCRIPTION:Five mindful minutes. Open ${typeof window !== "undefined" ? window.location.origin : "https://sadhana.app"}`,
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");

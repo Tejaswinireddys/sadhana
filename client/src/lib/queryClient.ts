@@ -1,27 +1,32 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { peekDeviceId, syncDeviceId } from "./deviceId";
+import { peekDeviceId, peekDeviceProof, syncDeviceId } from "./deviceId";
 import { notifyApiOk } from "@/components/ConnectivityBanner";
 
 const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
 const DEVICE_ECHO_HEADER = "X-Device-Id";
+const DEVICE_PROOF_ECHO_HEADER = "X-Device-Proof";
 
 /**
  * Send the device id only when we actually have one. If localStorage was
  * evicted we stay silent so the server can recover our identity from its
  * `sadhana_device` cookie — minting a fresh id here would orphan the data.
+ * When a proof is present, send it so cookie-less recovery cannot be forged
+ * from a bare UUID alone.
  */
 function deviceHeaders(extra?: HeadersInit): HeadersInit {
   const id = peekDeviceId();
+  const proof = peekDeviceProof();
   return {
     ...(id ? { [DEVICE_ECHO_HEADER]: id } : {}),
+    ...(id && proof ? { [DEVICE_PROOF_ECHO_HEADER]: proof } : {}),
     ...(extra ?? {}),
   };
 }
 
 /** Mirror the server-resolved identity back into localStorage. */
 function adoptDeviceId(res: Response): Response {
-  syncDeviceId(res.headers.get(DEVICE_ECHO_HEADER));
+  syncDeviceId(res.headers.get(DEVICE_ECHO_HEADER), res.headers.get(DEVICE_PROOF_ECHO_HEADER));
   if (res.ok) notifyApiOk();
   return res;
 }

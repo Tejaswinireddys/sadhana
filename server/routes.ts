@@ -45,6 +45,8 @@ import {
   sendWelcomeEmail,
 } from "./email";
 import { z } from "zod";
+import { reportError } from "./errorReporting";
+import { buildPoseMediaManifest, isSafeSlug } from "./poseMediaManifest";
 
 const IMPORT_MAX_ITEMS = 2_000;
 const IMPORT_MAX_BODY_BYTES = 2 * 1024 * 1024;
@@ -832,6 +834,33 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.delete("/api/custom-flows/:id", async (req, res) => {
     await storage.deleteCustomFlow(req.ownerId, Number(req.params.id));
     res.status(204).end();
+  });
+
+  /** Browser exception beacon (rate-limited via global write limiter). */
+  app.post("/api/client-errors", async (req, res) => {
+    const message = String(req.body?.message || "client error").slice(0, 500);
+    const stack = typeof req.body?.stack === "string" ? req.body.stack.slice(0, 4000) : undefined;
+    const pathName = typeof req.body?.path === "string" ? req.body.path.slice(0, 200) : undefined;
+    void reportError({
+      message,
+      stack,
+      path: pathName,
+      source: "client",
+    });
+    res.status(204).end();
+  });
+
+  /**
+   * Pose media manifest — client uses this instead of guessing file paths.
+   * Only reports assets that exist on disk (video/audio may each be null).
+   */
+  app.get("/api/poses/:slug/media", (req, res) => {
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!isSafeSlug(slug)) {
+      return res.status(400).json({ error: "Invalid pose slug" });
+    }
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.json(buildPoseMediaManifest(slug));
   });
 
   return httpServer;

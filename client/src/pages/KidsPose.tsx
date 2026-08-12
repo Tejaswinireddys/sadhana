@@ -102,7 +102,7 @@ export default function KidsPose() {
           </div>
 
           {/* Story time audio */}
-          <VoicePlayer src={`${import.meta.env.BASE_URL}voice/kids-${pose.slug}.mp3`} slug={pose.slug} label="Story time" />
+          <VoicePlayer src={`${import.meta.env.BASE_URL}audio/kids-${pose.slug}.mp3`} slug={pose.slug} label="Story time" />
 
           {/* I did it! */}
           <div className="flex flex-col items-center gap-4 pt-2">

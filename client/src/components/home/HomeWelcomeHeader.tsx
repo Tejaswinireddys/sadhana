@@ -79,6 +79,8 @@ export function HomeWelcomeHeader({
                 onLoad={depth === 0 ? () => setHeroReady(true) : undefined}
                 src={`${base}poses/${slug}.png`}
                 alt=""
+                width={600}
+                height={1200}
                 className={`hero-photo-breath -ml-6 w-auto rounded-2xl object-contain shadow-soft transition-opacity duration-500 ${heights[depth]}`}
                 style={{
                   opacity: heroReady ? opacity[depth] : 0,
@@ -86,7 +88,7 @@ export function HomeWelcomeHeader({
                   zIndex: HERO_POSES.length - depth,
                   animationDelay: `${depth * 0.4}s`,
                 }}
-                loading="eager"
+                loading={depth === 0 ? "eager" : "lazy"}
                 decoding="async"
                 draggable={false}
               />

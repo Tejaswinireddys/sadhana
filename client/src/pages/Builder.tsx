@@ -106,7 +106,7 @@ function FlowCard({
               key={`${p.slug}-${i}`}
               className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-accent/30"
             >
-              <img
+              <img width={600} height={1200}
                 src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
                 alt={asanaBySlug(p.slug)?.english ?? p.slug}
                 className="h-full w-full object-contain"
@@ -352,7 +352,7 @@ function BuilderView({
                 data-testid={`library-pose-${a.slug}`}
               >
                 <span className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-accent/30">
-                  <img
+                  <img width={600} height={1200}
                     src={`${import.meta.env.BASE_URL}poses/${a.slug}.png`}
                     alt={a.english}
                     className="h-full w-full object-contain"
@@ -434,7 +434,7 @@ function BuilderView({
                       </Button>
                     </span>
                     <span className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-accent/30">
-                      <img
+                      <img width={600} height={1200}
                         src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
                         alt={asana?.english ?? p.slug}
                         className="h-full w-full object-contain"

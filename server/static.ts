@@ -1,7 +1,33 @@
-import express from 'express';
-import type { Express } from 'express';
+import express from "express";
+import type { Express } from "express";
 import fs from "node:fs";
 import path from "node:path";
+import { brandPublicHtml, publicAppOrigin, robotsTxt } from "./publicUrl";
+import { sendJson404 } from "./json404";
+import { mountStaticMedia } from "./mountStaticMedia";
+
+function sendBrandedHtml(res: express.Response, filePath: string) {
+  const html = brandPublicHtml(fs.readFileSync(filePath, "utf-8"));
+  res.status(200).setHeader("Content-Type", "text/html; charset=utf-8").send(html);
+}
+
+function requestPathname(req: { originalUrl?: string; url?: string; path?: string }): string {
+  const raw = req.originalUrl || req.url || req.path || "";
+  return raw.split("?")[0] || "";
+}
+
+/** Prefixes that must never resolve to the SPA shell. */
+function isNonSpaPrefix(pathname: string): boolean {
+  return (
+    pathname === "/api" ||
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/v1/") ||
+    pathname.startsWith("/audio/") ||
+    pathname.startsWith("/voice/") ||
+    pathname === "/audio" ||
+    pathname === "/voice"
+  );
+}
 
 export function serveStatic(app: Express) {
   const distPath = path.resolve(__dirname, "public");
@@ -11,27 +37,42 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath, { index: "index.html" }));
+  const indexPath = path.resolve(distPath, "index.html");
 
-  // Explicit root handler — needed on some hosts (Render/Cloudflare) where
-  // express.static's default index doesn't get picked up for the bare '/'.
-  app.get("/", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  app.get("/robots.txt", (_req, res) => {
+    res.status(200).type("text/plain").send(robotsTxt(publicAppOrigin()));
   });
 
-  // Fall through to index.html for any other unmatched route (SPA client-side
-  // routing via wouter's path-based browser router). Two exceptions get a real
-  // 404 instead of the shell:
-  //   - Unmatched /api/* paths — an unknown API call must fail as an API call,
-  //     never resolve to an HTML page.
-  //   - Static assets (path has a file extension, e.g. a missing /poses/*.png or
-  //     /voice/*.mp3) — otherwise <img onError> / <audio onError> handlers never
-  //     fire because the "missing" file silently resolves as a 200 HTML page.
+  // /audio + /voice before general static so missing files get JSON 404s.
+  mountStaticMedia(app);
+
+  app.use(
+    express.static(distPath, {
+      index: false,
+      fallthrough: true,
+      setHeaders(res, filePath) {
+        if (filePath.endsWith("robots.txt")) {
+          res.setHeader("Cache-Control", "no-store");
+        }
+      },
+    }),
+  );
+
+  app.get("/", (_req, res) => {
+    sendBrandedHtml(res, indexPath);
+  });
+
   app.use("/{*path}", (req, res) => {
-    if (req.path.startsWith("/api/") || path.extname(req.path)) {
+    const pathname = requestPathname(req);
+    if (isNonSpaPrefix(pathname)) {
+      sendJson404(res);
+      return;
+    }
+    if (path.extname(pathname)) {
+      // Missing static asset (image/video/font) — empty 404 so onError fires.
       res.status(404).end();
       return;
     }
-    res.sendFile(path.resolve(distPath, "index.html"));
+    sendBrandedHtml(res, indexPath);
   });
 }

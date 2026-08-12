@@ -45,6 +45,9 @@ export function VoicePlayer({
   const [duration, setDuration] = useState(0);
   const [rate, setRate] = useState<number>(1);
 
+  // No media yet (manifest says null / still resolving) — keep UI inert.
+  const hasSrc = Boolean(src);
+
   // Reset when the src changes (navigating between poses)
   useEffect(() => {
     setPlaying(false);
@@ -116,7 +119,7 @@ export function VoicePlayer({
           size="icon"
           variant="default"
           onClick={toggle}
-          disabled={!voiceEnabled}
+          disabled={!voiceEnabled || !hasSrc}
           aria-label={playing ? "Pause narration" : "Play narration"}
           data-testid={`button-voice-toggle-${slug}`}
           className="h-11 w-11 shrink-0 rounded-full"
@@ -134,7 +137,7 @@ export function VoicePlayer({
             step={0.5}
             value={[progress]}
             onValueChange={onSeek}
-            disabled={!voiceEnabled}
+            disabled={!voiceEnabled || !hasSrc}
             data-testid={`scrubber-voice-${slug}`}
             className="flex-1"
             aria-label="Seek narration"
@@ -146,7 +149,7 @@ export function VoicePlayer({
           size="sm"
           variant="outline"
           onClick={cycleRate}
-          disabled={!voiceEnabled}
+          disabled={!voiceEnabled || !hasSrc}
           data-testid={`button-voice-rate-${slug}`}
           className="shrink-0 tabular-nums"
         >
@@ -158,31 +161,35 @@ export function VoicePlayer({
         <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
           Calm guided voice
         </span>
-        {!voiceEnabled && (
+        {!hasSrc ? (
+          <span className="text-[11px] text-muted-foreground">Narration unavailable</span>
+        ) : !voiceEnabled ? (
           <span className="text-[11px] text-muted-foreground">Voice disabled</span>
-        )}
+        ) : null}
       </div>
 
-      <audio
-        ref={audioRef}
-        src={src}
-        preload="none"
-        data-testid={`audio-el-${slug}`}
-        onLoadedMetadata={(e) => setDuration((e.target as HTMLAudioElement).duration)}
-        onTimeUpdate={(e) => setCurrent((e.target as HTMLAudioElement).currentTime)}
-        onEnded={() => {
-          setPlaying(false);
-          setCurrent(0);
-        }}
-        onError={() => {
-          setPlaying(false);
-          toast({
-            title: "Audio unavailable",
-            description: `Couldn't load narration (${src}).`,
-            variant: "destructive",
-          });
-        }}
-      />
+      {hasSrc && (
+        <audio
+          ref={audioRef}
+          src={src}
+          preload="none"
+          data-testid={`audio-el-${slug}`}
+          onLoadedMetadata={(e) => setDuration((e.target as HTMLAudioElement).duration)}
+          onTimeUpdate={(e) => setCurrent((e.target as HTMLAudioElement).currentTime)}
+          onEnded={() => {
+            setPlaying(false);
+            setCurrent(0);
+          }}
+          onError={() => {
+            setPlaying(false);
+            toast({
+              title: "Audio unavailable",
+              description: `Couldn't load narration (${src}).`,
+              variant: "destructive",
+            });
+          }}
+        />
+      )}
     </div>
   );
 

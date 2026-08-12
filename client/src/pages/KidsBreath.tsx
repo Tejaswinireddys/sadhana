@@ -248,7 +248,7 @@ export default function KidsBreath() {
           {/* Voice player */}
           <div className="mx-auto max-w-md">
             <VoicePlayer
-              src={`${import.meta.env.BASE_URL}voice/kids-${breath.slug}.mp3`}
+              src={`${import.meta.env.BASE_URL}audio/kids-${breath.slug}.mp3`}
               slug={breath.slug}
               label="Listen along"
             />

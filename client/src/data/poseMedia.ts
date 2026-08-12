@@ -5,12 +5,15 @@
  *   client/public/videos/poses/{slug}.webm
  *   client/public/videos/poses/{slug}.mp4
  *   client/public/captions/poses/{slug}.vtt
- *   client/public/voice/pose-{slug}.mp3   (guided / explanation narration)
+ *   client/public/voice/pose-{slug}.mp3   (served at /audio/ and /voice/)
  * Poster falls back to the existing illustration: /poses/{slug}.png
+ *
+ * Prefer GET /api/poses/:slug/media (see poseMediaApi.ts) so the client does
+ * not guess paths. These helpers remain as offline / test fallbacks.
  *
  * Video is only requested for slugs listed in POSE_VIDEOS_READY or that have
  * an entry in POSE_MEDIA_OVERRIDES — so missing files never spam 404s.
- * Narration uses the convention path; players treat load/play errors as
+ * Narration uses /audio/pose-{slug}.mp3; players treat load/play errors as
  * silent walkthrough (no invented CDN URLs, no broken-audio spam).
  *
  * Regenerate illustration-based clips with:
@@ -87,9 +90,9 @@ export function poseMediaFor(slug: string): PoseMediaSources {
 
 /**
  * Canonical narration URL for a pose explanation / guided instruction.
- * Always returns the local convention path — callers must handle missing files
- * via audio onError / play() rejection (silent fallback).
+ * Served under `/audio/` (JSON 404 when missing). Prefer `usePoseMedia` /
+ * `GET /api/poses/:slug/media` in UI code; this is the offline fallback path.
  */
 export function poseNarrationSrc(slug: string): string {
-  return `${appBase()}voice/pose-${slug}.mp3`;
+  return `${appBase()}audio/pose-${slug}.mp3`;
 }

@@ -9,7 +9,8 @@ import { resolve } from "node:path";
 describe("pose presentation videos", () => {
   it("shows looping demo video on PoseTrainerStage when idle", () => {
     const src = readFileSync(resolve("client/src/components/PoseTrainerStage.tsx"), "utf8");
-    assert.match(src, /poseHasVideo/);
+    assert.match(src, /usePoseMedia/);
+    assert.match(src, /manifestToVideoSources/);
     assert.match(src, /wantPresentation/);
     assert.match(src, /preferVideo/);
     assert.match(src, /prefer3D=\{false\}/);

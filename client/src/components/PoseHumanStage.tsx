@@ -93,7 +93,7 @@ export function PoseHumanStage({
         {layers.map((layer, i) => {
           const isTop = i === layers.length - 1;
           return (
-            <img
+            <img loading="lazy" width={600} height={1200}
               key={layer.id}
               src={imgUrl(layer.slug)}
               alt=""

@@ -631,7 +631,7 @@ export default function Home() {
                           className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background p-2 transition-shadow hover:shadow-soft hover-elevate"
                           data-testid={`profile-asana-${a.slug}`}
                         >
-                          <img
+                          <img width={48} height={96}
                             src={`${import.meta.env.BASE_URL}poses/${a.slug}.png`}
                             alt=""
                             aria-hidden
@@ -735,7 +735,7 @@ export default function Home() {
                   }}
                   data-testid={`favorite-pose-${f.slug}`}
                 >
-                  <img
+                  <img width={80} height={160}
                     src={`${import.meta.env.BASE_URL}poses/${f.slug}.png`}
                     alt=""
                     aria-hidden

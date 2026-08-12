@@ -49,16 +49,29 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
     "Permissions-Policy",
     "camera=(self), microphone=(self), geolocation=(), payment=(self), usb=()",
   );
+  // Theme boot script in client/index.html is hashed (no 'unsafe-inline' for scripts).
+  // style-src keeps 'unsafe-inline' because React `style={}` attributes cannot use
+  // nonces/hashes in current browsers — migrating those to classes is the only path.
+  const themeScriptHash = "'sha256-j8vcGdgVnZoGpKZl63DFAOCBCzW6WFpK9VyyQ9914XU='";
+  const connect = [
+    "'self'",
+    "https://*.posthog.com",
+    "https://eu.i.posthog.com",
+    "https://us.i.posthog.com",
+    "https://*.ingest.sentry.io",
+    "https://*.ingest.us.sentry.io",
+  ];
   res.setHeader(
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      `script-src 'self' ${themeScriptHash}`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob:",
-      "connect-src 'self'",
+      `connect-src ${connect.join(" ")}`,
+      "worker-src 'self'",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -178,20 +191,35 @@ export function mountSecurity(app: Express) {
 
   const authLimit = createRateLimiter({ windowMs: 15 * 60_000, max: 30 });
   const authStrict = createRateLimiter({ windowMs: 15 * 60_000, max: 10 });
+  // Session probe — generous but finite so rapid-fire scraping gets 429s.
+  const authMeLimit = createRateLimiter({ windowMs: 60_000, max: 120 });
+  // Mutating API abuse guard (journal/profile/sessions/etc.).
+  const apiWriteLimit = createRateLimiter({ windowMs: 60_000, max: 90 });
+  // Sensitive account export / wipe.
+  const accountSensitiveLimit = createRateLimiter({ windowMs: 60 * 60_000, max: 20 });
+
   app.use("/api/auth/login", authStrict);
   app.use("/api/auth/signup", authStrict);
   app.use("/api/auth/forgot-password", authStrict);
   app.use("/api/auth/reset-password", authStrict);
   app.use("/api/auth/verify-email", authStrict);
   app.use("/api/auth/resend-verification", authStrict);
-  // Only throttle state-changing auth actions. Read-only session checks
-  // (GET /api/auth/me) run on every page and must not exhaust the limiter,
-  // which previously returned 429 on ordinary navigation.
+  app.use("/api/auth/me", authMeLimit);
   app.use("/api/auth", (req, res, next) => {
     if (req.method === "GET" || req.method === "HEAD") return next();
     return authLimit(req, res, next);
   });
 
+  app.use("/api/account/export", accountSensitiveLimit);
+  app.use("/api/account/data", accountSensitiveLimit);
   const importLimit = createRateLimiter({ windowMs: 60 * 60_000, max: 10 });
   app.use("/api/account/import", importLimit);
+
+  app.use("/api", (req, res, next) => {
+    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+      return next();
+    }
+    // Billing + auth already have tighter limiters; still count toward write budget.
+    return apiWriteLimit(req, res, next);
+  });
 }

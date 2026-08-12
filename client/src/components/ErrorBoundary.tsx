@@ -1,14 +1,46 @@
-import { Component, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };
+
+function reportBoundaryError(error: Error, info: ErrorInfo) {
+  try {
+    const body = JSON.stringify({
+      message: (error.message || "ErrorBoundary").slice(0, 500),
+      stack: [error.stack, info.componentStack].filter(Boolean).join("\n").slice(0, 4000),
+      path: typeof window !== "undefined" ? window.location.pathname : undefined,
+    });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon("/api/client-errors", new Blob([body], { type: "application/json" }));
+    } else {
+      void fetch("/api/client-errors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        credentials: "include",
+        keepalive: true,
+      });
+    }
+  } catch {
+    /* ignore */
+  }
+  void import("@/lib/sentryClient")
+    .then(({ captureClientException }) =>
+      captureClientException(error, { componentStack: info.componentStack }),
+    )
+    .catch(() => undefined);
+}
 
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
 
   static getDerivedStateFromError(error: Error) {
     return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    reportBoundaryError(error, info);
   }
 
   render() {

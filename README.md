@@ -114,7 +114,27 @@ The app is set up for one-click deploy on Render.
 5. First boot creates all tables automatically.
 
 The app runs on Render's free tier. Free-tier apps spin down after 15
-minutes of inactivity; the first visit after that takes ~30 seconds to wake.
+minutes of inactivity; the first visit after that takes ~30–50 seconds to wake.
+**Before sharing the product publicly, move the web service to a paid always-on
+plan** and attach a custom domain via `PUBLIC_APP_URL` (the default
+`*.onrender.com` URL is fine for demos only). With `PUBLIC_APP_URL` set, OG tags,
+canonical URLs, and `/robots.txt` rewrite automatically at serve time.
+
+For error monitoring set `SENTRY_DSN` (server) and `VITE_SENTRY_DSN` (browser).
+Regenerate pose WebP siblings with `npm run gen:pose-webp` after adding PNGs.
+
+### Privacy / account controls
+
+- Signed-in users can **delete their account** (password confirm) from Account —
+  this clears `user:<id>` practice data and the auth row.
+- Guests and accounts can **export a JSON backup** and **wipe device data** from
+  Settings / Account (`GET /api/account/export`, `DELETE /api/account/data`).
+
+### Security notes (guest identity)
+
+Guest practice is keyed by a server-signed device cookie. A bare UUID in
+`X-Device-Id` is not enough to read another browser’s journal — see
+`server/owner.ts`. Auth and write APIs are rate-limited (`server/security.ts`).
 
 ## Content credits
 

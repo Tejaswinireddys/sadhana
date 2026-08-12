@@ -286,7 +286,7 @@ export function Onboarding({
                       key={p.slug}
                       className="h-14 w-10 shrink-0 overflow-hidden rounded-lg border border-border/50 bg-card"
                     >
-                      <img
+                      <img loading="lazy" width={600} height={1200}
                         src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
                         alt=""
                         className="h-full w-full object-cover object-top"

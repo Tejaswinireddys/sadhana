@@ -122,6 +122,7 @@ export default function Landing() {
             className="absolute inset-0 h-full w-full object-cover object-[center_26%] hero-photo-breath scale-[1.02]"
             width={1200}
             height={1600}
+            loading="eager"
             decoding="async"
             fetchPriority="high"
             aria-hidden
@@ -210,7 +211,7 @@ export default function Landing() {
                     className="group relative block min-h-[14rem] overflow-hidden rounded-[1.5rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-[16rem]"
                     data-testid={`program-card-${i}`}
                   >
-                    <img
+                    <img width={600} height={1200}
                       src={p.img}
                       alt=""
                       className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"

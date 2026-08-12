@@ -396,7 +396,7 @@ export default function StartQuiz() {
                       data-testid="plan-pose-preview"
                     >
                       <div className="aspect-square overflow-hidden rounded-xl bg-muted">
-                        <img
+                        <img width={600} height={1200}
                           src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
                           alt=""
                           className="h-full w-full object-cover object-center"

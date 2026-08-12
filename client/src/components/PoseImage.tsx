@@ -1,7 +1,7 @@
 /**
- * PoseImage — illustrated pose photo (/poses/<slug>.png).
+ * PoseImage — illustrated pose photo (`/poses/<slug>.{webp,png}`).
  * Lazy decode, soft fade-in, optional breath scale, skeleton + SVG fallback.
- * Blur-up uses a tiny same-asset preview (no separate WebP set required).
+ * Serves WebP via `<picture>` when generated (`npm run gen:pose-webp`), PNG fallback.
  *
  * Fit: every pose source is authored at 600x1200 (1:2, full standing figure).
  * `object-cover` in any wider container clips the top and bottom of the frame —
@@ -36,7 +36,7 @@ export function PoseImage({
   rounded?: string;
   aspect?: string;
   shadow?: boolean;
-  /** Hint for responsive layout; single PNG source until WebP variants exist. */
+  /** Hint for responsive layout. */
   sizes?: string;
   /** Eager load for LCP heroes */
   priority?: boolean;
@@ -58,9 +58,25 @@ export function PoseImage({
   const [useFullSize, setUseFullSize] = useState(false);
   const asana = asanaBySlug(slug);
   const poseKey = asana?.pose ?? "mountain";
-  const full = `${import.meta.env.BASE_URL}poses/${slug}.png`;
-  const src = thumb && !useFullSize ? `${import.meta.env.BASE_URL}poses/thumbs/${slug}.png` : full;
+  const fullPng = `${import.meta.env.BASE_URL}poses/${slug}.png`;
+  const fullWebp = `${import.meta.env.BASE_URL}poses/${slug}.webp`;
+  const thumbPng = `${import.meta.env.BASE_URL}poses/thumbs/${slug}.png`;
+  const thumbWebp = `${import.meta.env.BASE_URL}poses/thumbs/${slug}.webp`;
+  const src = thumb && !useFullSize ? thumbPng : fullPng;
+  const webpSrc = thumb && !useFullSize ? thumbWebp : fullWebp;
   const eager = priority || thumb;
+  // Always reserve a sized box (authored pose frame is 1:2) to keep CLS near zero.
+  const aspectClass = aspect ?? "aspect-[1/2]";
+  const aspectRatioCss = (() => {
+    if (!aspect) return "1 / 2";
+    if (aspect.includes("aspect-square") || aspect.includes("aspect-[1/1]")) return "1 / 1";
+    if (aspect.includes("aspect-[4/3]")) return "4 / 3";
+    if (aspect.includes("aspect-[3/4]")) return "3 / 4";
+    if (aspect.includes("aspect-[1/2]")) return "1 / 2";
+    const m = aspect.match(/aspect-\[(\d+)\s*\/\s*(\d+)\]/);
+    if (m) return `${m[1]} / ${m[2]}`;
+    return "1 / 2";
+  })();
 
   /**
    * A cached image can finish decoding before React attaches `onLoad`, so the
@@ -83,7 +99,8 @@ export function PoseImage({
 
   return (
     <div
-      className={cn("relative w-full overflow-hidden bg-accent/30", rounded, aspect, className)}
+      className={cn("relative w-full overflow-hidden bg-accent/30", rounded, aspectClass, className)}
+      style={{ aspectRatio: aspectRatioCss }}
       data-testid={testId ?? `pose-image-${slug}`}
     >
       {!loaded && !errored && (
@@ -96,6 +113,8 @@ export function PoseImage({
               src={src}
               alt=""
               aria-hidden
+              width={600}
+              height={1200}
               className={cn(
                 "pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl",
                 rounded,
@@ -107,38 +126,42 @@ export function PoseImage({
         </>
       )}
       {!errored && (
-        <img
-          ref={attachImg}
-          key={src}
-          src={src}
-          alt={alt}
-          sizes={sizes}
-          loading={eager ? "eager" : "lazy"}
-          decoding={eager ? "sync" : "async"}
-          fetchPriority={priority ? "high" : "auto"}
-          onLoad={() => setLoaded(true)}
-          onError={handleError}
-          className={cn(
-            "relative z-[1] block select-none transition-opacity duration-300",
-            fit === "cover" ? "object-cover" : "object-contain",
-            // A full-body figure shrunk to a row thumbnail is a few faint
-            // pixels. Scaling up inside the clip keeps it legible.
-            thumb ? "scale-[1.35]" : "",
+        <picture key={src}>
+          <source srcSet={webpSrc} type="image/webp" sizes={sizes} />
+          <img
+            ref={attachImg}
+            src={src}
+            alt={alt}
+            width={thumb ? 96 : 600}
+            height={thumb ? 192 : 1200}
+            sizes={sizes}
+            loading={eager ? "eager" : "lazy"}
+            decoding={eager ? "sync" : "async"}
+            fetchPriority={priority ? "high" : "auto"}
+            onLoad={() => setLoaded(true)}
+            onError={handleError}
+            className={cn(
+              "relative z-[1] block select-none transition-opacity duration-300",
+              fit === "cover" ? "object-cover" : "object-contain",
+              // A full-body figure shrunk to a row thumbnail is a few faint
+              // pixels. Scaling up inside the clip keeps it legible.
+              thumb ? "scale-[1.35]" : "",
             rounded,
-            aspect ? "h-full w-full" : "w-full",
+            "h-full w-full",
             shadow ? "shadow-soft-lg" : "",
             loaded ? "opacity-100" : "opacity-0",
             loaded && breath ? "photo-breath" : "",
           )}
-          draggable={false}
-        />
+            draggable={false}
+          />
+        </picture>
       )}
       {errored && (
         <div
           className={cn(
-            "flex w-full flex-col items-center justify-center gap-2 bg-accent/40 text-primary",
+            "flex h-full w-full flex-col items-center justify-center gap-2 bg-accent/40 text-primary",
             rounded,
-            aspect ?? "aspect-square",
+            aspectClass,
           )}
           data-testid={`pose-image-fallback-${slug}`}
           role="img"

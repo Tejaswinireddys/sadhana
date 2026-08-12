@@ -42,7 +42,7 @@ export function KidsPoseVideo({
 
   if (!hasVideo || failed) {
     return (
-      <img
+      <img loading="lazy" width={1280} height={720}
         src={stillSrc}
         alt={alt}
         className={cn("kids-bob h-64 w-64 object-contain", className)}
@@ -58,7 +58,7 @@ export function KidsPoseVideo({
       data-media={ready ? "video" : "poster"}
     >
       {!ready && (
-        <img
+        <img loading="lazy" width={1280} height={720}
           src={media.poster}
           alt=""
           aria-hidden

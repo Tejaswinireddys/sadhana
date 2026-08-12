@@ -103,7 +103,7 @@ export function PoseFigurine3D({
 
       {/* Soft PNG reference — recognition only */}
       {posterSrc ? (
-        <img
+        <img loading="lazy" width={1280} height={720}
           src={posterSrc}
           alt=""
           aria-hidden

@@ -14,7 +14,7 @@ import { VoicePlayer } from "@/components/VoicePlayer";
 import { PoseExplanation } from "@/components/PoseExplanation";
 import { asanaBySlug, type Severity } from "@/data/content";
 import { CONTENT_REVIEW } from "@/data/contentProvenance";
-import { poseNarrationSrc } from "@/data/poseMedia";
+import { manifestAudioUrl, usePoseMedia } from "@/lib/poseMediaApi";
 import { pronunciationFor } from "@/lib/sanskritPronunciation";
 import { usagesForAsana } from "@/data/asanaUsage";
 import { QUICK_SESSIONS, sessionMinutes, sessionTimeLabel } from "@/data/quickSessions";
@@ -143,6 +143,7 @@ export default function AsanaDetail() {
   const { slug } = useParams();
   const [, navigate] = useLocation();
   const asana = asanaBySlug(slug || "");
+  const { data: poseMedia } = usePoseMedia(slug || undefined);
   const { add, todays, loadSession } = usePractice();
   const { toast } = useToast();
   const [level, setLevel] = useState<Level>("intermediate");
@@ -280,7 +281,7 @@ export default function AsanaDetail() {
         </div>
         {/* Quick "listen again" affordance below the headline */}
         <VoicePlayer
-          src={poseNarrationSrc(asana.slug)}
+          src={manifestAudioUrl(asana.slug, poseMedia)}
           slug={asana.slug}
           label="Listen again — guided audio"
         />
