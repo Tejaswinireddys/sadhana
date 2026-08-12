@@ -199,8 +199,10 @@ function SidebarSearch() {
                       src={`${import.meta.env.BASE_URL}poses/${pose.slug}.png`}
                       alt=""
                       aria-hidden
+                      width={96}
+                      height={192}
                       className="h-full w-full scale-[1.35] object-contain"
-                      loading="eager"
+                      loading="lazy"
                       decoding="async"
                     />
                   </span>

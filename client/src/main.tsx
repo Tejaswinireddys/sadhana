@@ -57,3 +57,39 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
     });
   });
 }
+
+/** Forward unexpected client errors for monitoring (Sentry when SENTRY_DSN is set). */
+function reportClientError(message: string, stack?: string) {
+  try {
+    const body = JSON.stringify({
+      message: message.slice(0, 500),
+      stack: stack?.slice(0, 4000),
+      path: window.location.pathname,
+    });
+    if (navigator.sendBeacon) {
+      const blob = new Blob([body], { type: "application/json" });
+      navigator.sendBeacon("/api/client-errors", blob);
+      return;
+    }
+    void fetch("/api/client-errors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      credentials: "include",
+      keepalive: true,
+    });
+  } catch {
+    /* never break the app for telemetry */
+  }
+}
+
+window.addEventListener("error", (ev) => {
+  reportClientError(ev.message || "window.error", ev.error?.stack);
+});
+window.addEventListener("unhandledrejection", (ev) => {
+  const reason = ev.reason;
+  const message =
+    reason instanceof Error ? reason.message : typeof reason === "string" ? reason : "unhandledrejection";
+  const stack = reason instanceof Error ? reason.stack : undefined;
+  reportClientError(message, stack);
+});

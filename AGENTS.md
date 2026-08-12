@@ -19,7 +19,12 @@ run in one process — there is no separate frontend dev server.
 
 - The dev server listens on port **5000** by default (not the `PORT=10000` shown in `.env.example`, which is for production/Render). Override with the `PORT` env var if needed.
 - **Postgres is optional locally.** If `DATABASE_URL` is unset, the server logs `DATABASE_URL unset — using in-memory store` and runs fully with an in-memory store that resets on restart. Guest practice, pose browsing, and guided sessions all work without a database. Set `DATABASE_URL` only when you need cross-restart persistence or to test account signup/login sync.
-- Practice data is scoped per browser via an anonymous device id sent as the `X-Device-Id` header; API calls without it are treated as a distinct/guest scope.
+- Practice data is scoped per browser via a **server-issued** device id. The HttpOnly `sadhana_device` cookie is authoritative; `X-Device-Id` alone cannot adopt another guest’s UUID (HMAC `X-Device-Proof` required when recovering without a cookie). Signed-in sessions use `user:<id>` and ignore device spoofing.
+- **Rate limits:** strict on auth login/signup/reset/verify; `/api/auth/me` 120/min; mutating `/api/*` 90/min; account export/wipe 20/hour.
+- Unknown `/api/*` routes return **JSON 404** (never the SPA HTML shell) in both Vite and production static modes.
+- CSP `script-src` is `'self'` + the hashed theme boot script (no `'unsafe-inline'` for scripts). `style-src` still allows `'unsafe-inline'` for React `style={}`.
+- **Hosting:** Render free tier cold-starts ~30–50s after idle — use a paid/always-on instance before public launch. Set `PUBLIC_APP_URL` to a real custom domain (not `*.onrender.com`) for trust + OG/canonical.
+- **Error monitoring:** set `SENTRY_DSN` to forward server 500s and `POST /api/client-errors` beacons. PostHog is product analytics only.
 - With Postgres configured, the schema is auto-applied on boot from `drizzle/schema.sql` (no manual migration step needed); `npm run db:push` is available for manual schema pushes.
 - **`/healthz` is DB-aware.** It returns 200 only when `storage.ping()` succeeds (always true in memory mode; `SELECT 1` against Postgres otherwise). A DB outage returns 503 so Render stops routing to a broken instance.
 - Stripe entitlements live in the `entitlements` table (not `.data/billing-entitlements.json`). Boot runs an idempotent JSON→Postgres import via `migrateBillingEntitlements()`.

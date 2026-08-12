@@ -96,6 +96,8 @@ export function PoseImage({
               src={src}
               alt=""
               aria-hidden
+              width={600}
+              height={1200}
               className={cn(
                 "pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl",
                 rounded,
@@ -112,6 +114,8 @@ export function PoseImage({
           key={src}
           src={src}
           alt={alt}
+          width={thumb ? 96 : 600}
+          height={thumb ? 192 : 1200}
           sizes={sizes}
           loading={eager ? "eager" : "lazy"}
           decoding={eager ? "sync" : "async"}

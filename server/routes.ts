@@ -45,6 +45,7 @@ import {
   sendWelcomeEmail,
 } from "./email";
 import { z } from "zod";
+import { reportError } from "./errorReporting";
 
 const IMPORT_MAX_ITEMS = 2_000;
 const IMPORT_MAX_BODY_BYTES = 2 * 1024 * 1024;
@@ -831,6 +832,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
   app.delete("/api/custom-flows/:id", async (req, res) => {
     await storage.deleteCustomFlow(req.ownerId, Number(req.params.id));
+    res.status(204).end();
+  });
+
+  /** Browser exception beacon (rate-limited via global write limiter). */
+  app.post("/api/client-errors", async (req, res) => {
+    const message = String(req.body?.message || "client error").slice(0, 500);
+    const stack = typeof req.body?.stack === "string" ? req.body.stack.slice(0, 4000) : undefined;
+    const pathName = typeof req.body?.path === "string" ? req.body.path.slice(0, 200) : undefined;
+    void reportError({
+      message,
+      stack,
+      path: pathName,
+      source: "client",
+    });
     res.status(204).end();
   });
 

@@ -34,6 +34,12 @@ export async function setupVite(server: Server, app: Express) {
   app.use("/{*path}", async (req, res, next) => {
     const url = req.originalUrl;
 
+    // Unknown API routes must never fall through to the SPA HTML shell (200).
+    if (req.path.startsWith("/api/") || req.path.startsWith("/v1/")) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
     // A missing static asset (has a file extension, e.g. /poses/*.png that
     // doesn't exist) should 404, not silently resolve to the SPA's index.html
     // — otherwise <img onError> / <audio onError> fallbacks never fire.

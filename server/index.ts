@@ -147,11 +147,23 @@ async function ensureSchema() {
   startPushScheduler();
   startBillingScheduler();
 
-  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
     console.error("Internal Server Error:", err);
+    if (status >= 500) {
+      void import("./errorReporting")
+        .then(({ reportError }) =>
+          reportError({
+            message,
+            stack: err?.stack,
+            source: "server",
+            path: req.originalUrl,
+          }),
+        )
+        .catch(() => undefined);
+    }
 
     if (res.headersSent) {
       return next(err);

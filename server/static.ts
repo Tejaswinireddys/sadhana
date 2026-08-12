@@ -28,7 +28,11 @@ export function serveStatic(app: Express) {
   //     /voice/*.mp3) — otherwise <img onError> / <audio onError> handlers never
   //     fire because the "missing" file silently resolves as a 200 HTML page.
   app.use("/{*path}", (req, res) => {
-    if (req.path.startsWith("/api/") || path.extname(req.path)) {
+    if (req.path.startsWith("/api/") || req.path.startsWith("/v1/")) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    if (path.extname(req.path)) {
       res.status(404).end();
       return;
     }
