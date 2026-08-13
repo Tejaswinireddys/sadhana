@@ -3,6 +3,7 @@
  * Implemented without extra dependencies so free-tier deploys stay lean.
  */
 import type { Express, NextFunction, Request, Response } from "express";
+import { streamCspHosts } from "./streamConfig";
 
 const SENSITIVE_KEYS = new Set([
   "password",
@@ -64,6 +65,7 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
     "'self'",
     ...(isProd ? [themeScriptHash] : ["'unsafe-inline'"]),
   ].join(" ");
+  const streamHosts = streamCspHosts();
   const connect = [
     "'self'",
     "https://*.posthog.com",
@@ -71,7 +73,9 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
     "https://us.i.posthog.com",
     "https://*.ingest.sentry.io",
     "https://*.ingest.us.sentry.io",
+    ...streamHosts,
   ];
+  const media = ["'self'", "blob:", ...streamHosts];
   res.setHeader(
     "Content-Security-Policy",
     [
@@ -80,9 +84,9 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
-      "media-src 'self' blob:",
+      `media-src ${media.join(" ")}`,
       `connect-src ${connect.join(" ")}`,
-      "worker-src 'self'",
+      "worker-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

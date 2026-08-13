@@ -48,6 +48,8 @@ import { z } from "zod";
 import { reportError } from "./errorReporting";
 import { buildPoseMediaManifest, isSafeSlug } from "./poseMediaManifest";
 import { ensureNeuralTts, readCachedTts, ttsConfigured } from "./tts";
+import { upsertPosePlayback } from "./poseStreamStore";
+import { streamProvider, type StreamProvider } from "./streamConfig";
 
 const IMPORT_MAX_ITEMS = 2_000;
 const IMPORT_MAX_BODY_BYTES = 2 * 1024 * 1024;
@@ -855,13 +857,51 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
    * Pose media manifest — client uses this instead of guessing file paths.
    * Only reports assets that exist on disk (video/audio may each be null).
    */
-  app.get("/api/poses/:slug/media", (req, res) => {
+  app.get("/api/poses/:slug/media", async (req, res) => {
     const slug = String(req.params.slug || "").trim().toLowerCase();
     if (!isSafeSlug(slug)) {
       return res.status(400).json({ error: "Invalid pose slug" });
     }
-    res.setHeader("Cache-Control", "public, max-age=300");
-    res.json(buildPoseMediaManifest(slug));
+    res.setHeader("Cache-Control", "public, max-age=60");
+    res.json(await buildPoseMediaManifest(slug));
+  });
+
+  /**
+   * Upsert a streaming playback ID for a pose.
+   * Protected by STREAM_ADMIN_KEY (or SADHANA_API_KEY) when set; open in local
+   * memory-mode demos when neither key is configured.
+   */
+  app.put("/api/poses/:slug/stream", async (req, res) => {
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!isSafeSlug(slug)) {
+      return res.status(400).json({ error: "Invalid pose slug" });
+    }
+    const adminKey = process.env.STREAM_ADMIN_KEY || process.env.SADHANA_API_KEY;
+    if (adminKey) {
+      const presented =
+        req.get("x-stream-admin-key") ||
+        req.get("x-api-key") ||
+        String(req.query.key || "");
+      if (presented !== adminKey) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+    }
+    const playbackId = String(req.body?.playbackId || req.body?.playback_id || "").trim();
+    if (!playbackId || playbackId.length > 128) {
+      return res.status(400).json({ error: "playbackId required" });
+    }
+    const rawProvider = String(req.body?.provider || streamProvider()).toLowerCase();
+    const provider: StreamProvider =
+      rawProvider === "mux" || rawProvider === "cloudflare" || rawProvider === "bunny"
+        ? rawProvider
+        : streamProvider();
+    const row = await upsertPosePlayback(slug, playbackId, provider);
+    res.json({
+      slug: row.slug,
+      playbackId: row.playbackId,
+      provider: row.provider || provider,
+      media: await buildPoseMediaManifest(slug),
+    });
   });
 
   /**
@@ -874,7 +914,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return res.status(400).json({ error: "Invalid pose slug" });
     }
     // Prefer an on-disk human/neural file over generating a new track.
-    const existing = buildPoseMediaManifest(slug).audio;
+    const existing = (await buildPoseMediaManifest(slug)).audio;
     if (existing) {
       return res.json({ ...existing, cached: true });
     }

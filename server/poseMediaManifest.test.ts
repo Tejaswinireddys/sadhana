@@ -32,21 +32,23 @@ describe("pose media manifest", () => {
     assert.equal(isSafeSlug(""), false);
   });
 
-  it("returns audio url under /audio for known pose", () => {
-    const m = buildPoseMediaManifest("tadasana");
+  it("returns audio url under /audio for known pose", async () => {
+    const m = await buildPoseMediaManifest("tadasana");
     assert.ok(m.audio);
     assert.equal(m.audio!.url, "/audio/pose-tadasana.mp3");
     assert.equal(m.audio!.source, "neural");
-    assert.ok(m.video === null || (m.video && typeof m.video.mp4 === "string"));
+    assert.ok(m.video === null || (m.video && (m.video.mp4 || m.video.hls)));
     if (m.video) {
-      assert.ok(m.video.mp4.includes("/videos/poses/tadasana.mp4"));
       assert.ok(typeof m.video.poster === "string");
-      assert.ok(m.video.hls === null || typeof m.video.hls === "string");
+      assert.ok(m.video.provider === "local" || m.video.provider === "bunny" || m.video.provider === "mux" || m.video.provider === "cloudflare");
+      if (m.video.provider === "local" && m.video.mp4) {
+        assert.ok(m.video.mp4.includes("/videos/poses/tadasana.mp4"));
+      }
     }
   });
 
-  it("returns null audio for unknown pose slug", () => {
-    const m = buildPoseMediaManifest("not-a-real-pose-xyz");
+  it("returns null audio for unknown pose slug", async () => {
+    const m = await buildPoseMediaManifest("not-a-real-pose-xyz");
     assert.equal(m.audio, null);
     assert.equal(m.video, null);
   });
