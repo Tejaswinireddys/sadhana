@@ -9,6 +9,7 @@ import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { poseHasVideo, poseMediaFor } from "./poseMedia.ts";
+import { POSE_CAPTIONS_READY_LIST } from "./poseCaptionsReady.generated.ts";
 import { POSE_VIDEOS_READY_LIST } from "./poseVideosReady.generated.ts";
 import { ASANAS } from "./content.ts";
 import { KIDS_POSES } from "./kids.ts";
@@ -17,12 +18,30 @@ import { KIDS_VIDEOS_READY_LIST } from "./kidsVideosReady.generated.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
+/** Legacy SD clips were ~30–80KB; HD 1080×1920 encodes are well above this. */
+const MIN_HD_MP4_BYTES = 150_000;
+
 function nonEmpty(rel: string): boolean {
   const p = path.join(ROOT, rel);
   try {
     return existsSync(p) && statSync(p).size > 0;
   } catch {
     return false;
+  }
+}
+
+function ffprobeWidth(file: string): number | null {
+  try {
+    const out = execFileSync(
+      "ffprobe",
+      ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width", "-of", "csv=p=0", file],
+      { encoding: "utf8" },
+    ).trim();
+    const width = Number(out);
+    return Number.isFinite(width) ? width : null;
+  } catch {
+    // CI runners often lack ffmpeg/ffprobe — size check below still enforces HD.
+    return null;
   }
 }
 
@@ -56,18 +75,21 @@ describe("pose trainer demo media", () => {
     }
   });
 
-  it("ships HD demo video for catalog poses (min 900px wide)", () => {
+  it("ships HD demo video for catalog poses", () => {
     const sample = ["tadasana", "vrksasana", "adho-mukha-svanasana"];
     for (const slug of sample) {
-      const file = path.join(ROOT, `client/public/videos/poses/${slug}.mp4`);
-      assert.ok(nonEmpty(`client/public/videos/poses/${slug}.mp4`), `${slug} mp4 missing`);
-      const out = execFileSync(
-        "ffprobe",
-        ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width", "-of", "csv=p=0", file],
-        { encoding: "utf8" },
-      ).trim();
-      const width = Number(out);
-      assert.ok(width >= 900, `${slug} expected HD width >= 900, got ${width}`);
+      const rel = `client/public/videos/poses/${slug}.mp4`;
+      assert.ok(nonEmpty(rel), `${slug} mp4 missing`);
+      const file = path.join(ROOT, rel);
+      const size = statSync(file).size;
+      assert.ok(
+        size >= MIN_HD_MP4_BYTES,
+        `${slug} expected HD-sized mp4 (>= ${MIN_HD_MP4_BYTES} bytes), got ${size}`,
+      );
+      const width = ffprobeWidth(file);
+      if (width != null) {
+        assert.ok(width >= 900, `${slug} expected HD width >= 900, got ${width}`);
+      }
     }
   });
 
@@ -76,6 +98,14 @@ describe("pose trainer demo media", () => {
       (a) => a.slug,
     );
     assert.deepEqual(missing, [], `poses missing narration: ${missing.join(", ")}`);
+  });
+
+  it("ships captions for every catalog asana", () => {
+    assert.equal(POSE_CAPTIONS_READY_LIST.length, ASANAS.length);
+    const missing = ASANAS.filter((a) => !nonEmpty(`client/public/captions/poses/${a.slug}.vtt`)).map(
+      (a) => a.slug,
+    );
+    assert.deepEqual(missing, [], `poses missing captions: ${missing.join(", ")}`);
   });
 
   it("skips video for unknown slugs", () => {
