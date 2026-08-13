@@ -1,9 +1,8 @@
 /**
- * PoseExplanation — clear per-pose training (detail page).
+ * PoseExplanation — studio how-to training (detail page).
  *
- * Not a bobbing Ken Burns clip: a still full-body figure, voice-synced steps,
- * focus halo on the body region being cued, and Form · Breath · Align coaching.
- * Built to make “start training” obvious — clearer than a zooming still.
+ * HD how-to video + coaching voice, focus halo on the cued body region, and
+ * Form · Breath · Align coaching. Start training is obvious and synced.
  *
  * Honors voiceEnabled: when OFF, silent step countdown still drives the guide.
  */
@@ -264,7 +263,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
         <div className="flex flex-col gap-1.5">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            Pose demo · Step-by-step training
+            Studio how-to · Voice coaching
             {!voiceEnabled ? " · Voice off" : null}
           </span>
           <h2 className="font-serif text-2xl font-semibold tracking-tight">
@@ -273,7 +272,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
           <p className="text-sm text-muted-foreground">
             {asana.sanskrit}
             {" · "}
-            Watch the how-to video follow each spoken cue, then hold the shape.
+            HD how-to video follows each spoken cue so you see and hear the shape together.
           </p>
         </div>
 
@@ -438,7 +437,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
         <audio
           ref={audioRef}
           src={voiceEnabled ? src : undefined}
-          preload="none"
+          preload={voiceEnabled ? "auto" : "none"}
           data-testid={`demo-audio-${asana.slug}`}
           onLoadedMetadata={(e) => setDuration((e.target as HTMLAudioElement).duration)}
           onTimeUpdate={(e) => {

@@ -1,11 +1,9 @@
 /**
  * PoseDemoStage — the visual heart of pose explanation / guided practice.
  *
- * Primary: narration-synced 3D figurine (CSS perspective + PoseSvg mannequin)
- * driven by step pose key, focus zone, and stepMotion — the “correct moment”.
- *
- * Optional: looping Ken Burns video remains available when prefer3D is false
- * (or save-data / reduced paths). Poster PNG is a soft recognition layer under 3D.
+ * Primary (trainer): HD how-to video scrubbed to coaching voice when prefer3D
+ * is false. Optional: narration-synced 3D figurine when prefer3D is true.
+ * Poster PNG is a soft recognition layer under video / 3D.
  *
  * Never invents external CDN URLs — callers pass sources from poseMediaFor().
  */
@@ -351,15 +349,7 @@ export function PoseDemoStage({
       data-media={useVideo && videoReady ? "video" : "illustration"}
       data-sync={syncToVoice ? "voice" : "loop"}
     >
-      {useVideo && videoReady && variant === "detail" && (
-        <span
-          className="absolute left-3 top-3 z-20 rounded-full bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary shadow-soft backdrop-blur-sm"
-          data-testid={`pose-demo-badge-${slug}`}
-        >
-          Demo video
-        </span>
-      )}
-      <div className={cn("absolute inset-0", caption ? "px-2 pb-14 pt-9" : "p-2")}>
+      <div className={cn("absolute inset-0", caption ? "px-2 pb-14 pt-4" : "p-2")}>
         {useVideo && showSources && (
           <video
             ref={videoRef}
@@ -382,7 +372,7 @@ export function PoseDemoStage({
             <source src={media.webm} type="video/webm" />
             <source src={media.mp4} type="video/mp4" />
             {media.captions ? (
-              <track kind="captions" src={media.captions} srcLang="en" label="English" />
+              <track kind="captions" src={media.captions} srcLang="en" label="English" default />
             ) : null}
           </video>
         )}

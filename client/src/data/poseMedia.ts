@@ -13,15 +13,18 @@
  *
  * Video is only requested for slugs listed in POSE_VIDEOS_READY or that have
  * an entry in POSE_MEDIA_OVERRIDES — so missing files never spam 404s.
+ * Captions attach when listed in POSE_CAPTIONS_READY (or overridden).
  * Narration uses /audio/pose-{slug}.mp3; players treat load/play errors as
  * silent walkthrough (no invented CDN URLs, no broken-audio spam).
  *
  * Regenerate illustration-based clips with:
- *   npx tsx script/gen-pose-videos.ts
+ *   npx tsx script/gen-pose-videos.ts --force
+ *   npx tsx script/gen-pose-captions.ts --force
  *
- * See docs/pose-videos.md for capture guidelines.
+ * See docs/pose-videos.md for capture guidelines and filmed-CDN upgrades.
  */
 
+import { POSE_CAPTIONS_READY_LIST } from "./poseCaptionsReady.generated";
 import { POSE_VIDEOS_READY_LIST } from "./poseVideosReady.generated";
 
 export type PoseMediaSources = {
@@ -44,8 +47,15 @@ export type PoseMediaOverride = Partial<PoseMediaSources>;
 export const POSE_VIDEOS_READY = new Set<string>(POSE_VIDEOS_READY_LIST);
 
 /**
- * Fill this map when you publish real clips somewhere other than the
- * convention paths. Keys are asana slugs. Having an override also enables video.
+ * Slugs with English WebVTT under public/captions/poses/.
+ * Maintained by script/gen-pose-captions.ts.
+ */
+export const POSE_CAPTIONS_READY = new Set<string>(POSE_CAPTIONS_READY_LIST);
+
+/**
+ * Fill this map when you publish real filmed instructor clips somewhere other
+ * than the convention paths (e.g. studio CDN). Keys are asana slugs. Having an
+ * override also enables video.
  *
  * Example:
  *   tadasana: {
@@ -79,12 +89,15 @@ function appBase(): string {
 export function poseMediaFor(slug: string): PoseMediaSources {
   const base = appBase();
   const override = POSE_MEDIA_OVERRIDES[slug] ?? {};
+  const hasCaptions =
+    Boolean(override.captions) || POSE_CAPTIONS_READY.has(slug);
   return {
     webm: override.webm ?? `${base}videos/poses/${slug}.webm`,
     mp4: override.mp4 ?? `${base}videos/poses/${slug}.mp4`,
     poster: override.poster ?? `${base}poses/${slug}.png`,
-    // Only attach a track when an override provides captions — convention VTTs are not shipped yet.
-    ...(override.captions ? { captions: override.captions } : {}),
+    ...(hasCaptions
+      ? { captions: override.captions ?? `${base}captions/poses/${slug}.vtt` }
+      : {}),
   };
 }
 

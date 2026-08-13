@@ -535,26 +535,29 @@ html.motion-off .animate-breathe {
    Height is viewport-relative; media inside uses object-contain.
    ===================================================================== */
 .pose-stage-frame {
-  /* Full-width teaching stage — tall enough to read the figure/video,
-     capped so the page still fits phones. */
-  --pose-stage-h: min(56dvh, 28rem);
+  /* Portrait teaching stage sized for 1080×1920 how-to clips — fills without
+     letterboxing on phones while staying viewport-safe. */
+  --pose-stage-h: min(58dvh, 30rem);
   position: relative;
   box-sizing: border-box;
-  width: 100%;
+  width: min(100%, calc(var(--pose-stage-h) * 9 / 16));
   max-width: 100%;
   min-width: 0;
   height: var(--pose-stage-h);
   max-height: var(--pose-stage-h);
   margin-inline: auto;
+  background:
+    radial-gradient(120% 90% at 50% 18%, hsl(var(--accent) / 0.45), transparent 62%),
+    linear-gradient(180deg, hsl(var(--accent) / 0.28), hsl(var(--card) / 0.9));
 }
 @media (min-width: 640px) {
   .pose-stage-frame {
-    --pose-stage-h: min(58dvh, 32rem);
+    --pose-stage-h: min(62dvh, 34rem);
   }
 }
 @media (min-width: 1024px) {
   .pose-stage-frame {
-    --pose-stage-h: min(62dvh, 36rem);
+    --pose-stage-h: min(68dvh, 40rem);
   }
 }
 

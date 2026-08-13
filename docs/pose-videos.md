@@ -1,9 +1,13 @@
 # Pose demonstration videos
 
-Sadhana’s pose explanation UI leads with a narration-synced **3D figurine
-stage** (CSS perspective + PoseSvg mannequin, focus halo, stepMotion cue).
-Looping Ken Burns clips from still PNGs are optional fallbacks when `prefer3D`
-is turned off — not the primary teaching visual.
+Sadhana’s pose training UI leads with **HD how-to video + coaching voice** for
+every catalog asana. Illustration / 3D stages remain fallbacks when video cannot
+play (Save-Data, error, missing clip).
+
+Clips are **step journeys** (entry → mid → peak with crossfades) encoded at
+portrait HD (**1080×1920**). They are not Ken Burns zooms on a single still, and
+they are not filmed studio instructors — for that, publish real captures via
+`POSE_MEDIA_OVERRIDES` (see Filmed studio clips below).
 
 ## File convention
 
@@ -14,6 +18,7 @@ For each asana slug (e.g. `tadasana`, `adho-mukha-svanasana`):
 | WebM (preferred) | `client/public/videos/poses/{slug}.webm` |
 | MP4 fallback | `client/public/videos/poses/{slug}.mp4` |
 | Captions | `client/public/captions/poses/{slug}.vtt` |
+| Voice | `client/public/voice/pose-{slug}.mp3` (served at `/audio/`) |
 | Poster | Reuses `client/public/poses/{slug}.png` by default |
 
 Create the folders if missing:
@@ -25,32 +30,35 @@ mkdir -p client/public/videos/poses client/public/captions/poses
 ## Generating clips from illustrations
 
 Every catalog asana becomes a short **step-journey** clip (entry → peak with
-crossfades) — not a Ken Burns zoom on one still:
+crossfades) at studio-friendly portrait HD:
 
 ```bash
 # requires: brew install ffmpeg
-npm run gen:pose-videos
+npm run gen:pose-videos -- --force
+npm run gen:pose-captions -- --force
 # or: npx tsx script/gen-pose-videos.ts --force
 ```
 
-The script writes files to `client/public/videos/poses/` and regenerates
-`client/src/data/poseVideosReady.generated.ts`, which `poseMedia.ts` imports as
-`POSE_VIDEOS_READY`. Incremental runs skip existing non-empty outputs unless
-`--force` is passed.
+The video script writes files to `client/public/videos/poses/` and regenerates
+`client/src/data/poseVideosReady.generated.ts`. Captions write
+`client/public/captions/poses/{slug}.vtt` and
+`client/src/data/poseCaptionsReady.generated.ts`. Incremental runs skip existing
+non-empty outputs unless `--force` is passed.
 
-**Coverage rule:** every entry in `ASANAS` must have both `.webm` and `.mp4` and
-appear in `POSE_VIDEOS_READY`. Unit tests enforce this.
+**Coverage rule:** every entry in `ASANAS` must have both `.webm` and `.mp4`,
+appear in `POSE_VIDEOS_READY`, and ship narration under
+`client/public/voice/pose-{slug}.mp3`. Unit tests enforce video + audio coverage
+and a minimum HD width sample.
 
-**Presentation UI (BetterMe-style):** idle pose detail, asana library cards,
-Trainer composed lists, Search results, and guided transition/idle moments play
-the looping journey clip via `PoseTrainerStage` / `PoseCardVideo`.
+**Presentation UI:** idle pose detail, asana library cards, Trainer composed
+lists, Search results, and guided transition/idle moments play the looping
+journey clip via `PoseTrainerStage` / `PoseCardVideo`.
 
 **Teaching UI:** once step-by-step training or a guided hold/instruction is
 active, `PoseTrainerStage` keeps the how-to clip on screen and **scrubs it to
 the spoken cue** (`videoTimeForNarration` in `client/src/lib/videoNarrationSync.ts`).
 Each narration step owns a slice of the journey; progress within the sentence
-advances that slice so the demonstrated action lands with the voice. Illustration
-/ 3D remain the fallback when video cannot play (save-data, error, missing clip).
+advances that slice so the demonstrated action lands with the voice.
 
 Kids story poses play Ken Burns clips when generated:
 
@@ -65,11 +73,19 @@ After adding files for a slug, register it so the player attempts video:
 1. Drop files under the paths above (or run `npm run gen:pose-videos`).
 2. Ensure the slug is in `POSE_VIDEOS_READY` (auto-updated by the generator),
    **or** add a `POSE_MEDIA_OVERRIDES` entry for CDN URLs.
+3. Run `npm run gen:pose-captions` so English WebVTT ships with the clip.
 
 Unregistered slugs skip video entirely (no 404 probes) and use the illustrated guide.
 
-If you host clips externally, add entries in
-`client/src/data/poseMedia.ts` → `POSE_MEDIA_OVERRIDES`:
+## Filmed studio clips (NordicTrack / iFIT-class)
+
+True filmed instructor video (live coach, studio lighting, ambient audio) is
+**not** generated from illustrations. To upgrade a pose to real captures:
+
+1. Film one clear demonstration per pose (front ¾ preferred; optional side cut).
+2. Neutral background, good lighting, full body in frame; **8–20 s** seamless loop.
+3. Host WebM + H.264 MP4 + English WebVTT on your CDN (do not invent URLs).
+4. Add entries in `client/src/data/poseMedia.ts` → `POSE_MEDIA_OVERRIDES`:
 
 ```ts
 export const POSE_MEDIA_OVERRIDES = {
@@ -81,26 +97,23 @@ export const POSE_MEDIA_OVERRIDES = {
 };
 ```
 
-Do **not** commit placeholder remote URLs that 404.
+Do **not** commit placeholder remote URLs that 404. Voice coaching continues to
+use `/audio/pose-{slug}.mp3` unless you replace those files too.
 
-## Capture guidelines
+## Capture guidelines (generated or filmed)
 
-1. Film one clear demonstration per pose (front ¾ preferred; optional side cut later).
-2. Neutral background, good lighting, full body in frame.
-3. Length: **8–20 seconds**, seamless loop (start ≈ end posture).
-4. Mute-friendly — voice guidance already comes from `/voice/pose-{slug}.mp3`.
-5. Export WebM (VP9) + H.264 MP4; add English WebVTT for any on-screen or spoken form cues in the clip.
-6. Resolution: 1080×1920 (portrait) or 1280×720 (landscape) — portrait matches the illustration stage best.
+1. Full body in frame; portrait **1080×1920** preferred (or 1280×720 landscape).
+2. Mute-friendly video — coaching voice comes from `/voice/pose-{slug}.mp3`.
+3. Export WebM (VP9) + H.264 MP4 (High profile); add English WebVTT for form cues.
+4. Keep start ≈ end posture for seamless idle loops.
 
 ## UX behavior (correct pose first)
 
 Pose explanation and guided practice use `PoseTrainerStage`:
 
-- **Idle / single-shape:** looping demo video for **this pose's slug** when
-  registered in `POSE_VIDEOS_READY` (Ken Burns of the correct PNG), otherwise
-  the pose's own human illustration
-- **Multi-shape narration:** `PoseHumanStage` crossfades entry → peak; idle
-  always pins to this pose so Tree never opens as Mountain
+- **Idle / watch:** looping HD demo video for **this pose's slug** when
+  registered in `POSE_VIDEOS_READY`
+- **Active training:** same clip scrubbed to the spoken cue; focus halo + caption
 - **Filmed CDN:** `POSE_MEDIA_OVERRIDES` always prefers real trainer clips
 - Video load failures / Save-Data fall back to the human trainer stage
 - Narration-synced steps + Form / Breath / Align teaching rail
@@ -112,10 +125,12 @@ asana's artwork at idle or peak — see `poseKeyImages.test.ts`.
 
 - `client/src/components/PoseTrainerStage.tsx` — video-first trainer demo with illustrated fallback
 - `client/src/components/PoseHumanStage.tsx` — illustrated figure + body momentum fallback
-- `client/src/components/PoseDemoStage.tsx` — 3D (default) + optional video stage
-- `script/gen-pose-videos.ts` — regenerate illustration-based WebM/MP4 clips
-- `client/src/data/poseVideosReady.generated.ts` — allowlist written by the script
-- `client/src/data/poseMedia.ts` — URL resolution
+- `client/src/components/PoseDemoStage.tsx` — video / 3D / illustration stage
+- `script/gen-pose-videos.ts` — regenerate illustration-based WebM/MP4 clips (1080×1920)
+- `script/gen-pose-captions.ts` — English WebVTT for every asana
+- `client/src/data/poseVideosReady.generated.ts` — video allowlist
+- `client/src/data/poseCaptionsReady.generated.ts` — captions allowlist
+- `client/src/data/poseMedia.ts` — URL resolution + filmed overrides
 - `client/src/components/PoseExplanation.tsx` — detail-page experience
 - `client/src/components/PoseTipsSheet.tsx` — in-practice tips
 

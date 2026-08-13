@@ -147,16 +147,16 @@ async function validatePose(page, slug) {
       .first()
       .evaluate((v) => v.readyState >= 2 && v.videoWidth > 0)
       .catch(() => false));
-  const mediaNow = await hero.getAttribute("data-media");
+  const mediaAfter = await hero.getAttribute("data-media");
   note(
     (imgCount > 0 && broken === 0) ||
       playingVideoReady ||
       videoPlaying ||
-      mediaNow === "video" ||
+      mediaAfter === "video" ||
       !!humanSlug,
     `${slug}: pose visual renders`,
     {
-      detail: `imgs=${imgCount} broken=${broken} videoReady=${playingVideoReady} media=${mediaNow} human=${await hero.getAttribute("data-human-slug")}`,
+      detail: `imgs=${imgCount} broken=${broken} videoReady=${playingVideoReady} media=${mediaAfter} human=${await hero.getAttribute("data-human-slug")}`,
     },
   );
 }
