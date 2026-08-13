@@ -7,14 +7,16 @@
 //   Bottom — countdown, synced step / form cues, transport, pose-tips button.
 //
 // State machine per pose:
-//   transitionIn (5s, chime + speechSynthesis "Next: ...")  →
-//   instruction (pose-<slug>.mp3 plays, halo tracks steps)   →
-//   sideSwitch (2s "Switch sides", only when sides === "each") → instruction (side 2) →
-//   hold (silent countdown, rotating form/breath cues) →
+//   transitionIn (5s, chime; optional robot "Next: …")  →
+//   instruction (cue list + voice, halo tracks steps)   →
+//   sideSwitch (2s, only when sides === "each") → instruction (side 2) →
+//   hold (breath-synced countdown + form cues) →
 //   next pose transitionIn … → complete.
 //
-// Honors the user's `voiceEnabled` preference: when OFF, no audio plays — the
-// session still runs on the countdown + captions (chime approach).
+// Narration priority per pose:
+//   (a) human MP3 from media manifest → (b) neural MP3 / server TTS cache →
+//   (c) browser speechSynthesis only if allowRobotVoice → (d) silent captions.
+// Mute stops voice but keeps the timer; pace is Slow / Normal.
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
@@ -76,7 +78,7 @@ import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
 import { practiceHoldCues } from "@/lib/poseExplanation";
 import {
   fetchPoseMedia,
-  manifestAudioUrl,
+  invalidatePoseMedia,
   manifestToVideoSources,
   usePoseMedia,
 } from "@/lib/poseMediaApi";
@@ -88,7 +90,15 @@ import {
   SIDE_SWITCH_SECONDS,
 } from "@/data/quickSessions";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { useNarrationTiming } from "@/hooks/use-narration-timing";
+import { resolveStepAt } from "@/lib/narrationTiming";
+import { cuesToStepTimings, type NarrationCue } from "@/lib/narrationCues";
+import { breathAt } from "@/lib/breathCycle";
+import {
+  ensureNeuralNarration,
+  resolveNarrationPlayback,
+  type NarrationPlayback,
+} from "@/lib/narrationPlayback";
+import { createSpeechCuePlayer, type SpeechCuePlayer } from "@/lib/speechCuePlayer";
 import { createVoiceController, readVoicePrefs, type VoiceCommand } from "@/lib/voiceControl";
 
 // ---- soft chime (shared with Practice) --------------------------------------
@@ -200,6 +210,7 @@ export default function GuidedSession() {
   });
   const [guestAcknowledged, setGuestAcknowledged] = useState(false);
   const voiceEnabled = prefs ? prefs.voiceEnabled !== 0 : true;
+  const allowRobotVoice = prefs ? prefs.allowRobotVoice === 1 : false;
 
   // ---- flow state -----------------------------------------------------------
   const [index, setIndex] = useState(0);
@@ -216,9 +227,15 @@ export default function GuidedSession() {
   // preference, so silencing the voice for one practice (e.g. to use your own
   // music) doesn't rewrite the user's global setting.
   const [muted, setMuted] = useState(false);
-  /** Playback pace for narration + countdown (0.75 / 1 / 1.25). */
+  /** Playback pace: Slow (0.75) / Normal (1). Voice commands may set 1.25. */
   const [pace, setPace] = useState<0.75 | 1 | 1.25>(1);
   const [captionsOn, setCaptionsOn] = useState(true);
+  const [playback, setPlayback] = useState<NarrationPlayback | null>(null);
+  const [breathLabel, setBreathLabel] = useState("Inhale…");
+  const holdElapsedRef = useRef(0);
+  const speechPlayerRef = useRef<SpeechCuePlayer | null>(null);
+  const silentElapsedRef = useRef(0);
+  const instructionModeRef = useRef<"mp3" | "speech" | "silent">("silent");
   const [elapsedTotal, setElapsedTotal] = useState(0);
   const [stageLayers, setStageLayers] = useState<StageLayer[]>([]);
   const stageIdRef = useRef(0);
@@ -284,6 +301,55 @@ export default function GuidedSession() {
     () => (current ? practiceHoldCues(current) : FALLBACK_HOLD_CUES),
     [current],
   );
+  const stepTexts = useMemo(() => (current?.steps ?? []).map((s) => s.text), [current]);
+
+  // Resolve cue list + playback kind whenever the pose / prefs / manifest change.
+  useEffect(() => {
+    if (!current) {
+      setPlayback(null);
+      return;
+    }
+    // While the manifest query is in flight, optimistically use the neural
+    // convention path so Begin → first pose doesn't briefly drop to speech.
+    if (currentMedia === undefined) {
+      setPlayback(
+        resolveNarrationPlayback({
+          manifest: {
+            video: null,
+            audio: {
+              url: `/audio/pose-${current.slug}.mp3`,
+              source: "neural",
+              cues: null,
+            },
+          },
+          stepTexts,
+          voiceEnabled,
+          allowRobotVoice,
+        }),
+      );
+      return;
+    }
+
+    let cancelled = false;
+    const base = resolveNarrationPlayback({
+      manifest: currentMedia,
+      stepTexts,
+      voiceEnabled,
+      allowRobotVoice,
+    });
+    setPlayback(base);
+
+    if (base.kind === "silent" && voiceEnabled && !currentMedia.audio) {
+      void ensureNeuralNarration(current.slug, stepTexts).then((neural) => {
+        if (cancelled || !neural) return;
+        invalidatePoseMedia(current.slug);
+        setPlayback(neural);
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [current, currentMedia, stepTexts, voiceEnabled, allowRobotVoice]);
 
   // Close tips when advancing so the next pose starts clean.
   useEffect(() => {
@@ -298,11 +364,11 @@ export default function GuidedSession() {
     let link: HTMLLinkElement | null = null;
     let cancelled = false;
     void fetchPoseMedia(next.slug).then((m) => {
-      if (cancelled) return;
+      if (cancelled || !m.audio?.url) return;
       link = document.createElement("link");
       link.rel = "prefetch";
       link.as = "fetch";
-      link.href = manifestAudioUrl(next.slug, m);
+      link.href = m.audio.url;
       link.crossOrigin = "anonymous";
       document.head.appendChild(link);
     });
@@ -316,15 +382,19 @@ export default function GuidedSession() {
   const stepCount = steps.length || 1;
   const isEach = current?.sides === "each";
 
-  const src = current ? manifestAudioUrl(current.slug, currentMedia) : "";
-
-  // Per-step narration boundaries — replaces dividing the audio evenly, which
-  // put the focus halo and camera on the wrong words for uneven step texts.
-  const stepTexts = useMemo(() => steps.map((s) => s.text), [steps]);
-  const { resolve: resolveStep } = useNarrationTiming(
-    current?.slug ?? "",
-    stepTexts,
-    voiceEnabled && !audioBrokenRef.current ? voiceDuration : SILENT_INSTRUCTION_SECONDS,
+  const src = playback?.kind === "human" || playback?.kind === "neural" ? playback.url : "";
+  const activeCues: NarrationCue[] = playback?.cues ?? [];
+  const cueDuration =
+    voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
+      ? voiceDuration
+      : SILENT_INSTRUCTION_SECONDS;
+  const cueTimings = useMemo(
+    () => cuesToStepTimings(activeCues, cueDuration),
+    [activeCues, cueDuration],
+  );
+  const resolveStep = useCallback(
+    (time: number) => resolveStepAt(cueTimings, time),
+    [cueTimings],
   );
 
   // Focus + step metadata for 3D moments during instruction.
@@ -346,22 +416,22 @@ export default function GuidedSession() {
   const [remainingEstimate, setRemainingEstimate] = useState(totalEstimateSeconds);
   useEffect(() => setRemainingEstimate(totalEstimateSeconds), [totalEstimateSeconds]);
 
-  // ---- speech-synthesis transition voice-over -------------------------------
+  // ---- speech-synthesis (robot voice only when allowRobotVoice) -------------
   const speak = useCallback(
     (text: string) => {
-      if (!voiceEnabled || muted) return;
+      if (!voiceEnabled || muted || !allowRobotVoice) return;
       try {
         if (!("speechSynthesis" in window)) return;
         window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
-        u.rate = 0.92;
+        u.rate = Math.max(0.7, Math.min(1.3, 0.92 * pace));
         u.pitch = 1;
         window.speechSynthesis.speak(u);
       } catch {
         /* ignore */
       }
     },
-    [voiceEnabled, muted],
+    [voiceEnabled, muted, allowRobotVoice, pace],
   );
 
   // ---- enter transition-in for a given pose index ---------------------------
@@ -369,6 +439,8 @@ export default function GuidedSession() {
     (i: number) => {
       const pose = todays[i];
       if (!pose) return;
+      speechPlayerRef.current?.cancel();
+      speechPlayerRef.current = null;
       const nextLayer: StageLayer = {
         id: ++stageIdRef.current,
         slug: pose.slug,
@@ -599,36 +671,92 @@ export default function GuidedSession() {
       setStepIndex(0);
       setStepProgress(0);
       setNarrationTime(0);
+      silentElapsedRef.current = 0;
       // Restart muted pose video with this pose's narration (or silent guide).
       setVideoRestartToken((n) => n + 1);
-      const a = audioRef.current;
-      if (!voiceEnabled || audioBrokenRef.current || !a) {
-        // Timer-driven walkthrough: the master tick counts this down and the
-        // step captions cycle across the window.
-        setPhaseRemaining(SILENT_INSTRUCTION);
+      speechPlayerRef.current?.cancel();
+      speechPlayerRef.current = null;
+
+      const mode =
+        !voiceEnabled
+          ? "silent"
+          : src && !audioBrokenRef.current
+            ? "mp3"
+            : allowRobotVoice && activeCues.length > 0
+              ? "speech"
+              : "silent";
+      instructionModeRef.current = mode;
+
+      if (mode === "mp3") {
+        const a = audioRef.current;
+        if (!a) {
+          instructionModeRef.current = allowRobotVoice ? "speech" : "silent";
+          setPhaseRemaining(SILENT_INSTRUCTION);
+          if (allowRobotVoice && activeCues.length) {
+            speechPlayerRef.current = createSpeechCuePlayer({
+              cues: activeCues,
+              pace,
+              muted,
+              onCue: (i) => {
+                setStepIndex(i);
+              },
+            });
+            speechPlayerRef.current.tick(0);
+          }
+          return;
+        }
+        a.currentTime = 0;
+        a.playbackRate = pace;
+        const p = a.play();
+        if (p && typeof p.then === "function") {
+          p.catch((err) => {
+            if ((err as DOMException)?.name === "AbortError") return;
+            audioBrokenRef.current = true;
+            // Fall through cleanly: robot voice or silent captions.
+            if (allowRobotVoice && activeCues.length) {
+              instructionModeRef.current = "speech";
+              speechPlayerRef.current = createSpeechCuePlayer({
+                cues: activeCues,
+                pace,
+                muted,
+                onCue: (i) => setStepIndex(i),
+              });
+              speechPlayerRef.current.tick(0);
+            } else {
+              instructionModeRef.current = "silent";
+            }
+            setPhaseRemaining(SILENT_INSTRUCTION);
+          });
+        }
         return;
       }
-      a.currentTime = 0;
-      a.playbackRate = pace;
-      const p = a.play();
-      if (p && typeof p.then === "function") {
-        p.catch((err) => {
-          // AbortError = we interrupted playback ourselves (pause/skip); real
-          // failures (missing/broken narration) fall back to the silent window.
-          if ((err as DOMException)?.name === "AbortError") return;
-          audioBrokenRef.current = true;
-          setPhaseRemaining(SILENT_INSTRUCTION);
+
+      // Speech or silent: timer-driven walkthrough with synced captions.
+      setPhaseRemaining(SILENT_INSTRUCTION);
+      if (mode === "speech") {
+        speechPlayerRef.current = createSpeechCuePlayer({
+          cues: activeCues,
+          pace,
+          muted,
+          onCue: (i) => setStepIndex(i),
         });
+        speechPlayerRef.current.tick(0);
       }
     },
-    [voiceEnabled, pace],
+    [voiceEnabled, pace, src, allowRobotVoice, activeCues, muted],
   );
 
   const enterHold = useCallback(() => {
     const a = audioRef.current;
     if (a) a.pause();
+    speechPlayerRef.current?.cancel();
+    speechPlayerRef.current = null;
     const hold = current?.holdSeconds ?? 30;
-    const vd = voiceEnabled && !audioBrokenRef.current ? Math.round(voiceDuration) : 0;
+    const usedVoice =
+      voiceEnabled &&
+      instructionModeRef.current === "mp3" &&
+      !audioBrokenRef.current;
+    const vd = usedVoice ? Math.round(voiceDuration) : 0;
     const remaining = Math.max(3, hold - vd) + pendingExtension.current;
     pendingExtension.current = 0;
     setPhaseRemaining(remaining);
@@ -662,6 +790,14 @@ export default function GuidedSession() {
     if (a) a.playbackRate = pace;
   }, [pace]);
 
+  // Mute / pause propagate to the speech cue player (timer keeps running).
+  useEffect(() => {
+    speechPlayerRef.current?.setMuted(muted);
+  }, [muted]);
+  useEffect(() => {
+    speechPlayerRef.current?.setPaused(paused);
+  }, [paused]);
+
   // ---- master 1s tick -------------------------------------------------------
   useEffect(() => {
     if (!started || paused || finished) return;
@@ -672,9 +808,19 @@ export default function GuidedSession() {
       setRemainingEstimate((r) => Math.max(0, r - 1));
       if (phase === "hold") holdSecondsRef.current += 1;
 
+      if (phase === "hold") {
+        holdElapsedRef.current += 1;
+        const breath = breathAt(holdElapsedRef.current, 1);
+        setBreathLabel(breath.label);
+        // Advance form cues on each full breath cycle so voice/text stay aligned.
+        if (holdElapsedRef.current > 0 && holdElapsedRef.current % 8 === 0) {
+          setCueIndex((c) => (c + 1) % Math.max(1, holdCues.length));
+        }
+      }
+
       setPhaseRemaining((r) => {
-        // instruction phase with working voice is driven by audio, not this countdown
-        if (phase === "instruction" && voiceEnabled && !audioBrokenRef.current) return r;
+        // MP3 instruction is driven by audio currentTime, not this countdown.
+        if (phase === "instruction" && instructionModeRef.current === "mp3") return r;
 
         if (r <= 1) {
           if (phase === "transitionIn") {
@@ -682,7 +828,7 @@ export default function GuidedSession() {
             return 0;
           }
           if (phase === "instruction") {
-            // muted path
+            speechPlayerRef.current?.cancel();
             onVoiceEnded();
             return 0;
           }
@@ -699,13 +845,16 @@ export default function GuidedSession() {
             return 0;
           }
         }
-        // silent instruction phase (voice off or narration missing): cycle steps
-        if (phase === "instruction" && (!voiceEnabled || audioBrokenRef.current)) {
-          const elapsed = SILENT_INSTRUCTION - (r - 1);
+
+        // Speech / silent instruction: advance cues from elapsed media-time.
+        if (phase === "instruction" && instructionModeRef.current !== "mp3") {
+          silentElapsedRef.current += 1;
+          const elapsed = silentElapsedRef.current;
           const { index: idx, progress } = resolveStep(elapsed);
           setStepIndex(idx);
           setStepProgress(progress);
           setNarrationTime(elapsed);
+          speechPlayerRef.current?.tick(elapsed);
         }
         return r - 1;
       });
@@ -717,27 +866,23 @@ export default function GuidedSession() {
     finished,
     phase,
     pace,
-    voiceEnabled,
     index,
     todays.length,
     startInstruction,
     onVoiceEnded,
     goToPose,
     finish,
-    stepCount,
     resolveStep,
+    holdCues.length,
   ]);
 
-  // Slow-cycling form + breath cues during the hold phase (every 5s).
+  // Reset breath clock when entering hold.
   useEffect(() => {
-    if (phase !== "hold" || paused || finished) return;
+    if (phase !== "hold") return;
+    holdElapsedRef.current = 0;
     setCueIndex(0);
-    const t = setInterval(
-      () => setCueIndex((c) => (c + 1) % Math.max(1, holdCues.length)),
-      5000,
-    );
-    return () => clearInterval(t);
-  }, [phase, paused, finished, holdCues]);
+    setBreathLabel("Inhale…");
+  }, [phase, current?.slug]);
 
   // Kick off the first transition once the session actually starts.
   useEffect(() => {
@@ -749,17 +894,20 @@ export default function GuidedSession() {
   // ---- pause / resume of underlying audio -----------------------------------
   useEffect(() => {
     const a = audioRef.current;
-    if (!a) return;
     if (paused) {
-      a.pause();
+      a?.pause();
+      speechPlayerRef.current?.setPaused(true);
       try {
         window.speechSynthesis?.pause();
       } catch {
         /* ignore */
       }
     } else if (started && phase === "instruction" && voiceEnabled && !finished) {
-      const p = a.play();
-      if (p && typeof p.then === "function") p.catch(() => {});
+      if (instructionModeRef.current === "mp3" && a) {
+        const p = a.play();
+        if (p && typeof p.then === "function") p.catch(() => {});
+      }
+      speechPlayerRef.current?.setPaused(false);
       try {
         window.speechSynthesis?.resume();
       } catch {
@@ -813,7 +961,8 @@ export default function GuidedSession() {
     enterTransition(index);
   };
   const cyclePace = () => {
-    setPace((p) => (p === 1 ? 1.25 : p === 1.25 ? 0.75 : 1));
+    // UI toggles Slow ↔ Normal; voice commands may still set 1.25.
+    setPace((p) => (p === 0.75 ? 1 : 0.75));
   };
   const handleAdd30 = () => {
     if (phase === "hold" || phase === "transitionIn" || phase === "sideSwitch") {
@@ -1322,8 +1471,8 @@ export default function GuidedSession() {
       : phase === "sideSwitch"
         ? "Switch sides"
         : isHold
-          ? holdCues[cueIndex % holdCues.length]
-          : steps[stepIndex]?.text ?? "";
+          ? `${breathLabel} ${holdCues[cueIndex % holdCues.length] ?? ""}`.trim()
+          : activeCues[stepIndex]?.text || steps[stepIndex]?.text || "";
 
   const layersForStage =
     stageLayers.length > 0
@@ -1369,11 +1518,24 @@ export default function GuidedSession() {
         }}
         onEnded={onVoiceEnded}
         onError={() => {
-          // Narration can't load (fires during preload, possibly before the
-          // instruction phase starts). Flag it; if we're already mid-instruction
-          // switch to the silent reading window instead of hanging.
+          // Narration can't load. Fall back to robot voice or silent captions.
           audioBrokenRef.current = true;
-          if (phase === "instruction") setPhaseRemaining(SILENT_INSTRUCTION);
+          if (phase !== "instruction") return;
+          if (allowRobotVoice && activeCues.length > 0) {
+            instructionModeRef.current = "speech";
+            silentElapsedRef.current = 0;
+            speechPlayerRef.current?.cancel();
+            speechPlayerRef.current = createSpeechCuePlayer({
+              cues: activeCues,
+              pace,
+              muted,
+              onCue: (i) => setStepIndex(i),
+            });
+            speechPlayerRef.current.tick(0);
+          } else {
+            instructionModeRef.current = "silent";
+          }
+          setPhaseRemaining(SILENT_INSTRUCTION);
         }}
       />
 
@@ -1697,11 +1859,13 @@ export default function GuidedSession() {
               className="min-h-11 min-w-11"
               onClick={cyclePace}
               data-testid="button-pace-guided"
-              aria-label={`Practice pace ${pace}x. Tap to change.`}
-              title={`Pace ${pace}×`}
+              aria-label={`Practice pace ${pace === 0.75 ? "slow" : "normal"}. Tap to change.`}
+              title={pace === 0.75 ? "Pace: Slow" : pace === 1.25 ? "Pace: Fast" : "Pace: Normal"}
             >
               <Gauge className="h-5 w-5" />
-              <span className="sr-only">Pace {pace}×</span>
+              <span className="sr-only">
+                Pace {pace === 0.75 ? "slow" : pace === 1.25 ? "fast" : "normal"}
+              </span>
             </Button>
             <Button
               variant="outline"
@@ -1726,8 +1890,10 @@ export default function GuidedSession() {
             data-testid="guided-pace-label"
           >
             <TimerIcon className="h-3.5 w-3.5" />
-            ~{Math.max(1, Math.round(remainingEstimate / 60))} min left · pace {pace}×
+            ~{Math.max(1, Math.round(remainingEstimate / 60))} min left ·{" "}
+            {pace === 0.75 ? "slow" : pace === 1.25 ? "fast" : "normal"}
             {side === 2 ? " · side 2" : isEach ? " · side 1" : ""}
+            {playback?.kind === "speech" ? " · robot voice" : ""}
           </p>
         </div>
       </div>

@@ -36,6 +36,7 @@ describe("pose media manifest", () => {
     const m = buildPoseMediaManifest("tadasana");
     assert.ok(m.audio);
     assert.equal(m.audio!.url, "/audio/pose-tadasana.mp3");
+    assert.equal(m.audio!.source, "neural");
     assert.ok(m.video === null || (m.video && typeof m.video.mp4 === "string"));
     if (m.video) {
       assert.ok(m.video.mp4.includes("/videos/poses/tadasana.mp4"));

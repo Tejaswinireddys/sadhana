@@ -152,6 +152,8 @@ export const preferences = pgTable("preferences", {
   ownerId: text("owner_id").notNull(),
   motionEnabled: integer("motion_enabled").notNull().default(1), // 1 = animations on
   voiceEnabled: integer("voice_enabled").notNull().default(1), // 1 = voice narration on
+  /** Allow browser speechSynthesis when no MP3 narration is available. */
+  allowRobotVoice: integer("allow_robot_voice").notNull().default(0),
 });
 
 export const insertPreferencesSchema = createInsertSchema(preferences).omit({ id: true, ownerId: true });

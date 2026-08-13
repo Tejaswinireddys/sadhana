@@ -47,6 +47,7 @@ import {
 import { z } from "zod";
 import { reportError } from "./errorReporting";
 import { buildPoseMediaManifest, isSafeSlug } from "./poseMediaManifest";
+import { ensureNeuralTts, readCachedTts, ttsConfigured } from "./tts";
 
 const IMPORT_MAX_ITEMS = 2_000;
 const IMPORT_MAX_BODY_BYTES = 2 * 1024 * 1024;
@@ -861,6 +862,45 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
     res.setHeader("Cache-Control", "public, max-age=300");
     res.json(buildPoseMediaManifest(slug));
+  });
+
+  /**
+   * Neural TTS: return cached MP3 or generate one when TTS_PROVIDER is set.
+   * Body: { texts: string[], cues?: { t, text }[] }
+   */
+  app.post("/api/poses/:slug/tts", async (req, res) => {
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!isSafeSlug(slug)) {
+      return res.status(400).json({ error: "Invalid pose slug" });
+    }
+    // Prefer an on-disk human/neural file over generating a new track.
+    const existing = buildPoseMediaManifest(slug).audio;
+    if (existing) {
+      return res.json({ ...existing, cached: true });
+    }
+    const cached = readCachedTts(slug);
+    if (cached) return res.json(cached);
+
+    const texts = Array.isArray(req.body?.texts)
+      ? (req.body.texts as unknown[]).map((t) => String(t || "").trim()).filter(Boolean)
+      : [];
+    const cues = Array.isArray(req.body?.cues) ? req.body.cues : null;
+    if (texts.length === 0) {
+      return res.status(400).json({ error: "texts required" });
+    }
+    if (!ttsConfigured()) {
+      return res.status(501).json({
+        error: "Neural TTS is not configured",
+        hint: "Set TTS_PROVIDER=elevenlabs|azure|google and the matching API key",
+      });
+    }
+    try {
+      const result = await ensureNeuralTts(slug, texts, cues);
+      return res.json(result);
+    } catch (e) {
+      const err = e as Error & { status?: number };
+      return res.status(err.status || 502).json({ error: err.message || "TTS failed" });
+    }
   });
 
   return httpServer;
