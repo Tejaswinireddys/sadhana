@@ -535,12 +535,12 @@ html.motion-off .animate-breathe {
    Height is viewport-relative; media inside uses object-contain.
    ===================================================================== */
 .pose-stage-frame {
-  /* Full-bleed teaching stage — tall enough for HD portrait demos,
-     capped so the page still fits phones. */
+  /* Portrait teaching stage sized for 1080×1920 how-to clips — fills without
+     letterboxing on phones while staying viewport-safe. */
   --pose-stage-h: min(58dvh, 30rem);
   position: relative;
   box-sizing: border-box;
-  width: 100%;
+  width: min(100%, calc(var(--pose-stage-h) * 9 / 16));
   max-width: 100%;
   min-width: 0;
   height: var(--pose-stage-h);
