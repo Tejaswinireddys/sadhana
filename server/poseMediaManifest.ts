@@ -9,7 +9,13 @@ import { fileURLToPath } from "node:url";
 export type MediaCue = { start: number; end: number; text?: string };
 
 export type PoseMediaManifest = {
-  video: { hls: string | null; mp4: string; poster: string } | null;
+  video: {
+    hls: string | null;
+    mp4: string;
+    webm: string | null;
+    poster: string;
+    captions: string | null;
+  } | null;
   audio: { url: string; cues: MediaCue[] | null } | null;
 };
 
@@ -65,7 +71,9 @@ export function isSafeSlug(slug: string): boolean {
 export function buildPoseMediaManifest(slug: string): PoseMediaManifest {
   const root = publicRoot();
   const mp4Path = join(root, "videos", "poses", `${slug}.mp4`);
+  const webmPath = join(root, "videos", "poses", `${slug}.webm`);
   const hlsPath = join(root, "videos", "poses", `${slug}.m3u8`);
+  const captionsPath = join(root, "captions", "poses", `${slug}.vtt`);
   const posterPng = join(root, "poses", `${slug}.png`);
   const posterWebp = join(root, "poses", `${slug}.webp`);
   const audioPath = join(root, "voice", `pose-${slug}.mp3`);
@@ -80,7 +88,9 @@ export function buildPoseMediaManifest(slug: string): PoseMediaManifest {
     video = {
       hls: nonEmpty(hlsPath) ? `/videos/poses/${slug}.m3u8` : null,
       mp4: `/videos/poses/${slug}.mp4`,
+      webm: nonEmpty(webmPath) ? `/videos/poses/${slug}.webm` : null,
       poster,
+      captions: nonEmpty(captionsPath) ? `/captions/poses/${slug}.vtt` : null,
     };
   }
 

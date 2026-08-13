@@ -4,6 +4,7 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -50,7 +51,31 @@ describe("pose trainer demo media", () => {
     assert.match(media.webm, /videos\/poses\/tadasana\.webm$/);
     assert.match(media.mp4, /videos\/poses\/tadasana\.mp4$/);
     assert.match(media.poster, /poses\/tadasana\.png$/);
-    assert.equal(media.captions, undefined);
+    if (media.captions) {
+      assert.match(media.captions, /captions\/poses\/tadasana\.vtt$/);
+    }
+  });
+
+  it("ships HD demo video for catalog poses (min 900px wide)", () => {
+    const sample = ["tadasana", "vrksasana", "adho-mukha-svanasana"];
+    for (const slug of sample) {
+      const file = path.join(ROOT, `client/public/videos/poses/${slug}.mp4`);
+      assert.ok(nonEmpty(`client/public/videos/poses/${slug}.mp4`), `${slug} mp4 missing`);
+      const out = execFileSync(
+        "ffprobe",
+        ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width", "-of", "csv=p=0", file],
+        { encoding: "utf8" },
+      ).trim();
+      const width = Number(out);
+      assert.ok(width >= 900, `${slug} expected HD width >= 900, got ${width}`);
+    }
+  });
+
+  it("ships voice narration for every catalog asana", () => {
+    const missing = ASANAS.filter((a) => !nonEmpty(`client/public/voice/pose-${a.slug}.mp3`)).map(
+      (a) => a.slug,
+    );
+    assert.deepEqual(missing, [], `poses missing narration: ${missing.join(", ")}`);
   });
 
   it("skips video for unknown slugs", () => {

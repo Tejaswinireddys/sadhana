@@ -2,7 +2,10 @@
  * Generate short looping demo videos from pose illustrations.
  *
  * Builds a **step journey** (entry → mid → peak) with crossfades — not a Ken
- * Burns zoom on a single still. For each asana:
+ * Burns zoom on a single still. Encodes at studio-friendly portrait HD so the
+ * how-to stage stays sharp on phones and large screens.
+ *
+ * For each asana:
  *   client/public/videos/poses/{slug}.webm
  *   client/public/videos/poses/{slug}.mp4
  *
@@ -27,13 +30,14 @@ const POSES_DIR = path.join(ROOT, "client/public/poses");
 const OUT_DIR = path.join(ROOT, "client/public/videos/poses");
 const READY_FILE = path.join(ROOT, "client/src/data/poseVideosReady.generated.ts");
 
-const FPS = 24;
-const WIDTH = 600;
-const HEIGHT = 1200;
+/** Portrait HD — matches docs/pose-videos.md capture guidelines. */
+const FPS = 30;
+const WIDTH = 1080;
+const HEIGHT = 1920;
 /** Seconds each shape is held before/after crossfade. */
-const HOLD = 1.35;
+const HOLD = 1.6;
 /** Crossfade length between shapes. */
-const FADE = 0.55;
+const FADE = 0.65;
 
 type Args = {
   force: boolean;
@@ -146,20 +150,20 @@ async function encodeJourney(pngs: string[], webm: string, mp4: string | null): 
       "-loop", "1",
       "-i", pngs[0]!,
       "-vf", padFilter(),
-      "-t", "4",
+      "-t", "5",
       "-an",
     ];
     await run("ffmpeg", [
       ...common,
-      "-c:v", "libvpx-vp9", "-b:v", "280k", "-crf", "34",
-      "-row-mt", "1", "-deadline", "good", "-cpu-used", "4",
+      "-c:v", "libvpx-vp9", "-b:v", "1.2M", "-crf", "30",
+      "-row-mt", "1", "-deadline", "good", "-cpu-used", "2",
       webm,
     ]);
     if (mp4) {
       await run("ffmpeg", [
         ...common,
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "baseline",
-        "-level", "3.1", "-crf", "26", "-preset", "veryfast",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high",
+        "-level", "4.1", "-crf", "20", "-preset", "medium",
         "-movflags", "+faststart",
         mp4,
       ]);
@@ -200,13 +204,13 @@ async function encodeJourney(pngs: string[], webm: string, mp4: string | null): 
   };
 
   await encode(webm, [
-    "-c:v", "libvpx-vp9", "-b:v", "320k", "-crf", "34",
-    "-row-mt", "1", "-deadline", "good", "-cpu-used", "4",
+    "-c:v", "libvpx-vp9", "-b:v", "1.4M", "-crf", "30",
+    "-row-mt", "1", "-deadline", "good", "-cpu-used", "2",
   ]);
   if (mp4) {
     await encode(mp4, [
-      "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "baseline",
-      "-level", "3.1", "-crf", "26", "-preset", "veryfast",
+      "-c:v", "libx264", "-pix_fmt", "yuv420p", "-profile:v", "high",
+      "-level", "4.1", "-crf", "20", "-preset", "medium",
       "-movflags", "+faststart",
     ]);
   }

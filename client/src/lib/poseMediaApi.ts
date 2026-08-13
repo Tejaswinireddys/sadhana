@@ -9,7 +9,13 @@ import { poseHasVideo, poseMediaFor, poseNarrationSrc } from "@/data/poseMedia";
 export type MediaCue = { start: number; end: number; text?: string };
 
 export type PoseMediaManifest = {
-  video: { hls: string | null; mp4: string; poster: string } | null;
+  video: {
+    hls: string | null;
+    mp4: string;
+    webm?: string | null;
+    poster: string;
+    captions?: string | null;
+  } | null;
   audio: { url: string; cues: MediaCue[] | null } | null;
 };
 
@@ -38,11 +44,17 @@ export function manifestToVideoSources(
 ): PoseMediaSources | null {
   if (manifest?.video) {
     const mp4 = manifest.video.mp4;
-    const webm = mp4.endsWith(".mp4") ? mp4.replace(/\.mp4$/i, ".webm") : mp4;
+    const webm =
+      manifest.video.webm ||
+      (mp4.endsWith(".mp4") ? mp4.replace(/\.mp4$/i, ".webm") : mp4);
+    const convention = poseHasVideo(slug) ? poseMediaFor(slug) : null;
     return {
       mp4,
       webm,
       poster: manifest.video.poster,
+      ...(manifest.video.captions || convention?.captions
+        ? { captions: manifest.video.captions ?? convention?.captions }
+        : {}),
     };
   }
   if (poseHasVideo(slug)) return poseMediaFor(slug);
@@ -69,7 +81,13 @@ function conventionFallback(slug: string): PoseMediaManifest {
   const media = hasVideo ? poseMediaFor(slug) : null;
   return {
     video: media
-      ? { hls: null, mp4: media.mp4, poster: media.poster }
+      ? {
+          hls: null,
+          mp4: media.mp4,
+          webm: media.webm,
+          poster: media.poster,
+          captions: media.captions ?? null,
+        }
       : null,
     audio: {
       url: `/audio/pose-${slug}.mp3`,
