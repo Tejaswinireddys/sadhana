@@ -5,6 +5,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PoseImage } from "@/components/PoseImage";
+import { attachHls, type HlsAttachHandle } from "@/lib/hlsAttach";
 import { manifestToVideoSources, usePoseMedia } from "@/lib/poseMediaApi";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ export function PoseCardVideo({
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsRef = useRef<HlsAttachHandle | null>(null);
   const [near, setNear] = useState(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -55,15 +57,31 @@ export function PoseCardVideo({
 
   useEffect(() => {
     const v = videoRef.current;
-    if (!v || !near || !hasVideo || failed) return;
-    v.load();
+    if (!v || !near || !hasVideo || failed || !media) return;
+
+    hlsRef.current?.destroy();
+    hlsRef.current = null;
+
+    if (media.hls) {
+      hlsRef.current = attachHls(v, media.hls, {
+        onError: () => setFailed(true),
+      });
+    } else {
+      v.load();
+    }
+
     const play = v.play();
     if (play && typeof play.catch === "function") {
       play.catch(() => {
         /* autoplay can fail; poster/image fallback still shows */
       });
     }
-  }, [near, hasVideo, failed, slug, media?.webm, media?.mp4]);
+
+    return () => {
+      hlsRef.current?.destroy();
+      hlsRef.current = null;
+    };
+  }, [near, hasVideo, failed, slug, media]);
 
   if (!hasVideo || failed || !media) {
     return (
@@ -89,7 +107,9 @@ export function PoseCardVideo({
       data-media={ready ? "video" : "poster"}
     >
       {!ready && (
-        <img width={600} height={1200}
+        <img
+          width={600}
+          height={1200}
           src={media.poster}
           alt=""
           aria-hidden
@@ -116,8 +136,8 @@ export function PoseCardVideo({
           onError={() => setFailed(true)}
           data-testid={`pose-card-video-el-${slug}`}
         >
-          <source src={media.webm} type="video/webm" />
-          <source src={media.mp4} type="video/mp4" />
+          {!media.hls && media.webm ? <source src={media.webm} type="video/webm" /> : null}
+          {!media.hls && media.mp4 ? <source src={media.mp4} type="video/mp4" /> : null}
         </video>
       )}
     </div>

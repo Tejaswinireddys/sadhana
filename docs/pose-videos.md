@@ -2,14 +2,36 @@
 
 Sadhana’s pose training UI leads with **HD how-to video + coaching voice** for
 every catalog asana. Illustration / 3D stages remain fallbacks when video cannot
-play (Save-Data, error, missing clip).
+play (Save-Data, error, missing clip — never a blocking spinner).
 
 Clips are **step journeys** (entry → mid → peak with crossfades) encoded at
-portrait HD (**1080×1920**). They are not Ken Burns zooms on a single still, and
-they are not filmed studio instructors — for that, publish real captures via
-`POSE_MEDIA_OVERRIDES` (see Filmed studio clips below).
+portrait HD (**1080×1920**). Production can upgrade to **Bunny Stream HLS**
+(or Mux / Cloudflare) via playback IDs; without stream config, local progressive
+files remain the default. Filmed studio instructors use `POSE_MEDIA_OVERRIDES`
+(see Filmed studio clips below).
 
-## File convention
+## Adaptive streaming (production)
+
+Production playback uses **Bunny Stream** by default (`STREAM_PROVIDER=bunny`),
+with Mux / Cloudflare Stream selectable via the same env surface.
+
+1. Upload each pose MP4 to your Bunny Stream library; note the **video GUID**
+   (playback ID).
+2. Store it per slug:
+   - `PUT /api/poses/:slug/stream` with `{ "playbackId": "<guid>" }`  
+     (send `x-stream-admin-key: $STREAM_ADMIN_KEY`), or
+   - insert into `pose_media`, or
+   - seed `.data/pose-stream-ids.json` / `POSE_STREAM_IDS_JSON`
+3. Set `BUNNY_STREAM_CDN_HOSTNAME` (pull zone host). The media manifest then
+   returns HLS + progressive URLs; the client plays via **hls.js** (native HLS
+   on Safari), `poster` = pose PNG, `preload="metadata"`.
+4. Guided sessions **preload the next clip** during the current pose so
+   transitions stay buffer-free on Fast 3G.
+
+If the stream host is blocked or slow, `PoseDemoStage` falls back to the
+animated illustration and the session continues.
+
+## Local file convention (dev / offline)
 
 For each asana slug (e.g. `tadasana`, `adho-mukha-svanasana`):
 

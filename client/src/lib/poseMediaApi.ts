@@ -5,18 +5,25 @@
 import { useQuery } from "@tanstack/react-query";
 import type { PoseMediaSources } from "@/data/poseMedia";
 import { poseHasVideo, poseMediaFor, poseNarrationSrc } from "@/data/poseMedia";
+import type { NarrationCue } from "@/lib/narrationCues";
 
-export type MediaCue = { start: number; end: number; text?: string };
+export type MediaCue = NarrationCue | { start: number; end: number; text?: string };
 
 export type PoseMediaManifest = {
   video: {
     hls: string | null;
-    mp4: string;
+    mp4: string | null;
     webm?: string | null;
     poster: string;
     captions?: string | null;
+    playbackId?: string | null;
+    provider?: string | null;
   } | null;
-  audio: { url: string; cues: MediaCue[] | null } | null;
+  audio: {
+    url: string;
+    source?: "human" | "neural";
+    cues: MediaCue[] | null;
+  } | null;
 };
 
 const cache = new Map<string, PoseMediaManifest>();
@@ -27,7 +34,6 @@ export async function fetchPoseMedia(slug: string): Promise<PoseMediaManifest> {
     credentials: "include",
   });
   if (!res.ok) {
-    // Fall back to local convention so offline / older deploys still work.
     const fallback = conventionFallback(slug);
     cache.set(slug, fallback);
     return fallback;
@@ -37,21 +43,35 @@ export async function fetchPoseMedia(slug: string): Promise<PoseMediaManifest> {
   return data;
 }
 
-/** Map API video → PoseDemoStage sources (adds webm sibling when mp4 is local). */
+/** Drop a cached manifest entry after TTS generation. */
+export function invalidatePoseMedia(slug: string) {
+  cache.delete(slug);
+}
+
+/** Map API video → player sources (HLS preferred, then progressive HD). */
 export function manifestToVideoSources(
   slug: string,
   manifest: PoseMediaManifest | undefined,
 ): PoseMediaSources | null {
   if (manifest?.video) {
     const mp4 = manifest.video.mp4;
+    const hls = manifest.video.hls;
+    if (!hls && !mp4 && !manifest.video.webm) {
+      return poseHasVideo(slug) ? poseMediaFor(slug) : null;
+    }
+    const convention = poseHasVideo(slug) ? poseMediaFor(slug) : null;
     const webm =
       manifest.video.webm ||
-      (mp4.endsWith(".mp4") ? mp4.replace(/\.mp4$/i, ".webm") : mp4);
-    const convention = poseHasVideo(slug) ? poseMediaFor(slug) : null;
+      (mp4 && mp4.startsWith("/") && mp4.endsWith(".mp4")
+        ? mp4.replace(/\.mp4$/i, ".webm")
+        : undefined);
     return {
+      hls,
       mp4,
-      webm,
-      poster: manifest.video.poster,
+      webm: webm || undefined,
+      poster: manifest.video.poster || `/poses/${slug}.png`,
+      playbackId: manifest.video.playbackId ?? null,
+      provider: manifest.video.provider ?? null,
       ...(manifest.video.captions || convention?.captions
         ? { captions: manifest.video.captions ?? convention?.captions }
         : {}),
@@ -61,12 +81,6 @@ export function manifestToVideoSources(
   return null;
 }
 
-/**
- * Resolve narration URL from the manifest.
- * - While the query is still loading (`undefined`), use the convention path so
- *   players can start prefetching without waiting a round-trip.
- * - Once loaded, trust the server: missing audio → empty string (no 404 spam).
- */
 export function manifestAudioUrl(
   slug: string,
   manifest: PoseMediaManifest | undefined,
@@ -82,15 +96,18 @@ function conventionFallback(slug: string): PoseMediaManifest {
   return {
     video: media
       ? {
-          hls: null,
-          mp4: media.mp4,
-          webm: media.webm,
+          hls: media.hls ?? null,
+          mp4: media.mp4 ?? null,
+          webm: media.webm ?? null,
           poster: media.poster,
           captions: media.captions ?? null,
+          playbackId: null,
+          provider: "local",
         }
       : null,
     audio: {
       url: `/audio/pose-${slug}.mp3`,
+      source: "neural",
       cues: null,
     },
   };
