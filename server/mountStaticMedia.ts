@@ -14,12 +14,19 @@ import { fileURLToPath } from "node:url";
 import { sendJson404 } from "./json404";
 
 function moduleDir(): string {
+  // In the CJS production bundle `import.meta` is emptied by esbuild, so
+  // both `.dirname` and `.url` can be undefined here. This is only ever a
+  // third-choice fallback candidate (the cwd-based paths normally match),
+  // so fail soft to cwd instead of crashing the whole process on boot.
   try {
     if (typeof import.meta !== "undefined" && import.meta.dirname) return import.meta.dirname;
+    if (typeof import.meta !== "undefined" && import.meta.url) {
+      return dirname(fileURLToPath(import.meta.url));
+    }
   } catch {
     /* ignore */
   }
-  return dirname(fileURLToPath(import.meta.url));
+  return process.cwd();
 }
 
 function voiceDir(): string | null {
