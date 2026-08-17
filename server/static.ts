@@ -6,9 +6,57 @@ import { brandPublicHtml, publicAppOrigin, robotsTxt } from "./publicUrl";
 import { sendJson404 } from "./json404";
 import { mountStaticMedia } from "./mountStaticMedia";
 
-function sendBrandedHtml(res: express.Response, filePath: string) {
+function sendBrandedHtml(res: express.Response, filePath: string, status = 200) {
   const html = brandPublicHtml(fs.readFileSync(filePath, "utf-8"));
-  res.status(200).setHeader("Content-Type", "text/html; charset=utf-8").send(html);
+  res.status(status).setHeader("Content-Type", "text/html; charset=utf-8").send(html);
+}
+
+/**
+ * First path segment of every client-side route in App.tsx. Anything else
+ * falling through to the SPA shell is a genuinely unknown URL, not a page
+ * the router will match — it should still render the app's own branded
+ * "not found" screen (so a person hitting a stale link sees the same UI),
+ * but the HTTP status needs to say 404 so crawlers/uptime monitors don't
+ * index or alert on it as a real page.
+ */
+const KNOWN_TOP_LEVEL_SEGMENTS = new Set([
+  "",
+  "register",
+  "welcome",
+  "start",
+  "analytics",
+  "asanas",
+  "pathways",
+  "practice",
+  "guided",
+  "trainer",
+  "breathing",
+  "affirmations",
+  "journal",
+  "profiles",
+  "builder",
+  "kids",
+  "search",
+  "settings",
+  "account",
+  "verify",
+  "privacy",
+  "terms",
+  "health-disclaimer",
+  "plus",
+  "cancel",
+  "challenges",
+  "adaptive",
+  "pose-coach",
+  "instructors",
+  "household",
+  "corporate",
+  "design-system",
+]);
+
+function isKnownAppRoute(pathname: string): boolean {
+  const first = pathname.split("/").filter(Boolean)[0] ?? "";
+  return KNOWN_TOP_LEVEL_SEGMENTS.has(first);
 }
 
 function requestPathname(req: { originalUrl?: string; url?: string; path?: string }): string {
@@ -73,6 +121,6 @@ export function serveStatic(app: Express) {
       res.status(404).end();
       return;
     }
-    sendBrandedHtml(res, indexPath);
+    sendBrandedHtml(res, indexPath, isKnownAppRoute(pathname) ? 200 : 404);
   });
 }

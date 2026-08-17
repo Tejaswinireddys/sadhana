@@ -19,7 +19,7 @@ import {
   useSignOut,
   useSignUp,
 } from "@/lib/auth";
-import { hasCurrentLegalAck, writeLegalAck } from "@/lib/legal";
+import { writeLegalAck } from "@/lib/legal";
 import { formatDate } from "@/lib/sadhana";
 import { credentialsSchema } from "@shared/schema";
 import { ArrowRight, LogOut, MailCheck, Merge, ShieldCheck, Trash2, UserRound } from "lucide-react";
@@ -81,7 +81,11 @@ export default function Account() {
   const [resetPassword, setResetPassword] = useState("");
   const [forgotHint, setForgotHint] = useState<string | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
-  const [legalOk, setLegalOk] = useState(hasCurrentLegalAck());
+  // Always start unchecked: creating an account is a separate legal moment
+  // from any earlier site-wide banner dismissal, and "I have read" should
+  // reflect an explicit tick made right here, not be inherited from a
+  // different, less specific acknowledgment made elsewhere.
+  const [legalOk, setLegalOk] = useState(false);
   const [pendingVerifyEmail, setPendingVerifyEmail] = useState<string | null>(null);
 
   const busy = signIn.isPending || signUp.isPending || reset.isPending;

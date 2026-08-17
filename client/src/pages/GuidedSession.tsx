@@ -109,6 +109,19 @@ function playChime() {
     const Ctx = window.AudioContext || (window as any).webkitAudioContext;
     if (!Ctx) return;
     const ctx = new Ctx();
+    const schedule = () => scheduleChimeTones(ctx);
+    if (ctx.state === "suspended") {
+      void ctx.resume().then(schedule).catch(() => ctx.close().catch(() => {}));
+    } else {
+      schedule();
+    }
+  } catch {
+    /* ignore audio errors */
+  }
+}
+
+function scheduleChimeTones(ctx: AudioContext) {
+  try {
     const now = ctx.currentTime;
     [528, 660].forEach((freq, i) => {
       const osc = ctx.createOscillator();
@@ -123,7 +136,7 @@ function playChime() {
       osc.start(start);
       osc.stop(start + 1.5);
     });
-    setTimeout(() => ctx.close(), 2200);
+    setTimeout(() => ctx.close().catch(() => {}), 2200);
   } catch {
     /* ignore audio errors */
   }
@@ -478,7 +491,7 @@ export default function GuidedSession() {
       audioBrokenRef.current = false;
       setVoiceDuration(0);
       playChime();
-      speak(`Next: ${pose.english}. Take a breath, and prepare.`);
+      speak(`Get ready for ${pose.english}. Take a breath, and prepare.`);
     },
     [todays, speak, smoothCrossfade],
   );
@@ -934,6 +947,37 @@ export default function GuidedSession() {
   // ---- controls -------------------------------------------------------------
   const beginSession = () => {
     void unlockAudio();
+    // Prime the *actual* narration element (not just a decoy) synchronously
+    // inside this click handler. iOS/WebKit in particular only grants
+    // autoplay permission to a media element that has itself been played
+    // (even briefly, even muted) during a real user gesture — unlocking a
+    // separate temporary element/context isn't always enough. The real
+    // instruction-phase play() call happens several seconds later once the
+    // opening transition finishes, which is too far from the click for some
+    // browsers to still count it as gesture-initiated.
+    try {
+      const a = audioRef.current;
+      if (a) {
+        const wasMuted = a.muted;
+        a.muted = true;
+        const p = a.play();
+        if (p && typeof p.then === "function") {
+          p.then(() => {
+            a.pause();
+            a.currentTime = 0;
+            a.muted = wasMuted;
+          }).catch(() => {
+            a.muted = wasMuted;
+          });
+        } else {
+          a.pause();
+          a.currentTime = 0;
+          a.muted = wasMuted;
+        }
+      }
+    } catch {
+      /* ignore — falls back to the instruction-phase play() attempt */
+    }
     setStarted(true);
     setIndex(0);
     setElapsedTotal(0);
@@ -1471,7 +1515,7 @@ export default function GuidedSession() {
 
   const activeCaption =
     phase === "transitionIn"
-      ? `Get ready… Next: ${current?.english ?? ""}`
+      ? `Get ready for ${current?.english ?? "the next pose"}…`
       : phase === "sideSwitch"
         ? "Switch sides"
         : isHold

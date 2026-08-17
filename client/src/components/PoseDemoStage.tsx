@@ -398,7 +398,15 @@ export function PoseDemoStage({
             {/* HLS is attached via hls.js / native src — progressive sources only when no HLS. */}
             {!media.hls && media.webm ? <source src={media.webm} type="video/webm" /> : null}
             {!media.hls && media.mp4 ? <source src={media.mp4} type="video/mp4" /> : null}
-            {media.captions ? (
+            {/* The video's own WebVTT track is timed to its short, looping
+                internal clip. When we're scrubbing that clip to match the
+                (much longer) spoken narration, this track's cues no longer
+                line up with what's actually being said, so it would show
+                stale/duplicate text next to the accurate `caption` overlay
+                below. Only let the browser burn in its native captions for
+                the plain looping/idle demo, where there's no narration
+                overlay competing with it. */}
+            {media.captions && !(syncToVoice && caption) ? (
               <track kind="captions" src={media.captions} srcLang="en" label="English" default />
             ) : null}
           </video>

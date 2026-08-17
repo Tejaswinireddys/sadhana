@@ -75,7 +75,9 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
     "https://*.ingest.us.sentry.io",
     ...streamHosts,
   ];
-  const media = ["'self'", "blob:", ...streamHosts];
+  // `data:` is required for the silent-clip trick that unlocks autoplay on
+  // iOS/WebKit before the first real narration clip plays (see audioUnlock.ts).
+  const media = ["'self'", "blob:", "data:", ...streamHosts];
   res.setHeader(
     "Content-Security-Policy",
     [

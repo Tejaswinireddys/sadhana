@@ -226,7 +226,7 @@ export default function Settings() {
               id="settings-name"
               value={practitionerName}
               onChange={(e) => setPractitionerName(e.target.value)}
-              placeholder="How should Home greet you?"
+              placeholder="How should we greet you?"
               maxLength={48}
               className="min-h-11"
               data-testid="settings-name"
