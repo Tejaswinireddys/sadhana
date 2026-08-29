@@ -225,3 +225,23 @@ describe("composeTrainerSession — reasoning copy", () => {
     assert.match(s.reasoning, /^Because your hips/);
   });
 });
+
+describe("composeTrainerSession — regenerate variants", () => {
+  it("keeps variant 0 identical to the default authored order", () => {
+    const unset = composeTrainerSession({ ...base, need: "movement" });
+    const v0 = composeTrainerSession({ ...base, need: "movement" }, { variant: 0 });
+    assert.deepEqual(
+      v0.poses.map((p) => p.slug),
+      unset.poses.map((p) => p.slug),
+    );
+  });
+
+  it("changes order or poses when variant is greater than 0", () => {
+    const v0 = composeTrainerSession({ ...base, need: "movement" }, { variant: 0 });
+    const v1 = composeTrainerSession({ ...base, need: "movement" }, { variant: 1 });
+    assert.notDeepEqual(
+      v1.poses.map((p) => p.slug),
+      v0.poses.map((p) => p.slug),
+    );
+  });
+});

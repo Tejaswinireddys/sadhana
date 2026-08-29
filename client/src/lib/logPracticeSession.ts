@@ -126,16 +126,15 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
     });
     const totalPoses = Math.max(1, completed + skipped);
     const skipRate = skipped / totalPoses;
-    if (rpe != null && rpe >= 1 && rpe <= 10) {
-      writeLastRpe(rpe as RpeScore);
-      recordOutcome({
-        at: new Date().toISOString(),
-        rpe: rpe as RpeScore,
-        skipRate,
-        minutes: Math.max(1, minutes),
-        pathwaySlug,
-      });
-    }
+    const savedRpe = rpe != null && rpe >= 1 && rpe <= 10 ? (rpe as RpeScore) : null;
+    if (savedRpe != null) writeLastRpe(savedRpe);
+    recordOutcome({
+      at: new Date().toISOString(),
+      rpe: savedRpe ?? undefined,
+      skipRate,
+      minutes: Math.max(1, minutes),
+      pathwaySlug,
+    });
     bumpCorporateAggregate(Math.max(1, minutes));
   } catch (e) {
     return { ok: false, error: (e as Error).message || "Could not save your session." };

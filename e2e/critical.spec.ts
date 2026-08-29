@@ -45,6 +45,12 @@ test.describe("critical journeys", () => {
     await expect(page.getByTestId("forgot-submit")).toBeVisible();
   });
 
+  test("tab=create opens the signup form, not the on-device wizard", async ({ page }) => {
+    await page.goto("/account?tab=create");
+    await expect(page.getByTestId("signup-email")).toBeVisible();
+    await expect(page.getByText(/No email or password/i)).toHaveCount(0);
+  });
+
   test("signup requires email verification before session", async ({ page }) => {
     await page.goto("/#/account");
     await page.getByTestId("tab-signup").click();

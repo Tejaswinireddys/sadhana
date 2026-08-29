@@ -31,6 +31,49 @@ describe("adaptive recovery", () => {
   });
 });
 
+describe("adaptive recovery — practice history", () => {
+  const now = new Date(2026, 7, 28, 12);
+
+  it("does not claim empty effort when sessions exist", () => {
+    const advice = adviseNextSession([], {
+      sessions: [
+        { date: "2026-08-26", posesCompleted: 6, posesSkipped: 0, asanas: "[]" },
+        { date: "2026-08-27", posesCompleted: 5, posesSkipped: 1, asanas: "[]" },
+        { date: "2026-08-28", posesCompleted: 7, posesSkipped: 0, asanas: "[]" },
+      ],
+      journal: [],
+    }, now);
+    assert.ok(!/No recent effort data/i.test(advice.reasons.join(" ")));
+    assert.match(advice.reasons.join(" "), /3 sessions recently/);
+  });
+
+  it("names skipped hip openers in plain language", () => {
+    const hips = JSON.stringify(["Pigeon Pose", "Child's Pose"]);
+    const advice = adviseNextSession([], {
+      sessions: [
+        { date: "2026-08-24", posesCompleted: 4, posesSkipped: 2, asanas: hips },
+        { date: "2026-08-26", posesCompleted: 3, posesSkipped: 1, asanas: hips },
+        { date: "2026-08-28", posesCompleted: 6, posesSkipped: 0, asanas: "[]" },
+      ],
+    }, now);
+    assert.ok(
+      advice.reasons.some((r) => /skipped hip openers twice this week/i.test(r)),
+      advice.reasons.join(" | "),
+    );
+    assert.deepEqual(advice.soreParts, ["Hips"]);
+  });
+
+  it("eases intensity after a tired journal note", () => {
+    const advice = adviseNextSession([], {
+      sessions: [{ date: "2026-08-27", posesCompleted: 5, posesSkipped: 0, asanas: "[]" }],
+      journal: [{ date: "2026-08-27", mood: "Tired" }],
+    }, now);
+    assert.equal(advice.intensity, "easy");
+    assert.equal(advice.energy, "low");
+    assert.ok(advice.reasons.some((r) => /tired or stressed/i.test(r)));
+  });
+});
+
 describe("adaptive generator", () => {
   it("returns an explainable session with poses", () => {
     const result = generateAdaptiveSession({ intentMinutes: 15, need: "calm" });
@@ -45,6 +88,13 @@ describe("adaptive generator", () => {
     const swapped = swapPose(result.session, from, "balasana");
     assert.ok(swapped);
     assert.ok(swapped!.session.poses.some((p) => p.slug === "balasana"));
+  });
+
+  it("reshuffles within the arc when variant changes", () => {
+    const a = generateAdaptiveSession({ intentMinutes: 20, need: "movement", variant: 0 });
+    const b = generateAdaptiveSession({ intentMinutes: 20, need: "movement", variant: 1 });
+    const key = (r: typeof a) => r.session.poses.map((p) => p.slug).join(",");
+    assert.notEqual(key(a), key(b), `variant 1 matched variant 0: ${key(a)}`);
   });
 });
 

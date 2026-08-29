@@ -45,6 +45,7 @@ import { useWakeLock } from "@/hooks/use-wake-lock";
 import { buildJournalEntry, logPracticeSession } from "@/lib/logPracticeSession";
 import { estimateBreathCount } from "@/lib/sessionBreaths";
 import { captureProduct } from "@/lib/productAnalytics";
+import { sessionCredit, sessionExitCopy, sessionHeadline, type SessionCredit } from "@/lib/sessionCredit";
 import { unlockAudio } from "@/lib/audioUnlock";
 import { type Mood } from "@/data/content";
 import type { Preferences } from "@shared/schema";
@@ -288,6 +289,19 @@ export default function GuidedSession() {
   // Indices the practitioner skipped past rather than held. Logging a
   // skipped-through session as "8 poses" was a lie the journal couldn't undo.
   const skippedIndices = useRef<Set<number>>(new Set());
+  const completedIndices = useRef<Set<number>>(new Set());
+  const holdElapsed = useRef(0);
+  const elapsedRef = useRef(0);
+  const creditRef = useRef(sessionCredit({
+    holdSeconds: 0,
+    elapsedSeconds: 0,
+    posesCompleted: 0,
+    posesSkipped: 0,
+    posesTotal: 0,
+  }));
+  const [endedEarly, setEndedEarly] = useState(false);
+  const [credited, setCredited] = useState(true);
+  const [exitPreview, setExitPreview] = useState<SessionCredit | null>(null);
   // Seconds already attributed to a logged session — lets "Do one more pose"
   // log only the *additional* time instead of double-counting the whole run.
   const loggedSeconds = useRef(0);
@@ -547,6 +561,7 @@ export default function GuidedSession() {
     if (sessionProgress.phaseRemaining != null) setPhaseRemaining(sessionProgress.phaseRemaining);
     if (sessionProgress.side) setSide(sessionProgress.side);
     setElapsedTotal(sessionProgress.elapsedTotal ?? 0);
+    elapsedRef.current = sessionProgress.elapsedTotal ?? 0;
     setStarted(!!sessionProgress.started);
     setPaused(true);
     setShowPreMood(false);
@@ -588,6 +603,11 @@ export default function GuidedSession() {
     async (resolvedPost: Mood | null, resolvedRpe: number | null = rpe) => {
       if (sessionLogged.current || saving) return;
       lastPostMood.current = resolvedPost;
+      if (!creditRef.current.counts) {
+        sessionLogged.current = true;
+        saveProgress(null);
+        return;
+      }
       setSaving(true);
       setSaveFailed(false);
       const minutes = finishedMinutes.current;
@@ -634,7 +654,7 @@ export default function GuidedSession() {
     [todays, meta, preMood, rpe, toast, saving, saveProgress],
   );
 
-  const finish = useCallback(() => {
+  const finish = useCallback((opts?: { endedEarly?: boolean }) => {
     const a = audioRef.current;
     if (a) a.pause();
     try {
@@ -642,27 +662,42 @@ export default function GuidedSession() {
     } catch {
       /* ignore */
     }
+    const early = !!opts?.endedEarly;
+    const credit = sessionCredit({
+      holdSeconds: holdElapsed.current,
+      elapsedSeconds: elapsedRef.current,
+      posesCompleted: completedIndices.current.size,
+      posesSkipped: skippedIndices.current.size,
+      posesTotal: todays.length,
+    });
+    creditRef.current = credit;
+    posesCompleted.current = credit.posesCompleted;
+    const newSeconds = Math.max(0, elapsedRef.current - loggedSeconds.current);
+    loggedSeconds.current = elapsedRef.current;
+    finishedMinutes.current = credit.counts
+      ? Math.max(1, Math.round(newSeconds / 60) || credit.minutes)
+      : Math.max(0, Math.round(newSeconds / 60));
+    setEndedEarly(early);
+    setCredited(credit.counts);
     setPhase("complete");
     setFinished(true);
     setChromeVisible(true);
-    posesCompleted.current = Math.max(0, todays.length - skippedIndices.current.size);
-    const newSeconds = Math.max(0, elapsedTotal - loggedSeconds.current);
-    loggedSeconds.current = elapsedTotal;
-    const minutes = Math.max(1, Math.round(newSeconds / 60));
-    finishedMinutes.current = minutes;
     finishedBreaths.current = estimateBreathCount(
       holdSecondsRef.current,
       meta.breathSlug ?? null,
     );
-    setConfetti(true);
-    setTimeout(() => setConfetti(false), 2800);
-    playChime();
-    // Hands-free: persist summary → journal without covering the card in dialogs.
-    // Optional mood/RPE stay available on the summary card before/after save.
-    setTimeout(() => {
-      void finalizeSession(lastPostMood.current, rpe);
-    }, 1200);
-  }, [elapsedTotal, todays.length, meta.breathSlug, finalizeSession, rpe]);
+    if (credit.counts) {
+      setConfetti(!early);
+      setTimeout(() => setConfetti(false), 2800);
+      playChime();
+      setTimeout(() => {
+        void finalizeSession(lastPostMood.current, rpe);
+      }, 1200);
+    } else {
+      sessionLogged.current = true;
+      saveProgress(null);
+    }
+  }, [todays.length, meta.breathSlug, finalizeSession, rpe, saveProgress]);
 
   // ---- advance to the next pose (or finish) ---------------------------------
   const goToPose = useCallback(
@@ -832,7 +867,12 @@ export default function GuidedSession() {
     // Pace slows/fastens the wall-clock of countdowns (not engagement scoring).
     const intervalMs = Math.round(1000 / pace);
     const t = setInterval(() => {
-      setElapsedTotal((e) => e + 1);
+      setElapsedTotal((e) => {
+        const next = e + 1;
+        elapsedRef.current = next;
+        return next;
+      });
+      if (phase === "hold") holdElapsed.current += 1;
       setRemainingEstimate((r) => Math.max(0, r - 1));
       if (phase === "hold") holdSecondsRef.current += 1;
 
@@ -865,6 +905,7 @@ export default function GuidedSession() {
             return 0;
           }
           if (phase === "hold") {
+            completedIndices.current.add(index);
             if (index + 1 >= todays.length) {
               finish();
             } else {
@@ -981,6 +1022,8 @@ export default function GuidedSession() {
     setStarted(true);
     setIndex(0);
     setElapsedTotal(0);
+    holdElapsed.current = 0;
+    elapsedRef.current = 0;
     setPaused(false);
     sessionLogged.current = false;
     loggedSeconds.current = 0;
@@ -989,6 +1032,10 @@ export default function GuidedSession() {
     finishedBreaths.current = 0;
     setStageLayers([]);
     setChromeVisible(true);
+    skippedIndices.current = new Set();
+    completedIndices.current = new Set();
+    setEndedEarly(false);
+    setCredited(true);
     setPostMood(null);
     enterTransition(0);
     void captureProduct("session_started", {
@@ -1056,7 +1103,7 @@ export default function GuidedSession() {
       else if (cmd === "slower") setPace((p) => (p === 1.25 ? 1 : 0.75));
       else if (cmd === "faster") setPace((p) => (p === 0.75 ? 1 : 1.25));
       else if (cmd === "modification") setTipsOpen(true);
-      else if (cmd === "stop") setConfirmExit(true);
+      else if (cmd === "stop") attemptExit();
     };
     const ctrl = createVoiceController({
       onCommand: (cmd) => {
@@ -1076,6 +1123,15 @@ export default function GuidedSession() {
       navigate("/");
       return;
     }
+    setExitPreview(
+      sessionCredit({
+        holdSeconds: holdElapsed.current,
+        elapsedSeconds: elapsedRef.current,
+        posesCompleted: completedIndices.current.size,
+        posesSkipped: skippedIndices.current.size,
+        posesTotal: todays.length,
+      }),
+    );
     setConfirmExit(true);
   };
 
@@ -1281,11 +1337,17 @@ export default function GuidedSession() {
               rounded="rounded-full"
               breath={false}
               shadow={false}
-              thumb
+              fit="contain"
               testId="complete-illustration"
             />
           </div>
-          <h1 className="font-serif text-4xl">Beautiful practice</h1>
+          <h1 className="font-serif text-4xl" data-testid="guided-complete-headline">
+            {sessionHeadline({
+              counts: credited,
+              minutes: finishedMinutes.current,
+              endedEarly,
+            })}
+          </h1>
           <div className="flex flex-wrap items-start justify-center gap-8 text-center">
             <div>
               <p className="font-serif text-3xl tabular-nums text-primary" data-testid="text-complete-minutes">
@@ -1319,16 +1381,23 @@ export default function GuidedSession() {
               </p>
             </div>
           </div>
-          <p className="max-w-md text-sm text-muted-foreground" data-testid="text-summary-saved">
-            {saving
-              ? "Saving to your journal…"
-              : sessionLogged.current
-                ? "Saved to your journal."
-                : saveFailed
-                  ? "Couldn’t save yet — retry below."
-                  : "Writing your session summary…"}
-          </p>
-          {meta.pathwaySlug && (
+          {credited ? (
+            <p className="max-w-md text-sm text-muted-foreground" data-testid="text-summary-saved">
+              {saving
+                ? "Saving to your journal…"
+                : sessionLogged.current
+                  ? "Saved to your journal."
+                  : saveFailed
+                    ? "Couldn’t save yet — retry below."
+                    : "Writing your session summary…"}
+            </p>
+          ) : (
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Skipping through doesn't count toward your streak. Stay for a minute of holding, or
+              finish at least half the poses.
+            </p>
+          )}
+          {credited && meta.pathwaySlug && !endedEarly && (
             <p className="text-sm text-muted-foreground">Day marked complete · {meta.label}</p>
           )}
           {reflection && (
@@ -1360,11 +1429,10 @@ export default function GuidedSession() {
             <Button
               size="lg"
               onClick={async () => {
-                if (!sessionLogged.current) {
+                if (credited && !sessionLogged.current) {
                   await finalizeSession(postMood, rpe);
                 }
-                // Only leave if the session actually persisted (or was already logged).
-                if (sessionLogged.current) {
+                if (sessionLogged.current || !credited) {
                   clear();
                   navigate("/");
                 }
@@ -1374,44 +1442,48 @@ export default function GuidedSession() {
             >
               Done — back home
             </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={async () => {
-                if (!sessionLogged.current) {
-                  await finalizeSession(postMood, rpe);
-                }
-                if (sessionLogged.current) {
-                  clear();
-                  navigate(
-                    `/journal?new=1&title=${encodeURIComponent(summaryEntry.title)}&body=${encodeURIComponent(summaryEntry.body)}`,
-                  );
-                }
-              }}
-              data-testid="button-journal-prompt"
-              disabled={saving}
-            >
-              <NotebookPen className="mr-1.5 h-4 w-4" /> Reflect in journal
-            </Button>
-            <Button
-              size="lg"
-              variant="ghost"
-              onClick={() => {
-                // "Do one more pose" — restart from the last pose for another round.
-                sessionLogged.current = false;
-                setFinished(false);
-                setShowPostMood(false);
-                setConfetti(false);
-                const lastIdx = Math.max(0, todays.length - 1);
-                setStarted(true);
-                setPaused(false);
-                setIndex(lastIdx);
-                enterTransition(lastIdx);
-              }}
-              data-testid="button-one-more"
-            >
-              Do one more pose
-            </Button>
+            {credited && (
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={async () => {
+                  if (!sessionLogged.current) {
+                    await finalizeSession(postMood, rpe);
+                  }
+                  if (sessionLogged.current) {
+                    clear();
+                    navigate(
+                      `/journal?new=1&title=${encodeURIComponent(summaryEntry.title)}&body=${encodeURIComponent(summaryEntry.body)}`,
+                    );
+                  }
+                }}
+                data-testid="button-journal-prompt"
+                disabled={saving}
+              >
+                <NotebookPen className="mr-1.5 h-4 w-4" /> Reflect in journal
+              </Button>
+            )}
+            {credited && (
+              <Button
+                size="lg"
+                variant="ghost"
+                onClick={() => {
+                  // "Do one more pose" — restart from the last pose for another round.
+                  sessionLogged.current = false;
+                  setFinished(false);
+                  setShowPostMood(false);
+                  setConfetti(false);
+                  const lastIdx = Math.max(0, todays.length - 1);
+                  setStarted(true);
+                  setPaused(false);
+                  setIndex(lastIdx);
+                  enterTransition(lastIdx);
+                }}
+                data-testid="button-one-more"
+              >
+                Do one more pose
+              </Button>
+            )}
           </div>
         </div>
       </FullScreenOverlay>
@@ -1503,6 +1575,14 @@ export default function GuidedSession() {
   // ---- running screen -------------------------------------------------------
   const progress = todays.length > 0 ? (index / todays.length) * 100 : 0;
   const isHold = phase === "hold";
+  const exitCopy = sessionExitCopy(
+    exitPreview ?? {
+      counts: false,
+      minutes: 0,
+      posesCompleted: 0,
+      posesSkipped: 0,
+    },
+  );
   const bottomCountdown =
     phase === "transitionIn"
       ? phaseRemaining
@@ -1957,14 +2037,25 @@ export default function GuidedSession() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Leave the session?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You're mid-practice. Your progress won't be logged if you leave now.
-            </AlertDialogDescription>
+            <AlertDialogDescription>{exitCopy.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="button-exit-cancel">Stay</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
+                const preview =
+                  exitPreview ??
+                  sessionCredit({
+                    holdSeconds: holdElapsed.current,
+                    elapsedSeconds: elapsedRef.current,
+                    posesCompleted: completedIndices.current.size,
+                    posesSkipped: skippedIndices.current.size,
+                    posesTotal: todays.length,
+                  });
+                if (preview.counts) {
+                  finish({ endedEarly: true });
+                  return;
+                }
                 const a = audioRef.current;
                 if (a) a.pause();
                 try {
@@ -1972,12 +2063,13 @@ export default function GuidedSession() {
                 } catch {
                   /* ignore */
                 }
+                saveProgress(null);
                 clear();
                 navigate("/");
               }}
               data-testid="button-exit-confirm"
             >
-              Leave
+              {exitCopy.leaveLabel}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

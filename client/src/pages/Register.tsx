@@ -17,6 +17,7 @@ import {
   type PracticeIntent,
   type ReminderPrefs,
 } from "@/lib/localPrefs";
+import { readUrlParam } from "@/lib/hashQuery";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { PROFILES } from "@/data/profiles";
 import { resolveIcon } from "@/lib/icons";
@@ -128,6 +129,12 @@ export default function Register() {
   useDocumentTitle("Create your practice · Sadhana");
   const [, navigate] = useLocation();
   const returning = !!readString(KEYS.onboardingDone);
+
+  useEffect(() => {
+    if (readUrlParam("intent") === "save") {
+      navigate("/account?tab=create", { replace: true });
+    }
+  }, [navigate]);
 
   const [step, setStep] = useState<Step>(0);
   const [intent, setIntent] = useState<PracticeIntent | null>(
@@ -705,7 +712,7 @@ export default function Register() {
                       </ul>
                       <p className="text-xs text-muted-foreground">
                         This setup stays on this browser.{" "}
-                        <Link href="/account" className="cursor-pointer underline underline-offset-2">
+                        <Link href="/account?tab=create" className="cursor-pointer underline underline-offset-2">
                           Create a free account
                         </Link>{" "}
                         anytime to sync your practice across devices.

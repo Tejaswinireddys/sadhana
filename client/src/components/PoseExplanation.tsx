@@ -87,8 +87,9 @@ export function PoseExplanation({ slug }: { slug: string }) {
         : null,
     [started, completed, activeStep, stepIndex, stepCount],
   );
-  // During training, video follows play/pause; idle preview loops the clip.
-  const stagePlaying = !started || (playing && !completed);
+  // Idle shows the pose poster (clips start on a shared standing frame).
+  // Training follows play/pause so the journey clip can run.
+  const stagePlaying = started && playing && !completed;
 
   useEffect(() => {
     const a = audioRef.current;

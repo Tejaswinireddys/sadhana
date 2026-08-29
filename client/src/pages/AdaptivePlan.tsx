@@ -1,37 +1,97 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { FadeIn } from "@/components/motion";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { generateAdaptiveSession, swapPose } from "@/lib/adaptiveGenerator";
-import { adviseNextSession } from "@/lib/adaptiveRecovery";
+import { adviseNextSession, readOutcomes } from "@/lib/adaptiveRecovery";
 import { usePractice } from "@/context/PracticeContext";
 import { asanaBySlug } from "@/data/content";
 import { track } from "@/lib/analytics";
+import { useToast } from "@/hooks/use-toast";
+import type { Journal, Session } from "@shared/schema";
+
+function poseKey(slugs: string[]): string {
+  return slugs.join(",");
+}
 
 export default function AdaptivePlan() {
   useDocumentTitle("Today's adaptive plan · Sadhana");
   const [, navigate] = useLocation();
   const { loadSession } = usePractice();
-  const advice = useMemo(() => adviseNextSession(), []);
-  const [minutes, setMinutes] = useState(advice.maxMinutes);
-  const [result, setResult] = useState(() =>
-    generateAdaptiveSession({ intentMinutes: advice.maxMinutes }),
-  );
-  const [locked, setLocked] = useState<string[]>([]);
+  const { toast } = useToast();
+  const { data: sessions, isPending: sessionsPending } = useQuery<Session[]>({
+    queryKey: ["/api/sessions"],
+  });
+  const { data: journal, isPending: journalPending } = useQuery<Journal[]>({
+    queryKey: ["/api/journal"],
+  });
+  const historyReady = !sessionsPending && !journalPending;
+  const sessionIds = (sessions ?? []).map((s) => s.id).join(",");
+  const journalIds = (journal ?? []).map((j) => j.id).join(",");
 
-  const regenerate = (mins = minutes) => {
-    const next = generateAdaptiveSession({
-      intentMinutes: mins,
-      lockSlugs: locked,
+  const [minutes, setMinutes] = useState(20);
+  const [variant, setVariant] = useState(0);
+  const [locked, setLocked] = useState<string[]>([]);
+  const [result, setResult] = useState<ReturnType<typeof generateAdaptiveSession> | null>(null);
+
+  const build = (mins: number, v: number, lockSlugs = locked) => {
+    const advice = adviseNextSession(readOutcomes(), {
+      sessions: sessions ?? [],
+      journal: journal ?? [],
     });
+    return generateAdaptiveSession({
+      intentMinutes: mins,
+      lockSlugs,
+      variant: v,
+      adviceOverride: advice,
+      soreParts: advice.soreParts,
+      energy: advice.energy,
+    });
+  };
+
+  useEffect(() => {
+    if (!historyReady) return;
+    const advice = adviseNextSession(readOutcomes(), {
+      sessions: sessions ?? [],
+      journal: journal ?? [],
+    });
+    setMinutes(advice.maxMinutes);
+    setVariant(0);
+    setResult(
+      generateAdaptiveSession({
+        intentMinutes: advice.maxMinutes,
+        variant: 0,
+        adviceOverride: advice,
+        soreParts: advice.soreParts,
+        energy: advice.energy,
+      }),
+    );
+  }, [historyReady, sessionIds, journalIds]);
+
+  const regenerate = () => {
+    if (!result) return;
+    const current = poseKey(result.session.poses.map((p) => p.slug));
+    let nextVariant = variant + 1;
+    let next = build(minutes, nextVariant);
+    for (let i = 0; i < 8 && poseKey(next.session.poses.map((p) => p.slug)) === current; i++) {
+      nextVariant += 1;
+      next = build(minutes, nextVariant);
+    }
+    setVariant(nextVariant);
     setResult(next);
-    track("practice_start", { source: "adaptive_preview" });
+    const changed = poseKey(next.session.poses.map((p) => p.slug)) !== current;
+    toast({
+      title: changed ? "New sequence" : "That's the only safe sequence at this length",
+    });
+    track("practice_start", { source: "adaptive_regenerate" });
   };
 
   const start = () => {
+    if (!result) return;
     const poses = result.session.poses
       .map((p) => {
         const asana = asanaBySlug(p.slug);
@@ -50,6 +110,18 @@ export default function AdaptivePlan() {
     navigate("/guided");
   };
 
+  if (!result) {
+    return (
+      <FadeIn className="mx-auto max-w-2xl space-y-6">
+        <header className="space-y-2">
+          <Badge variant="outline">Explainable · safety-first</Badge>
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">Today's adaptive plan</h1>
+          <p className="text-muted-foreground">Reading your recent practice and journal…</p>
+        </header>
+      </FadeIn>
+    );
+  }
+
   return (
     <FadeIn className="mx-auto max-w-2xl space-y-6">
       <header className="space-y-2">
@@ -65,7 +137,7 @@ export default function AdaptivePlan() {
           <CardTitle className="font-serif text-xl">Why this plan</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+          <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground" data-testid="adaptive-reasons">
             {result.explanations.map((e) => (
               <li key={e}>{e}</li>
             ))}
@@ -94,13 +166,19 @@ export default function AdaptivePlan() {
             variant={minutes === m ? "default" : "outline"}
             onClick={() => {
               setMinutes(m);
-              regenerate(m);
+              setVariant(0);
+              setResult(build(m, 0));
             }}
           >
             {m} min
           </Button>
         ))}
-        <Button variant="outline" className="min-h-11" onClick={() => regenerate()}>
+        <Button
+          variant="outline"
+          className="min-h-11"
+          onClick={regenerate}
+          data-testid="adaptive-regenerate"
+        >
           Regenerate
         </Button>
       </div>
@@ -148,11 +226,15 @@ export default function AdaptivePlan() {
                         const alt = "balasana";
                         const swapped = swapPose(result.session, p.slug, alt);
                         if (swapped) {
-                          setResult((r) => ({
-                            ...r,
-                            session: swapped.session,
-                            explanations: [...r.explanations, swapped.explanation],
-                          }));
+                          setResult((r) =>
+                            r
+                              ? {
+                                  ...r,
+                                  session: swapped.session,
+                                  explanations: [...r.explanations, swapped.explanation],
+                                }
+                              : r,
+                          );
                         }
                       }}
                     >

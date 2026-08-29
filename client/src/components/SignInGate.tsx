@@ -7,11 +7,9 @@
  * already interested and give them nothing to weigh the decision against.
  *
  * It names what is behind the gate, keeps the tone of the rest of the app
- * (calm, unpushy), and — importantly — returns the visitor to the exact pose
- * they were reading once they're done. Bouncing someone to the library after
- * signup is how you lose them.
+ * (calm, unpushy), and sends them to the real email signup at /account.
  */
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { GATED_FEATURES } from "@/lib/accessPolicy";
@@ -24,8 +22,6 @@ export type SignInGateProps = {
   description?: string;
   /** Which unlocks to list. Defaults to the two most relevant. */
   features?: readonly string[];
-  /** Where to send them back to after signing in. Defaults to the current URL. */
-  returnTo?: string;
   /** `inline` sits inside a section; `panel` stands alone in place of a stage. */
   variant?: "inline" | "panel";
   className?: string;
@@ -36,14 +32,10 @@ export function SignInGate({
   title = "Create a free account to keep going",
   description = "Sadhana is free. An account is what keeps your practice — and unlocks the full teaching for every pose.",
   features = GATED_FEATURES.slice(0, 3),
-  returnTo,
   variant = "inline",
   className,
   "data-testid": testId = "sign-in-gate",
 }: SignInGateProps) {
-  const [location] = useLocation();
-  const back = encodeURIComponent(returnTo ?? location);
-
   return (
     <div
       className={cn(
@@ -92,7 +84,7 @@ export function SignInGate({
 
         <div className={cn("flex flex-col gap-2 pt-1 sm:flex-row", variant === "panel" && "sm:flex-col")}>
           <Button asChild size="lg" className="min-h-[48px] w-full cursor-pointer sm:w-auto">
-            <Link href={`/register?next=${back}`} data-testid={`${testId}-signup`}>
+            <Link href="/account?tab=create" data-testid={`${testId}-signup`}>
               Create a free account
             </Link>
           </Button>
@@ -101,7 +93,7 @@ export function SignInGate({
             variant="ghost"
             className="min-h-[44px] w-full cursor-pointer sm:w-auto"
           >
-            <Link href={`/register?mode=signin&next=${back}`} data-testid={`${testId}-signin`}>
+            <Link href="/account?tab=signin" data-testid={`${testId}-signin`}>
               I already have one
             </Link>
           </Button>

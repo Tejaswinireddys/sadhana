@@ -76,7 +76,7 @@ export function SavePracticeBanner({
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button size="sm" asChild data-testid="button-save-practice-account">
-              <Link href="/register?intent=save">Create a free account</Link>
+              <Link href="/account?tab=create">Create a free account</Link>
             </Button>
             <Button size="sm" variant="outline" onClick={run} disabled={busy}>
               <Download className="mr-1.5 h-4 w-4" /> Download a backup
@@ -119,7 +119,7 @@ export function SavePracticeDialog({
         </AlertDialogHeader>
         <div className="space-y-2">
           <Button className="w-full" size="lg" asChild data-testid="button-gate-create-account">
-            <Link href="/register?intent=save">Create a free account</Link>
+            <Link href="/account?tab=create">Create a free account</Link>
           </Button>
           <Button
             className="w-full"

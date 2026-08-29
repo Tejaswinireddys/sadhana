@@ -442,29 +442,73 @@ function holdLimitsFor(slug: string, pose: Asana, experience: TrainerExperience)
  * final pose of a strength session was Plank. Now the promise is enforced by
  * construction rather than asserted in a string.
  */
+function arcRank(s: string): number {
+  const pose = asanaBySlug(s);
+  if (!pose) return 2;
+  // CLOSERS — not `category === "Restorative"` — decides what ends a session.
+  // The catalog files Cat-Cow as Restorative, and sorting on category put a
+  // spinal warm-up after Savasana.
+  if (CLOSERS.has(s)) return 4; // cool-down
+  if (ISOMETRIC.has(s) || HIGH_LOAD.has(s) || pose.difficulty === "Advanced") return 3; // peak
+  if (GENTLE.has(s) || pose.category === "Restorative") return 0; // warm-up / mobilise
+  if (pose.category === "Seated") return 0;
+  if (pose.category === "Standing") return 1;
+  return 2;
+}
+
 function arcOrder(slugs: string[]): string[] {
   // Order of these checks is the whole algorithm. Testing "Seated" before
   // "isometric" filed Boat Pose as a warm-up and opened a strength session on
   // three core holds — a category is not a proxy for effort.
-  const rank = (s: string): number => {
-    const pose = asanaBySlug(s);
-    if (!pose) return 2;
-    // CLOSERS — not `category === "Restorative"` — decides what ends a session.
-    // The catalog files Cat-Cow as Restorative, and sorting on category put a
-    // spinal warm-up after Savasana.
-    if (CLOSERS.has(s)) return 4; // cool-down
-    if (ISOMETRIC.has(s) || HIGH_LOAD.has(s) || pose.difficulty === "Advanced") return 3; // peak
-    if (GENTLE.has(s) || pose.category === "Restorative") return 0; // warm-up / mobilise
-    if (pose.category === "Seated") return 0;
-    if (pose.category === "Standing") return 1;
-    return 2;
-  };
   // Warm-up first, peak in the middle, rest last; stable within each band so
   // the sequence's own authored order still shows through.
   return slugs
-    .map((s, i) => ({ s, i, r: rank(s) }))
+    .map((s, i) => ({ s, i, r: arcRank(s) }))
     .sort((a, b) => a.r - b.r || a.i - b.i)
     .map((x) => x.s);
+}
+
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a += 0x6d2b79f5;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffled<T>(items: T[], seed: number): T[] {
+  const out = items.slice();
+  const rand = mulberry32(seed);
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const tmp = out[i]!;
+    out[i] = out[j]!;
+    out[j] = tmp;
+  }
+  return out;
+}
+
+/**
+ * Pick a different subset/order inside each arc bucket. Closers stay at the
+ * end (at most two). Used by Adaptive "Regenerate" so the control is not a no-op.
+ */
+function pickVariantSlugs(slugs: string[], target: number, variant: number): string[] {
+  const buckets: string[][] = [[], [], [], [], []];
+  for (const s of slugs) {
+    buckets[arcRank(s)]!.push(s);
+  }
+  const mixed = [0, 1, 2, 3].map((r) => shuffled(buckets[r]!, variant * 11 + r + 3));
+  const closers = shuffled(buckets[4]!, variant * 11 + 9).slice(0, 2);
+  const workingNeed = Math.max(3, target - closers.length);
+  const working: string[] = [];
+  for (const s of mixed.flat()) {
+    if (working.length >= workingNeed) break;
+    if (!working.includes(s)) working.push(s);
+  }
+  return [...working, ...closers.filter((s) => !working.includes(s))];
 }
 
 /** Minimum number of on-theme working poses before we'll claim a focus. */
@@ -491,6 +535,8 @@ export function composeTrainerSession(
     preferSlugs?: string[];
     audience?: TrainerAudience;
     experience?: TrainerExperience;
+    /** 0 = stable authored order. >0 reshuffles within warm-up / peak / cool-down. */
+    variant?: number;
   },
 ): TrainerSession {
   const injured = c.body.some((b) => b.toLowerCase().includes("injured"));
@@ -573,10 +619,16 @@ export function composeTrainerSession(
     Math.min(16, Math.round((Math.max(5, c.timeMinutes) * 60) / 90)),
   );
 
+  const variant = opts?.variant ?? 0;
+  const fillCap = targetPoseCount + (variant > 0 ? 8 : 0);
+  const fillPools = [BACKFILL[key] ?? [], SEQUENCES[key] ?? [], SAFE_POOL].map((pool, i) =>
+    variant > 0 ? shuffled(pool, variant * 17 + i + 1) : pool,
+  );
+
   // Rebuild toward the requested focus first, then fall back to the safe pool.
-  for (const pool of [BACKFILL[key] ?? [], SEQUENCES[key] ?? [], SAFE_POOL]) {
+  for (const pool of fillPools) {
     for (const s of pool) {
-      if (slugs.length >= targetPoseCount) break;
+      if (slugs.length >= fillCap) break;
       if (!slugs.includes(s) && safe(s)) slugs.push(s);
     }
   }
@@ -586,7 +638,7 @@ export function composeTrainerSession(
   // Low energy: trim length rather than swap the focus out from under them.
   if (lowEnergy) slugs = slugs.slice(0, Math.min(slugs.length, 6));
 
-  slugs = slugs.slice(0, targetPoseCount);
+  if (variant === 0) slugs = slugs.slice(0, targetPoseCount);
 
   // Did enough of the requested focus survive to honestly call it that?
   const signature = slugs.filter(
@@ -612,7 +664,8 @@ export function composeTrainerSession(
 
   // Warm-up → peak → cool-down, so the promise of "closes in rest" is a fact
   // about the sequence rather than a claim in a sentence.
-  slugs = arcOrder(slugs);
+  const lengthTarget = lowEnergy ? Math.min(6, targetPoseCount) : targetPoseCount;
+  slugs = variant > 0 ? pickVariantSlugs(slugs, lengthTarget, variant) : arcOrder(slugs);
 
   // At most two closing shapes. Filling a long session's leftover time with
   // four consecutive rest poses is technically "closing in rest" and nobody

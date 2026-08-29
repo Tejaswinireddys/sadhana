@@ -1,13 +1,20 @@
 /**
- * PoseCardVideo — muted looping demo clip for library cards.
- * Loads only when near the viewport; falls back to PoseImage if the clip
- * is missing or fails. Keeps the grid light (no autoplay for off-screen cards).
+ * PoseCardVideo — library thumbnails.
+ *
+ * Demo clips are step journeys that start on a shared standing entry (~0.2s).
+ * Autoplaying (or pausing there) makes every card look identical. Show the
+ * pose PNG — the same poster Pathways uses — and only swap to video on hover.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PoseImage } from "@/components/PoseImage";
 import { attachHls, type HlsAttachHandle } from "@/lib/hlsAttach";
 import { manifestToVideoSources, usePoseMedia } from "@/lib/poseMediaApi";
 import { cn } from "@/lib/utils";
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
 export function PoseCardVideo({
   slug,
@@ -20,44 +27,23 @@ export function PoseCardVideo({
   className?: string;
   testId?: string;
 }) {
-  const wrapRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<HlsAttachHandle | null>(null);
-  const [near, setNear] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [hover, setHover] = useState(false);
   const [failed, setFailed] = useState(false);
+  const reduceMotion = useMemo(() => prefersReducedMotion(), []);
   const { data: manifest } = usePoseMedia(slug);
   const media = useMemo(() => manifestToVideoSources(slug, manifest), [slug, manifest]);
   const hasVideo = Boolean(media);
+  const showVideo = !!media && hover && !failed && !reduceMotion;
 
   useEffect(() => {
-    if (!hasVideo) return;
-    const el = wrapRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") {
-      setNear(true);
-      return;
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          setNear(true);
-          io.disconnect();
-        }
-      },
-      { rootMargin: "120px", threshold: 0.05 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasVideo, slug]);
-
-  useEffect(() => {
-    setReady(false);
     setFailed(false);
   }, [slug]);
 
   useEffect(() => {
     const v = videoRef.current;
-    if (!v || !near || !hasVideo || failed || !media) return;
+    if (!v || !showVideo || !media) return;
 
     hlsRef.current?.destroy();
     hlsRef.current = null;
@@ -70,18 +56,20 @@ export function PoseCardVideo({
       v.load();
     }
 
+    v.muted = true;
     const play = v.play();
     if (play && typeof play.catch === "function") {
       play.catch(() => {
-        /* autoplay can fail; poster/image fallback still shows */
+        /* gesture-blocked play is fine — poster stays visible underneath */
       });
     }
 
     return () => {
+      v.pause();
       hlsRef.current?.destroy();
       hlsRef.current = null;
     };
-  }, [near, hasVideo, failed, slug, media]);
+  }, [showVideo, slug, media]);
 
   if (!hasVideo || failed || !media) {
     return (
@@ -100,39 +88,32 @@ export function PoseCardVideo({
 
   return (
     <div
-      ref={wrapRef}
       className={cn("relative aspect-square w-full overflow-hidden bg-accent/30", className)}
       style={{ aspectRatio: "1 / 1" }}
       data-testid={testId ?? `pose-card-video-${slug}`}
-      data-media={ready ? "video" : "poster"}
+      data-media={showVideo ? "video" : "poster"}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
     >
-      {!ready && (
-        <img
-          width={600}
-          height={1200}
-          src={media.poster}
-          alt=""
-          aria-hidden
-          className="absolute inset-0 h-full w-full object-contain"
-          loading="lazy"
-          decoding="async"
-        />
-      )}
-      {near && (
+      <img
+        width={600}
+        height={1200}
+        src={media.poster}
+        alt={alt}
+        className="relative z-0 h-full w-full object-contain"
+        loading="lazy"
+        decoding="async"
+      />
+      {showVideo && (
         <video
           ref={videoRef}
-          className={cn(
-            "relative z-[1] h-full w-full object-contain",
-            ready ? "opacity-100" : "opacity-0",
-          )}
+          className="absolute inset-0 z-[1] h-full w-full object-contain"
           poster={media.poster}
           playsInline
           muted
           loop
-          preload="metadata"
-          aria-label={`${alt} demonstration`}
-          onLoadedData={() => setReady(true)}
-          onCanPlay={() => setReady(true)}
+          preload="none"
+          aria-hidden
           onError={() => setFailed(true)}
           data-testid={`pose-card-video-el-${slug}`}
         >

@@ -94,3 +94,36 @@ test("pose and step shape keys resolve to real line art", () => {
   }
   assert.deepEqual([...unknown], []);
 });
+
+test("form cues are pose-specific, not a shared placeholder", () => {
+  const placeholder = "Aligned joints|Long spine|Steady gaze";
+  const generic = ASANAS.filter(
+    (a) => a.variations.intermediate.cues.join("|") === placeholder,
+  ).map((a) => a.slug);
+  assert.deepEqual(generic, [], "intermediate cues still use the placeholder triplet");
+
+  const bySlug = Object.fromEntries(ASANAS.map((a) => [a.slug, a]));
+  const dolphin = bySlug["dolphin-plank"]!;
+  const dead = bySlug["dead-bug"]!;
+  const table = bySlug["reverse-tabletop"]!;
+  assert.notEqual(
+    dolphin.variations.intermediate.cues.join("|"),
+    dead.variations.intermediate.cues.join("|"),
+  );
+  assert.notEqual(
+    dead.variations.intermediate.cues.join("|"),
+    table.variations.intermediate.cues.join("|"),
+  );
+  assert.ok(
+    !dead.variations.intermediate.cues.some((c) => /steady gaze/i.test(c)),
+    "Dead Bug should not be coached with a standing gaze",
+  );
+
+  const sharedTriples = new Map<string, string[]>();
+  for (const a of ASANAS) {
+    const key = a.variations.intermediate.cues.join("|");
+    sharedTriples.set(key, [...(sharedTriples.get(key) ?? []), a.slug]);
+  }
+  const clones = [...sharedTriples.values()].filter((slugs) => slugs.length > 1);
+  assert.deepEqual(clones, [], "unrelated poses share the same three form cues");
+});

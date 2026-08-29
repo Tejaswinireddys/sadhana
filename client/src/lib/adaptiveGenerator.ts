@@ -21,6 +21,8 @@ export type GeneratorInput = {
   lockSlugs?: string[];
   excludeSlugs?: string[];
   adviceOverride?: AdaptiveAdvice;
+  /** 0 = stable authored order. >0 reshuffles within warm-up / peak / cool-down. */
+  variant?: number;
 };
 
 export type GeneratorResult = {
@@ -38,16 +40,19 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
   const need = input.need || advice.preferNeed;
   const energy =
     input.energy ||
+    advice.energy ||
     (advice.intensity === "recover" || advice.intensity === "easy"
       ? "low"
       : advice.intensity === "build"
         ? "high"
         : "ok");
 
+  const soreParts = input.soreParts ?? advice.soreParts ?? [];
+
   const raw = composeTrainerSession(
     {
       body: input.body ?? [],
-      soreParts: input.soreParts ?? [],
+      soreParts,
       energy,
       timeMinutes: minutes,
       need,
@@ -55,6 +60,7 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
     {
       audience: input.audience ?? "All",
       preferSlugs: input.preferSlugs,
+      variant: input.variant ?? 0,
     },
   );
 
@@ -79,7 +85,7 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
     if (poses.some((p) => p.slug === slug)) continue;
     const asana = asanaBySlug(slug);
     if (!asana) continue;
-    if (input.soreParts?.length && isLikelyUnsafe(asana, input.soreParts)) {
+    if (soreParts.length && isLikelyUnsafe(asana, soreParts)) {
       safetyExclusions.push({
         slug,
         reason: "Locked pose conflicted with sore areas — kept out",

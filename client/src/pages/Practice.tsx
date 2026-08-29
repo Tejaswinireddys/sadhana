@@ -10,6 +10,7 @@ import { usePractice } from "@/context/PracticeContext";
 import { useToast } from "@/hooks/use-toast";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { logPracticeSession } from "@/lib/logPracticeSession";
+import { sessionCredit, sessionHeadline } from "@/lib/sessionCredit";
 import { breathBySlug, type Mood } from "@/data/content";
 import { Link } from "wouter";
 import { Play, Pause, SkipForward, X, Check } from "lucide-react";
@@ -61,6 +62,17 @@ export default function Practice() {
   const [paused, setPaused] = useState(false);
   const [elapsedTotal, setElapsedTotal] = useState(0);
   const sessionLogged = useRef(false);
+  const skippedIndices = useRef<Set<number>>(new Set());
+  const completedIndices = useRef<Set<number>>(new Set());
+  const creditRef = useRef(sessionCredit({
+    holdSeconds: 0,
+    elapsedSeconds: 0,
+    posesCompleted: 0,
+    posesSkipped: 0,
+    posesTotal: 0,
+  }));
+  const [credited, setCredited] = useState(true);
+  const [endedEarly, setEndedEarly] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const lastPostMood = useRef<Mood | null>(null);
@@ -115,6 +127,11 @@ export default function Practice() {
     async (resolvedPost: Mood | null) => {
       if (sessionLogged.current || saving) return;
       lastPostMood.current = resolvedPost;
+      if (!creditRef.current.counts) {
+        sessionLogged.current = true;
+        saveProgress(null);
+        return;
+      }
       setSaving(true);
       setSaveFailed(false);
       const minutes = finishedMinutes.current;
@@ -156,15 +173,28 @@ export default function Practice() {
     [todays, meta, preMood, toast, saving, saveProgress],
   );
 
-  const finish = useCallback(() => {
+  const finish = useCallback((opts?: { endedEarly?: boolean }) => {
     setStarted(false);
     setFinished(true);
-    const minutes = Math.max(1, Math.round(elapsedTotal / 60));
-    finishedMinutes.current = minutes;
+    const credit = sessionCredit({
+      holdSeconds: elapsedTotal,
+      elapsedSeconds: elapsedTotal,
+      posesCompleted: completedIndices.current.size,
+      posesSkipped: skippedIndices.current.size,
+      posesTotal: todays.length,
+    });
+    creditRef.current = credit;
+    finishedMinutes.current = credit.minutes;
+    setCredited(credit.counts);
+    setEndedEarly(!!opts?.endedEarly);
     playChime();
-    // Prompt for post-practice mood before persisting.
-    setShowPostMood(true);
-  }, [elapsedTotal]);
+    if (credit.counts) {
+      setShowPostMood(true);
+    } else {
+      sessionLogged.current = true;
+      saveProgress(null);
+    }
+  }, [elapsedTotal, todays.length, saveProgress]);
 
   // Step 1 of begin: show the pre-mood prompt (optional).
   const requestBegin = () => {
@@ -181,6 +211,10 @@ export default function Practice() {
     setElapsedTotal(0);
     setPaused(false);
     sessionLogged.current = false;
+    skippedIndices.current = new Set();
+    completedIndices.current = new Set();
+    setCredited(true);
+    setEndedEarly(false);
     setPostMood(null);
   };
 
@@ -202,6 +236,7 @@ export default function Practice() {
       setElapsedTotal((e) => e + 1);
       setRemaining((r) => {
         if (r <= 1) {
+          completedIndices.current.add(index);
           if (index + 1 >= todays.length) {
             clearInterval(t);
             finish();
@@ -265,14 +300,22 @@ export default function Practice() {
         />
         <div className="animate-fade-in flex min-h-[60vh] flex-col items-center justify-center gap-5 text-center">
           <AnimatedPose pose="savasana" size={120} className="text-primary" />
-          <h1 className="font-serif text-3xl">Namaste 🙏</h1>
+          <h1 className="font-serif text-3xl" data-testid="practice-complete-headline">
+            {sessionHeadline({
+              counts: credited,
+              minutes: finishedMinutes.current,
+              endedEarly,
+            })}
+          </h1>
           <p className="text-muted-foreground">
-            You practiced {finishedMinutes.current} minutes.
-            {sessionLogged.current
+            {credited
+              ? `You practiced ${finishedMinutes.current} minutes.`
+              : "Skipping through doesn't count toward your streak."}
+            {credited && sessionLogged.current
               ? " Session logged."
-              : saveFailed
+              : credited && saveFailed
                 ? " Not saved yet."
-                : saving
+                : credited && saving
                   ? " Saving…"
                   : ""}
           </p>
@@ -301,16 +344,18 @@ export default function Practice() {
             >
               Back home
             </Button>
-            <Button
-              onClick={() => {
-                navigate(
-                  `/journal?new=1&title=${encodeURIComponent(meta.label ?? "Practice reflection")}`,
-                );
-              }}
-              data-testid="button-journal-prompt"
-            >
-              Reflect in journal
-            </Button>
+            {credited && (
+              <Button
+                onClick={() => {
+                  navigate(
+                    `/journal?new=1&title=${encodeURIComponent(meta.label ?? "Practice reflection")}`,
+                  );
+                }}
+                data-testid="button-journal-prompt"
+              >
+                Reflect in journal
+              </Button>
+            )}
           </div>
         </div>
       </>
@@ -400,7 +445,15 @@ export default function Practice() {
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background px-6 text-center">
       <button
         onClick={() => {
-          setStarted(false);
+          const credit = sessionCredit({
+            holdSeconds: elapsedTotal,
+            elapsedSeconds: elapsedTotal,
+            posesCompleted: completedIndices.current.size,
+            posesSkipped: skippedIndices.current.size,
+            posesTotal: todays.length,
+          });
+          if (credit.counts) finish({ endedEarly: true });
+          else setStarted(false);
         }}
         className="absolute right-5 top-5 text-muted-foreground hover:text-foreground"
         data-testid="button-exit-timer"
@@ -442,6 +495,7 @@ export default function Practice() {
           variant="secondary"
           size="lg"
           onClick={() => {
+            skippedIndices.current.add(index);
             if (index + 1 >= todays.length) finish();
             else nextPose();
           }}
@@ -449,7 +503,7 @@ export default function Practice() {
         >
           <SkipForward className="mr-1.5 h-5 w-5" /> Skip
         </Button>
-        <Button size="lg" onClick={finish} data-testid="button-complete-session">
+        <Button size="lg" onClick={() => finish({ endedEarly: index + 1 < todays.length })} data-testid="button-complete-session">
           <Check className="mr-1.5 h-5 w-5" /> Finish
         </Button>
       </div>

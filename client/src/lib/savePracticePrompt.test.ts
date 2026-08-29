@@ -1,5 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { accountAuthTab } from "./hashQuery";
 import {
   BANNER_AFTER_SESSIONS,
   BLOCKING_AFTER_SESSIONS,
@@ -104,5 +107,27 @@ describe("stakeSummary", () => {
   it("states the stake in numbers, not adjectives", () => {
     assert.equal(stakeSummary(1, 1), "1 session");
     assert.equal(stakeSummary(7, 4), "7 sessions and a 4-day streak");
+  });
+});
+
+describe("accountAuthTab", () => {
+  it("maps the public ?tab=create name onto the signup tab", () => {
+    assert.equal(accountAuthTab("create"), "signup");
+    assert.equal(accountAuthTab("signup"), "signup");
+    assert.equal(accountAuthTab("signin"), "signin");
+    assert.equal(accountAuthTab("reset"), "reset");
+    assert.equal(accountAuthTab(null), "signin");
+  });
+});
+
+describe("save-practice CTAs point at real email signup", () => {
+  it("does not send Create a free account to the on-device wizard", () => {
+    const prompt = readFileSync(resolve("client/src/components/SavePracticePrompt.tsx"), "utf8");
+    assert.match(prompt, /href="\/account\?tab=create"/);
+    assert.equal(prompt.includes("/register?intent=save"), false);
+
+    const gate = readFileSync(resolve("client/src/components/SignInGate.tsx"), "utf8");
+    assert.match(gate, /href="\/account\?tab=create"/);
+    assert.equal(gate.includes("/register?"), false);
   });
 });

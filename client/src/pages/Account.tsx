@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
+import { accountAuthTab, readUrlParam } from "@/lib/hashQuery";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -87,6 +88,7 @@ export default function Account() {
   // different, less specific acknowledgment made elsewhere.
   const [legalOk, setLegalOk] = useState(false);
   const [pendingVerifyEmail, setPendingVerifyEmail] = useState<string | null>(null);
+  const [authTab, setAuthTab] = useState(() => accountAuthTab(readUrlParam("tab")));
 
   const busy = signIn.isPending || signUp.isPending || reset.isPending;
 
@@ -368,7 +370,13 @@ export default function Account() {
 
       <Card>
         <CardContent className="p-5">
-          <Tabs defaultValue="signin" onValueChange={() => setError(null)}>
+          <Tabs
+            value={authTab}
+            onValueChange={(value) => {
+              setAuthTab(accountAuthTab(value));
+              setError(null);
+            }}
+          >
             <TabsList className="mb-4 grid w-full grid-cols-3">
               <TabsTrigger value="signin" className="min-h-11 cursor-pointer" data-testid="tab-signin">
                 Sign in

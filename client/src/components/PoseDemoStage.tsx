@@ -317,7 +317,10 @@ export function PoseDemoStage({
   }, [useVideo, showSources, videoReady, videoFailed]);
 
   const alt = `${english} (${sanskrit}) pose demonstration`;
-  const showIllustration = !use3D && (!useVideo || !videoReady || videoFailed);
+  // Clips start on a shared standing entry. A paused video is the wrong still —
+  // keep the poster PNG until the clip is actually playing.
+  const showVideoLayer = useVideo && videoReady && playing && !reduceMotion && !videoFailed;
+  const showIllustration = !use3D && !showVideoLayer;
 
   if (use3D && hasRigSequence(slug)) {
     return (
@@ -372,7 +375,7 @@ export function PoseDemoStage({
         className,
       )}
       data-testid={testId ?? `pose-demo-stage-${slug}`}
-      data-media={useVideo && videoReady ? "video" : "illustration"}
+      data-media={showVideoLayer ? "video" : "illustration"}
       data-sync={syncToVoice ? "voice" : "loop"}
     >
       <div className={cn("absolute inset-0", caption ? "px-2 pb-14 pt-4" : "p-2")}>
@@ -381,7 +384,7 @@ export function PoseDemoStage({
             ref={videoRef}
             className={cn(
               "relative z-[1] h-full w-full object-contain object-center",
-              (!videoReady || videoFailed) && "invisible absolute inset-0",
+              !showVideoLayer && "invisible absolute inset-0",
             )}
             poster={media.poster}
             playsInline
