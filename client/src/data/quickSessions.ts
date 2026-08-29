@@ -1,5 +1,6 @@
 import { CloudMoon, HeartPulse, Moon, Smile, Sunrise, Wind } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { Mood } from "@/data/content";
 
 /** Mood-based one-tap sessions used on Home and the Practice hub. */
 export type QuickSession = {
@@ -7,6 +8,11 @@ export type QuickSession = {
   icon: LucideIcon;
   label: string;
   intent: string;
+  /**
+   * Canonical journal / adaptive-plan mood. Home copy stays conversational
+   * ("I'm tired"); persisted data uses the same Mood enum as MoodCheckIn.
+   */
+  mood: Mood;
   poses: Array<{ slug: string; holdSeconds: number }>;
   breathSlug?: string;
   /** First pose slug used as a short illustrated intro clip on the guided start screen. */
@@ -53,6 +59,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     id: "tense",
     icon: HeartPulse,
     label: "I'm tense",
+    mood: "Stressed",
     intent: "Release",
     introPoseSlug: "simhasana",
     poses: [
@@ -69,6 +76,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     id: "tired",
     icon: Moon,
     label: "I'm tired",
+    mood: "Tired",
     intent: "Restore",
     introPoseSlug: "salamba-balasana",
     poses: [
@@ -82,6 +90,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     id: "low-energy",
     icon: Sunrise,
     label: "I'm low energy",
+    mood: "Tired",
     intent: "Energize",
     introPoseSlug: "urdhva-hastasana",
     poses: [
@@ -102,6 +111,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     id: "anxious",
     icon: Wind,
     label: "I'm anxious",
+    mood: "Stressed",
     intent: "Calm",
     introPoseSlug: "vajrasana",
     poses: [
@@ -119,6 +129,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     id: "feel-good",
     icon: Smile,
     label: "I need a reset",
+    mood: "Grounded",
     intent: "Feel good",
     introPoseSlug: "urdhva-hastasana",
     poses: [
@@ -138,6 +149,7 @@ export const QUICK_SESSIONS: QuickSession[] = [
     id: "before-bed",
     icon: CloudMoon,
     label: "Before bed",
+    mood: "Calm",
     intent: "Sleep",
     introPoseSlug: "salamba-balasana",
     poses: [
@@ -154,3 +166,14 @@ export const QUICK_SESSIONS: QuickSession[] = [
     breathSlug: "four-seven-eight",
   },
 ];
+
+/** Session meta for loadSession — includes the mapped mood so GuidedSession skips premood. */
+export function quickSessionMeta(q: QuickSession) {
+  return {
+    label: q.label,
+    plannedMinutes: sessionMinutes(q.poses),
+    breathSlug: q.breathSlug ?? null,
+    introPoseSlug: q.introPoseSlug ?? q.poses[0]?.slug ?? null,
+    preMood: q.mood,
+  };
+}

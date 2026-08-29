@@ -31,8 +31,8 @@ export type SessionMeta = {
   plannedMinutes?: number | null;
   /**
    * A mood already collected upstream (the Trainer asks about body and energy
-   * before it composes). Set this and the guided player skips its own pre-mood
-   * modal — four check-ins in one flow is an interrogation, not a practice.
+   * before it composes; Home mood sessions map "I'm tired" onto this enum).
+   * Set this and the guided player skips its own pre-mood modal.
    */
   preMood?: Mood | null;
   /** Pose slug for an illustrated intro clip on the guided start screen. */

@@ -79,11 +79,12 @@ describe("habit plan", () => {
 });
 
 describe("mood session intros", () => {
-  it("gives every mood session an intro pose slug", () => {
+  it("gives every mood session an intro pose slug and a canonical mood", () => {
     assert.equal(QUICK_SESSIONS.length, 6);
     for (const q of QUICK_SESSIONS) {
       assert.ok(q.introPoseSlug);
       assert.equal(q.introPoseSlug, q.poses[0]?.slug);
+      assert.ok(q.mood);
     }
   });
 });

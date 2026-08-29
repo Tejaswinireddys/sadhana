@@ -3,7 +3,11 @@
  *
  * Skipping every pose in four seconds used to log a session. Leaving after
  * fifteen honest minutes used to discard it. The floor is the opposite of that:
- * hold time or completed poses, not button presses.
+ * time actually spent practicing, or completed poses — not skip taps.
+ *
+ * Guided narration eats most of a pose's authored hold, so the minute bar
+ * cannot be "seconds left on the hold clock" alone. Wall-clock time with at
+ * least one completed pose is the same bar the exit dialog prints.
  */
 
 export const STREAK_HOLD_FLOOR_SECONDS = 60;
@@ -14,7 +18,14 @@ export type SessionCredit = {
   minutes: number;
   posesCompleted: number;
   posesSkipped: number;
+  posesTotal: number;
 };
+
+/** Half the class, rounding toward the practitioner (3 of 7 counts). */
+export function posesNeededForCredit(posesTotal: number): number {
+  if (posesTotal <= 0) return 1;
+  return Math.max(1, Math.floor(posesTotal / 2));
+}
 
 export function sessionCredit(args: {
   holdSeconds: number;
@@ -24,9 +35,13 @@ export function sessionCredit(args: {
   posesTotal: number;
 }): SessionCredit {
   const minutes = Math.max(0, Math.round(args.elapsedSeconds / 60));
-  const poseShare = args.posesTotal > 0 ? args.posesCompleted / args.posesTotal : 0;
-  const counts =
-    args.holdSeconds >= STREAK_HOLD_FLOOR_SECONDS || poseShare >= STREAK_POSE_FLOOR;
+  const needed = posesNeededForCredit(args.posesTotal);
+  const heldLongEnough = args.holdSeconds >= STREAK_HOLD_FLOOR_SECONDS;
+  const practicedAMinute =
+    args.elapsedSeconds >= STREAK_HOLD_FLOOR_SECONDS &&
+    (args.posesCompleted >= 1 || args.holdSeconds > 0);
+  const finishedHalf = args.posesCompleted >= needed;
+  const counts = heldLongEnough || practicedAMinute || finishedHalf;
   return {
     counts,
     // A credited session is at least a minute on the stats line — never round
@@ -34,6 +49,7 @@ export function sessionCredit(args: {
     minutes: counts ? Math.max(1, minutes) : minutes,
     posesCompleted: args.posesCompleted,
     posesSkipped: args.posesSkipped,
+    posesTotal: args.posesTotal,
   };
 }
 
@@ -41,11 +57,12 @@ export function sessionHeadline(args: {
   counts: boolean;
   minutes: number;
   endedEarly: boolean;
+  posesCompleted?: number;
+  posesTotal?: number;
 }): string {
   if (!args.counts) return "Too brief to save";
   if (args.endedEarly) {
-    const n = Math.max(1, args.minutes);
-    return `${n} ${n === 1 ? "minute" : "minutes"} in. That counts.`;
+    return creditedLine(args.minutes, args.posesCompleted, args.posesTotal);
   }
   return "Beautiful practice";
 }
@@ -55,9 +72,8 @@ export function sessionExitCopy(credit: SessionCredit): {
   leaveLabel: string;
 } {
   if (credit.counts) {
-    const n = Math.max(1, credit.minutes);
     return {
-      description: `${n} ${n === 1 ? "minute" : "minutes"} in. That counts — we'll save it.`,
+      description: creditedLine(credit.minutes, credit.posesCompleted, credit.posesTotal),
       leaveLabel: "Save and leave",
     };
   }
@@ -65,4 +81,17 @@ export function sessionExitCopy(credit: SessionCredit): {
     description: "This is too brief to count toward your streak.",
     leaveLabel: "Leave",
   };
+}
+
+function creditedLine(
+  minutes: number,
+  posesCompleted: number | undefined,
+  posesTotal: number | undefined,
+): string {
+  const n = Math.max(1, minutes);
+  const minuteWord = n === 1 ? "minute" : "minutes";
+  if (posesTotal != null && posesTotal > 0 && posesCompleted != null) {
+    return `${posesCompleted} of ${posesTotal} poses, ${n} ${minuteWord} — that counts.`;
+  }
+  return `${n} ${minuteWord} in. That counts.`;
 }

@@ -49,6 +49,7 @@ const KNOWN_TOP_LEVEL_SEGMENTS = new Set([
   "adaptive",
   "pose-coach",
   "instructors",
+  "teachers",
   "household",
   "corporate",
   "design-system",

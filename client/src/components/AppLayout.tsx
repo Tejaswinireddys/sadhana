@@ -6,7 +6,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -27,69 +26,52 @@ import { cn } from "@/lib/utils";
 import {
   Home,
   LayoutGrid,
-  Route as RouteIcon,
   Timer,
-  Wind,
-  Sparkles,
   NotebookPen,
   Moon,
   Sun,
-  Compass,
-  Smile,
   Search,
-  PlusCircle,
-  Settings,
   UserRound,
   Info,
 } from "lucide-react";
 
-type NavItem = { href: string; label: string; icon: typeof Home };
+type NavItem = { href: string; label: string; icon: typeof Home; prefixes?: string[] };
 
-const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
-  {
-    label: "Today",
-    items: [
-      { href: "/", label: "Today", icon: Home },
-      { href: "/adaptive", label: "Adaptive", icon: Sparkles },
-      { href: "/guided", label: "Practice", icon: Timer },
-      { href: "/trainer", label: "Coach", icon: UserRound },
-    ],
-  },
-  {
-    label: "Explore",
-    items: [
-      { href: "/asanas", label: "Poses", icon: LayoutGrid },
-      { href: "/pathways", label: "Programs", icon: RouteIcon },
-      { href: "/instructors", label: "Teachers", icon: Compass },
-      { href: "/pose-coach", label: "Pose self-check", icon: Smile },
-      { href: "/breathing", label: "Breathing", icon: Wind },
-      { href: "/affirmations", label: "Affirmations", icon: Sparkles },
-      { href: "/kids", label: "Kids", icon: Smile },
-      { href: "/builder", label: "Builder", icon: PlusCircle },
-      { href: "/challenges", label: "Challenges", icon: Sparkles },
-    ],
-  },
-  {
-    label: "Progress",
-    items: [
-      { href: "/journal", label: "Journal", icon: NotebookPen },
-      { href: "/profiles", label: "My path", icon: Compass },
-      { href: "/household", label: "Household", icon: UserRound },
-      { href: "/settings", label: "Settings", icon: Settings },
-      { href: "/account", label: "Account", icon: UserRound },
-      // Workplace/Corporate is an unfinished prototype (local-only, no real
-      // tenancy/SSO), so it is intentionally kept out of consumer navigation.
-      // The /corporate route still resolves for anyone with a direct link.
-    ],
-  },
-];
-
-const MOBILE_PRIMARY: NavItem[] = [
+/** Five primary destinations. Secondary pages live on these hubs, not as equal nav items.
+ *  Live-class waitlist stays off primary nav until it is real.
+ *  Workplace (/corporate) is an unfinished prototype and stays off consumer nav. */
+const PRIMARY_NAV: NavItem[] = [
   { href: "/", label: "Today", icon: Home },
-  { href: "/guided", label: "Practice", icon: Timer },
-  { href: "/trainer", label: "Coach", icon: UserRound },
-  { href: "/pathways", label: "Programs", icon: RouteIcon },
-  { href: "/asanas", label: "Poses", icon: LayoutGrid },
+  {
+    href: "/guided",
+    label: "Practice",
+    icon: Timer,
+    prefixes: [
+      "/guided",
+      "/practice",
+      "/trainer",
+      "/adaptive",
+      "/pathways",
+      "/breathing",
+      "/kids",
+      "/builder",
+      "/pose-coach",
+      "/affirmations",
+    ],
+  },
+  { href: "/asanas", label: "Poses", icon: LayoutGrid, prefixes: ["/asanas"] },
+  {
+    href: "/journal",
+    label: "Progress",
+    icon: NotebookPen,
+    prefixes: ["/journal", "/profiles", "/challenges"],
+  },
+  {
+    href: "/settings",
+    label: "You",
+    icon: UserRound,
+    prefixes: ["/settings", "/account", "/household"],
+  },
 ];
 
 function SidebarSearch() {
@@ -262,44 +244,39 @@ function SidebarSearch() {
   );
 }
 
-function isNavActive(href: string, location: string): boolean {
-  if (href === "/") return location === "/";
-  if (href === "/guided") return location === "/guided" || location === "/practice";
-  return location.startsWith(href);
+function isNavActive(item: NavItem, location: string): boolean {
+  if (item.href === "/") return location === "/";
+  const prefixes = item.prefixes ?? [item.href];
+  return prefixes.some((p) => location === p || location.startsWith(`${p}/`));
 }
 
 function NavMenu() {
   const [location] = useLocation();
   return (
-    <>
-      {NAV_GROUPS.map((group) => (
-        <SidebarGroup key={group.label}>
-          <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {group.items.map((item) => {
-                const active = isNavActive(item.href, location);
-                const Icon = item.icon;
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={active}
-                      data-testid={`nav-${item.label.toLowerCase().split(" ")[0]}`}
-                    >
-                      <Link href={item.href}>
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      ))}
-    </>
+    <SidebarGroup>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {PRIMARY_NAV.map((item) => {
+            const active = isNavActive(item, location);
+            const Icon = item.icon;
+            return (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={active}
+                  data-testid={`nav-${item.label.toLowerCase()}`}
+                >
+                  <Link href={item.href}>
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }
 
@@ -312,9 +289,9 @@ function MobileBottomNav() {
       data-testid="mobile-bottom-nav"
     >
       <ul className="mx-auto grid max-w-lg grid-cols-5">
-        {MOBILE_PRIMARY.map((item) => {
+        {PRIMARY_NAV.map((item) => {
           const Icon = item.icon;
-          const active = isNavActive(item.href, location);
+          const active = isNavActive(item, location);
           return (
             <li key={item.href}>
               <Link

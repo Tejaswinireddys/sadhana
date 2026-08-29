@@ -1,4 +1,4 @@
-import type { Asana, Difficulty } from "@/data/content";
+import type { Asana, Category, Difficulty } from "@/data/content";
 
 /**
  * Structured teaching content for the pose-explanation experience.
@@ -45,63 +45,175 @@ function uniq(items: string[]): string[] {
   return out;
 }
 
-function clipCue(text: string, max = 78): string {
-  const t = text.replace(/\s+/g, " ").replace(/\.+$/, "").trim();
-  if (t.length <= max) return t;
-  const cut = t.lastIndexOf(" ", max);
-  return (cut > 36 ? t.slice(0, cut) : t.slice(0, max)).trim();
+function normalizeCue(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-function isExitOrRepeat(text: string): boolean {
-  return /^(hold,? then|switch sides|unwind|repeat|return and switch|move slow)/i.test(text)
-    || /\bthen (lower|sit|switch|rest|return|release)\b/i.test(text);
+const STOP = new Set([
+  "the", "a", "an", "and", "or", "to", "of", "in", "on", "your", "with",
+  "without", "then", "from", "for", "as", "at", "into", "over", "up", "down",
+  "you", "your", "their", "this", "that",
+]);
+
+function tokens(text: string): Set<string> {
+  return new Set(
+    normalizeCue(text).split(" ").filter((w) => w.length > 2 && !STOP.has(w)),
+  );
+}
+
+/** True when a cue is the same teaching as an entry step (reshuffled how-to). */
+export function cueEchoesSteps(cue: string, steps: readonly { text: string }[]): boolean {
+  const cueN = normalizeCue(cue);
+  if (!cueN) return false;
+  for (const step of steps) {
+    const stepN = normalizeCue(step.text);
+    if (!stepN) continue;
+    if (cueN === stepN) return true;
+    const [shorter, longer] = cueN.length <= stepN.length ? [cueN, stepN] : [stepN, cueN];
+    if (shorter.length >= 20 && longer.includes(shorter)) return true;
+    const ct = tokens(cue);
+    const st = tokens(step.text);
+    if (ct.size < 4 || st.size < 4) continue;
+    let overlap = 0;
+    for (const t of ct) if (st.has(t)) overlap++;
+    const ofCue = overlap / ct.size;
+    const ofStep = overlap / st.size;
+    if (overlap >= 4 && ofCue >= 0.85 && ofStep >= 0.65) return true;
+  }
+  return false;
+}
+
+/** Poses whose catalog cues were copied from steps — teach the sensation instead. */
+const FORM_FEEL: Record<string, string[]> = {
+  "dead-bug": [
+    "Low back glued to the mat, not arched",
+    "Ribs heavy, navel drawing in as the limbs reach",
+    "Opposite limbs long without the belly popping",
+  ],
+  "reverse-tabletop": [
+    "Weight in the hands and feet, hips lifting",
+    "Chest open, not collapsing toward the chin",
+    "Knees tracking over the ankles, not splaying",
+  ],
+  "wall-angel": [
+    "Ribs stay on the wall, not flared",
+    "Wrists and elbows seek the wall without shrugging",
+    "Chin slightly tucked, back of the head light on the wall",
+  ],
+  "couch-hip-flexor": [
+    "Pelvis tucked so the stretch lives in the front of the hip, not the low back",
+    "Front knee tracking over the ankle",
+    "Back thigh heavy, hip pointing down",
+  ],
+  "dolphin-plank": [
+    "Forearms press, shoulders away from the ears",
+    "Hips in one long line — not piked, not sagging",
+    "Heels reaching back, legs alive",
+  ],
+};
+
+const CATEGORY_FEELS: Record<Category, string[]> = {
+  Standing: [
+    "Weight in the heels and the mounds of the big toes, not just the toes",
+    "Ribs knitted toward the midline, not flared",
+    "Crown lifting, shoulders heavy",
+    "Inner thighs drawing toward each other",
+    "Jaw and forehead stay quiet",
+    "Four corners of each foot equally awake",
+  ],
+  Seated: [
+    "Sit bones heavy, not perched on the tail",
+    "Spine stacking on each inhale, not collapsing",
+    "Thighs releasing instead of gripping",
+    "Shoulders dropping away from the ears",
+    "Belly soft enough that the breath can drop",
+    "Crown lifting without stiffening the jaw",
+  ],
+  "Forward Bends": [
+    "Hinge from the hips, not the waist",
+    "Weight staying in the heels",
+    "Spine long, not rounding to chase the toes",
+    "Neck following the spine, gaze quiet",
+    "Hamstrings lengthening without a yank",
+    "Let the head hang if the neck is willing",
+  ],
+  Backbends: [
+    "Lengthen before you arch",
+    "Press through the foundation so the spine can float",
+    "Throat soft, jaw unclenched",
+    "Glutes engaged just enough to support, not clench",
+    "Chest opening without pinching the low back",
+    "Keep the back of the neck long",
+  ],
+  "Hip Openers": [
+    "Let gravity drop the knees — don't force the stretch",
+    "Pelvis heavy, not tipping to one side",
+    "Inner thighs releasing, not gripping",
+    "Breath dropping into the hips on the exhale",
+    "No yanking — wait for the tissue to yield",
+    "Square the hips even when one side is louder",
+  ],
+  Inversions: [
+    "Weight in the foundation, neck long",
+    "Core lifting the hips rather than dumping into the shoulders",
+    "Gaze steady and quiet",
+    "Fingers spread, pressing the whole palm",
+    "Shoulders away from the ears even upside down",
+    "Legs reaching as if the floor were still under the feet",
+  ],
+  Restorative: [
+    "Body heavy into the support",
+    "Jaw and forehead soft",
+    "Breath unforced — no pushing the range",
+    "Let the floor or props hold you",
+    "Eyes easy, even if they stay open",
+    "Nothing to perform — rest is the work",
+  ],
+};
+
+function hashSlug(slug: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < slug.length; i++) {
+    h ^= slug.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
 }
 
 /**
- * Three real coaching cues from the pose's own steps, zones, and modifications.
- * Used when variation copy is still the shared placeholder triplet.
+ * Three alignment/sensation cues — never entry steps, stretch-zone copy, or benefits.
+ * Used when variation cues are placeholders or a reshuffle of How to practice.
  */
-export function coachingCuesFor(asana: Asana, level: Difficulty = "Intermediate"): string[] {
-  const steps = asana.steps
-    .map((s) => s.text.trim())
-    .filter((t) => t.length >= 16 && !isExitOrRepeat(t))
-    .map((t) => clipCue(t));
+export function coachingCuesFor(asana: Asana, _level: Difficulty = "Intermediate"): string[] {
+  const authored = FORM_FEEL[asana.slug];
+  if (authored) return authored.slice(0, 3);
 
-  // Middle steps are the shape; the first is often just getting there.
-  const ordered =
-    steps.length >= 3 ? [steps[1]!, steps[2]!, steps[0]!] : steps;
-
-  const zone = asana.stretchZones.find((z) => z.primary);
-  const zoneCue = zone ? clipCue(`${zone.region}: ${zone.sensation}`) : "";
-  const extras = uniq(
-    [
-      zoneCue,
-      clipCue(asana.breathing),
-      asana.benefits[0] ? clipCue(asana.benefits[0]) : "",
-    ].filter(Boolean),
-  );
-
-  let cues = uniq([...ordered, ...extras]).slice(0, 3);
-
-  if (level === "Beginner" && asana.modifications) {
-    const mod = clipCue(asana.modifications);
-    if (cues.length < 3) cues.push(mod);
-    else cues[2] = mod;
-  } else if (level === "Advanced") {
-    const edge = asana.benefits[1]
-      ? clipCue(asana.benefits[1])
-      : "Stay at an honest edge without forcing";
-    if (cues.length < 3) cues.push(edge);
-    else cues[2] = edge;
+  const bank = CATEGORY_FEELS[asana.category];
+  const start = hashSlug(asana.slug) % bank.length;
+  const cues: string[] = [];
+  for (let i = 0; i < bank.length && cues.length < 3; i++) {
+    const next = bank[(start + i) % bank.length]!;
+    if (!cueEchoesSteps(next, asana.steps)) cues.push(next);
   }
 
   while (cues.length < 3) {
-    const fallback = clipCue(asana.summary);
-    if (!fallback || cues.some((c) => c.toLowerCase() === fallback.toLowerCase())) break;
-    cues.push(fallback);
+    const fallback = "Soften the face and stay at an honest edge";
+    if (!cues.includes(fallback)) cues.push(fallback);
+    else break;
   }
 
   return cues.slice(0, 3);
+}
+
+function formCuesFromCatalog(asana: Asana, rawForm: string[], level: Difficulty): string[] {
+  if (isPlaceholderCues(rawForm)) return coachingCuesFor(asana, level);
+  const kept = rawForm.filter((c) => !cueEchoesSteps(c, asana.steps));
+  if (kept.length < 3) return coachingCuesFor(asana, level);
+  return kept.slice(0, 5);
 }
 
 /**
@@ -127,9 +239,7 @@ export function buildPoseExplanation(
     ...(primary.cues.length ? primary.cues : intermediate.cues),
     ...(!primary.cues.length && !intermediate.cues.length ? beginner.cues : []),
   ]);
-  const formCues = isPlaceholderCues(rawForm)
-    ? coachingCuesFor(asana, level)
-    : rawForm.slice(0, 5);
+  const formCues = formCuesFromCatalog(asana, rawForm, level);
 
   const alignmentTips = uniq([
     ...asana.steps

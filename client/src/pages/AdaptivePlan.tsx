@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { FadeIn } from "@/components/motion";
@@ -37,6 +37,9 @@ export default function AdaptivePlan() {
   const [variant, setVariant] = useState(0);
   const [locked, setLocked] = useState<string[]>([]);
   const [result, setResult] = useState<ReturnType<typeof generateAdaptiveSession> | null>(null);
+  // Number, not a boolean — a stale `minutes` closure in the history effect
+  // was rebuilding the 15-minute suggestion while the chip stayed on 20/25.
+  const pickedMinutesRef = useRef<number | null>(null);
 
   const build = (mins: number, v: number, lockSlugs = locked) => {
     const advice = adviseNextSession(readOutcomes(), {
@@ -53,17 +56,25 @@ export default function AdaptivePlan() {
     });
   };
 
+  const pickMinutes = (m: number) => {
+    pickedMinutesRef.current = m;
+    setMinutes(m);
+    setVariant(0);
+    setResult(build(m, 0));
+  };
+
   useEffect(() => {
     if (!historyReady) return;
     const advice = adviseNextSession(readOutcomes(), {
       sessions: sessions ?? [],
       journal: journal ?? [],
     });
-    setMinutes(advice.maxMinutes);
+    const mins = pickedMinutesRef.current ?? advice.maxMinutes;
+    if (pickedMinutesRef.current == null) setMinutes(advice.maxMinutes);
     setVariant(0);
     setResult(
       generateAdaptiveSession({
-        intentMinutes: advice.maxMinutes,
+        intentMinutes: mins,
         variant: 0,
         adviceOverride: advice,
         soreParts: advice.soreParts,
@@ -164,11 +175,8 @@ export default function AdaptivePlan() {
             size="sm"
             className="min-h-11"
             variant={minutes === m ? "default" : "outline"}
-            onClick={() => {
-              setMinutes(m);
-              setVariant(0);
-              setResult(build(m, 0));
-            }}
+            data-testid={`adaptive-minutes-${m}`}
+            onClick={() => pickMinutes(m)}
           >
             {m} min
           </Button>
@@ -182,6 +190,21 @@ export default function AdaptivePlan() {
           Regenerate
         </Button>
       </div>
+      {(result.advice.intensity === "easy" || result.advice.intensity === "recover") &&
+        minutes <= result.advice.maxMinutes &&
+        result.advice.maxMinutes < 25 && (
+          <p className="text-sm text-muted-foreground" data-testid="adaptive-duration-override">
+            Easing today after some skipped poses — suggested {result.advice.maxMinutes} min.{" "}
+            <button
+              type="button"
+              className="font-medium text-foreground underline underline-offset-2"
+              onClick={() => pickMinutes(25)}
+              data-testid="adaptive-use-longer"
+            >
+              Use 25 anyway?
+            </button>
+          </p>
+        )}
 
       <ul className="space-y-3">
         {result.session.poses.map((p) => {

@@ -47,7 +47,7 @@ type Draft = {
 const emptyDraft: Draft = { title: "", body: "", mood: "", tags: "" };
 
 export default function Journal() {
-  useDocumentTitle("Journal · Sadhana");
+  useDocumentTitle("Progress · Sadhana");
   const { toast } = useToast();
   const { data: entries = [], isLoading } = useQuery<JournalEntry[]>({ queryKey: ["/api/journal"] });
 
@@ -131,9 +131,20 @@ export default function Journal() {
   return (
     <div className="animate-fade-in space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="font-serif text-3xl font-semibold tracking-tight">Journal</h1>
-          <p className="text-muted-foreground">Reflect on your practice and track how you feel.</p>
+        <div className="space-y-2">
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">Progress</h1>
+          <p className="text-muted-foreground">Journal, path, and challenges.</p>
+          <div className="flex flex-wrap gap-2" role="navigation" aria-label="Progress">
+            <Button size="sm" asChild>
+              <Link href="/journal">Journal</Link>
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/profiles">My path</Link>
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/challenges">Challenges</Link>
+            </Button>
+          </div>
         </div>
         <Button onClick={() => { setDraft(emptyDraft); setOpen(true); }} data-testid="button-new-entry">
           <Plus className="mr-1.5 h-4 w-4" /> New entry

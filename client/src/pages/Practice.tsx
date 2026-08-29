@@ -10,6 +10,7 @@ import { usePractice } from "@/context/PracticeContext";
 import { useToast } from "@/hooks/use-toast";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { logPracticeSession } from "@/lib/logPracticeSession";
+import { resolvePreMood, shouldAskPreMood } from "@/lib/moods";
 import { sessionCredit, sessionHeadline } from "@/lib/sessionCredit";
 import { breathBySlug, type Mood } from "@/data/content";
 import { Link } from "wouter";
@@ -77,10 +78,11 @@ export default function Practice() {
   const [saving, setSaving] = useState(false);
   const lastPostMood = useRef<Mood | null>(null);
 
-  // Mood check-in state (v3.4)
+  // Mood check-in state (v3.4) — skip premood when a Home mood session already set it.
+  const knownPreMood = resolvePreMood(meta.preMood, meta.label);
   const [showPreMood, setShowPreMood] = useState(false);
   const [showPostMood, setShowPostMood] = useState(false);
-  const [preMood, setPreMood] = useState<Mood | null>(null);
+  const [preMood, setPreMood] = useState<Mood | null>(knownPreMood);
   const [postMood, setPostMood] = useState<Mood | null>(null);
   const [confetti, setConfetti] = useState(false);
   const finishedMinutes = useRef(1);
@@ -196,9 +198,15 @@ export default function Practice() {
     }
   }, [elapsedTotal, todays.length, saveProgress]);
 
-  // Step 1 of begin: show the pre-mood prompt (optional).
+  // Step 1 of begin: show the pre-mood prompt (optional) unless mood is known.
   const requestBegin = () => {
     if (todays.length === 0) return;
+    const known = resolvePreMood(meta.preMood, meta.label);
+    if (!shouldAskPreMood(known)) {
+      setPreMood(known);
+      startTimer();
+      return;
+    }
     setShowPreMood(true);
   };
 
@@ -305,6 +313,8 @@ export default function Practice() {
               counts: credited,
               minutes: finishedMinutes.current,
               endedEarly,
+              posesCompleted: completedIndices.current.size,
+              posesTotal: todays.length,
             })}
           </h1>
           <p className="text-muted-foreground">

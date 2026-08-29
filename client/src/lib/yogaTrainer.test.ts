@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { composeTrainerSession, NEED_OPTIONS, SEQUENCES } from "./yogaTrainer";
+import { composeTrainerSession, NEED_OPTIONS, SEQUENCES, poseArcRank } from "./yogaTrainer";
 import { asanaBySlug } from "@/data/content";
 import { profileById } from "@/data/profiles";
 
@@ -243,5 +243,64 @@ describe("composeTrainerSession — regenerate variants", () => {
       v1.poses.map((p) => p.slug),
       v0.poses.map((p) => p.slug),
     );
+  });
+
+  it("keeps the warm-up → build → peak → cool-down → rest arc on every variant", () => {
+    for (const { id } of NEED_OPTIONS) {
+      for (const variant of [0, 1, 2, 3]) {
+        const s = composeTrainerSession({ ...base, timeMinutes: 20, need: id }, { variant });
+        const ranks = s.poses.map((p) => poseArcRank(p.slug));
+        for (let i = 1; i < ranks.length; i++) {
+          assert.ok(
+            ranks[i]! >= ranks[i - 1]!,
+            `${id} v${variant} broke the arc: ${s.poses.map((p) => p.slug).join(" → ")}`,
+          );
+        }
+        assert.ok(
+          CLOSING.includes(s.poses[s.poses.length - 1]!.slug),
+          `${id} v${variant} ended on ${s.poses[s.poses.length - 1]!.slug}`,
+        );
+      }
+    }
+  });
+
+  it("never opens a calm practice on a closing twist", () => {
+    for (const variant of [0, 1, 2, 3, 4]) {
+      const s = composeTrainerSession({ ...base, need: "calm" }, { variant });
+      assert.notEqual(s.poses[0]!.slug, "supta-matsyendrasana", `v${variant} opened on Supine Twist`);
+      const twist = s.poses.findIndex((p) => p.slug === "supta-matsyendrasana");
+      const seat = s.poses.findIndex((p) => p.slug === "sukhasana");
+      if (twist >= 0 && seat >= 0) {
+        assert.ok(seat < twist, `Easy Seat after twist in v${variant}`);
+      }
+    }
+  });
+
+  it("gives a longer calm request more poses, not the same five stretched", () => {
+    const short = composeTrainerSession({ ...base, timeMinutes: 10, need: "calm" });
+    const long = composeTrainerSession({ ...base, timeMinutes: 25, need: "calm" });
+    assert.ok(
+      long.poses.length > short.poses.length,
+      `10min had ${short.poses.length} poses, 25min had ${long.poses.length}`,
+    );
+    assert.ok(long.totalMinutes >= 22, `25min calm composed ${long.totalMinutes}`);
+  });
+});
+
+describe("composeTrainerSession — a steady practice stands up", () => {
+  it("includes standing poses for movement at every duration", () => {
+    for (const minutes of [10, 15, 20, 25]) {
+      for (const variant of [0, 1, 2]) {
+        const s = composeTrainerSession(
+          { ...base, timeMinutes: minutes, need: "movement" },
+          { variant },
+        );
+        const standing = s.poses.filter((p) => asanaBySlug(p.slug)?.category === "Standing");
+        assert.ok(
+          standing.length >= 1,
+          `${minutes}min v${variant} had no standing poses: ${s.poses.map((p) => p.slug).join(", ")}`,
+        );
+      }
+    }
   });
 });

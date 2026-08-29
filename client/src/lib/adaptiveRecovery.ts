@@ -3,6 +3,7 @@
  * Conservative by default — never increases load after high effort or pain flags.
  */
 import { ASANAS, asanaBySlug } from "@/data/content";
+import { isLowEnergyMood } from "./moods";
 import { KEYS, readJson, writeJson } from "./localPrefs";
 
 export type RpeScore = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
@@ -118,7 +119,7 @@ function capReasons(reasons: string[]): string[] {
 const EMPTY_ADVICE: AdaptiveAdvice = {
   intensity: "steady",
   holdScale: 1,
-  preferNeed: "calm",
+  preferNeed: "movement",
   maxMinutes: 20,
   reasons: ["No recent effort data — starting with a steady, moderate plan."],
   headline: "A steady practice for today",
@@ -159,7 +160,7 @@ export function adviseNextSession(
   const tiredNotes = [
     ...weekJournal.map((j) => j.mood),
     ...weekSessions.flatMap((s) => [s.postMood, s.preMood]),
-  ].filter((m) => m === "Tired" || m === "Stressed").length;
+  ].filter((m) => isLowEnergyMood(m)).length;
 
   if (sessions.length > 0) {
     reasons.push(
@@ -307,7 +308,9 @@ export function adviseNextSession(
 
 export function scaleHoldSeconds(base: number, scale: number): number {
   const n = Math.round(base * scale);
-  return Math.min(180, Math.max(15, n));
+  // Restorative holds may already be above 180s; don't clip the class shorter
+  // than the composer just built.
+  return Math.min(300, Math.max(15, n));
 }
 
 /** Persist last RPE for Trainer/Home without stuffing journal text. */

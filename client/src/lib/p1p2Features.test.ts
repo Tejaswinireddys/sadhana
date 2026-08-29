@@ -1,7 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { ANALYTICS_EVENTS, track, readAnalyticsCounts, writeAnalyticsPrefs } from "./analytics";
-import { pronunciationFor } from "./sanskritPronunciation";
+import { pronunciationFor, shouldShowPronunciation } from "./sanskritPronunciation";
 import { DEFAULT_HABIT_PLAN, isHabitDay, inQuietHours } from "./habitPlan";
 import { PLANS } from "./plans";
 import { CONTENT_SCHEMA_VERSION } from "../data/contentProvenance";
@@ -30,6 +32,21 @@ describe("sanskrit pronunciation", () => {
   it("falls back for unknown slugs", () => {
     const p = pronunciationFor("unknown-pose", "Unknown");
     assert.equal(p.transliteration, "Unknown");
+  });
+
+  it("hides pronunciation when sanskrit matches english after normalize", () => {
+    assert.equal(shouldShowPronunciation("Dead Bug", "Dead Bug"), false);
+    assert.equal(shouldShowPronunciation("dead bug", "Dead Bug"), false);
+    assert.equal(shouldShowPronunciation("Dead  Bug!", "dead-bug"), false);
+  });
+
+  it("shows pronunciation when sanskrit differs from english", () => {
+    assert.equal(shouldShowPronunciation("Mountain Pose", "Tadasana"), true);
+  });
+
+  it("gates the asana detail pronunciation block on that check", () => {
+    const src = readFileSync(resolve("client/src/pages/AsanaDetail.tsx"), "utf8");
+    assert.match(src, /shouldShowPronunciation\(asana\.english, asana\.sanskrit\)/);
   });
 });
 

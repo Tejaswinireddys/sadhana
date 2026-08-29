@@ -30,6 +30,7 @@ export function HomeWelcomeHeader({
   return (
     <header className="grid gap-6 md:grid-cols-[1.15fr_0.85fr] md:items-center">
       <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-primary">Today</p>
         <p className="text-sm text-muted-foreground" data-testid="text-today-date">
           {dateLabel}
         </p>

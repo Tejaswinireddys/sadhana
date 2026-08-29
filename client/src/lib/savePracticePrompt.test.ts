@@ -16,7 +16,7 @@ const guest = { isSignedIn: false, now: {} };
 describe("savePromptLevel", () => {
   it("never interrupts someone who hasn't practised yet", () => {
     // A wall in front of the first session is how a wellness app dies.
-    assert.equal(savePromptLevel({ ...guest, totalSessions: 0, atSessionBoundary: true }), "none");
+    assert.equal(savePromptLevel({ ...guest, totalSessions: 0, atCompletion: true }), "none");
   });
 
   it("shows the soft banner once there is something to lose", () => {
@@ -34,28 +34,44 @@ describe("savePromptLevel", () => {
     );
   });
 
-  it("blocks only at a session boundary, never mid-practice", () => {
+  it("never blocks the start of a session", () => {
     const at = { ...guest, totalSessions: BLOCKING_AFTER_SESSIONS };
-    assert.equal(savePromptLevel({ ...at, atSessionBoundary: true }), "blocking");
-    assert.equal(savePromptLevel({ ...at, atSessionBoundary: false }), "banner");
+    assert.equal(savePromptLevel({ ...at, atCompletion: false }), "banner");
+    assert.equal(savePromptLevel(at), "banner", "starting a mood session is not a gate");
   });
 
-  it("does not re-block until the stakes have actually risen", () => {
-    const declined = { blockedAt: 3 };
+  it("offers a save prompt after a completed session, not before", () => {
+    const at = { ...guest, totalSessions: BLOCKING_AFTER_SESSIONS };
+    assert.equal(savePromptLevel({ ...at, atCompletion: true }), "blocking");
+  });
+
+  it("does not re-prompt within a week", () => {
+    const today = new Date().toISOString().slice(0, 10);
     assert.equal(
-      savePromptLevel({ ...guest, totalSessions: 3, atSessionBoundary: true, now: declined }),
+      savePromptLevel({
+        ...guest,
+        totalSessions: 9,
+        atCompletion: true,
+        now: { blockedOn: today },
+      }),
       "banner",
-      "re-blocking on the very next session is a dark pattern",
+      "once a week — not after every practice",
     );
     assert.equal(
-      savePromptLevel({ ...guest, totalSessions: 4, atSessionBoundary: true, now: declined }),
+      savePromptLevel({
+        ...guest,
+        totalSessions: 9,
+        atCompletion: true,
+        now: { blockedOn: "2026-01-01" },
+        clock: new Date(2026, 7, 28),
+      }),
       "blocking",
     );
   });
 
   it("never prompts a signed-in practitioner", () => {
     assert.equal(
-      savePromptLevel({ isSignedIn: true, totalSessions: 99, atSessionBoundary: true, now: {} }),
+      savePromptLevel({ isSignedIn: true, totalSessions: 99, atCompletion: true, now: {} }),
       "none",
     );
   });
@@ -125,9 +141,26 @@ describe("save-practice CTAs point at real email signup", () => {
     const prompt = readFileSync(resolve("client/src/components/SavePracticePrompt.tsx"), "utf8");
     assert.match(prompt, /href="\/account\?tab=create"/);
     assert.equal(prompt.includes("/register?intent=save"), false);
+    assert.equal(
+      prompt.includes("There's no way for us to give it back"),
+      false,
+      "loss-framed copy on the save prompt",
+    );
+    assert.equal(prompt.includes("Keep your practice before you go further"), false);
 
     const gate = readFileSync(resolve("client/src/components/SignInGate.tsx"), "utf8");
     assert.match(gate, /href="\/account\?tab=create"/);
     assert.equal(gate.includes("/register?"), false);
+  });
+
+  it("does not mount a save wall on the guided pre-start screen", () => {
+    const src = readFileSync(resolve("client/src/pages/GuidedSession.tsx"), "utf8");
+    const preStart = src.slice(src.indexOf("// ---- pre-start"));
+    assert.equal(
+      preStart.includes("SavePracticeDialog") || preStart.includes("SavePracticeComplete"),
+      false,
+      "account wall still sits in front of the session",
+    );
+    assert.match(src, /SavePracticeCompleteCard/);
   });
 });

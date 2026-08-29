@@ -35,7 +35,7 @@ import {
 import { MoodCheckIn } from "@/components/MoodCheckIn";
 import { Confetti } from "@/components/Confetti";
 import { FullScreenOverlay } from "@/components/FullScreenOverlay";
-import { SavePracticeDialog } from "@/components/SavePracticePrompt";
+import { SavePracticeCompleteCard } from "@/components/SavePracticePrompt";
 import { declineBlocking, savePromptLevel } from "@/lib/savePracticePrompt";
 import { useAuth } from "@/lib/auth";
 import { todayISO, type Stats } from "@/lib/sadhana";
@@ -87,11 +87,12 @@ import { preloadPoseVideo, clearPreloadedPoseVideo } from "@/lib/videoPreload";
 import { StreamVideo } from "@/components/StreamVideo";
 import {
   QUICK_SESSIONS,
-  sessionMinutes,
+  quickSessionMeta,
   sessionTimeLabel,
   TRANSITION_SECONDS,
   SIDE_SWITCH_SECONDS,
 } from "@/data/quickSessions";
+import { resolvePreMood, shouldAskPreMood } from "@/lib/moods";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { resolveStepAt } from "@/lib/narrationTiming";
 import { cuesToStepTimings, type NarrationCue } from "@/lib/narrationCues";
@@ -171,7 +172,7 @@ type StageLayer = {
 const mmss = formatClock;
 
 export default function GuidedSession() {
-  useDocumentTitle("Guided practice · Sadhana");
+  useDocumentTitle("Practice · Sadhana");
   const {
     todays,
     meta,
@@ -195,12 +196,7 @@ export default function GuidedSession() {
         (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
           x != null,
       );
-    loadSession(poses, {
-      label: q.label,
-      plannedMinutes: sessionMinutes(q.poses),
-      breathSlug: q.breathSlug ?? null,
-      introPoseSlug: q.introPoseSlug ?? q.poses[0]?.slug ?? null,
-    });
+    loadSession(poses, quickSessionMeta(q));
   };
 
   const startWarmup = () => {
@@ -219,12 +215,11 @@ export default function GuidedSession() {
   };
 
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
-  // The gate is evaluated at the session boundary only — never mid-practice.
   const { isSignedIn } = useAuth();
   const { data: guestStats } = useQuery<Stats>({
     queryKey: ["/api/sessions/stats", todayISO()],
   });
-  const [guestAcknowledged, setGuestAcknowledged] = useState(false);
+  const [savePromptDismissed, setSavePromptDismissed] = useState(false);
   const voiceEnabled = prefs ? prefs.voiceEnabled !== 0 : true;
   const allowRobotVoice = prefs ? prefs.allowRobotVoice === 1 : false;
 
@@ -270,10 +265,11 @@ export default function GuidedSession() {
 
   // ---- completion / mood state ----------------------------------------------
   const [finished, setFinished] = useState(false);
-  // Suppressed when an upstream flow (the Trainer) already collected it.
-  const [showPreMood, setShowPreMood] = useState(!meta.preMood);
+  // Skip when mood is already known (Trainer energy, or a Home mood-session tap).
+  const knownPreMood = resolvePreMood(meta.preMood, meta.label);
+  const [showPreMood, setShowPreMood] = useState(shouldAskPreMood(knownPreMood));
   const [showPostMood, setShowPostMood] = useState(false);
-  const [preMood, setPreMood] = useState<Mood | null>(meta.preMood ?? null);
+  const [preMood, setPreMood] = useState<Mood | null>(knownPreMood);
   const [postMood, setPostMood] = useState<Mood | null>(null);
   const [rpe, setRpe] = useState<number | null>(null);
   const [showRpe, setShowRpe] = useState(false);
@@ -301,7 +297,6 @@ export default function GuidedSession() {
   }));
   const [endedEarly, setEndedEarly] = useState(false);
   const [credited, setCredited] = useState(true);
-  const [exitPreview, setExitPreview] = useState<SessionCredit | null>(null);
   // Seconds already attributed to a logged session — lets "Do one more pose"
   // log only the *additional* time instead of double-counting the whole run.
   const loggedSeconds = useRef(0);
@@ -326,6 +321,13 @@ export default function GuidedSession() {
     () => (meta.introPoseSlug ? manifestToVideoSources(meta.introPoseSlug, introMedia) : null),
     [meta.introPoseSlug, introMedia],
   );
+  // Keep premood in sync if a mood session is loaded onto this already-mounted page.
+  useEffect(() => {
+    if (started) return;
+    const known = resolvePreMood(meta.preMood, meta.label);
+    setPreMood(known);
+    setShowPreMood(shouldAskPreMood(known));
+  }, [meta.preMood, meta.label, started]);
   const holdCues = useMemo(
     () => (current ? practiceHoldCues(current) : FALLBACK_HOLD_CUES),
     [current],
@@ -562,6 +564,12 @@ export default function GuidedSession() {
     if (sessionProgress.side) setSide(sessionProgress.side);
     setElapsedTotal(sessionProgress.elapsedTotal ?? 0);
     elapsedRef.current = sessionProgress.elapsedTotal ?? 0;
+    holdElapsed.current = sessionProgress.holdElapsed ?? 0;
+    holdSecondsRef.current = sessionProgress.holdElapsed ?? 0;
+    completedIndices.current = new Set(
+      sessionProgress.completedIndices ?? Array.from({ length: i }, (_, n) => n),
+    );
+    skippedIndices.current = new Set(sessionProgress.skippedIndices ?? []);
     setStarted(!!sessionProgress.started);
     setPaused(true);
     setShowPreMood(false);
@@ -584,6 +592,9 @@ export default function GuidedSession() {
       started: true,
       elapsedTotal,
       paused,
+      holdElapsed: holdElapsed.current,
+      completedIndices: [...completedIndices.current],
+      skippedIndices: [...skippedIndices.current],
     });
   }, [
     started,
@@ -654,6 +665,15 @@ export default function GuidedSession() {
     [todays, meta, preMood, rpe, toast, saving, saveProgress],
   );
 
+  const creditNow = (): SessionCredit =>
+    sessionCredit({
+      holdSeconds: holdElapsed.current,
+      elapsedSeconds: elapsedRef.current,
+      posesCompleted: completedIndices.current.size,
+      posesSkipped: skippedIndices.current.size,
+      posesTotal: todays.length,
+    });
+
   const finish = useCallback((opts?: { endedEarly?: boolean }) => {
     const a = audioRef.current;
     if (a) a.pause();
@@ -663,13 +683,7 @@ export default function GuidedSession() {
       /* ignore */
     }
     const early = !!opts?.endedEarly;
-    const credit = sessionCredit({
-      holdSeconds: holdElapsed.current,
-      elapsedSeconds: elapsedRef.current,
-      posesCompleted: completedIndices.current.size,
-      posesSkipped: skippedIndices.current.size,
-      posesTotal: todays.length,
-    });
+    const credit = creditNow();
     creditRef.current = credit;
     posesCompleted.current = credit.posesCompleted;
     const newSeconds = Math.max(0, elapsedRef.current - loggedSeconds.current);
@@ -1123,15 +1137,6 @@ export default function GuidedSession() {
       navigate("/");
       return;
     }
-    setExitPreview(
-      sessionCredit({
-        holdSeconds: holdElapsed.current,
-        elapsedSeconds: elapsedRef.current,
-        posesCompleted: completedIndices.current.size,
-        posesSkipped: skippedIndices.current.size,
-        posesTotal: todays.length,
-      }),
-    );
     setConfirmExit(true);
   };
 
@@ -1140,7 +1145,7 @@ export default function GuidedSession() {
     return (
       <div className="animate-fade-in space-y-8" data-testid="practice-hub">
         <header className="space-y-1">
-          <h1 className="font-serif text-3xl font-semibold tracking-tight">Start practice</h1>
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">Practice</h1>
           <p className="text-muted-foreground">
             Ask the Yoga Trainer, choose how you feel, warm up, or open a pathway — then begin a guided voice session.
           </p>
@@ -1223,7 +1228,7 @@ export default function GuidedSession() {
               <p className="text-sm text-muted-foreground">Pick poses from the library or Builder.</p>
               <div className="flex flex-wrap gap-2">
                 <Button asChild variant="outline" size="sm" data-testid="button-go-library">
-                  <Link href="/asanas">Library</Link>
+                  <Link href="/asanas">Poses</Link>
                 </Button>
                 <Button asChild variant="ghost" size="sm" data-testid="button-hub-builder">
                   <Link href="/builder">Builder</Link>
@@ -1231,6 +1236,17 @@ export default function GuidedSession() {
               </div>
             </CardContent>
           </Card>
+        </section>
+        <section className="flex flex-wrap gap-2" aria-label="More ways to practice">
+          <Button asChild variant="outline" size="sm" data-testid="button-hub-adaptive">
+            <Link href="/adaptive">Adaptive plan</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" data-testid="button-hub-breathing">
+            <Link href="/breathing">Breathing</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" data-testid="button-hub-kids">
+            <Link href="/kids">Kids</Link>
+          </Button>
         </section>
       </div>
     );
@@ -1346,6 +1362,8 @@ export default function GuidedSession() {
               counts: credited,
               minutes: finishedMinutes.current,
               endedEarly,
+              posesCompleted: posesCompleted.current,
+              posesTotal: todays.length,
             })}
           </h1>
           <div className="flex flex-wrap items-start justify-center gap-8 text-center">
@@ -1425,6 +1443,22 @@ export default function GuidedSession() {
               Retry save
             </Button>
           )}
+          {credited &&
+            !savePromptDismissed &&
+            savePromptLevel({
+              isSignedIn,
+              totalSessions: guestStats?.totalSessions ?? 0,
+              atCompletion: true,
+            }) === "blocking" && (
+              <SavePracticeCompleteCard
+                totalSessions={guestStats?.totalSessions ?? 0}
+                currentStreak={guestStats?.currentStreak ?? 0}
+                onDismiss={() => {
+                  declineBlocking(guestStats?.totalSessions ?? 0);
+                  setSavePromptDismissed(true);
+                }}
+              />
+            )}
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
             <Button
               size="lg"
@@ -1492,26 +1526,10 @@ export default function GuidedSession() {
 
   // ---- pre-start: pre-mood check-in, then auto-begin ------------------------
   if (!started) {
-    const totalSessions = guestStats?.totalSessions ?? 0;
-    const gate =
-      guestAcknowledged
-        ? "none"
-        : savePromptLevel({ isSignedIn, totalSessions, atSessionBoundary: true });
-    const blocked = gate === "blocking";
-
     return (
       <>
-        <SavePracticeDialog
-          open={blocked}
-          totalSessions={totalSessions}
-          currentStreak={guestStats?.currentStreak ?? 0}
-          onContinueAsGuest={() => {
-            declineBlocking(totalSessions);
-            setGuestAcknowledged(true);
-          }}
-        />
         <MoodCheckIn
-          open={showPreMood && !blocked}
+          open={showPreMood && shouldAskPreMood(knownPreMood)}
           title="How are you feeling?"
           description="Optional — a quick check-in before your guided flow."
           confirmLabel="Skip"
@@ -1529,7 +1547,7 @@ export default function GuidedSession() {
         />
         <div className="animate-fade-in flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
           <MicVocal className="h-10 w-10 text-primary" />
-          <h1 className="font-serif text-3xl">Guided session</h1>
+          <h1 className="font-serif text-3xl">Practice</h1>
           <p className="max-w-md text-muted-foreground">
             {meta.label ? `${meta.label} · ` : ""}
             {todays.length} poses · a continuous voice-narrated flow.
@@ -1575,14 +1593,7 @@ export default function GuidedSession() {
   // ---- running screen -------------------------------------------------------
   const progress = todays.length > 0 ? (index / todays.length) * 100 : 0;
   const isHold = phase === "hold";
-  const exitCopy = sessionExitCopy(
-    exitPreview ?? {
-      counts: false,
-      minutes: 0,
-      posesCompleted: 0,
-      posesSkipped: 0,
-    },
-  );
+  const exitCopy = sessionExitCopy(creditNow());
   const bottomCountdown =
     phase === "transitionIn"
       ? phaseRemaining
@@ -1618,7 +1629,7 @@ export default function GuidedSession() {
         : [];
 
   return (
-    <FullScreenOverlay label="Guided practice session">
+    <FullScreenOverlay label="Practice session">
     <div
       className="fixed inset-0 z-50 flex flex-col bg-background"
       data-testid="guided-session"
@@ -2043,15 +2054,7 @@ export default function GuidedSession() {
             <AlertDialogCancel data-testid="button-exit-cancel">Stay</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                const preview =
-                  exitPreview ??
-                  sessionCredit({
-                    holdSeconds: holdElapsed.current,
-                    elapsedSeconds: elapsedRef.current,
-                    posesCompleted: completedIndices.current.size,
-                    posesSkipped: skippedIndices.current.size,
-                    posesTotal: todays.length,
-                  });
+                const preview = creditNow();
                 if (preview.counts) {
                   finish({ endedEarly: true });
                   return;

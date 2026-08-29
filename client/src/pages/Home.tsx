@@ -27,7 +27,7 @@ import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/l
 import { isHabitDay, readHabitPlan } from "@/lib/habitPlan";
 import type { UserProfile, Enrollment, FavoriteAsana, CustomFlow, Journal } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
-import { QUICK_SESSIONS, sessionMinutes, sessionTimeLabel } from "@/data/quickSessions";
+import { QUICK_SESSIONS, quickSessionMeta, sessionTimeLabel } from "@/data/quickSessions";
 import { EmptyState } from "@/components/EmptyState";
 import { ScrollRow } from "@/components/ScrollRow";
 import { ResponsiveDetails } from "@/components/ResponsiveDetails";
@@ -63,6 +63,8 @@ import {
   Settings as SettingsIcon,
   LogIn,
   BookMarked,
+  Timer,
+  Users,
 } from "lucide-react";
 
 const MS_PER_DAY = 86400000;
@@ -142,7 +144,7 @@ function StatCard({
 }
 
 export default function Home() {
-  useDocumentTitle("Home · Sadhana");
+  useDocumentTitle("Today · Sadhana");
   const [, navigate] = useLocation();
   const { todays, remove, loadSession, progress } = usePractice();
   const [reminderDismissed, setReminderDismissed] = useState(false);
@@ -214,11 +216,7 @@ export default function Home() {
         return asana ? { asana, holdSeconds: p.holdSeconds } : null;
       })
       .filter((x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } => x != null);
-    loadSession(poses, {
-      label: q.label,
-      plannedMinutes: sessionMinutes(q.poses),
-      breathSlug: q.breathSlug ?? null,
-    });
+    loadSession(poses, quickSessionMeta(q));
     navigate("/guided");
   };
 
@@ -1247,44 +1245,74 @@ export default function Home() {
 
       <section className="space-y-3" aria-labelledby="explore-more-heading" data-testid="home-explore-more">
         <h2 id="explore-more-heading" className="font-serif text-xl font-semibold tracking-tight">
-          Everything in Sadhana
+          More from Practice, Progress, and You
         </h2>
         <p className="text-sm text-muted-foreground">
-          Every part of the app, always a tap away.
+          Secondary destinations live here — not as extra top-level nav.
         </p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {[
-            { href: "/asanas", label: "Asana library", hint: `${ASANAS.length} illustrated poses`, icon: LayoutGrid },
-            { href: "/pathways", label: "Pathways", hint: "Quick flows and programs", icon: RouteIcon },
-            { href: "/adaptive", label: "Adaptive plan", hint: "Safe practice for how you feel", icon: UserRound },
-            { href: "/trainer", label: "Yoga Trainer", hint: "A practice for today", icon: UserRound },
-            { href: "/builder", label: "Builder", hint: "Craft your own sequence", icon: PlusCircle },
-            { href: "/breathing", label: "Breathing", hint: "Guided pranayama", icon: Wind },
-            { href: "/affirmations", label: "Affirmations", hint: "65 daily intentions", icon: Sparkles },
-            { href: "/journal", label: "Journal", hint: "Reflect after practice", icon: NotebookPen },
-            { href: "/kids", label: "Kids", hint: "Stories and breath games", icon: Smile },
-            { href: "/profiles", label: "My path", hint: "Switch your focus", icon: Compass },
-            { href: "/search", label: "Search", hint: "Find any pose or flow", icon: SearchIcon },
-            { href: "/account", label: "Account", hint: "Sync across devices", icon: UserRound },
-            { href: "/settings", label: "Settings", hint: "Reminders, backup, data", icon: SettingsIcon },
-          ].map(({ href, label, hint, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              data-testid={`home-explore-${label.toLowerCase().replace(/[^a-z]+/g, "-")}`}
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Icon className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium">{label}</span>
-                <span className="block text-xs text-muted-foreground">{hint}</span>
-              </span>
-              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-            </Link>
-          ))}
-        </div>
+        {[
+          {
+            heading: "Practice",
+            items: [
+              { href: "/guided", label: "Practice", hint: "Start a guided session", icon: Timer },
+              { href: "/trainer", label: "Yoga Trainer", hint: "A practice for today", icon: UserRound },
+              { href: "/adaptive", label: "Adaptive plan", hint: "Safe practice for how you feel", icon: Sparkles },
+              { href: "/pathways", label: "Pathways", hint: "Quick flows and programs", icon: RouteIcon },
+              { href: "/builder", label: "Builder", hint: "Craft your own sequence", icon: PlusCircle },
+              { href: "/breathing", label: "Breathing", hint: "Guided pranayama", icon: Wind },
+              { href: "/kids", label: "Kids", hint: "Stories and breath games", icon: Smile },
+              { href: "/affirmations", label: "Affirmations", hint: "65 daily intentions", icon: Sparkles },
+            ],
+          },
+          {
+            heading: "Poses",
+            items: [
+              { href: "/asanas", label: "Poses", hint: `${ASANAS.length} illustrated poses`, icon: LayoutGrid },
+              { href: "/search", label: "Search", hint: "Find any pose or flow", icon: SearchIcon },
+            ],
+          },
+          {
+            heading: "Progress",
+            items: [
+              { href: "/journal", label: "Journal", hint: "Reflect after practice", icon: NotebookPen },
+              { href: "/profiles", label: "My path", hint: "Switch your focus", icon: Compass },
+              { href: "/challenges", label: "Challenges", hint: "Private check-ins, no leaderboards", icon: Sparkles },
+            ],
+          },
+          {
+            heading: "You",
+            items: [
+              { href: "/settings", label: "Settings", hint: "Reminders, backup, data", icon: SettingsIcon },
+              { href: "/account", label: "Account", hint: "Sync across devices", icon: UserRound },
+              { href: "/household", label: "Household", hint: "Shared device, separate roles", icon: Users },
+            ],
+          },
+        ].map((group) => (
+          <div key={group.heading} className="space-y-2">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {group.heading}
+            </h3>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {group.items.map(({ href, label, hint, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  data-testid={`home-explore-${label.toLowerCase().replace(/[^a-z]+/g, "-")}`}
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium">{label}</span>
+                    <span className="block text-xs text-muted-foreground">{hint}</span>
+                  </span>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </section>
     </div>
   );

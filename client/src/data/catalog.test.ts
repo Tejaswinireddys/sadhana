@@ -17,6 +17,7 @@ import { EXTRAS } from "./variations.ts";
 import { STRETCH_ZONES } from "./zones.ts";
 import { BEST_FOR } from "./bestFor.ts";
 import { POSE_KEYS } from "../components/PoseSvg.tsx";
+import { buildPoseExplanation, cueEchoesSteps } from "../lib/poseExplanation.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const POSE_IMAGE_DIR = path.join(ROOT, "client/public/poses");
@@ -126,4 +127,73 @@ test("form cues are pose-specific, not a shared placeholder", () => {
   }
   const clones = [...sharedTriples.values()].filter((slugs) => slugs.length > 1);
   assert.deepEqual(clones, [], "unrelated poses share the same three form cues");
+});
+
+test("Form tab cues are not a permutation of How to practice", () => {
+  const bySlug = Object.fromEntries(ASANAS.map((a) => [a.slug, a]));
+
+  for (const slug of ["dead-bug", "reverse-tabletop", "wall-angel", "tadasana"]) {
+    const asana = bySlug[slug]!;
+    const { formCues } = buildPoseExplanation(asana);
+    assert.ok(formCues.length >= 3, `${slug} should have three form cues`);
+    for (const cue of formCues) {
+      assert.equal(
+        cueEchoesSteps(cue, asana.steps),
+        false,
+        `${slug} form cue still echoes a step: ${cue}`,
+      );
+    }
+  }
+
+  const dead = buildPoseExplanation(bySlug["dead-bug"]!);
+  const table = buildPoseExplanation(bySlug["reverse-tabletop"]!);
+  assert.notEqual(dead.formCues.join("|"), table.formCues.join("|"));
+  assert.ok(
+    dead.formCues.some((c) => /low back/i.test(c)),
+    "Dead Bug should coach the low-back brace, not the entry lie-down",
+  );
+  assert.ok(
+    !dead.formCues.some((c) => /lie on your back/i.test(c)),
+    "Dead Bug Form must not repeat the first how-to step",
+  );
+  assert.ok(
+    table.formCues.some((c) => /chest|hips|knees/i.test(c)),
+    "Reverse Tabletop should coach the lifted shape",
+  );
+
+  const mountain = buildPoseExplanation(bySlug["tadasana"]!);
+  assert.ok(
+    mountain.formCues.some((c) => /crown|feet|kneecaps|shoulders/i.test(c)),
+    "Mountain should keep authored alignment cues",
+  );
+
+  for (const asana of ASANAS) {
+    const { formCues } = buildPoseExplanation(asana);
+    assert.ok(formCues.length >= 3, `${asana.slug} should have three form cues`);
+    for (const cue of formCues) {
+      assert.equal(
+        cueEchoesSteps(cue, asana.steps),
+        false,
+        `${asana.slug} form cue still echoes a step: ${cue}`,
+      );
+    }
+  }
+});
+
+test("categories follow base position, not marketing vibe", () => {
+  const bySlug = Object.fromEntries(ASANAS.map((a) => [a.slug, a]));
+  const dolphin = bySlug["dolphin-plank"]!;
+  const dead = bySlug["dead-bug"]!;
+  const plank = bySlug["kumbhakasana"]!;
+  const chaturanga = bySlug["chaturanga-dandasana"]!;
+  const boat = bySlug["navasana"]!;
+  const birdDog = bySlug["chakravakasana"]!;
+
+  assert.notEqual(dolphin.category, "Standing", "Dolphin Plank is a forearm plank, not a standing pose");
+  assert.notEqual(dead.category, "Restorative", "Dead Bug is a core drill, not a wind-down");
+  assert.notEqual(plank.category, "Standing", "Plank is not on the feet");
+  assert.notEqual(chaturanga.category, "Standing", "Chaturanga is not on the feet");
+  assert.notEqual(birdDog.category, "Restorative", "Bird Dog is a core drill, not a wind-down");
+  assert.equal(dolphin.category, plank.category, "Dolphin Plank should match Plank");
+  assert.equal(dead.category, boat.category, "Dead Bug should match Boat as core work");
 });

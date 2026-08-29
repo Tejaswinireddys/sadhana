@@ -1,7 +1,7 @@
 // Client-side Yoga Trainer composer — builds a safe, personalized sequence
 // from today's check-in without needing an LLM or network.
 
-import { ASANAS, asanaBySlug, type Asana } from "@/data/content";
+import { ASANAS, asanaBySlug, type Asana, type Mood } from "@/data/content";
 
 /** Which audience the active profile targets — gates audience-specific poses/copy. */
 export type TrainerAudience = "All" | "Men" | "Women" | "Pregnancy";
@@ -346,6 +346,29 @@ const BACKFILL: Record<string, string[]> = {
   strength: ["tadasana", "utkatasana", "virabhadrasana-ii", "kumbhakasana", "ardha-navasana", "setu-bandhasana", "salabhasana"],
 };
 
+/**
+ * Extra gentle working poses for calm/sleep. Those sequences are mostly
+ * closers — without this pool a 25-minute request is the same five poses as 15,
+ * just hoping holds can stretch, which they can't past the restorative band.
+ */
+const RESTFUL_FILL = [
+  "sukhasana",
+  "marjaryasana-bitilasana",
+  "supta-baddha-konasana",
+  "paschimottanasana",
+  "supta-matsyendrasana",
+  "pawanmuktasana",
+  "setu-bandhasana",
+  "vajrasana",
+  "makarasana",
+  "shashankasana",
+  "seated-side-bend",
+  "banana-pose",
+  "supta-gomukhasana",
+  "jathara-parivartanasana",
+  "salamba-setu-bandhasana",
+];
+
 /** Last-resort pool when a need-specific backfill can't produce a real session. */
 const SAFE_POOL = [
   "sukhasana",
@@ -436,36 +459,59 @@ function holdLimitsFor(slug: string, pose: Asana, experience: TrainerExperience)
 }
 
 /**
- * Order a set of poses into warm-up → peak → cool-down.
- *
- * The reasoning copy promises the sequence "closes in rest"; before this, the
- * final pose of a strength session was Plank. Now the promise is enforced by
- * construction rather than asserted in a string.
+ * Opening shapes that must start a class even when the catalog files them
+ * as Restorative (Cat-Cow) or Standing (Mountain).
  */
-function arcRank(s: string): number {
+const WARMUPS = new Set([
+  "sukhasana",
+  "vajrasana",
+  "tadasana",
+  "urdhva-hastasana",
+  "marjaryasana-bitilasana",
+  "ardha-uttanasana",
+  "pawanmuktasana",
+]);
+
+/** Arc stages: 0 warm-up → 1 build → 2 peak → 3 cool-down → 4 rest. */
+export function poseArcRank(s: string): number {
   const pose = asanaBySlug(s);
-  if (!pose) return 2;
-  // CLOSERS — not `category === "Restorative"` — decides what ends a session.
-  // The catalog files Cat-Cow as Restorative, and sorting on category put a
-  // spinal warm-up after Savasana.
-  if (CLOSERS.has(s)) return 4; // cool-down
-  if (ISOMETRIC.has(s) || HIGH_LOAD.has(s) || pose.difficulty === "Advanced") return 3; // peak
-  if (GENTLE.has(s) || pose.category === "Restorative") return 0; // warm-up / mobilise
-  if (pose.category === "Seated") return 0;
+  if (!pose) return 1;
+  if (CLOSERS.has(s)) return 4;
+  if (WARMUPS.has(s) || GENTLE.has(s)) return 0;
+  if (ISOMETRIC.has(s) || HIGH_LOAD.has(s) || pose.difficulty === "Advanced") return 2;
   if (pose.category === "Standing") return 1;
-  return 2;
+  if (pose.category === "Hip Openers") {
+    // Kneeling / standing hip openers belong in the build, not after the peak.
+    // Reclined pigeons and figure-fours are the cool-down.
+    if (/^supta-/.test(s) || /reclined|supine/i.test(pose.english)) return 3;
+    return 1;
+  }
+  if (
+    pose.category === "Seated" ||
+    pose.category === "Restorative" ||
+    pose.category === "Forward Bends"
+  ) {
+    return 3;
+  }
+  return 1;
+}
+
+function arcRank(s: string): number {
+  return poseArcRank(s);
 }
 
 function arcOrder(slugs: string[]): string[] {
-  // Order of these checks is the whole algorithm. Testing "Seated" before
-  // "isometric" filed Boat Pose as a warm-up and opened a strength session on
-  // three core holds — a category is not a proxy for effort.
-  // Warm-up first, peak in the middle, rest last; stable within each band so
-  // the sequence's own authored order still shows through.
   return slugs
     .map((s, i) => ({ s, i, r: arcRank(s) }))
     .sort((a, b) => a.r - b.r || a.i - b.i)
     .map((x) => x.s);
+}
+
+export function orderPosesByArc<T extends { slug: string }>(poses: T[]): T[] {
+  return poses
+    .map((p, i) => ({ p, i, r: arcRank(p.slug) }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .map((x) => x.p);
 }
 
 function mulberry32(seed: number): () => number {
@@ -504,11 +550,17 @@ function pickVariantSlugs(slugs: string[], target: number, variant: number): str
   const closers = shuffled(buckets[4]!, variant * 11 + 9).slice(0, 2);
   const workingNeed = Math.max(3, target - closers.length);
   const working: string[] = [];
+  // One from each stage that has poses, so a large warm-up pool cannot starve
+  // standing / peak work when we then fill to length in rank order.
+  for (const b of mixed) {
+    if (working.length >= workingNeed) break;
+    if (b[0] && !working.includes(b[0])) working.push(b[0]);
+  }
   for (const s of mixed.flat()) {
     if (working.length >= workingNeed) break;
     if (!working.includes(s)) working.push(s);
   }
-  return [...working, ...closers.filter((s) => !working.includes(s))];
+  return arcOrder([...working, ...closers.filter((s) => !working.includes(s))]);
 }
 
 /** Minimum number of on-theme working poses before we'll claim a focus. */
@@ -621,9 +673,12 @@ export function composeTrainerSession(
 
   const variant = opts?.variant ?? 0;
   const fillCap = targetPoseCount + (variant > 0 ? 8 : 0);
-  const fillPools = [BACKFILL[key] ?? [], SEQUENCES[key] ?? [], SAFE_POOL].map((pool, i) =>
-    variant > 0 ? shuffled(pool, variant * 17 + i + 1) : pool,
-  );
+  const fillPools = [
+    BACKFILL[key] ?? [],
+    RESTFUL_NEEDS.has(key) ? RESTFUL_FILL : [],
+    SEQUENCES[key] ?? [],
+    SAFE_POOL,
+  ].map((pool, i) => (variant > 0 ? shuffled(pool, variant * 17 + i + 1) : pool));
 
   // Rebuild toward the requested focus first, then fall back to the safe pool.
   for (const pool of fillPools) {
@@ -635,8 +690,14 @@ export function composeTrainerSession(
 
   slugs = Array.from(new Set(slugs));
 
-  // Low energy: trim length rather than swap the focus out from under them.
-  if (lowEnergy) slugs = slugs.slice(0, Math.min(slugs.length, 6));
+  // A movement / strength / energy session with no standing pose is a wind-down
+  // wearing the wrong label. Keep an accessible standing shape in the working set.
+  if (!RESTFUL_NEEDS.has(key) && !slugs.some((s) => asanaBySlug(s)?.category === "Standing")) {
+    const inject = ["tadasana", "urdhva-hastasana", "anjaneyasana", "trikonasana"].find(
+      (s) => safe(s) && !slugs.includes(s),
+    );
+    if (inject) slugs.splice(Math.min(1, slugs.length), 0, inject);
+  }
 
   if (variant === 0) slugs = slugs.slice(0, targetPoseCount);
 
@@ -664,14 +725,25 @@ export function composeTrainerSession(
 
   // Warm-up → peak → cool-down, so the promise of "closes in rest" is a fact
   // about the sequence rather than a claim in a sentence.
-  const lengthTarget = lowEnergy ? Math.min(6, targetPoseCount) : targetPoseCount;
-  slugs = variant > 0 ? pickVariantSlugs(slugs, lengthTarget, variant) : arcOrder(slugs);
+  slugs = variant > 0 ? pickVariantSlugs(slugs, targetPoseCount, variant) : arcOrder(slugs);
+
+  if (
+    deliveredNeed !== "restorative" &&
+    !RESTFUL_NEEDS.has(key) &&
+    !slugs.some((s) => asanaBySlug(s)?.category === "Standing")
+  ) {
+    const inject = ["tadasana", "urdhva-hastasana", "anjaneyasana"].find(
+      (s) => safe(s) && !slugs.includes(s),
+    );
+    if (inject) slugs = arcOrder([...slugs, inject]);
+  }
 
   // At most two closing shapes. Filling a long session's leftover time with
   // four consecutive rest poses is technically "closing in rest" and nobody
   // would call it a practice.
   let closersKept = 0;
   slugs = slugs.filter((s) => !CLOSERS.has(s) || ++closersKept <= 2);
+  slugs = arcOrder(slugs);
 
   // Guarantee the closer AFTER truncation. Doing it before meant balasana and
   // savasana — last in every authored sequence — were the first things the
@@ -814,7 +886,7 @@ export const ENERGY_OPTIONS = ["Energized", "Balanced", "Low", "Exhausted", "Res
  * session and a fourth after it. Reusing the answer we already have means the
  * before/after delta still works with one question fewer.
  */
-export function moodFromEnergy(energy: string): "Calm" | "Grounded" | "Energized" | "Tired" | "Stressed" | null {
+export function moodFromEnergy(energy: string): Mood | null {
   switch (energy) {
     case "Energized":
       return "Energized";

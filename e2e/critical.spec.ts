@@ -80,6 +80,19 @@ test.describe("critical journeys", () => {
     await expect(page.getByRole("link", { name: "Today" }).first()).toBeVisible();
   });
 
+  test("primary nav is five items and Teachers stays off chrome", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/");
+    for (const name of ["Today", "Practice", "Poses", "Progress", "You"] as const) {
+      await expect(page.getByTestId(`nav-${name.toLowerCase()}`)).toBeVisible();
+    }
+    await expect(page.getByRole("link", { name: "Teachers" })).toHaveCount(0);
+    await page.goto("/teachers");
+    await expect(page.getByRole("heading", { name: /Teachers/i })).toBeVisible();
+    await page.goto("/asanas");
+    await expect(page.getByRole("heading", { name: "Poses" })).toBeVisible();
+  });
+
   test("adaptive plan and pose coach routes render", async ({ page }) => {
     await page.goto("/#/adaptive");
     await expect(page.getByTestId("adaptive-start")).toBeVisible();

@@ -48,7 +48,7 @@ import {
 import { downloadHealthWorkout } from "@/lib/healthExport";
 import { todayISO } from "@/lib/sadhana";
 import type { Session } from "@shared/schema";
-import { Moon, Sun, Laptop, Download, Upload, Trash2, Bell, CalendarPlus, Info, UserRound } from "lucide-react";
+import { Moon, Sun, Laptop, Download, Upload, Trash2, Bell, CalendarPlus, Info, UserRound, Users } from "lucide-react";
 import { Link } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -56,7 +56,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 const DEFAULT_REMINDER: ReminderPrefs = { enabled: true, hour: 18, notifications: false };
 
 export default function Settings() {
-  useDocumentTitle("Settings · Sadhana");
+  useDocumentTitle("You · Sadhana");
   const { preference, setPreference } = useTheme();
   const { toast } = useToast();
   const { user, isSignedIn } = useAuth();
@@ -189,11 +189,22 @@ export default function Settings() {
 
   return (
     <div className="animate-fade-in space-y-8">
-      <header className="space-y-1">
-        <h1 className="font-serif text-3xl font-semibold tracking-tight">Settings</h1>
+      <header className="space-y-2">
+        <h1 className="font-serif text-3xl font-semibold tracking-tight">You</h1>
         <p className="text-muted-foreground">
-          Preferences, reminders, and a backup of your practice on this device.
+          Settings, account, and household.
         </p>
+        <div className="flex flex-wrap gap-2" role="navigation" aria-label="You">
+          <Button size="sm" asChild>
+            <Link href="/settings">Settings</Link>
+          </Button>
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/account">Account</Link>
+          </Button>
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/household">Household</Link>
+          </Button>
+        </div>
       </header>
 
       <Card className="surface-inset border-0 shadow-none">
@@ -210,6 +221,12 @@ export default function Settings() {
             <Link href="/account" data-testid="settings-account">
               <UserRound className="h-4 w-4" />
               {isSignedIn ? "Manage account" : "Sign in or create an account"}
+            </Link>
+          </Button>
+          <Button variant="outline" className="min-h-11 w-full cursor-pointer justify-start gap-2" asChild>
+            <Link href="/household" data-testid="settings-household">
+              <Users className="h-4 w-4" />
+              Household
             </Link>
           </Button>
         </CardContent>

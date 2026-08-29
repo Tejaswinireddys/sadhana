@@ -1,17 +1,18 @@
 // Search — global search across poses, breathing, pathways, affirmations, and kids.
 //   - Reads the query from the URL (`/search?q=...`).
-//   - Case-insensitive substring match. No artificial result limit.
+//   - Case-insensitive match, ranked by name / Sanskrit / tags / body.
+//   - Anatomy queries (hip, back, neck, shoulders) map to categories first.
 //   - Groups results by type with section headers and per-group counts.
 //   - Each result links to its detail page; affirmations link to /affirmations.
 import { useEffect, useState, useMemo } from "react";
-import { poseMatches, squash } from "@/lib/poseSearch";
+import { rankedPoses, squash } from "@/lib/poseSearch";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/EmptyState";
 import { PoseCardVideo } from "@/components/PoseCardVideo";
-import { ASANAS, PATHWAYS, BREATHING, AFFIRMATIONS } from "@/data/content";
+import { PATHWAYS, BREATHING, AFFIRMATIONS } from "@/data/content";
 import { KIDS_POSES, KIDS_BREATH } from "@/data/kids";
 import { Wind, Route as RouteIcon, Sparkles, LayoutGrid, Smile, Search as SearchIcon } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -96,7 +97,7 @@ export default function Search() {
   const results = useMemo(() => {
     if (!q) return { poses: [], breathing: [], pathways: [], affirmations: [], kids: [] };
 
-    const poses = ASANAS.filter((a) => poseMatches(a, q, qSquashed));
+    const poses = rankedPoses(q);
 
     const pathways = PATHWAYS.filter((p) => {
       const hay = [p.name, p.summary, p.target].join(" ").toLowerCase();

@@ -62,6 +62,16 @@ const KNOWN: Record<string, SanskritPronunciation> = {
   },
 };
 
+/** Collapse case, punctuation, and whitespace so English/Sanskrit labels can be compared. */
+function normalizePoseName(name: string): string {
+  return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+}
+
+/** True when the Sanskrit label is a distinct name worth pronouncing — not a copy of English. */
+export function shouldShowPronunciation(english: string, sanskrit?: string | null): boolean {
+  return normalizePoseName(english) !== normalizePoseName(sanskrit ?? "");
+}
+
 export function pronunciationFor(slug: string, sanskrit?: string | null): SanskritPronunciation {
   if (KNOWN[slug]) return KNOWN[slug];
   const base = sanskrit?.trim() || slug.replace(/-/g, " ");

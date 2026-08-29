@@ -32,6 +32,17 @@ describe("sessionCredit", () => {
     assert.equal(c.minutes, 0);
   });
 
+  it("does not count eleven seconds into pose 1 with nothing held", () => {
+    const c = sessionCredit({
+      holdSeconds: 0,
+      elapsedSeconds: 11,
+      posesCompleted: 0,
+      posesSkipped: 0,
+      posesTotal: 7,
+    });
+    assert.equal(c.counts, false);
+  });
+
   it("counts a partial session with real hold time", () => {
     const c = sessionCredit({
       holdSeconds: 15 * 60,
@@ -67,13 +78,33 @@ describe("sessionCredit", () => {
     assert.equal(c.counts, true);
     assert.equal(c.minutes, 1);
   });
+
+  it("counts 3 of 7 poses after a few honest minutes even when narration ate the hold clock", () => {
+    const c = sessionCredit({
+      holdSeconds: 9,
+      elapsedSeconds: 3 * 60 + 30,
+      posesCompleted: 3,
+      posesSkipped: 0,
+      posesTotal: 7,
+    });
+    assert.equal(c.counts, true);
+    assert.equal(c.minutes, 4);
+    assert.equal(c.posesCompleted, 3);
+    assert.equal(c.posesTotal, 7);
+  });
 });
 
 describe("sessionHeadline", () => {
   it("celebrates a partial honestly", () => {
     assert.equal(
-      sessionHeadline({ counts: true, minutes: 4, endedEarly: true }),
-      "4 minutes in. That counts.",
+      sessionHeadline({
+        counts: true,
+        minutes: 3,
+        endedEarly: true,
+        posesCompleted: 3,
+        posesTotal: 7,
+      }),
+      "3 of 7 poses, 3 minutes — that counts.",
     );
     assert.equal(
       sessionHeadline({ counts: true, minutes: 1, endedEarly: true }),
@@ -100,14 +131,14 @@ describe("sessionExitCopy", () => {
   it("offers to save a real partial instead of throwing it away", () => {
     const copy = sessionExitCopy(
       sessionCredit({
-        holdSeconds: 4 * 60,
-        elapsedSeconds: 4 * 60,
-        posesCompleted: 6,
+        holdSeconds: 9,
+        elapsedSeconds: 3 * 60 + 30,
+        posesCompleted: 3,
         posesSkipped: 0,
-        posesTotal: 10,
+        posesTotal: 7,
       }),
     );
-    assert.match(copy.description, /4 minutes in\. That counts/);
+    assert.match(copy.description, /3 of 7 poses, 4 minutes — that counts/);
     assert.equal(copy.leaveLabel, "Save and leave");
   });
 

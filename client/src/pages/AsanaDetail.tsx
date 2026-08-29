@@ -12,12 +12,13 @@ import { type Level } from "@/components/AnimatedAsana";
 import { StepMotion } from "@/components/StepMotion";
 import { VoicePlayer } from "@/components/VoicePlayer";
 import { PoseExplanation } from "@/components/PoseExplanation";
-import { asanaBySlug, type Severity } from "@/data/content";
+import { asanaBySlug, type Difficulty, type Severity } from "@/data/content";
+import { buildPoseExplanation } from "@/lib/poseExplanation";
 import { CONTENT_REVIEW } from "@/data/contentProvenance";
 import { manifestAudioUrl, usePoseMedia } from "@/lib/poseMediaApi";
-import { pronunciationFor } from "@/lib/sanskritPronunciation";
+import { pronunciationFor, shouldShowPronunciation } from "@/lib/sanskritPronunciation";
 import { usagesForAsana } from "@/data/asanaUsage";
-import { QUICK_SESSIONS, sessionMinutes, sessionTimeLabel } from "@/data/quickSessions";
+import { QUICK_SESSIONS, quickSessionMeta } from "@/data/quickSessions";
 import { usePractice } from "@/context/PracticeContext";
 import { EmptyState } from "@/components/EmptyState";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -200,11 +201,7 @@ export default function AsanaDetail() {
         (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
           x != null,
       );
-    loadSession(poses, {
-      label: q.label,
-      plannedMinutes: sessionMinutes(q.poses),
-      breathSlug: q.breathSlug ?? null,
-    });
+    loadSession(poses, quickSessionMeta(q));
     navigate("/guided");
   };
 
@@ -220,10 +217,10 @@ export default function AsanaDetail() {
         type="button"
         onClick={() => navigate("/asanas")}
         className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-md px-2 py-2 text-sm text-muted-foreground transition-colors duration-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label="Back to Asana Library"
+        aria-label="Back to Poses"
         data-testid="link-back-asanas"
       >
-        <ArrowLeft className="h-4 w-4" /> Library
+        <ArrowLeft className="h-4 w-4" /> Poses
       </button>
 
       {/* Premium pose explanation — video when available, illustrated guide otherwise */}
@@ -244,6 +241,7 @@ export default function AsanaDetail() {
               {asana.sanskrit}
             </p>
             {(() => {
+              if (!shouldShowPronunciation(asana.english, asana.sanskrit)) return null;
               const pron = pronunciationFor(asana.slug, asana.sanskrit);
               return (
                 <p className="text-sm text-muted-foreground" data-testid="text-asana-pronunciation">
@@ -475,6 +473,9 @@ export default function AsanaDetail() {
           </TabsList>
           {(["beginner", "intermediate", "advanced"] as Level[]).map((lv) => {
             const v = asana.variations[lv];
+            const difficulty: Difficulty =
+              lv === "beginner" ? "Beginner" : lv === "advanced" ? "Advanced" : "Intermediate";
+            const formCues = buildPoseExplanation(asana, difficulty).formCues;
             return (
               <TabsContent key={lv} value={lv} className="mt-4">
                 <Card className="shadow-soft" data-testid={`variation-${lv}`}>
@@ -487,7 +488,7 @@ export default function AsanaDetail() {
                             Cues
                           </p>
                           <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                            {v.cues.map((c, i) => (
+                            {formCues.map((c, i) => (
                               <li key={i}>{c}</li>
                             ))}
                           </ul>

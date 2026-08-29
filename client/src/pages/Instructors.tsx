@@ -16,8 +16,9 @@ export default function Instructors() {
         <h1 className="font-serif text-3xl font-semibold tracking-tight">Teachers (preview)</h1>
         <p className="max-w-2xl text-muted-foreground">
           A preview of the teachers experience. These are sample profiles — credentials are not yet
-          independently verified and there are no scheduled live classes. We'll only show real,
-          verified teachers and bookable classes once that is operational.
+          independently verified and there are no scheduled live classes. This URL is the waitlist
+          home: we'll only show real, verified teachers and bookable classes once that is
+          operational.
         </p>
       </header>
 

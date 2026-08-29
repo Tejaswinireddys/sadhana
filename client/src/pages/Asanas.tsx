@@ -8,13 +8,19 @@ import { PoseCardVideo } from "@/components/PoseCardVideo";
 import { EmptyState } from "@/components/EmptyState";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ASANAS, CATEGORIES, type Category, type Asana } from "@/data/content";
-import { audienceChipFromProfileId, profileById, type AudienceChip } from "@/data/profiles";
+import { audienceChipFromProfileId, type AudienceChip } from "@/data/profiles";
+import { DEFAULT_AUDIENCE_FILTER, matchesAudience } from "@/lib/asanaLibraryFilters";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useProgressiveList } from "@/hooks/useProgressiveList";
 import type { FavoriteAsana, UserProfile } from "@shared/schema";
-import { Heart, Smile } from "lucide-react";
+import { Heart, Smile, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FadeIn } from "@/components/motion";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 const diffColor: Record<string, string> = {
   Beginner: "bg-secondary/20 text-secondary-foreground border-secondary/30",
@@ -34,18 +40,6 @@ type PropFilter = (typeof PROP_FILTERS)[number];
 const AUDIENCE_FILTERS = ["All", "Men", "Women", "Pregnancy"] as const;
 type AudienceFilter = AudienceChip;
 
-const MEN_SLUGS = new Set(profileById("mens-strength")?.recommendedAsanas ?? []);
-const WOMEN_SLUGS = new Set(profileById("womens-wellness")?.recommendedAsanas ?? []);
-const PREGNANCY_SLUGS = new Set(profileById("pregnancy")?.recommendedAsanas ?? []);
-
-function matchesAudience(a: Asana, audience: AudienceFilter): boolean {
-  if (audience === "All") return true;
-  if (audience === "Men") return MEN_SLUGS.has(a.slug);
-  if (audience === "Women") return WOMEN_SLUGS.has(a.slug);
-  if (audience === "Pregnancy") return PREGNANCY_SLUGS.has(a.slug) || a.slug.startsWith("prenatal-");
-  return true;
-}
-
 // Does any variation of this asana use the given prop?
 function usesProp(a: Asana, prop: string): boolean {
   return Object.values(a.variations).some((v) => v.props.includes(prop));
@@ -55,14 +49,14 @@ function usesNoProps(a: Asana): boolean {
 }
 
 export default function Asanas() {
-  useDocumentTitle("Asana Library · Sadhana");
+  useDocumentTitle("Poses · Sadhana");
   const [category, setCategory] = useState<Category | "All">("All");
-  const [audience, setAudience] = useState<AudienceFilter>("All");
-  const [audienceTouched, setAudienceTouched] = useState(false);
+  const [audience, setAudience] = useState<AudienceFilter>(DEFAULT_AUDIENCE_FILTER);
   const [level, setLevel] = useState<LevelFilter>("All");
   const [time, setTime] = useState<TimeFilter>("Any time");
   const [prop, setProp] = useState<PropFilter>("Any props");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { data: favorites = [] } = useQuery<FavoriteAsana[]>({
     queryKey: ["/api/favorites/asanas"],
@@ -71,13 +65,6 @@ export default function Asanas() {
     queryKey: ["/api/profile/active"],
   });
   const favSet = useMemo(() => new Set(favorites.map((f) => f.slug)), [favorites]);
-
-  // Active Men / Women / Pregnancy path should open the matching library filter.
-  useEffect(() => {
-    if (audienceTouched) return;
-    const chip = audienceChipFromProfileId(activeProfileRow?.profileId);
-    if (chip !== "All") setAudience(chip);
-  }, [activeProfileRow?.profileId, audienceTouched]);
 
   const toggleFav = useMutation({
     mutationFn: ({ slug, isFav }: { slug: string; isFav: boolean }) =>
@@ -125,14 +112,16 @@ export default function Asanas() {
     setTime("Any time");
     setProp("Any props");
     setFavoritesOnly(false);
-    setAudience("All");
-    setAudienceTouched(true);
+    setAudience(DEFAULT_AUDIENCE_FILTER);
   };
 
-  const selectAudience = (next: AudienceFilter) => {
-    setAudienceTouched(true);
-    setAudience(next);
-  };
+  const activeFilterCount = [
+    audience !== "All",
+    category !== "All",
+    level !== "All",
+    time !== "Any time",
+    prop !== "Any props",
+  ].filter(Boolean).length;
 
   const FilterRow = ({
     label,
@@ -172,74 +161,109 @@ export default function Asanas() {
   return (
     <FadeIn className="space-y-6">
       <header className="space-y-1">
-        <h1 className="font-serif text-3xl font-semibold tracking-tight">Asana Library</h1>
+        <h1 className="font-serif text-3xl font-semibold tracking-tight">Poses</h1>
         <p className="text-muted-foreground">
           {CATEGORIES.length} families, {ASANAS.length} poses. Tap any card to explore the full
           guide.
         </p>
       </header>
 
-      {/* Favorites tab + count chip */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          variant={favoritesOnly ? "default" : "outline"}
-          onClick={() => setFavoritesOnly((v) => !v)}
-          className="min-h-[44px] cursor-pointer gap-1.5 transition-colors duration-200"
-          data-testid="filter-favorites"
-        >
-          <Heart className={cn("h-4 w-4", favoritesOnly && "fill-current")} />
-          Favorites
-          {favorites.length > 0 && (
-            <span className="ml-1 rounded-full bg-background/30 px-1.5 text-xs tabular-nums">
-              {favorites.length}
-            </span>
-          )}
-        </Button>
-        {/* Sitting next to "Favorites", a bare "25 poses" read as a favourites
-            count and contradicted the 207 in the header. Say what it counts. */}
-        <Badge variant="secondary" className="tabular-nums" data-testid="chip-pose-count">
-          {list.length === ASANAS.length
-            ? `Showing all ${ASANAS.length}`
-            : `Showing ${list.length} of ${ASANAS.length}`}
-        </Badge>
-      </div>
+      <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <div className="flex flex-wrap items-center gap-3">
+          <CollapsibleTrigger asChild>
+            <Button
+              variant={filtersOpen || activeFilterCount > 0 ? "default" : "outline"}
+              className="min-h-[44px] cursor-pointer gap-1.5 transition-colors duration-200"
+              aria-expanded={filtersOpen}
+              aria-controls="asana-library-filters"
+              data-testid="button-library-filter"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filter
+              {activeFilterCount > 0 && (
+                <span
+                  className="rounded-full bg-background/30 px-1.5 text-xs tabular-nums"
+                  data-testid="filter-active-count"
+                >
+                  {activeFilterCount}
+                </span>
+              )}
+              <ChevronDown
+                className={cn("h-4 w-4 transition-transform duration-200", filtersOpen && "rotate-180")}
+              />
+            </Button>
+          </CollapsibleTrigger>
+          <Button
+            variant={favoritesOnly ? "default" : "outline"}
+            onClick={() => setFavoritesOnly((v) => !v)}
+            className="min-h-[44px] cursor-pointer gap-1.5 transition-colors duration-200"
+            data-testid="filter-favorites"
+          >
+            <Heart className={cn("h-4 w-4", favoritesOnly && "fill-current")} />
+            Favorites
+            {favorites.length > 0 && (
+              <span className="ml-1 rounded-full bg-background/30 px-1.5 text-xs tabular-nums">
+                {favorites.length}
+              </span>
+            )}
+          </Button>
+          <Badge variant="secondary" className="tabular-nums" data-testid="chip-pose-count">
+            {list.length === ASANAS.length
+              ? `Showing all ${ASANAS.length}`
+              : `Showing ${list.length} of ${ASANAS.length}`}
+          </Badge>
+        </div>
 
-      {/* Layered filters */}
-      <div className="surface-inset space-y-4 p-4">
-        <FilterRow
-          label="Audience"
-          options={AUDIENCE_FILTERS}
-          active={audience}
-          onSelect={selectAudience}
-          group="audience"
-        />
-        {audience !== "All" && (
-          <p className="text-xs text-muted-foreground" data-testid="audience-filter-hint">
-            Showing {audience.toLowerCase()} practice poses
-            {activeProfileRow?.profileId &&
-            audienceChipFromProfileId(activeProfileRow.profileId) === audience
-              ? " from your active path"
-              : ""}
-            .
-          </p>
-        )}
-        <p className="text-xs text-muted-foreground">
-          Looking for kids stories?{" "}
-          <Link href="/kids" className="inline-flex items-center gap-1 text-primary hover:underline">
-            <Smile className="h-3.5 w-3.5" /> Open Kids
-          </Link>
-        </p>
-        <FilterRow
-          label="Category"
-          options={["All", ...CATEGORIES]}
-          active={category}
-          onSelect={setCategory}
-          group="category"
-        />
-        <FilterRow label="Level" options={LEVELS} active={level} onSelect={setLevel} group="level" />
-        <FilterRow label="Hold time" options={TIME_FILTERS} active={time} onSelect={setTime} group="time" />
-        <FilterRow label="Props" options={PROP_FILTERS} active={prop} onSelect={setProp} group="props" />
-      </div>
+        <CollapsibleContent className="overflow-hidden">
+          <div id="asana-library-filters" className="surface-inset mt-4 space-y-4 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Looking for kids stories?{" "}
+                <Link href="/kids" className="inline-flex items-center gap-1 text-primary hover:underline">
+                  <Smile className="h-3.5 w-3.5" /> Open Kids
+                </Link>
+              </p>
+              {activeFilterCount > 0 && (
+                <Button
+                  variant="ghost"
+                  className="min-h-11 cursor-pointer"
+                  onClick={resetFilters}
+                  data-testid="button-clear-filters-panel"
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
+            <FilterRow
+              label="Audience"
+              options={AUDIENCE_FILTERS}
+              active={audience}
+              onSelect={setAudience}
+              group="audience"
+            />
+            {audience !== "All" && (
+              <p className="text-xs text-muted-foreground" data-testid="audience-filter-hint">
+                Showing {audience.toLowerCase()} practice poses
+                {activeProfileRow?.profileId &&
+                audienceChipFromProfileId(activeProfileRow.profileId) === audience
+                  ? " from your active path"
+                  : ""}
+                .
+              </p>
+            )}
+            <FilterRow
+              label="Category"
+              options={["All", ...CATEGORIES]}
+              active={category}
+              onSelect={setCategory}
+              group="category"
+            />
+            <FilterRow label="Level" options={LEVELS} active={level} onSelect={setLevel} group="level" />
+            <FilterRow label="Hold time" options={TIME_FILTERS} active={time} onSelect={setTime} group="time" />
+            <FilterRow label="Props" options={PROP_FILTERS} active={prop} onSelect={setProp} group="props" />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       {list.length === 0 ? (
         <EmptyState

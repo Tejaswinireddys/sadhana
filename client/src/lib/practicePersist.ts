@@ -18,6 +18,10 @@ export type PersistedProgress = {
   started: boolean;
   elapsedTotal: number;
   paused?: boolean;
+  /** Seconds spent in the hold phase — used to credit a restored session. */
+  holdElapsed?: number;
+  completedIndices?: number[];
+  skippedIndices?: number[];
 };
 
 export type PersistedPractice = {

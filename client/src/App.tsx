@@ -140,6 +140,7 @@ function AppRouter() {
           <Route path="/adaptive" component={AdaptivePlan} />
           <Route path="/pose-coach" component={PoseCoach} />
           <Route path="/instructors" component={Instructors} />
+          <Route path="/teachers" component={Instructors} />
           <Route path="/household" component={Household} />
           <Route path="/corporate" component={Corporate} />
           <Route path="/design-system" component={DesignSystem} />

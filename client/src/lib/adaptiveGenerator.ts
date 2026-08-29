@@ -5,6 +5,7 @@
 import { asanaBySlug, type Asana } from "@/data/content";
 import {
   composeTrainerSession,
+  orderPosesByArc,
   type TrainerAudience,
   type TrainerSession,
 } from "./yogaTrainer";
@@ -36,16 +37,16 @@ const SAFE_FALLBACK = ["sukhasana", "balasana", "viparita-karani", "savasana"];
 
 export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult {
   const advice = input.adviceOverride ?? adviseNextSession();
-  const minutes = Math.min(input.intentMinutes || advice.maxMinutes, advice.maxMinutes);
+  // Suggested length is the default chip, not a silent cap. Easing already
+  // shortens holds via holdScale; overriding the minute button lies.
+  const minutes = input.intentMinutes > 0 ? input.intentMinutes : advice.maxMinutes;
   const need = input.need || advice.preferNeed;
+  // Easy/recover already shortens holds via holdScale. Mapping that onto
+  // "low energy" also capped pose count, so a 20-minute chip became ~11.
   const energy =
     input.energy ||
     advice.energy ||
-    (advice.intensity === "recover" || advice.intensity === "easy"
-      ? "low"
-      : advice.intensity === "build"
-        ? "high"
-        : "ok");
+    (advice.intensity === "build" ? "high" : "ok");
 
   const soreParts = input.soreParts ?? advice.soreParts ?? [];
 
@@ -109,6 +110,9 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
     }));
   }
 
+  poses = orderPosesByArc(poses);
+  poses = restoreRequestedMinutes(poses, minutes);
+
   const totalMinutes = Math.max(
     1,
     Math.round(
@@ -119,9 +123,19 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
   const explanations = [
     ...advice.reasons,
     ...raw.adjustments,
+  ];
+  if (
+    input.intentMinutes > advice.maxMinutes &&
+    (advice.intensity === "easy" || advice.intensity === "recover")
+  ) {
+    explanations.push(
+      `Easing suggested ${advice.maxMinutes} min — keeping the ${minutes} you picked.`,
+    );
+  }
+  explanations.push(
     `Hold times scaled ×${advice.holdScale.toFixed(2)} for ${advice.intensity} intensity.`,
     `Target about ${minutes} minutes (composed ~${totalMinutes} min of holds).`,
-  ];
+  );
 
   return {
     advice,
@@ -137,6 +151,34 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
   };
 }
 
+const REST_SLUG = /savasana|viparita-karani|balasana|constructive-rest/;
+
+/** Hold-scale eases effort; leftover seconds go to rest so the minute chip still holds. */
+function restoreRequestedMinutes<T extends { slug: string; holdSeconds: number; sides: "once" | "each" }>(
+  poses: T[],
+  targetMinutes: number,
+): T[] {
+  const targetSeconds = Math.max(5, targetMinutes) * 60;
+  let remaining =
+    targetSeconds - poses.reduce((s, p) => s + p.holdSeconds * (p.sides === "each" ? 2 : 1), 0);
+  if (remaining <= 15) return poses;
+  const next = poses.map((p) => ({ ...p }));
+  const order = next
+    .map((_, i) => i)
+    .sort((a, b) => Number(REST_SLUG.test(next[b].slug)) - Number(REST_SLUG.test(next[a].slug)));
+  for (const i of order) {
+    if (remaining <= 0) break;
+    const sides = next[i].sides === "each" ? 2 : 1;
+    const room = 300 - next[i].holdSeconds;
+    if (room <= 0) continue;
+    const add = Math.min(room, Math.round(remaining / sides / 5) * 5);
+    if (add <= 0) continue;
+    next[i].holdSeconds += add;
+    remaining -= add * sides;
+  }
+  return next;
+}
+
 function isLikelyUnsafe(asana: Asana, soreParts: string[]): boolean {
   const blob = `${asana.english} ${asana.summary} ${(asana.benefits ?? []).join(" ")}`.toLowerCase();
   return soreParts.some((p) => blob.includes(p.toLowerCase()));
@@ -149,14 +191,16 @@ export function swapPose(
 ): { session: TrainerSession; explanation: string } | null {
   const next = asanaBySlug(toSlug);
   if (!next) return null;
-  const poses = session.poses.map((p) =>
-    p.slug === fromSlug
-      ? {
-          ...p,
-          slug: toSlug,
-          why: `Swapped from ${fromSlug} → ${next.english}`,
-        }
-      : p,
+  const poses = orderPosesByArc(
+    session.poses.map((p) =>
+      p.slug === fromSlug
+        ? {
+            ...p,
+            slug: toSlug,
+            why: `Swapped from ${fromSlug} → ${next.english}`,
+          }
+        : p,
+    ),
   );
   return {
     session: { ...session, poses },

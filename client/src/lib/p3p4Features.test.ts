@@ -6,6 +6,7 @@ import { parseVoiceCommand } from "./voiceControl";
 import { PILOT_POSES, manualConfidence, isPilotPose } from "./poseCoach";
 import { roleDefaults } from "./household";
 import { PATHWAYS, asanaBySlug } from "../data/content";
+import { poseArcRank } from "./yogaTrainer";
 import { profileById } from "../data/profiles";
 
 function outcome(partial: Partial<SessionOutcome>): SessionOutcome {
@@ -27,7 +28,13 @@ describe("adaptive recovery", () => {
 
   it("scales holds within bounds", () => {
     assert.equal(scaleHoldSeconds(40, 0.5), 20);
-    assert.ok(scaleHoldSeconds(200, 2) <= 180);
+    assert.ok(scaleHoldSeconds(200, 2) <= 300);
+  });
+
+  it("treats a first visit as a steady movement practice, not a wind-down", () => {
+    const advice = adviseNextSession([]);
+    assert.equal(advice.intensity, "steady");
+    assert.equal(advice.preferNeed, "movement");
   });
 });
 
@@ -72,6 +79,28 @@ describe("adaptive recovery — practice history", () => {
     assert.equal(advice.energy, "low");
     assert.ok(advice.reasons.some((r) => /tired or stressed/i.test(r)));
   });
+
+  it("eases intensity after a Home mood-session tap persisted as preMood", () => {
+    const advice = adviseNextSession([], {
+      sessions: [
+        { date: "2026-08-27", posesCompleted: 5, posesSkipped: 0, asanas: "[]", preMood: "Tired" },
+      ],
+      journal: [],
+    }, now);
+    assert.equal(advice.intensity, "easy");
+    assert.equal(advice.energy, "low");
+    assert.ok(advice.reasons.some((r) => /tired or stressed/i.test(r)));
+  });
+
+  it("treats a conversational Home label on a session as tired too", () => {
+    const advice = adviseNextSession([], {
+      sessions: [
+        { date: "2026-08-27", posesCompleted: 5, posesSkipped: 0, asanas: "[]", preMood: "I'm tired" },
+      ],
+    }, now);
+    assert.equal(advice.energy, "low");
+    assert.ok(advice.reasons.some((r) => /tired or stressed/i.test(r)));
+  });
 });
 
 describe("adaptive generator", () => {
@@ -95,6 +124,114 @@ describe("adaptive generator", () => {
     const b = generateAdaptiveSession({ intentMinutes: 20, need: "movement", variant: 1 });
     const key = (r: typeof a) => r.session.poses.map((p) => p.slug).join(",");
     assert.notEqual(key(a), key(b), `variant 1 matched variant 0: ${key(a)}`);
+  });
+
+  it("a default steady plan includes standing poses and never opens on a closer", () => {
+    const result = generateAdaptiveSession({ intentMinutes: 20 });
+    const slugs = result.session.poses.map((p) => p.slug);
+    const standing = slugs.filter((s) => asanaBySlug(s)?.category === "Standing");
+    assert.ok(standing.length >= 1, `no standing poses: ${slugs.join(", ")}`);
+    assert.notEqual(slugs[0], "supta-matsyendrasana");
+    assert.ok(poseArcRank(slugs[0]!) <= 1, `opened on ${slugs[0]} (arc ${poseArcRank(slugs[0]!)})`);
+    for (let i = 1; i < slugs.length; i++) {
+      assert.ok(
+        poseArcRank(slugs[i]!) >= poseArcRank(slugs[i - 1]!),
+        `arc broke: ${slugs.join(" → ")}`,
+      );
+    }
+  });
+
+  it("regenerate keeps closers at the end", () => {
+    for (const variant of [0, 1, 2, 3]) {
+      const result = generateAdaptiveSession({ intentMinutes: 20, variant });
+      const slugs = result.session.poses.map((p) => p.slug);
+      assert.notEqual(slugs[0], "supta-matsyendrasana", `v${variant} opened on Supine Twist`);
+      const ranks = slugs.map(poseArcRank);
+      for (let i = 1; i < ranks.length; i++) {
+        assert.ok(ranks[i]! >= ranks[i - 1]!, `v${variant} arc: ${slugs.join(" → ")}`);
+      }
+    }
+  });
+
+  it("does not silently shorten a length the practitioner picked", () => {
+    const result = generateAdaptiveSession({
+      intentMinutes: 20,
+      adviceOverride: {
+        intensity: "easy",
+        holdScale: 0.85,
+        preferNeed: "calm",
+        maxMinutes: 15,
+        reasons: ["Several poses were skipped recently — easing intensity."],
+        headline: "An easier practice to rebuild momentum",
+      },
+    });
+    assert.ok(
+      result.explanations.some((e) => /Target about 20 minutes/.test(e)),
+      result.explanations.join(" | "),
+    );
+    assert.ok(!result.explanations.some((e) => /Target about 15 minutes/.test(e)));
+    assert.ok(
+      result.session.totalMinutes >= 17,
+      `easing capped a 20-minute request to ${result.session.totalMinutes}`,
+    );
+
+    const recover = generateAdaptiveSession({
+      intentMinutes: 20,
+      energy: "low",
+      adviceOverride: {
+        intensity: "recover",
+        holdScale: 0.7,
+        preferNeed: "calm",
+        maxMinutes: 12,
+        reasons: ["Last effort was RPE 9/10 — choosing recovery."],
+        headline: "A gentle recovery session",
+        energy: "low",
+      },
+    });
+    assert.ok(
+      recover.explanations.some((e) => /Target about 20 minutes/.test(e)),
+      recover.explanations.join(" | "),
+    );
+    assert.ok(
+      recover.session.totalMinutes >= 17,
+      `recovery capped a 20-minute request to ${recover.session.totalMinutes}`,
+    );
+  });
+
+  it("honors every duration chip even when easing suggested 15", () => {
+    const easy = {
+      intensity: "easy" as const,
+      holdScale: 0.85,
+      preferNeed: "calm",
+      maxMinutes: 15,
+      reasons: ["Several poses were skipped recently — easing intensity."],
+      headline: "An easier practice to rebuild momentum",
+    };
+    const byLength = new Map<number, string>();
+    for (const mins of [10, 15, 20, 25]) {
+      const result = generateAdaptiveSession({ intentMinutes: mins, adviceOverride: easy });
+      assert.ok(
+        result.explanations.some((e) => new RegExp(`Target about ${mins} minutes`).test(e)),
+        `${mins} min chip: ${result.explanations.join(" | ")}`,
+      );
+      assert.ok(
+        !result.explanations.some((e) => /Target about 15 minutes/.test(e)) || mins === 15,
+        `${mins} min chip still advertised 15: ${result.explanations.join(" | ")}`,
+      );
+      assert.ok(
+        result.session.totalMinutes >= mins - 3,
+        `${mins} min chip composed ${result.session.totalMinutes}`,
+      );
+      if (mins > easy.maxMinutes) {
+        assert.ok(
+          result.explanations.some((e) => /keeping the \d+ you picked/.test(e)),
+          `${mins} min chip did not explain it ignored the 15-min suggestion`,
+        );
+      }
+      byLength.set(mins, result.session.poses.map((p) => `${p.slug}:${p.holdSeconds}`).join(","));
+    }
+    assert.notEqual(byLength.get(15), byLength.get(20), "20 min matched the 15-minute plan");
+    assert.notEqual(byLength.get(20), byLength.get(25), "25 min matched the 20-minute plan");
   });
 });
 

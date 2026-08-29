@@ -1,23 +1,13 @@
 /**
- * SavePracticePrompt — the two rungs of the "don't lose your practice" ladder.
+ * SavePracticePrompt — the two rungs of the "keep your practice" ladder.
  *
  * `SavePracticeBanner` is dismissible and lives on Home.
- * `SavePracticeDialog` blocks the start of a session once there's a streak to
- * lose, and always offers both an account and a download.
- *
- * Tone matters here. This is not a paywall and shouldn't read like one: it
- * states a real risk, in real numbers, and gives two honest ways out.
+ * `SavePracticeCompleteCard` sits on the session-complete screen — after
+ * they've earned something worth keeping, never before the practice starts.
  */
 import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { buildExport, downloadExport } from "@/lib/dataPortability";
 import { stakeSummary } from "@/lib/savePracticePrompt";
@@ -68,11 +58,11 @@ export function SavePracticeBanner({
         <CloudOff className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <div className="space-y-2">
           <p className="text-sm font-medium">
-            {stakeSummary(totalSessions, currentStreak)} saved only on this device
+            Keep {stakeSummary(totalSessions, currentStreak)} across your devices
           </p>
           <p className="text-sm text-muted-foreground">
-            Clearing your browser data — or your browser doing it for you — would lose it. A free
-            account keeps it safe across devices.
+            A free account (or a backup file) means this practice is still here next time you open
+            Sadhana.
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button size="sm" asChild data-testid="button-save-practice-account">
@@ -88,61 +78,48 @@ export function SavePracticeBanner({
   );
 }
 
-export function SavePracticeDialog({
-  open,
+export function SavePracticeCompleteCard({
   totalSessions,
   currentStreak,
-  onContinueAsGuest,
+  onDismiss,
 }: {
-  open: boolean;
   totalSessions: number;
   currentStreak: number;
-  onContinueAsGuest: () => void;
+  onDismiss: () => void;
 }) {
   const { run, busy } = useExportNow();
   return (
-    <AlertDialog open={open}>
-      <AlertDialogContent data-testid="save-practice-dialog">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="font-serif text-2xl">
-            Keep your practice before you go further
-          </AlertDialogTitle>
-          <AlertDialogDescription className="space-y-3 text-left">
-            <span className="block">
-              You've built {stakeSummary(totalSessions, currentStreak)} — and right now it exists
-              only in this browser. There's no way for us to give it back if it's cleared.
-            </span>
-            <span className="block">
-              An account takes a few seconds and keeps everything, on every device.
-            </span>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <div className="space-y-2">
-          <Button className="w-full" size="lg" asChild data-testid="button-gate-create-account">
-            <Link href="/account?tab=create">Create a free account</Link>
-          </Button>
-          <Button
-            className="w-full"
-            size="lg"
-            variant="outline"
-            onClick={run}
-            disabled={busy}
-            data-testid="button-gate-export"
-          >
-            <Download className="mr-1.5 h-4 w-4" /> Download a backup instead
-          </Button>
-          {/* Deliberately a quiet text link, not a button: it stays available,
-              because holding someone's own practice hostage is a dark pattern. */}
-          <button
-            type="button"
-            onClick={onContinueAsGuest}
-            className="mx-auto block pt-1 text-sm text-muted-foreground underline-offset-2 hover:underline"
-            data-testid="button-gate-continue-guest"
-          >
-            Continue as a guest
-          </button>
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
+    <div
+      className="mx-auto w-full max-w-md rounded-2xl border border-primary/30 bg-primary/5 p-4 text-left shadow-soft"
+      data-testid="save-practice-complete"
+    >
+      <p className="font-serif text-xl">Keep this practice with you</p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        That's {stakeSummary(totalSessions, currentStreak)}. A free account saves it across
+        devices — so it's here next time you open Sadhana.
+      </p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <Button className="min-h-11" asChild data-testid="button-gate-create-account">
+          <Link href="/account?tab=create">Create a free account</Link>
+        </Button>
+        <Button
+          className="min-h-11"
+          variant="outline"
+          onClick={run}
+          disabled={busy}
+          data-testid="button-gate-export"
+        >
+          <Download className="mr-1.5 h-4 w-4" /> Download a backup
+        </Button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="min-h-11 text-sm text-muted-foreground underline-offset-2 hover:underline"
+          data-testid="button-gate-continue-guest"
+        >
+          Not now
+        </button>
+      </div>
+    </div>
   );
 }
