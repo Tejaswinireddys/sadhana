@@ -17,6 +17,11 @@
 //   (a) human MP3 from media manifest → (b) neural MP3 / server TTS cache →
 //   (c) browser speechSynthesis only if allowRobotVoice → (d) silent captions.
 // Mute stops voice but keeps the timer; pace is Slow / Normal.
+//
+// Screen readers: a dedicated polite live region announces pose name + cue on
+// change, the last 10 seconds of a hold once, and session start / pause /
+// resume / complete. The on-screen caption is visual only (it includes a
+// breath label that ticks every second).
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
@@ -47,6 +52,13 @@ import { estimateBreathCount } from "@/lib/sessionBreaths";
 import { captureProduct } from "@/lib/productAnalytics";
 import { sessionCredit, sessionExitCopy, sessionHeadline, type SessionCredit } from "@/lib/sessionCredit";
 import { guidedClockFrozen } from "@/lib/guidedClock";
+import {
+  GUIDED_SR,
+  cueTextForGuidedPhase,
+  poseAndCueAnnouncement,
+  shouldAnnounceHoldEndingOnce,
+  withSessionStarted,
+} from "@/lib/guidedLiveAnnounce";
 import { unlockAudio } from "@/lib/audioUnlock";
 import { type Mood } from "@/data/content";
 import type { Preferences } from "@shared/schema";
@@ -163,6 +175,21 @@ const FALLBACK_HOLD_CUES = [
 
 type Phase = "transitionIn" | "instruction" | "sideSwitch" | "hold" | "complete";
 
+/** Always-mounted polite live region — never display:none / aria-hidden. */
+function GuidedLiveRegion({ message }: { message: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      className="sr-only"
+      data-testid="guided-sr-announce"
+    >
+      {message}
+    </div>
+  );
+}
+
 type StageLayer = {
   id: number;
   slug: string;
@@ -244,6 +271,13 @@ export default function GuidedSession() {
   /** Playback pace: Slow (0.75) / Normal (1). Voice commands may set 1.25. */
   const [pace, setPace] = useState<0.75 | 1 | 1.25>(1);
   const [captionsOn, setCaptionsOn] = useState(true);
+  const [srMessage, setSrMessage] = useState("");
+  const srQueueRef = useRef<string[]>([]);
+  const srTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionStartAnnouncedRef = useRef(false);
+  const lastSrPoseRef = useRef("");
+  const holdEndingAnnouncedRef = useRef(false);
+  const prevPausedRef = useRef<boolean | null>(null);
   const [playback, setPlayback] = useState<NarrationPlayback | null>(null);
   const [breathLabel, setBreathLabel] = useState("Inhale…");
   const holdElapsedRef = useRef(0);
@@ -307,6 +341,40 @@ export default function GuidedSession() {
   const loggedSeconds = useRef(0);
   // +30s pressed outside the hold phase: bank it and apply when the hold starts.
   const pendingExtension = useRef(0);
+
+  const announce = useCallback((text: string) => {
+    const nextMsg = text.trim();
+    if (!nextMsg) return;
+    const play = (msg: string) => {
+      setSrMessage((prevMsg) => {
+        const prev = prevMsg.replace(/\u00a0/g, "").trimEnd();
+        if (prev === msg) return prevMsg;
+        return msg;
+      });
+    };
+    if (srTimerRef.current != null) {
+      srQueueRef.current.push(nextMsg);
+      return;
+    }
+    play(nextMsg);
+    const drain = () => {
+      const queued = srQueueRef.current.shift();
+      if (!queued) {
+        srTimerRef.current = null;
+        return;
+      }
+      play(queued);
+      srTimerRef.current = setTimeout(drain, 1100);
+    };
+    srTimerRef.current = setTimeout(drain, 1100);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (srTimerRef.current) clearTimeout(srTimerRef.current);
+    },
+    [],
+  );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   // True when this pose's narration failed to load/play. The instruction phase
@@ -433,6 +501,15 @@ export default function GuidedSession() {
 
   const src = playback?.kind === "human" || playback?.kind === "neural" ? playback.url : "";
   const activeCues: NarrationCue[] = playback?.cues ?? [];
+  const srPoseLine = poseAndCueAnnouncement(
+    current?.english ?? "",
+    cueTextForGuidedPhase({
+      phase,
+      poseName: current?.english ?? "",
+      instructionCue: activeCues[stepIndex]?.text || steps[stepIndex]?.text || "",
+      holdCue: holdCues[cueIndex % Math.max(1, holdCues.length)] ?? "",
+    }),
+  );
   const cueDuration =
     voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
       ? voiceDuration
@@ -575,6 +652,7 @@ export default function GuidedSession() {
       sessionProgress.completedIndices ?? Array.from({ length: i }, (_, n) => n),
     );
     skippedIndices.current = new Set(sessionProgress.skippedIndices ?? []);
+    sessionStartAnnouncedRef.current = true;
     setStarted(!!sessionProgress.started);
     setPaused(true);
     setShowPreMood(false);
@@ -584,6 +662,56 @@ export default function GuidedSession() {
       description: "Your guided flow was paused after a refresh. Tap Resume when ready.",
     });
   }, [needsRestore, sessionProgress, todays, consumeRestoredProgress, toast]);
+
+  // Pose name + cue on change (never the per-second breath label).
+  useEffect(() => {
+    if (!started || finished) return;
+    if (!srPoseLine) return;
+    const msg = withSessionStarted(srPoseLine, sessionStartAnnouncedRef.current);
+    sessionStartAnnouncedRef.current = true;
+    if (msg === lastSrPoseRef.current) return;
+    lastSrPoseRef.current = msg;
+    announce(msg);
+  }, [started, finished, srPoseLine, announce]);
+
+  // Pause / resume — including tab-hide and voice commands.
+  useEffect(() => {
+    if (!started || finished) {
+      prevPausedRef.current = paused;
+      return;
+    }
+    if (prevPausedRef.current === null) {
+      prevPausedRef.current = paused;
+      if (paused) announce(GUIDED_SR.paused);
+      return;
+    }
+    if (prevPausedRef.current === paused) return;
+    prevPausedRef.current = paused;
+    announce(paused ? GUIDED_SR.paused : GUIDED_SR.resumed);
+  }, [paused, started, finished, announce]);
+
+  // Last 10 seconds of a hold, once. Adding time after the warning resets it.
+  useEffect(() => {
+    if (!started || finished) return;
+    if (phase !== "hold") {
+      holdEndingAnnouncedRef.current = false;
+      return;
+    }
+    if (phaseRemaining > 10) {
+      holdEndingAnnouncedRef.current = false;
+      return;
+    }
+    if (
+      shouldAnnounceHoldEndingOnce({
+        phase,
+        remainingSeconds: phaseRemaining,
+        alreadyAnnounced: holdEndingAnnouncedRef.current,
+      })
+    ) {
+      holdEndingAnnouncedRef.current = true;
+      announce(GUIDED_SR.holdEnding);
+    }
+  }, [started, finished, phase, phaseRemaining, announce]);
 
   // Snapshot progress while running.
   useEffect(() => {
@@ -1278,6 +1406,7 @@ export default function GuidedSession() {
     });
     return (
       <FullScreenOverlay label="Practice complete">
+        <GuidedLiveRegion message={GUIDED_SR.sessionComplete} />
         <Confetti active={confetti} />
         <MoodCheckIn
           open={showPostMood}
@@ -1647,6 +1776,7 @@ export default function GuidedSession() {
       data-chrome={chromeVisible ? "visible" : "idle"}
       data-clock-frozen={clockFrozen ? "true" : "false"}
     >
+      <GuidedLiveRegion message={srMessage} />
       <audio
         ref={audioRef}
         {...(src ? { src } : {})}
@@ -1927,7 +2057,6 @@ export default function GuidedSession() {
               !captionsOn && "sr-only",
             )}
             data-testid="guided-caption"
-            aria-live="polite"
           >
             {activeCaption}
           </p>
@@ -1966,6 +2095,8 @@ export default function GuidedSession() {
               onClick={() => setPaused((p) => !p)}
               data-testid="button-pause-guided"
               className="min-h-11 min-w-[7rem]"
+              aria-pressed={paused}
+              aria-label={paused ? "Resume session" : "Pause session"}
             >
               {paused ? <Play className="mr-1.5 h-5 w-5" /> : <Pause className="mr-1.5 h-5 w-5" />}
               {paused ? "Resume" : "Pause"}
