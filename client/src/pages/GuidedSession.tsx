@@ -46,6 +46,7 @@ import { buildJournalEntry, logPracticeSession } from "@/lib/logPracticeSession"
 import { estimateBreathCount } from "@/lib/sessionBreaths";
 import { captureProduct } from "@/lib/productAnalytics";
 import { sessionCredit, sessionExitCopy, sessionHeadline, type SessionCredit } from "@/lib/sessionCredit";
+import { guidedClockFrozen } from "@/lib/guidedClock";
 import { unlockAudio } from "@/lib/audioUnlock";
 import { type Mood } from "@/data/content";
 import type { Preferences } from "@shared/schema";
@@ -255,6 +256,8 @@ export default function GuidedSession() {
   const [cueIndex, setCueIndex] = useState(0);
   const [tipsOpen, setTipsOpen] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
+  /** Pause button *or* the leave dialog — both freeze countdown, voice, and advance. */
+  const clockFrozen = guidedClockFrozen(paused, confirmExit);
   const holdSecondsRef = useRef(0);
   const finishedBreaths = useRef(0);
   const motionPrefOn = prefs ? prefs.motionEnabled !== 0 : true;
@@ -280,7 +283,7 @@ export default function GuidedSession() {
   const lastPostMood = useRef<Mood | null>(null);
   const finishedMinutes = useRef(1);
   const sessionLogged = useRef(false);
-  useWakeLock(started && !paused && !finished);
+  useWakeLock(started && !clockFrozen && !finished);
   const posesCompleted = useRef(0);
   // Indices the practitioner skipped past rather than held. Logging a
   // skipped-through session as "8 poses" was a lie the journal couldn't undo.
@@ -526,9 +529,9 @@ export default function GuidedSession() {
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     idleTimerRef.current = setTimeout(() => {
       // Idle hide only during calm holds — keep chrome while teaching/navigating.
-      if (!paused && phase === "hold") setChromeVisible(false);
+      if (!clockFrozen && phase === "hold") setChromeVisible(false);
     }, IDLE_CHROME_MS);
-  }, [paused, phase]);
+  }, [clockFrozen, phase]);
 
   useEffect(() => {
     if (!started || finished) return;
@@ -550,8 +553,8 @@ export default function GuidedSession() {
 
   // Keep chrome visible when paused or outside hold.
   useEffect(() => {
-    if (paused || phase !== "hold") setChromeVisible(true);
-  }, [paused, phase]);
+    if (clockFrozen || phase !== "hold") setChromeVisible(true);
+  }, [clockFrozen, phase]);
 
   // Restore mid-session progress after refresh.
   useEffect(() => {
@@ -867,17 +870,18 @@ export default function GuidedSession() {
     if (a) a.playbackRate = pace;
   }, [pace]);
 
-  // Mute / pause propagate to the speech cue player (timer keeps running).
+  // Mute stays independent of the clock. Pause *and* the leave dialog freeze
+  // narration so the pose-advance scheduler cannot fire behind the modal.
   useEffect(() => {
     speechPlayerRef.current?.setMuted(muted);
   }, [muted]);
   useEffect(() => {
-    speechPlayerRef.current?.setPaused(paused);
-  }, [paused]);
+    speechPlayerRef.current?.setPaused(clockFrozen);
+  }, [clockFrozen]);
 
   // ---- master 1s tick -------------------------------------------------------
   useEffect(() => {
-    if (!started || paused || finished) return;
+    if (!started || clockFrozen || finished) return;
     // Pace slows/fastens the wall-clock of countdowns (not engagement scoring).
     const intervalMs = Math.round(1000 / pace);
     const t = setInterval(() => {
@@ -945,7 +949,7 @@ export default function GuidedSession() {
     return () => clearInterval(t);
   }, [
     started,
-    paused,
+    clockFrozen,
     finished,
     phase,
     pace,
@@ -977,7 +981,7 @@ export default function GuidedSession() {
   // ---- pause / resume of underlying audio -----------------------------------
   useEffect(() => {
     const a = audioRef.current;
-    if (paused) {
+    if (clockFrozen) {
       a?.pause();
       speechPlayerRef.current?.setPaused(true);
       try {
@@ -997,7 +1001,7 @@ export default function GuidedSession() {
         /* ignore */
       }
     }
-  }, [paused, started, phase, voiceEnabled, finished]);
+  }, [clockFrozen, started, phase, voiceEnabled, finished]);
 
   // ---- controls -------------------------------------------------------------
   const beginSession = () => {
@@ -1634,6 +1638,7 @@ export default function GuidedSession() {
       className="fixed inset-0 z-50 flex flex-col bg-background"
       data-testid="guided-session"
       data-chrome={chromeVisible ? "visible" : "idle"}
+      data-clock-frozen={clockFrozen ? "true" : "false"}
     >
       <audio
         ref={audioRef}
@@ -1818,7 +1823,7 @@ export default function GuidedSession() {
                         : 1
                     }
                     playing={
-                      live && !paused && (phase === "instruction" || phase === "hold")
+                      live && !clockFrozen && (phase === "instruction" || phase === "hold")
                     }
                     restartToken={live ? videoRestartToken : 0}
                     syncVideoToVoice
@@ -2045,7 +2050,7 @@ export default function GuidedSession() {
 
       {/* Exit confirmation */}
       <AlertDialog open={confirmExit} onOpenChange={setConfirmExit}>
-        <AlertDialogContent>
+        <AlertDialogContent data-testid="guided-leave-dialog">
           <AlertDialogHeader>
             <AlertDialogTitle>Leave the session?</AlertDialogTitle>
             <AlertDialogDescription>{exitCopy.description}</AlertDialogDescription>
