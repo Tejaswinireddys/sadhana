@@ -50,94 +50,12 @@ import { buildPoseMediaManifest, isSafeSlug } from "./poseMediaManifest";
 import { ensureNeuralTts, readCachedTts, ttsConfigured } from "./tts";
 import { upsertPosePlayback } from "./poseStreamStore";
 import { streamProvider, type StreamProvider } from "./streamConfig";
+import { computeStats } from "@shared/practiceStats";
+
+export { computeStats };
 
 const IMPORT_MAX_ITEMS = 2_000;
 const IMPORT_MAX_BODY_BYTES = 2 * 1024 * 1024;
-
-// Normalize an ISO string / date string to YYYY-MM-DD
-function dayKey(iso: string): string {
-  return iso.slice(0, 10);
-}
-
-// Pure YYYY-MM-DD arithmetic (UTC-based) so results never depend on the
-// server's local timezone.
-function addDays(iso: string, n: number): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d) + n * 86400000).toISOString().slice(0, 10);
-}
-
-export function computeStats(
-  sessions: { date: string; durationMinutes: number; kind?: string }[],
-  todayOverride?: string,
-) {
-  // Aggregate minutes per day
-  const minutesByDay = new Map<string, number>();
-  for (const s of sessions) {
-    const k = dayKey(s.date);
-    minutesByDay.set(k, (minutesByDay.get(k) || 0) + s.durationMinutes);
-  }
-
-  const totalSessions = sessions.length;
-  const totalMinutes = sessions.reduce((a, s) => a + s.durationMinutes, 0);
-  const asanaSessions = sessions.filter((s) => (s.kind ?? "asana") === "asana").length;
-  const breathingSessions = sessions.filter((s) => s.kind === "breathing").length;
-
-  // Build last 84 days array (oldest -> newest), anchored on the client's
-  // local calendar day when provided (server UTC day otherwise).
-  const todayKey =
-    todayOverride && /^\d{4}-\d{2}-\d{2}$/.test(todayOverride)
-      ? todayOverride
-      : new Date().toISOString().slice(0, 10);
-  const heatmap: { date: string; minutes: number }[] = [];
-  const practicedDays = new Set(minutesByDay.keys());
-  for (let i = 83; i >= 0; i--) {
-    const k = addDays(todayKey, -i);
-    heatmap.push({ date: k, minutes: minutesByDay.get(k) || 0 });
-  }
-
-  // Current streak: consecutive days ending today or yesterday
-  function isoDaysAgo(n: number): string {
-    return addDays(todayKey, -n);
-  }
-  let currentStreak = 0;
-  // Allow streak to count even if today not yet practiced (start from yesterday)
-  let startOffset = practicedDays.has(isoDaysAgo(0)) ? 0 : practicedDays.has(isoDaysAgo(1)) ? 1 : -1;
-  if (startOffset >= 0) {
-    let n = startOffset;
-    while (practicedDays.has(isoDaysAgo(n))) {
-      currentStreak++;
-      n++;
-    }
-  }
-
-  // Longest streak across all practiced days
-  const sortedDays = Array.from(practicedDays).sort();
-  let longestStreak = 0;
-  let run = 0;
-  let prev: Date | null = null;
-  for (const k of sortedDays) {
-    const d = new Date(k + "T00:00:00Z");
-    if (prev) {
-      const diff = Math.round((d.getTime() - prev.getTime()) / 86400000);
-      run = diff === 1 ? run + 1 : 1;
-    } else {
-      run = 1;
-    }
-    if (run > longestStreak) longestStreak = run;
-    prev = d;
-  }
-
-  return {
-    currentStreak,
-    longestStreak,
-    totalSessions,
-    totalMinutes,
-    asanaSessions,
-    breathingSessions,
-    daysPracticed: practicedDays.size,
-    heatmap,
-  };
-}
 
 function publicUser(user: User): PublicUser {
   return {

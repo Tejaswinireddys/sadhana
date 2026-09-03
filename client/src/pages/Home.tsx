@@ -23,6 +23,7 @@ import type { Pathway } from "@/data/content";
 import { profileById } from "@/data/profiles";
 import { resolveIcon } from "@/lib/icons";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
+import { homeProgressTiles } from "@shared/practiceStats";
 import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/lib/localPrefs";
 import { isHabitDay, readHabitPlan } from "@/lib/habitPlan";
 import type { UserProfile, Enrollment, FavoriteAsana, CustomFlow, Journal } from "@shared/schema";
@@ -385,6 +386,10 @@ export default function Home() {
     totalSessions: stats?.totalSessions ?? 0,
     daysPracticed: stats?.daysPracticed ?? 0,
   });
+
+  const progressTiles = stats
+    ? homeProgressTiles(stats, { compassionateRecovery: habitPlan.compassionateRecovery })
+    : null;
 
   return (
     <div className="space-y-10">
@@ -971,13 +976,7 @@ export default function Home() {
         testId="section-progress"
       >
       {/* Stats — after the practice loop so zeros don't bury the start CTA */}
-      {isLoading ? (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full" />
-          ))}
-        </div>
-      ) : statsError ? (
+      {statsError ? (
         <Card className="border-destructive/40 bg-destructive/5 shadow-soft" data-testid="banner-stats-error">
           <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
             <p className="text-sm text-muted-foreground">
@@ -988,17 +987,38 @@ export default function Home() {
             </Button>
           </CardContent>
         </Card>
+      ) : isLoading || !progressTiles ? (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full" />
+          ))}
+        </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <StatCard
             icon={Flame}
-            label={habitPlan.compassionateRecovery ? "Days practiced (no shame)" : "Current streak (days)"}
-            value={stats?.currentStreak ?? 0}
-            testId="stat-current-streak"
+            label={progressTiles.daysPracticed.label}
+            value={progressTiles.daysPracticed.value}
+            testId={progressTiles.daysPracticed.testId}
           />
-          <StatCard icon={Trophy} label="Longest stretch (days)" value={stats?.longestStreak ?? 0} testId="stat-longest-streak" />
-          <StatCard icon={CalendarCheck} label="Total sessions" value={stats?.totalSessions ?? 0} testId="stat-total-sessions" />
-          <StatCard icon={Clock} label="Minutes practiced" value={stats?.totalMinutes ?? 0} testId="stat-total-minutes" />
+          <StatCard
+            icon={Trophy}
+            label={progressTiles.longestStretch.label}
+            value={progressTiles.longestStretch.value}
+            testId={progressTiles.longestStretch.testId}
+          />
+          <StatCard
+            icon={CalendarCheck}
+            label={progressTiles.totalSessions.label}
+            value={progressTiles.totalSessions.value}
+            testId={progressTiles.totalSessions.testId}
+          />
+          <StatCard
+            icon={Clock}
+            label={progressTiles.minutesPracticed.label}
+            value={progressTiles.minutesPracticed.value}
+            testId={progressTiles.minutesPracticed.testId}
+          />
         </div>
       )}
       <Card className="shadow-soft">
