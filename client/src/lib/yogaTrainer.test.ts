@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { composeTrainerSession, NEED_OPTIONS, SEQUENCES, poseArcRank } from "./yogaTrainer";
+import { composeTrainerSession, NEED_OPTIONS, SEQUENCES, poseArcRank, isStandingBuild, standingFloorFor } from "./yogaTrainer";
 import { asanaBySlug } from "@/data/content";
 import { profileById } from "@/data/profiles";
 
@@ -288,18 +288,34 @@ describe("composeTrainerSession — regenerate variants", () => {
 });
 
 describe("composeTrainerSession — a steady practice stands up", () => {
-  it("includes standing poses for movement at every duration", () => {
+  it("meets the standing-pose floor in slot 2 for movement at every duration", () => {
     for (const minutes of [10, 15, 20, 25]) {
       for (const variant of [0, 1, 2]) {
         const s = composeTrainerSession(
           { ...base, timeMinutes: minutes, need: "movement" },
           { variant },
         );
-        const standing = s.poses.filter((p) => asanaBySlug(p.slug)?.category === "Standing");
+        const standing = s.poses.filter((p) => isStandingBuild(p.slug));
+        const floor = standingFloorFor(minutes);
         assert.ok(
-          standing.length >= 1,
-          `${minutes}min v${variant} had no standing poses: ${s.poses.map((p) => p.slug).join(", ")}`,
+          standing.length >= floor,
+          `${minutes}min v${variant} had ${standing.length} standing build poses, need ${floor}: ${s.poses.map((p) => `${p.slug}:${p.arcSlot}`).join(", ")}`,
         );
+        assert.ok(
+          standing.every((p) => p.arcSlot === 2),
+          `${minutes}min v${variant} standing work left slot 2: ${standing.map((p) => `${p.slug}:${p.arcSlot}`).join(", ")}`,
+        );
+        const slots = s.poses.map((p) => p.arcSlot);
+        const firstStanding = slots.findIndex((slot) => slot === 2);
+        const firstPeak = slots.findIndex((slot) => slot === 3);
+        const lastWarmup = slots.lastIndexOf(1);
+        if (firstStanding >= 0 && lastWarmup >= 0) {
+          assert.ok(firstStanding > lastWarmup, `${minutes}min v${variant} standing before warm-up`);
+        }
+        if (firstStanding >= 0 && firstPeak >= 0) {
+          assert.ok(firstStanding < firstPeak, `${minutes}min v${variant} standing after peak`);
+        }
+        assert.equal(s.standingExclusion, null);
       }
     }
   });
