@@ -49,7 +49,7 @@ export function SavePracticeBanner({
         type="button"
         onClick={onDismiss}
         aria-label="Dismiss for today"
-        className="absolute right-2 top-2 rounded-full p-1.5 text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="absolute right-2 top-2 inline-flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         data-testid="button-dismiss-save-banner"
       >
         <X className="h-4 w-4" />

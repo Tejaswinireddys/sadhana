@@ -50,7 +50,7 @@ export function CancelAccessBanner() {
       </div>
       <button
         type="button"
-        className="rounded-md p-1 text-muted-foreground hover:text-foreground"
+        className="inline-flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
         aria-label="Dismiss"
         onClick={() => setDismissed(true)}
       >

@@ -518,7 +518,7 @@ export default function Account() {
                 <label className="flex items-start gap-3 text-sm text-muted-foreground">
                   <input
                     type="checkbox"
-                    className="mt-1 h-4 w-4"
+                        className="mt-0.5 h-6 w-6 min-h-6 min-w-6"
                     checked={legalOk}
                     onChange={(e) => setLegalOk(e.target.checked)}
                     data-testid="signup-legal-ack"

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,6 +54,7 @@ export default function Journal() {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [query, setQuery] = useState("");
   const [moodFilter, setMoodFilter] = useState<Mood | "All">("All");
 
@@ -248,8 +249,12 @@ export default function Journal() {
                       <p className="text-xs text-muted-foreground">{formatShortDate(e.date)}</p>
                     </div>
                     <button
-                      onClick={(ev) => { ev.stopPropagation(); setDeleteId(e.id); }}
-                      className="text-muted-foreground hover:text-destructive"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        deleteTriggerRef.current = ev.currentTarget;
+                        setDeleteId(e.id);
+                      }}
+                      className="inline-flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground hover:text-destructive"
                       data-testid={`button-delete-${e.id}`}
                       aria-label="Delete entry"
                     >
@@ -273,6 +278,7 @@ export default function Journal() {
 
       {/* Editor dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
+        {open ? (
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-serif">{draft.id ? "Edit entry" : "New journal entry"}</DialogTitle>
@@ -330,10 +336,20 @@ export default function Journal() {
             </Button>
           </DialogFooter>
         </DialogContent>
+        ) : null}
       </Dialog>
 
       {/* Delete confirm */}
-      <AlertDialog open={deleteId !== null} onOpenChange={(o) => !o && setDeleteId(null)}>
+      <AlertDialog
+        open={deleteId !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setDeleteId(null);
+            requestAnimationFrame(() => deleteTriggerRef.current?.focus());
+          }
+        }}
+      >
+        {deleteId !== null ? (
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
@@ -349,6 +365,7 @@ export default function Journal() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
+        ) : null}
       </AlertDialog>
     </div>
   );

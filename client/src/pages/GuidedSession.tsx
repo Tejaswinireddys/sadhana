@@ -296,6 +296,7 @@ export default function GuidedSession() {
   const clockFrozen = guidedClockFrozen(paused, confirmExit);
   const holdSecondsRef = useRef(0);
   const finishedBreaths = useRef(0);
+  const exitTriggerRef = useRef<HTMLButtonElement | null>(null);
   const motionPrefOn = prefs ? prefs.motionEnabled !== 0 : true;
   const reduceMotion =
     typeof window !== "undefined" &&
@@ -1265,12 +1266,13 @@ export default function GuidedSession() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [started, finished]);
 
-  const attemptExit = () => {
+  const attemptExit = (trigger?: HTMLButtonElement | null) => {
     if (finished) {
       clear();
       navigate("/");
       return;
     }
+    if (trigger) exitTriggerRef.current = trigger;
     setConfirmExit(true);
   };
 
@@ -1703,7 +1705,7 @@ export default function GuidedSession() {
           {/* Guided is primary; timer-only is the secondary mode */}
           <div className="inline-flex rounded-full border border-border bg-card p-0.5 text-sm" data-testid="mode-toggle">
             <button
-              className="rounded-full bg-primary px-3 py-1 font-medium text-primary-foreground"
+              className="min-h-11 rounded-full bg-primary px-3 py-2 font-medium text-primary-foreground"
               data-testid="toggle-guided"
               aria-pressed="true"
             >
@@ -1711,7 +1713,7 @@ export default function GuidedSession() {
             </button>
             <button
               onClick={() => navigate("/practice")}
-              className="rounded-full px-3 py-1 text-muted-foreground hover:text-foreground"
+              className="min-h-11 rounded-full px-3 py-2 text-muted-foreground hover:text-foreground"
               data-testid="toggle-simple"
             >
               Timer only
@@ -1838,6 +1840,8 @@ export default function GuidedSession() {
           "flex shrink-0 items-center gap-3 border-b border-border px-4 py-3 transition-opacity duration-500 motion-reduce:transition-none",
           chromeVisible ? "opacity-100" : "pointer-events-none opacity-0",
         )}
+        aria-hidden={!chromeVisible}
+        {...(!chromeVisible ? { inert: true } : {})}
       >
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium" data-testid="text-session-name">
@@ -1848,8 +1852,9 @@ export default function GuidedSession() {
           </p>
         </div>
         <button
-          onClick={attemptExit}
-          className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+          ref={exitTriggerRef}
+          onClick={(e) => attemptExit(e.currentTarget)}
+          className="inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
           data-testid="button-exit-guided"
           aria-label="Exit session"
         >
@@ -1858,8 +1863,8 @@ export default function GuidedSession() {
       </div>
       {!chromeVisible && (
         <button
-          onClick={attemptExit}
-          className="absolute right-3 top-3 z-30 rounded-full bg-background/70 p-2 text-muted-foreground backdrop-blur-sm hover:bg-accent hover:text-foreground"
+          onClick={(e) => attemptExit(e.currentTarget)}
+          className="absolute right-3 top-3 z-30 inline-flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-full bg-background/70 text-muted-foreground backdrop-blur-sm hover:bg-accent hover:text-foreground"
           data-testid="button-exit-guided-idle"
           aria-label="Exit session"
         >
@@ -2064,9 +2069,11 @@ export default function GuidedSession() {
           <div
             className={cn(
               "flex flex-wrap items-center justify-center gap-2 transition-opacity duration-500 motion-reduce:transition-none",
-              chromeVisible ? "opacity-100" : "pointer-events-none h-0 overflow-hidden opacity-0",
+              chromeVisible ? "opacity-100" : "pointer-events-none opacity-0",
             )}
             data-testid="guided-transport"
+            aria-hidden={!chromeVisible}
+            {...(!chromeVisible ? { inert: true } : {})}
           >
             <Button
               variant="outline"
@@ -2186,9 +2193,25 @@ export default function GuidedSession() {
         onOpenChange={setTipsOpen}
       />
 
-      {/* Exit confirmation */}
-      <AlertDialog open={confirmExit} onOpenChange={setConfirmExit}>
-        <AlertDialogContent data-testid="guided-leave-dialog">
+      {/* Exit confirmation — unmount content when closed so copy leaves the a11y tree. */}
+      <AlertDialog
+        open={confirmExit}
+        onOpenChange={(open) => {
+          setConfirmExit(open);
+          if (!open) {
+            const node = exitTriggerRef.current;
+            requestAnimationFrame(() => node?.focus());
+          }
+        }}
+      >
+        {confirmExit ? (
+        <AlertDialogContent
+          data-testid="guided-leave-dialog"
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            exitTriggerRef.current?.focus();
+          }}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Leave the session?</AlertDialogTitle>
             <AlertDialogDescription>{exitCopy.description}</AlertDialogDescription>
@@ -2219,6 +2242,7 @@ export default function GuidedSession() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
+        ) : null}
       </AlertDialog>
     </div>
     </FullScreenOverlay>

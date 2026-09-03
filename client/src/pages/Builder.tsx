@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import {
   clampHoldSeconds,
   MAX_HOLD_SECONDS,
@@ -368,7 +368,7 @@ function BuilderView({
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-8 w-8 shrink-0"
+                  className="shrink-0"
                   onClick={() => addPose(a.slug)}
                   disabled={atCap}
                   aria-label={`Add ${a.english}`}
@@ -413,7 +413,7 @@ function BuilderView({
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-5 w-5"
+                        className="h-11 w-11"
                         onClick={() => move(i, -1)}
                         disabled={i === 0}
                         aria-label="Move up"
@@ -424,7 +424,7 @@ function BuilderView({
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-5 w-5"
+                        className="h-11 w-11"
                         onClick={() => move(i, 1)}
                         disabled={i === sequence.length - 1}
                         aria-label="Move down"
@@ -474,7 +474,7 @@ function BuilderView({
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-8 w-8 shrink-0"
+                      className="shrink-0"
                       onClick={() => removePose(i)}
                       aria-label="Remove pose"
                       data-testid={`button-remove-pose-${i}`}
@@ -521,6 +521,7 @@ export default function Builder() {
   const [mode, setMode] = useState<"list" | "edit">("list");
   const [editing, setEditing] = useState<CustomFlow | null>(null);
   const [pendingDelete, setPendingDelete] = useState<CustomFlow | null>(null);
+  const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const { data: flows = [], isLoading } = useQuery<CustomFlow[]>({
     queryKey: ["/api/custom-flows"],
@@ -634,13 +635,25 @@ export default function Builder() {
                 setEditing(f);
                 setMode("edit");
               }}
-              onDelete={setPendingDelete}
+              onDelete={(flow) => {
+                deleteTriggerRef.current = document.activeElement as HTMLButtonElement | null;
+                setPendingDelete(flow);
+              }}
             />
           ))}
         </div>
       )}
 
-      <AlertDialog open={pendingDelete != null} onOpenChange={(o) => !o && setPendingDelete(null)}>
+      <AlertDialog
+        open={pendingDelete != null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setPendingDelete(null);
+            requestAnimationFrame(() => deleteTriggerRef.current?.focus());
+          }
+        }}
+      >
+        {pendingDelete != null ? (
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this flow?</AlertDialogTitle>
@@ -658,6 +671,7 @@ export default function Builder() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
+        ) : null}
       </AlertDialog>
     </div>
   );

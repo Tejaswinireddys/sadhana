@@ -403,13 +403,13 @@ export default function Practice() {
             <div className="inline-flex rounded-full border border-border bg-card p-0.5 text-sm" data-testid="mode-toggle">
               <button
                 onClick={() => navigate("/guided")}
-                className="rounded-full px-3 py-1 text-muted-foreground hover:text-foreground"
+                className="min-h-11 rounded-full px-3 py-2 text-muted-foreground hover:text-foreground"
                 data-testid="toggle-guided"
               >
                 Guided
               </button>
               <button
-                className="rounded-full bg-primary px-3 py-1 font-medium text-primary-foreground"
+                className="min-h-11 rounded-full bg-primary px-3 py-2 font-medium text-primary-foreground"
                 data-testid="toggle-simple"
                 aria-pressed="true"
               >
@@ -465,7 +465,7 @@ export default function Practice() {
           if (credit.counts) finish({ endedEarly: true });
           else setStarted(false);
         }}
-        className="absolute right-5 top-5 text-muted-foreground hover:text-foreground"
+        className="absolute right-5 top-5 inline-flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
         data-testid="button-exit-timer"
         aria-label="Exit timer"
       >
