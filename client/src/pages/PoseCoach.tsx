@@ -152,6 +152,7 @@ export default function PoseCoach() {
                     <label className="flex min-h-11 items-center gap-3 text-sm">
                       <input
                         type="checkbox"
+                        className="h-6 w-6 min-h-6 min-w-6"
                         checked={checks[i] ?? false}
                         onChange={(e) => {
                           const next = [...checks];

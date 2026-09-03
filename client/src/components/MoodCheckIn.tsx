@@ -32,6 +32,7 @@ export function MoodCheckIn({
 }) {
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onSkip()}>
+      {open ? (
       <DialogContent className="max-w-md" data-testid={`dialog-${testIdPrefix}`}>
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">{title}</DialogTitle>
@@ -70,6 +71,7 @@ export function MoodCheckIn({
           </Button>
         </DialogFooter>
       </DialogContent>
+      ) : null}
     </Dialog>
   );
 }

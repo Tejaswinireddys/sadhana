@@ -81,7 +81,7 @@ export function PoseTipsSheet({ asana, open, onOpenChange }: PoseTipsSheetProps)
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="rounded-full p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="inline-flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
             aria-label="Close pose tips"
             data-testid="button-close-pose-tips"
           >
