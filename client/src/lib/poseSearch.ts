@@ -143,7 +143,13 @@ export function scorePose(a: Asana, q: string, qSquashed: string): number {
   return score;
 }
 
-export type PoseSuggestion = { slug: string; english: string; sanskrit: string; category: string };
+export type PoseSuggestion = {
+  slug: string;
+  english: string;
+  sanskrit: string;
+  category: string;
+  imageAlt: string;
+};
 
 /** All matching poses, highest score first. Empty query → []. */
 export function rankedPoses(query: string): Asana[] {
@@ -167,6 +173,7 @@ export function searchPoses(query: string, limit = 6): { items: PoseSuggestion[]
       english: a.english,
       sanskrit: a.sanskrit,
       category: a.category,
+      imageAlt: a.imageAlt,
     })),
     total: ranked.length,
   };

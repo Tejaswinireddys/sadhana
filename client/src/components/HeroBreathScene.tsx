@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useMotionEnabled } from "@/components/motion";
+import { poseImageAlt } from "@/data/poseImageAlts";
 
 type HeroBreathSceneProps = {
   className?: string;
@@ -16,7 +17,7 @@ type HeroBreathSceneProps = {
 export default function HeroBreathScene({
   className,
   fallbackSrc = `${import.meta.env.BASE_URL}poses/tadasana.png`,
-  fallbackAlt = "Illustrated Mountain Pose from the Sadhana asana library",
+  fallbackAlt = poseImageAlt("tadasana"),
 }: HeroBreathSceneProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const motionOn = useMotionEnabled();

@@ -179,8 +179,7 @@ function SidebarSearch() {
                   <span className="h-8 w-8 shrink-0 overflow-hidden rounded bg-accent/30">
                     <img
                       src={`${import.meta.env.BASE_URL}poses/${pose.slug}.png`}
-                      alt=""
-                      aria-hidden
+                      alt={pose.imageAlt}
                       width={96}
                       height={192}
                       className="h-full w-full scale-[1.35] object-contain"

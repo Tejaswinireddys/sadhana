@@ -54,7 +54,6 @@ export function WarmupCard() {
               <span className="h-16 w-16 shrink-0">
                 <PoseImage
                   slug={s.asanaSlug}
-                  alt={s.name}
                   rounded="rounded-lg"
                   aspect="aspect-square"
                         thumb

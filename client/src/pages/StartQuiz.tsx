@@ -398,7 +398,7 @@ export default function StartQuiz() {
                       <div className="aspect-square overflow-hidden rounded-xl bg-muted">
                         <img width={600} height={1200}
                           src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
-                          alt=""
+                          alt={a.imageAlt}
                           className="h-full w-full object-cover object-center"
                           loading="lazy"
                           decoding="async"

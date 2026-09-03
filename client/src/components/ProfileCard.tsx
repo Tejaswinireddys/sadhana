@@ -101,7 +101,6 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
             <PoseImage
               key={slug}
               slug={slug}
-              alt=""
               className="h-16 w-16 shrink-0"
               aspect="aspect-square"
                         thumb

@@ -161,7 +161,6 @@ export default function PathwayDetail() {
         <header className="grid gap-6 md:grid-cols-[200px_1fr] md:items-center">
           <PoseImage
             slug={pathway.targetImgSlug}
-            alt={pathway.target}
             rounded="rounded-xl"
             aspect="aspect-[4/3]"
             testId={`pathway-detail-hero-${pathway.slug}`}
@@ -224,7 +223,6 @@ export default function PathwayDetail() {
       <header className="grid gap-6 md:grid-cols-[200px_1fr] md:items-center">
         <PoseImage
           slug={pathway.targetImgSlug}
-          alt={pathway.target}
           rounded="rounded-xl"
           aspect="aspect-[4/3]"
           testId={`pathway-detail-hero-${pathway.slug}`}
@@ -328,7 +326,7 @@ export default function PathwayDetail() {
                             <span className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md bg-accent/30">
                               <img width={600} height={1200}
                                 src={`${import.meta.env.BASE_URL}poses/${p.asanaSlug}.png`}
-                                alt={asana?.english ?? p.asanaSlug}
+                                alt={asana?.imageAlt ?? p.asanaSlug}
                                 className="h-full w-full object-cover"
                                 loading="lazy"
                               />
