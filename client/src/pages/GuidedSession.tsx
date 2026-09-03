@@ -87,7 +87,9 @@ import { preloadPoseVideo, clearPreloadedPoseVideo } from "@/lib/videoPreload";
 import { StreamVideo } from "@/components/StreamVideo";
 import {
   QUICK_SESSIONS,
+  preSessionSummary,
   quickSessionMeta,
+  sessionMinutes,
   sessionTimeLabel,
   TRANSITION_SECONDS,
   SIDE_SWITCH_SECONDS,
@@ -1548,9 +1550,12 @@ export default function GuidedSession() {
         <div className="animate-fade-in flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
           <MicVocal className="h-10 w-10 text-primary" />
           <h1 className="font-serif text-3xl">Practice</h1>
-          <p className="max-w-md text-muted-foreground">
-            {meta.label ? `${meta.label} · ` : ""}
-            {todays.length} poses · a continuous voice-narrated flow.
+          <p className="max-w-md text-muted-foreground" data-testid="pre-session-summary">
+            {preSessionSummary({
+              label: meta.label,
+              poseCount: todays.length,
+              minutes: meta.plannedMinutes ?? sessionMinutes(todays),
+            })}
           </p>
           {introVideo && (
             <StreamVideo

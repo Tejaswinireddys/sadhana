@@ -30,10 +30,10 @@ export type QuickSession = {
 export const TRANSITION_SECONDS = 5;
 export const SIDE_SWITCH_SECONDS = 2;
 
+type TimedPose = { holdSeconds: number; sides?: "each" | "single" | "once" };
+
 /** Total wall-clock seconds for a pose list, including transitions. */
-export function sessionSeconds(
-  poses: Array<{ holdSeconds: number; sides?: "each" | "single" }>,
-): number {
+export function sessionSeconds(poses: TimedPose[]): number {
   return poses.reduce((sum, p) => {
     const base = p.holdSeconds + TRANSITION_SECONDS;
     return sum + (p.sides === "each" ? base + p.holdSeconds + SIDE_SWITCH_SECONDS : base);
@@ -41,17 +41,28 @@ export function sessionSeconds(
 }
 
 /** Rounded minutes for display, e.g. 9 . Never returns 0. */
-export function sessionMinutes(
-  poses: Array<{ holdSeconds: number; sides?: "each" | "single" }>,
-): number {
+export function sessionMinutes(poses: TimedPose[]): number {
   return Math.max(1, Math.round(sessionSeconds(poses) / 60));
 }
 
 /** Display label for a session's length, e.g. "9 min". */
-export function sessionTimeLabel(
-  poses: Array<{ holdSeconds: number; sides?: "each" | "single" }>,
-): string {
+export function sessionTimeLabel(poses: TimedPose[]): string {
   return `${sessionMinutes(poses)} min`;
+}
+
+/**
+ * Confirm-screen line: pose count plus the same minutes the launch card showed.
+ * Duration stays out of `label` so the journal title is not a baked-in time.
+ */
+export function preSessionSummary(opts: {
+  label?: string | null;
+  poseCount: number;
+  minutes: number;
+}): string {
+  const poseWord = opts.poseCount === 1 ? "pose" : "poses";
+  const core = `${opts.poseCount} ${poseWord} · ${opts.minutes} min · a continuous voice-narrated flow.`;
+  const label = opts.label?.trim();
+  return label ? `${label} · ${core}` : core;
 }
 
 export const QUICK_SESSIONS: QuickSession[] = [
