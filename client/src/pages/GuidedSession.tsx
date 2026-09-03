@@ -341,7 +341,11 @@ export default function GuidedSession() {
     const nextMsg = text.trim();
     if (!nextMsg) return;
     const play = (msg: string) => {
-      setSrMessage((prevMsg) => (prevMsg === msg ? `${msg}\u00a0` : msg));
+      setSrMessage((prevMsg) => {
+        const prev = prevMsg.replace(/\u00a0/g, "").trimEnd();
+        if (prev === msg) return prevMsg;
+        return msg;
+      });
     };
     if (srTimerRef.current != null) {
       srQueueRef.current.push(nextMsg);
