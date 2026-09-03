@@ -65,6 +65,7 @@ import {
   BookMarked,
   Timer,
   Users,
+  ScanLine,
 } from "lucide-react";
 
 const MS_PER_DAY = 86400000;
@@ -1257,6 +1258,7 @@ export default function Home() {
               { href: "/guided", label: "Practice", hint: "Start a guided session", icon: Timer },
               { href: "/trainer", label: "Yoga Trainer", hint: "A practice for today", icon: UserRound },
               { href: "/adaptive", label: "Adaptive plan", hint: "Safe practice for how you feel", icon: Sparkles },
+              { href: "/pose-coach", label: "Pose self-check", hint: "Cue checklist and private camera mirror", icon: ScanLine },
               { href: "/pathways", label: "Pathways", hint: "Quick flows and programs", icon: RouteIcon },
               { href: "/builder", label: "Builder", hint: "Craft your own sequence", icon: PlusCircle },
               { href: "/breathing", label: "Breathing", hint: "Guided pranayama", icon: Wind },

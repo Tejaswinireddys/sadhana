@@ -3,8 +3,8 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 const layout = readFileSync(resolve("client/src/components/AppLayout.tsx"), "utf8");
 const app = readFileSync(resolve("client/src/App.tsx"), "utf8");
@@ -39,6 +39,81 @@ describe("primary navigation IA", () => {
   it("keeps the teachers waitlist page at /instructors and /teachers", () => {
     assert.match(app, /path="\/instructors"/);
     assert.match(app, /path="\/teachers"/);
+  });
+});
+
+describe("pose self-check discoverability", () => {
+  const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
+  const guided = readFileSync(resolve("client/src/pages/GuidedSession.tsx"), "utf8");
+
+  it("is two taps from Home: Practice nav → Practice hub → /pose-coach", () => {
+    assert.match(layout, /href: "\/guided",\s*\n\s*label: "Practice"/);
+    assert.match(guided, /data-testid="practice-hub"/);
+    assert.match(guided, /data-testid="button-hub-pose-coach"/);
+    assert.match(guided, /href="\/pose-coach"/);
+    assert.match(guided, /Pose self-check/);
+  });
+
+  it("lists Pose self-check in Home's Practice explore group", () => {
+    assert.match(home, /href: "\/pose-coach"/);
+    assert.match(home, /label: "Pose self-check"/);
+  });
+
+  it("keeps the live /pose-coach page instead of redirecting to /guided", () => {
+    assert.match(app, /path="\/pose-coach" component=\{PoseCoach\}/);
+    assert.equal(/Redirect.*pose-coach|pose-coach.*\/guided/.test(app), false);
+  });
+});
+
+describe("no route is reachable only by typing the URL", () => {
+  it("every declared App route has an in-app link or navigation", () => {
+    function walk(dir: string): string[] {
+      const out: string[] = [];
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) out.push(...walk(p));
+        else if (/\.(tsx?)$/.test(name)) out.push(p);
+      }
+      return out;
+    }
+
+    const files = walk(resolve("client/src")).filter(
+      (p) => !p.endsWith("/App.tsx") && !p.endsWith("navIa.test.ts"),
+    );
+    const corpus = files.map((p) => readFileSync(p, "utf8")).join("\n");
+
+    const linked = new Set<string>();
+    const add = (raw: string) => {
+      const path = raw.split("?")[0].replace(/\$\{[^}]+\}/g, ":param");
+      if (path.startsWith("/")) linked.add(path);
+    };
+    for (const re of [
+      /(?:href|to):\s*"(\/[^"]*)"/g,
+      /(?:href|to)="(\/[^"]*)"/g,
+      /(?:href|to)=\{`(\/[^`]*)`\}/g,
+      /(?:navigate|setLocation)\(\s*[`'"](\/[^`'"]*)/g,
+    ]) {
+      for (const m of corpus.matchAll(re)) add(m[1]);
+    }
+
+    const routes = [...app.matchAll(/<Route path="([^"]+)"/g)].map((m) => m[1]);
+    assert.ok(routes.length > 0, "no App routes found");
+
+    const missing: string[] = [];
+    for (const route of routes) {
+      if (route.includes(":")) {
+        const prefix = route.slice(0, route.indexOf(":"));
+        const ok = [...linked].some(
+          (href) => href === route || href.startsWith(prefix) || href.startsWith(prefix.replace(/\/$/, "")),
+        );
+        if (!ok) missing.push(route);
+        continue;
+      }
+      if (!linked.has(route) && ![...linked].some((href) => href.split(":")[0] === route)) {
+        missing.push(route);
+      }
+    }
+    assert.deepEqual(missing, [], `URL-only routes: ${missing.join(", ")}`);
   });
 });
 

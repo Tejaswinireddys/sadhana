@@ -17,7 +17,11 @@ export default function Instructors() {
         <p className="max-w-2xl text-muted-foreground">
           A preview of the teachers experience. These are sample profiles — credentials are not yet
           independently verified and there are no scheduled live classes. This URL is the waitlist
-          home: we'll only show real, verified teachers and bookable classes once that is
+          home (also at{" "}
+          <Link href="/teachers" className="underline underline-offset-2">
+            /teachers
+          </Link>
+          ): we'll only show real, verified teachers and bookable classes once that is
           operational.
         </p>
       </header>
