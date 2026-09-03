@@ -5,8 +5,10 @@
 import { asanaBySlug, type Asana } from "@/data/content";
 import {
   composeTrainerSession,
+  isStandingBuild,
   orderPosesByArc,
   poseArcRank,
+  standingFloorFor,
   type TrainerAudience,
   type TrainerSession,
 } from "./yogaTrainer";
@@ -32,6 +34,8 @@ export type GeneratorResult = {
   advice: AdaptiveAdvice;
   explanations: string[];
   safetyExclusions: { slug: string; reason: string }[];
+  /** Present when standing / build work was deliberately left out. */
+  standingExclusion: string | null;
 };
 
 const SAFE_FALLBACK = ["sukhasana", "balasana", "viparita-karani", "savasana"];
@@ -50,6 +54,9 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
     (advice.intensity === "build" ? "high" : "ok");
 
   const soreParts = input.soreParts ?? advice.soreParts ?? [];
+  const easingOffFeet = advice.intensity === "easy" || advice.intensity === "recover";
+  const restfulNeed = need === "calm" || need === "sleep";
+  const allowStanding = !easingOffFeet && !restfulNeed;
 
   const raw = composeTrainerSession(
     {
@@ -63,6 +70,7 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
       audience: input.audience ?? "All",
       preferSlugs: input.preferSlugs,
       variant: input.variant ?? 0,
+      allowStanding,
     },
   );
 
@@ -135,6 +143,20 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
       `Easing suggested ${advice.maxMinutes} min — keeping the ${minutes} you picked.`,
     );
   }
+
+  const standingCount = poses.filter((p) => isStandingBuild(p.slug)).length;
+  const floor = standingFloorFor(minutes);
+  let standingExclusion = raw.standingExclusion;
+  if (standingCount < floor) {
+    const copy = standingExclusionCopy(advice, soreParts, standingExclusion);
+    if (copy) {
+      standingExclusion = copy;
+      if (!explanations.includes(copy)) explanations.push(copy);
+    }
+  } else {
+    standingExclusion = null;
+  }
+
   explanations.push(
     `Hold times scaled ×${advice.holdScale.toFixed(2)} for ${advice.intensity} intensity.`,
     `Target about ${minutes} minutes (composed ~${totalMinutes} min of holds).`,
@@ -144,14 +166,36 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
     advice,
     safetyExclusions,
     explanations,
+    standingExclusion,
     session: {
       ...raw,
       poses,
       totalMinutes,
       adjustments: [...raw.adjustments, ...advice.reasons],
       reasoning: `${advice.headline}. ${raw.reasoning}`,
+      standingExclusion,
     },
   };
+}
+
+function standingExclusionCopy(
+  advice: AdaptiveAdvice,
+  soreParts: string[],
+  composerReason: string | null,
+): string | null {
+  if (advice.intensity === "easy" || advice.intensity === "recover") {
+    if (advice.reasons.some((r) => /skipped/i.test(r))) {
+      return "Keeping you off your feet today after some skipped sessions.";
+    }
+    if (advice.intensity === "recover") {
+      return "Keeping you off your feet today while you recover.";
+    }
+    return "Keeping you off your feet today — an easier practice on the floor.";
+  }
+  if (soreParts.length) {
+    return `Keeping you off your feet today to protect your ${soreParts.join(" and ").toLowerCase()}.`;
+  }
+  return composerReason;
 }
 
 const REST_SLUG = /savasana|viparita-karani|balasana|constructive-rest/;

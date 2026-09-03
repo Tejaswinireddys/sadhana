@@ -2,11 +2,11 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { adviseNextSession, scaleHoldSeconds, type SessionOutcome } from "./adaptiveRecovery";
 import { generateAdaptiveSession, swapPose } from "./adaptiveGenerator";
+import { poseArcRank, isStandingBuild, standingFloorFor } from "./yogaTrainer";
 import { parseVoiceCommand } from "./voiceControl";
 import { PILOT_POSES, manualConfidence, isPilotPose } from "./poseCoach";
 import { roleDefaults } from "./household";
 import { PATHWAYS, asanaBySlug } from "../data/content";
-import { poseArcRank } from "./yogaTrainer";
 import { profileById } from "../data/profiles";
 
 function outcome(partial: Partial<SessionOutcome>): SessionOutcome {
@@ -271,6 +271,122 @@ describe("adaptive generator", () => {
     }
     assert.notEqual(byLength.get(15), byLength.get(20), "20 min matched the 15-minute plan");
     assert.notEqual(byLength.get(20), byLength.get(25), "25 min matched the 20-minute plan");
+  });
+
+  it("a 10/15/20-minute moderate plan meets the standing-pose floor in slot 2", () => {
+    for (const minutes of [10, 15, 20, 25]) {
+      const result = generateAdaptiveSession({ intentMinutes: minutes, need: "movement" });
+      const standing = result.session.poses.filter((p) => isStandingBuild(p.slug));
+      const floor = standingFloorFor(minutes);
+      assert.ok(
+        standing.length >= floor,
+        `${minutes}min had ${standing.length} standing build poses, need ${floor}: ${result.session.poses.map((p) => `${p.slug}:${p.arcSlot}`).join(" → ")}`,
+      );
+      assert.ok(standing.every((p) => p.arcSlot === 2));
+      assert.equal(result.standingExclusion, null);
+      const lastWarmup = result.session.poses.map((p) => p.arcSlot).lastIndexOf(1);
+      const firstStanding = result.session.poses.findIndex((p) => p.arcSlot === 2);
+      const firstPeak = result.session.poses.findIndex((p) => p.arcSlot === 3);
+      assert.ok(firstStanding > lastWarmup);
+      assert.ok(firstStanding < firstPeak);
+    }
+  });
+
+  it("says so in Why this plan when easing keeps you off your feet", () => {
+    const result = generateAdaptiveSession({
+      intentMinutes: 20,
+      adviceOverride: {
+        intensity: "easy",
+        holdScale: 0.85,
+        preferNeed: "calm",
+        maxMinutes: 15,
+        reasons: ["Several poses were skipped recently — easing intensity."],
+        headline: "An easier practice to rebuild momentum",
+      },
+    });
+    assert.ok(
+      result.explanations.some((e) => /Keeping you off your feet today after some skipped sessions/i.test(e)),
+      result.explanations.join(" | "),
+    );
+    assert.match(result.standingExclusion ?? "", /off your feet/i);
+  });
+
+  it("standing-pose floor holds across 50 generated plans unless an exclusion is recorded", () => {
+    const durations = [10, 15, 20, 25];
+    const intensities: Array<{
+      intensity: "recover" | "easy" | "steady" | "build";
+      preferNeed: string;
+      holdScale: number;
+      maxMinutes: number;
+      reasons: string[];
+      headline: string;
+    }> = [
+      {
+        intensity: "steady",
+        preferNeed: "movement",
+        holdScale: 1,
+        maxMinutes: 20,
+        reasons: ["No recent effort data — starting with a steady, moderate plan."],
+        headline: "A steady practice for today",
+      },
+      {
+        intensity: "build",
+        preferNeed: "strength",
+        holdScale: 1.1,
+        maxMinutes: 25,
+        reasons: ["Recent sessions felt manageable — a slight build is available (you can override)."],
+        headline: "A progressive practice (optional)",
+      },
+      {
+        intensity: "easy",
+        preferNeed: "calm",
+        holdScale: 0.85,
+        maxMinutes: 15,
+        reasons: ["Several poses were skipped recently — easing intensity."],
+        headline: "An easier practice to rebuild momentum",
+      },
+      {
+        intensity: "recover",
+        preferNeed: "calm",
+        holdScale: 0.7,
+        maxMinutes: 12,
+        reasons: ["Last effort was RPE 9/10 — choosing recovery."],
+        headline: "A gentle recovery session",
+      },
+    ];
+    let n = 0;
+    for (const minutes of durations) {
+      for (const advice of intensities) {
+        for (const variant of [0, 1, 2, 3]) {
+          if (n >= 50) break;
+          const result = generateAdaptiveSession({
+            intentMinutes: minutes,
+            variant,
+            adviceOverride: advice,
+          });
+          n += 1;
+          const standing = result.session.poses.filter((p) => isStandingBuild(p.slug));
+          const floor = standingFloorFor(minutes);
+          const label = `${minutes}min ${advice.intensity} v${variant}: ${result.session.poses.map((p) => `${p.slug}:${p.arcSlot}`).join(" → ")}`;
+          if (standing.length >= floor) {
+            assert.ok(
+              standing.every((p) => p.arcSlot === 2),
+              `${label} standing work left slot 2`,
+            );
+            continue;
+          }
+          assert.ok(
+            result.standingExclusion && /off your feet|restorative|protect/i.test(result.standingExclusion),
+            `${label} missed the standing floor (${standing.length}/${floor}) with no exclusion: ${result.explanations.join(" | ")}`,
+          );
+          assert.ok(
+            result.explanations.includes(result.standingExclusion),
+            `${label} exclusion was not in Why this plan`,
+          );
+        }
+      }
+    }
+    assert.ok(n >= 50, `only generated ${n} plans`);
   });
 });
 

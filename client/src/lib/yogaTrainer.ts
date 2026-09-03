@@ -46,6 +46,11 @@ export type TrainerSession = {
    * returning the opposite of what was asked is never acceptable.
    */
   adjustments: string[];
+  /**
+   * Set when standing / build work was deliberately left out (easing,
+   * restful need, or a contraindication). Null when the standing floor holds.
+   */
+  standingExclusion: string | null;
 };
 
 export const SEQUENCES: Record<string, string[]> = {
@@ -476,20 +481,34 @@ const WARMUP_POOL = [
   "adho-mukha-svanasana",
   "high-lunge",
 ];
-const BUILD_POOL = [
-  "anjaneyasana",
-  "trikonasana",
+/**
+ * Slot 2 is the standing / build phase — warriors, triangles, chair, tree.
+ * Seated and supine shapes used to live here, which is why a "steady practice"
+ * read as a wind-down: the bucket was never seeded with time on the feet.
+ */
+const STANDING_BUILD_POOL = [
   "virabhadrasana-ii",
+  "trikonasana",
   "utkatasana",
+  "vrksasana",
+  "standing-side-stretch",
+  "baddha-virabhadrasana",
+  "utkata-konasana",
+  "standing-figure-four",
+  "goddess-pulse",
+  "garudasana",
+  "utthita-parsvakonasana",
+  "baddha-parsvakonasana",
+];
+/** Floor-based build shapes when standing work is deliberately off. */
+const SEATED_BUILD_POOL = [
   "baddha-konasana",
   "paschimottanasana",
   "seated-side-bend",
-  "banana-pose",
   "janu-sirsasana",
-  "uttanasana",
-  "vrksasana",
-  "garudasana",
-  "high-lunge",
+  "anjaneyasana",
+  "banana-pose",
+  "gomukhasana",
 ];
 const PEAK_POOL: Record<string, string[]> = {
   calm: ["setu-bandhasana", "salamba-setu-bandhasana", "soft-bridge-pulse"],
@@ -528,6 +547,24 @@ export function poseArcRank(s: string): ArcSlot {
   if (REST_SLUGS.has(s)) return ARC_SLOT.rest;
   if (CHILD_SLUGS.has(s)) return ARC_SLOT.cooldown;
   return ARC_SLOT.build;
+}
+
+/**
+ * Standing work for the build slot. Mountain / Upward Salute still count as
+ * category "Standing" but they live in centering / warm-up — they do not
+ * satisfy the standing-pose floor.
+ */
+export function isStandingBuild(slug: string): boolean {
+  const pose = asanaBySlug(slug);
+  return !!pose && pose.category === "Standing" && poseArcRank(slug) === ARC_SLOT.build;
+}
+
+/** 10 min → 1, 15 min → 2, 20+ min → 3. Below 10 is too short for a standing block. */
+export function standingFloorFor(minutes: number): number {
+  if (minutes < 10) return 0;
+  if (minutes < 15) return 1;
+  if (minutes < 20) return 2;
+  return 3;
 }
 
 function arcOrder(slugs: string[]): string[] {
@@ -577,14 +614,19 @@ function selectArcSlugs(
   variant: number,
   safe: (s: string) => boolean,
   need: string,
+  minStanding: number,
+  allowStanding: boolean,
 ): string[] {
   const n = Math.max(6, target);
   const buckets = bucketize(slugs);
   const taken = new Set(slugs);
 
-  const counts = slotCounts(n);
+  const counts = slotCounts(n, allowStanding ? minStanding : 0);
   fillSlot(buckets[0]!, CENTERING_POOL, counts[0]!, taken, safe, 0);
   fillSlot(buckets[1]!, WARMUP_POOL, counts[1]!, taken, safe, 1);
+  if (allowStanding) {
+    fillStandingBuild(buckets[2]!, Math.max(counts[2]!, minStanding), taken, safe);
+  }
   fillSlot(
     buckets[3]!,
     [...(PEAK_POOL[need] ?? []), ...(PEAK_POOL.movement ?? [])],
@@ -595,7 +637,7 @@ function selectArcSlugs(
   );
   fillSlot(buckets[4]!, COOLDOWN_POOL, counts[4]!, taken, safe, 4);
   fillSlot(buckets[5]!, REST_POOL, counts[5]!, taken, safe, 5);
-  fillSlot(buckets[2]!, BUILD_POOL, counts[2]!, taken, safe, 2);
+  fillSlot(buckets[2]!, SEATED_BUILD_POOL, counts[2]!, taken, safe, 2);
 
   // Prefer a twist and Child's Pose in the cool-down so the close stays
   // twist → child → rest even when the working set is large.
@@ -609,17 +651,23 @@ function selectArcSlugs(
     fillSlot(buckets[5]!, REST_POOL, buckets[5]!.length + 1, taken, safe, 5);
   }
 
+  if (allowStanding) {
+    buckets[2]!.sort((a, b) => standingBuildRank(a) - standingBuildRank(b));
+  }
+  const standingPref = new Set(buckets[2]!.filter(isStandingBuild));
   const picked = [
     ...pickFromBucket(buckets[0]!, counts[0]!, variant, 0),
     ...pickFromBucket(buckets[1]!, counts[1]!, variant, 1),
-    ...pickFromBucket(buckets[2]!, counts[2]!, variant, 2),
+    ...pickFromBucket(buckets[2]!, counts[2]!, variant, 2, standingPref),
     ...pickFromBucket(buckets[3]!, counts[3]!, variant, 3),
     ...pickFromBucket(buckets[4]!, counts[4]!, variant, 4, TWIST_SLUGS, new Set(["balasana", "salamba-balasana", "wide-child-pose"])),
     ...pickFromBucket(buckets[5]!, counts[5]!, variant, 5, new Set(), REST_SLUGS),
   ];
 
-  // Re-sort so a short pool after safety filtering cannot invert the arc.
-  return arcOrder(Array.from(new Set(picked)));
+  const ordered = arcOrder(Array.from(new Set(picked)));
+  return allowStanding
+    ? swapInStanding(ordered, minStanding, safe)
+    : ordered;
 }
 
 function bucketize(slugs: string[]): string[][] {
@@ -656,24 +704,74 @@ function fillSlot(
   }
 }
 
+/** Keep adding standing work even when the bucket is already full of seated builds. */
+function fillStandingBuild(
+  bucket: string[],
+  want: number,
+  taken: Set<string>,
+  safe: (s: string) => boolean,
+): void {
+  for (const s of STANDING_BUILD_POOL) {
+    if (bucket.filter(isStandingBuild).length >= want) return;
+    if (!safe(s) || !isStandingBuild(s)) continue;
+    pushUnique(bucket, s, taken);
+  }
+}
+
+function standingBuildRank(slug: string): number {
+  if (!isStandingBuild(slug)) return 1000 + STANDING_BUILD_POOL.length;
+  const i = STANDING_BUILD_POOL.indexOf(slug);
+  return i >= 0 ? i : STANDING_BUILD_POOL.length;
+}
+
+/**
+ * Replace a seated/kneeling build pose with standing work so the floor is met
+ * without changing sequence length (which would slide the peak out of 45–65%).
+ */
+function swapInStanding(
+  slugs: string[],
+  minStanding: number,
+  safe: (s: string) => boolean,
+): string[] {
+  if (minStanding <= 0) return slugs;
+  const next = slugs.slice();
+  let have = next.filter(isStandingBuild).length;
+  if (have >= minStanding) return next;
+  for (const s of STANDING_BUILD_POOL) {
+    if (have >= minStanding) break;
+    if (!safe(s) || next.includes(s) || !isStandingBuild(s)) continue;
+    const replaceAt = next.findIndex((x) => poseArcRank(x) === ARC_SLOT.build && !isStandingBuild(x));
+    if (replaceAt < 0) break;
+    next[replaceAt] = s;
+    have += 1;
+  }
+  return arcOrder(next);
+}
+
 /**
  * How many poses per slot so the warm-up lands at 1-based position 2 or 3
  * and the peak cluster sits between 45% and 65% of the sequence.
  */
-function slotCounts(n: number): number[] {
+function slotCounts(n: number, minBuild = 0): number[] {
   const len = Math.max(6, n);
   const C = 1;
   const W = 1;
   const Pmin = 1;
-  const Dmin = len >= 8 ? 2 : 1;
+  let Dmin = len >= 8 ? 2 : 1;
   const R = 1;
   let leftover = len - C - W - Pmin - Dmin - R;
+  const wantBuild = Math.max(0, minBuild);
+  if (wantBuild > leftover && leftover + (Dmin - 1) >= wantBuild) {
+    const steal = wantBuild - leftover;
+    Dmin -= steal;
+    leftover += steal;
+  }
 
   const lo = Math.max(1, Math.ceil(len * 0.45));
   const hi = Math.max(lo, Math.floor(len * 0.65));
   const targetPeak = Math.round((lo + hi) / 2);
-  let B = Math.max(0, targetPeak - C - W - 1);
-  if (B > leftover) B = Math.max(0, leftover);
+  let B = Math.max(wantBuild, Math.max(0, targetPeak - C - W - 1));
+  if (B > leftover) B = Math.max(wantBuild, leftover);
   leftover -= B;
 
   let P = Pmin;
@@ -689,7 +787,7 @@ function slotCounts(n: number): number[] {
     leftover -= 1;
   }
 
-  while (C + W + B + 1 > hi && B > 0) {
+  while (C + W + B + 1 > hi && B > wantBuild) {
     B -= 1;
     D += 1;
   }
@@ -757,6 +855,11 @@ export function composeTrainerSession(
     experience?: TrainerExperience;
     /** 0 = stable authored order. >0 reshuffles within warm-up / peak / cool-down. */
     variant?: number;
+    /**
+     * When false, slot 2 stays on the floor (calm / sleep / easing). Default
+     * is true for vigorous needs and false for restful ones.
+     */
+    allowStanding?: boolean;
   },
 ): TrainerSession {
   const injured = c.body.some((b) => b.toLowerCase().includes("injured"));
@@ -858,13 +961,16 @@ export function composeTrainerSession(
 
   slugs = Array.from(new Set(slugs));
 
-  // A movement / strength / energy session with no standing pose is a wind-down
-  // wearing the wrong label. Keep an accessible standing shape in the working set.
-  if (!RESTFUL_NEEDS.has(key) && !slugs.some((s) => asanaBySlug(s)?.category === "Standing")) {
-    const inject = ["tadasana", "urdhva-hastasana", "anjaneyasana", "trikonasana"].find(
-      (s) => safe(s) && !slugs.includes(s),
-    );
-    if (inject) slugs.splice(Math.min(1, slugs.length), 0, inject);
+  const allowStanding = opts?.allowStanding ?? !RESTFUL_NEEDS.has(key);
+
+  // Seed slot-2 standing work into the candidate list so selectArcSlugs can
+  // draw it after the warm-up. Mountain alone is centering, not a practice arc.
+  if (allowStanding) {
+    const want = Math.max(standingFloorFor(c.timeMinutes), 3);
+    for (const s of STANDING_BUILD_POOL) {
+      if (slugs.filter(isStandingBuild).length >= want) break;
+      if (safe(s) && !slugs.includes(s)) slugs.push(s);
+    }
   }
 
   // Did enough of the requested focus survive to honestly call it that?
@@ -889,19 +995,24 @@ export function composeTrainerSession(
     );
   }
 
+  const standingOn =
+    allowStanding && deliveredNeed !== "restorative" && !RESTFUL_NEEDS.has(key);
+  const standingWanted = standingOn ? standingFloorFor(c.timeMinutes) : 0;
+
   // Centering → warm-up → build → peak → cool-down → rest. Regenerating
   // reshuffles inside a slot; it never promotes rest into the opening.
-  slugs = selectArcSlugs(slugs, targetPoseCount, variant, safe, deliveredNeed);
+  slugs = selectArcSlugs(
+    slugs,
+    targetPoseCount,
+    variant,
+    safe,
+    deliveredNeed,
+    standingWanted,
+    standingOn,
+  );
 
-  if (
-    deliveredNeed !== "restorative" &&
-    !RESTFUL_NEEDS.has(key) &&
-    !slugs.some((s) => asanaBySlug(s)?.category === "Standing")
-  ) {
-    const inject = ["tadasana", "urdhva-hastasana", "anjaneyasana"].find(
-      (s) => safe(s) && !slugs.includes(s),
-    );
-    if (inject) slugs = selectArcSlugs([...slugs, inject], targetPoseCount, variant, safe, deliveredNeed);
+  if (standingOn && slugs.filter(isStandingBuild).length < standingWanted) {
+    slugs = swapInStanding(slugs, standingWanted, safe);
   }
 
   if (!slugs.some((s) => poseArcRank(s) === ARC_SLOT.rest)) {
@@ -970,6 +1081,21 @@ export function composeTrainerSession(
     ? `Because your ${c.soreParts.join(" and ").toLowerCase()} ${c.soreParts.length > 1 ? "are" : "is"} asking for care, I've shaped ${c.timeMinutes} minutes of ${deliveredLabel} that meets you where you are and closes in rest.`
     : `Here are ${c.timeMinutes} minutes of ${deliveredLabel}, shaped for how you're feeling today and closing in rest.`;
 
+  let standingExclusion: string | null = null;
+  const standingCount = poses.filter((p) => isStandingBuild(p.slug)).length;
+  if (standingOn && standingWanted > 0 && standingCount < standingWanted) {
+    standingExclusion = c.soreParts.length
+      ? `Keeping you off your feet today to protect your ${c.soreParts.join(" and ").toLowerCase()}.`
+      : "Keeping you off your feet today — standing work wasn't safe with what you reported.";
+    if (!adjustments.includes(standingExclusion)) adjustments.push(standingExclusion);
+  } else if (opts?.allowStanding === false) {
+    standingExclusion = "Keeping you off your feet today.";
+  } else if (deliveredNeed === "restorative") {
+    standingExclusion =
+      adjustments.find((a) => /restorative session instead/i.test(a)) ??
+      "Keeping you off your feet today — this is a restorative session.";
+  }
+
   return {
     reasoning,
     poses,
@@ -977,6 +1103,7 @@ export function composeTrainerSession(
     requestedNeed: key,
     deliveredNeed,
     adjustments,
+    standingExclusion,
   };
 }
 
