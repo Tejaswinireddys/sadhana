@@ -58,7 +58,7 @@ function PoseRow({ p }: { p: DailyPlan["poses"][number] }) {
       <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-accent/30">
         <img width={600} height={1200}
           src={`${import.meta.env.BASE_URL}poses/${p.asanaSlug}.png`}
-          alt={asana?.english ?? p.asanaSlug}
+          alt={asana?.imageAlt ?? p.asanaSlug}
           className="h-full w-full object-contain"
           loading="lazy"
         />
@@ -175,7 +175,7 @@ export function DailyProgram({
                   <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background">
                     <img loading="lazy" width={600} height={1200}
                       src={`${import.meta.env.BASE_URL}poses/balasana.png`}
-                      alt="Child's pose"
+                      alt={asanaBySlug("balasana")?.imageAlt ?? "Child's pose"}
                       className="h-full w-full object-contain"
                     />
                   </span>

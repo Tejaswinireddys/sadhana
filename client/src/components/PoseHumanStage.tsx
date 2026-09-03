@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { humanStepSlug } from "@/data/poseKeyImages";
+import { poseImageAlt } from "@/data/poseImageAlts";
 import type { FocusZone } from "@/lib/poseMoments";
 
 export type PoseHumanStageProps = {
@@ -80,7 +81,6 @@ export function PoseHumanStage({
       data-step={stepIndex}
       data-momentum={momentum || "still"}
       data-media="illustrated"
-      aria-label={`Trainer demonstration of ${english}`}
     >
       {/* Pad when caption/focus chrome is on so head & feet stay clear of overlays */}
       <div
@@ -96,8 +96,8 @@ export function PoseHumanStage({
             <img loading="lazy" width={600} height={1200}
               key={layer.id}
               src={imgUrl(layer.slug)}
-              alt=""
-              aria-hidden
+              alt={isTop ? poseImageAlt(layer.slug) || english : ""}
+              aria-hidden={isTop ? undefined : true}
               draggable={false}
               onError={(e) => {
                 const el = e.currentTarget as HTMLImageElement;

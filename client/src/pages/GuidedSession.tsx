@@ -1348,7 +1348,6 @@ export default function GuidedSession() {
           <div className="h-28 w-28 overflow-hidden rounded-full bg-accent/30">
             <PoseImage
               slug="savasana"
-              alt=""
               aspect="aspect-square"
               rounded="rounded-full"
               breath={false}
@@ -1737,7 +1736,7 @@ export default function GuidedSession() {
           >
             <img width={80} height={160}
               src={`${import.meta.env.BASE_URL}poses/${prev.slug}.png`}
-              alt={prev.english}
+              alt={prev.imageAlt}
               className="h-20 w-20 rounded-xl object-contain"
               loading="lazy"
               decoding="async"
@@ -1761,7 +1760,7 @@ export default function GuidedSession() {
           >
             <img width={80} height={160}
               src={`${import.meta.env.BASE_URL}poses/${next.slug}.png`}
-              alt={next.english}
+              alt={next.imageAlt}
               className="h-20 w-20 rounded-xl object-contain"
               loading="lazy"
               decoding="async"

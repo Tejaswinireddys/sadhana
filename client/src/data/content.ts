@@ -2,6 +2,7 @@
 import { EXTRAS } from "./variations";
 import { FOCUS_ZONES, STRETCH_ZONES, DEFAULT_FOCUS_ZONE } from "./zones";
 import { bestForFor } from "./bestFor";
+import { poseImageAlt } from "./poseImageAlts";
 import { arcSlotFor, type ArcSlot } from "./arcSlots";
 
 export { DEFAULT_FOCUS_ZONE };
@@ -80,6 +81,12 @@ export type Asana = {
   /** When to reach for this pose — shown as "Best for" on the detail page. */
   bestFor: string[];
   /**
+   * Body-shape description of the catalog illustration. Stored with the
+   * record (see poseImageAlts.ts) so it stays reviewable — never invented
+   * at render from the English name.
+   */
+  imageAlt: string;
+  /**
    * Practice-arc slot: 0 centering · 1 warm-up · 2 build/standing ·
    * 3 peak · 4 cool-down · 5 rest. Plans sort by this; regenerate may
    * shuffle within a slot, never across slots.
@@ -104,7 +111,7 @@ export type StretchZone = {
 
 // Raw asana literals (without the merged extras). The fully-typed ASANAS
 // array below is produced by merging EXTRAS into these at module load.
-type RawAsana = Omit<Asana, "avoidIf" | "variations" | "stretchZones" | "bestFor" | "arcSlot">;
+type RawAsana = Omit<Asana, "avoidIf" | "variations" | "stretchZones" | "bestFor" | "arcSlot" | "imageAlt">;
 
 const RAW_ASANAS: RawAsana[] = [
   {
@@ -4796,6 +4803,7 @@ export const ASANAS: Asana[] = RAW_ASANAS.map((raw) => {
     ...raw,
     steps,
     bestFor,
+    imageAlt: poseImageAlt(raw.slug),
     arcSlot: arcSlotFor({
       slug: raw.slug,
       category: raw.category,

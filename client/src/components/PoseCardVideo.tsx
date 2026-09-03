@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PoseImage } from "@/components/PoseImage";
 import { attachHls, type HlsAttachHandle } from "@/lib/hlsAttach";
 import { manifestToVideoSources, usePoseMedia } from "@/lib/poseMediaApi";
+import { asanaBySlug } from "@/data/content";
 import { cn } from "@/lib/utils";
 
 function prefersReducedMotion(): boolean {
@@ -36,6 +37,7 @@ export function PoseCardVideo({
   const media = useMemo(() => manifestToVideoSources(slug, manifest), [slug, manifest]);
   const hasVideo = Boolean(media);
   const showVideo = !!media && hover && !failed && !reduceMotion;
+  const resolvedAlt = asanaBySlug(slug)?.imageAlt || alt;
 
   useEffect(() => {
     setFailed(false);
@@ -75,7 +77,7 @@ export function PoseCardVideo({
     return (
       <PoseImage
         slug={slug}
-        alt={alt}
+        alt={resolvedAlt}
         rounded="rounded-none"
         aspect="aspect-square"
         shadow={false}
@@ -99,7 +101,7 @@ export function PoseCardVideo({
         width={600}
         height={1200}
         src={media.poster}
-        alt={alt}
+        alt={resolvedAlt}
         className="relative z-0 h-full w-full object-contain"
         loading="lazy"
         decoding="async"

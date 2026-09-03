@@ -7,6 +7,7 @@ import { PoseImage } from "@/components/PoseImage";
 import { WarmupCard } from "@/components/WarmupCard";
 import { PATHWAYS, asanaBySlug } from "@/data/content";
 import type { Pathway } from "@/data/content";
+import { poseImageAlt } from "@/data/poseImageAlts";
 import type { Enrollment } from "@shared/schema";
 import { usePractice } from "@/context/PracticeContext";
 import { CalendarDays, Repeat, Clock, Sparkles, Play, Zap, Flower2, Trophy } from "lucide-react";
@@ -69,7 +70,6 @@ function FlowCard({ p, onStart }: { p: Pathway; onStart: (p: Pathway) => void })
     >
       <PoseImage
         slug={p.targetImgSlug}
-        alt={p.target}
         rounded="rounded-none"
         aspect="aspect-[4/3]"
         shadow={false}
@@ -114,7 +114,6 @@ function PathwayCard({ p, enrolled }: { p: Pathway; enrolled: boolean }) {
         <div className="relative transition-transform group-hover:scale-[1.02]">
           <PoseImage
             slug={p.targetImgSlug}
-            alt={p.target}
             rounded="rounded-xl"
             aspect="aspect-[4/3]"
             shadow={false}
@@ -149,8 +148,7 @@ function PathwayCard({ p, enrolled }: { p: Pathway; enrolled: boolean }) {
                 >
                   <img width={600} height={1200}
                     src={`${import.meta.env.BASE_URL}poses/${slug}.png`}
-                    alt=""
-                    aria-hidden
+                    alt={poseImageAlt(slug)}
                     decoding="async"
                     className="h-full w-full object-contain"
                     loading="lazy"

@@ -13,6 +13,7 @@ import { PoseSvg } from "@/components/PoseSvg";
 import { PoseFigurine3D } from "@/components/PoseFigurine3D";
 import { PoseStageGL } from "@/components/PoseStageGL";
 import { hasRigSequence } from "@/data/poseKeyframes";
+import { asanaBySlug } from "@/data/content";
 import type { StepMotionKey } from "@/components/StepMotion";
 import type { PoseMediaSources } from "@/data/poseMedia";
 import type { FocusZone } from "@/lib/poseMoments";
@@ -316,7 +317,7 @@ export function PoseDemoStage({
     return () => window.clearTimeout(t);
   }, [useVideo, showSources, videoReady, videoFailed]);
 
-  const alt = `${english} (${sanskrit}) pose demonstration`;
+  const alt = asanaBySlug(slug)?.imageAlt || `${english} (${sanskrit}) pose demonstration`;
   // Clips start on a shared standing entry. A paused video is the wrong still —
   // keep the poster PNG until the clip is actually playing.
   const showVideoLayer = useVideo && videoReady && playing && !reduceMotion && !videoFailed;

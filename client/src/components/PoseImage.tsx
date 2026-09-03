@@ -30,7 +30,8 @@ export function PoseImage({
   testId,
 }: {
   slug: string;
-  alt: string;
+  /** Override. Defaults to the stored pose-record `imageAlt`. Empty string does not blank a stored alt. */
+  alt?: string;
   className?: string;
   breath?: boolean;
   rounded?: string;
@@ -58,6 +59,7 @@ export function PoseImage({
   const [useFullSize, setUseFullSize] = useState(false);
   const asana = asanaBySlug(slug);
   const poseKey = asana?.pose ?? "mountain";
+  const resolvedAlt = asana?.imageAlt || alt || "";
   const fullPng = `${import.meta.env.BASE_URL}poses/${slug}.png`;
   const fullWebp = `${import.meta.env.BASE_URL}poses/${slug}.webp`;
   const thumbPng = `${import.meta.env.BASE_URL}poses/thumbs/${slug}.png`;
@@ -131,7 +133,7 @@ export function PoseImage({
           <img
             ref={attachImg}
             src={src}
-            alt={alt}
+            alt={resolvedAlt}
             width={thumb ? 96 : 600}
             height={thumb ? 192 : 1200}
             sizes={sizes}
@@ -165,7 +167,7 @@ export function PoseImage({
           )}
           data-testid={`pose-image-fallback-${slug}`}
           role="img"
-          aria-label={alt}
+          aria-label={resolvedAlt}
         >
           <PoseSvg pose={poseKey} size={96} className="opacity-80" />
           <span className="px-3 text-center text-xs text-muted-foreground">Line illustration</span>

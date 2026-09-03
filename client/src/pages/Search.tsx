@@ -202,7 +202,7 @@ export default function Search() {
                         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg">
                           <PoseCardVideo
                             slug={a.slug}
-                            alt={a.english}
+                            alt={a.imageAlt}
                             className="h-full w-full"
                             testId={`search-pose-video-${a.slug}`}
                           />

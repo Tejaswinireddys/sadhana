@@ -13,6 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { ASANAS } from "./content.ts";
+import { POSE_IMAGE_ALT } from "./poseImageAlts.ts";
 import { EXTRAS } from "./variations.ts";
 import { STRETCH_ZONES } from "./zones.ts";
 import { BEST_FOR } from "./bestFor.ts";
@@ -60,6 +61,23 @@ test("every pose has authored depth, not fallbacks", () => {
   assert.deepEqual(withoutExtras, [], "missing variations / avoidIf");
   assert.deepEqual(withoutZones, [], "missing stretch zones");
   assert.deepEqual(withoutBestFor, [], "missing best-for copy");
+});
+
+test("every pose illustration has stored body-shape alt text", () => {
+  const missing = ASANAS.filter((a) => !a.imageAlt).map((a) => a.slug);
+  assert.deepEqual(missing, []);
+  assert.equal(ASANAS.length, Object.keys(POSE_IMAGE_ALT).length);
+  assert.equal(
+    POSE_IMAGE_ALT["couch-hip-flexor"],
+    "Kneeling with the back foot raised on a chair, torso upright, hands on the front thigh.",
+  );
+  const tooShort = ASANAS.filter((a) => a.imageAlt.length < 40).map((a) => a.slug);
+  assert.deepEqual(tooShort, []);
+  const justTheName = ASANAS.filter(
+    (a) => a.imageAlt === a.english || a.imageAlt.toLowerCase() === a.english.toLowerCase(),
+  ).map((a) => a.slug);
+  assert.deepEqual(justTheName, []);
+  assert.deepEqual(duplicates(ASANAS.map((a) => a.imageAlt)), []);
 });
 
 test("every pose is described, not stubbed", () => {
@@ -210,4 +228,23 @@ test("every pose carries a 0–5 practice-arc slot", () => {
   assert.equal(bySlug["savasana"]?.arcSlot, 5);
   assert.equal(bySlug["makarasana"]?.arcSlot, 5);
   assert.equal(bySlug["supta-baddha-konasana"]?.arcSlot, 5);
+});
+
+test("pose illustrations read stored imageAlt; decorative images stay empty", () => {
+  const poseImage = readFileSync(path.join(ROOT, "client/src/components/PoseImage.tsx"), "utf8");
+  assert.match(poseImage, /asana\?\.imageAlt/);
+  assert.match(poseImage, /alt=\{resolvedAlt\}/);
+  // Blur-up duplicate of the same asset is decorative.
+  assert.match(poseImage, /alt=""\s*\n\s*aria-hidden/);
+
+  const demo = readFileSync(path.join(ROOT, "client/src/components/PoseDemoStage.tsx"), "utf8");
+  assert.match(demo, /asanaBySlug\(slug\)\?\.imageAlt/);
+
+  const header = readFileSync(path.join(ROOT, "client/src/components/home/HomeWelcomeHeader.tsx"), "utf8");
+  assert.match(header, /data-testid="home-hero-scene"/);
+  assert.match(header, /aria-hidden/);
+  assert.match(header, /alt=""/);
+
+  const home = readFileSync(path.join(ROOT, "client/src/pages/Home.tsx"), "utf8");
+  assert.match(home, /alt=\{a\.imageAlt\}/);
 });

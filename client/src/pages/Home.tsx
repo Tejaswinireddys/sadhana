@@ -631,8 +631,7 @@ export default function Home() {
                         >
                           <img width={48} height={96}
                             src={`${import.meta.env.BASE_URL}poses/${a.slug}.png`}
-                            alt=""
-                            aria-hidden
+                            alt={a.imageAlt}
                             loading="lazy"
                             decoding="async"
                             className="h-12 w-12 shrink-0 rounded-md object-contain"
@@ -735,8 +734,7 @@ export default function Home() {
                 >
                   <img width={80} height={160}
                     src={`${import.meta.env.BASE_URL}poses/${f.slug}.png`}
-                    alt=""
-                    aria-hidden
+                    alt={a.imageAlt}
                     decoding="async"
                     className="h-20 w-20 rounded-md object-contain"
                     loading="lazy"

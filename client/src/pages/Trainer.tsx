@@ -347,7 +347,7 @@ export default function Trainer() {
                       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg sm:h-20 sm:w-20">
                         <PoseCardVideo
                           slug={p.slug}
-                          alt={asana?.english ?? p.slug}
+                          alt={asana?.imageAlt ?? p.slug}
                           className="h-full w-full"
                           testId={`trainer-pose-video-${p.slug}`}
                         />

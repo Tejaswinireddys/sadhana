@@ -327,7 +327,7 @@ export default function Asanas() {
                     <div className="transition-transform duration-200 group-hover:scale-[1.02]">
                       <PoseCardVideo
                         slug={a.slug}
-                        alt={a.english}
+                        alt={a.imageAlt}
                         testId={`asana-thumb-${a.slug}`}
                       />
                     </div>
