@@ -224,6 +224,8 @@ export function arcSlotFor(pose: PoseHint): ArcSlot {
     return 3;
   }
   if (pose.category === "Backbends") return 3;
+  if (pose.category === "Core") return 2;
+  if (pose.category === "Supine/Prone") return 1;
   if (pose.category === "Hip Openers") {
     if (/^supta-/.test(slug) || /reclined|supine|rest/.test(blob)) return 4;
     return 2;
