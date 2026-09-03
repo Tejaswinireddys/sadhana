@@ -1245,6 +1245,9 @@ export default function GuidedSession() {
           <Button asChild variant="outline" size="sm" data-testid="button-hub-adaptive">
             <Link href="/adaptive">Adaptive plan</Link>
           </Button>
+          <Button asChild variant="outline" size="sm" data-testid="button-hub-pose-coach">
+            <Link href="/pose-coach">Pose self-check</Link>
+          </Button>
           <Button asChild variant="outline" size="sm" data-testid="button-hub-breathing">
             <Link href="/breathing">Breathing</Link>
           </Button>

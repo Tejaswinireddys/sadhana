@@ -326,6 +326,18 @@ export default function Settings() {
             <Link href="/account" className="underline underline-offset-2">
               Account
             </Link>
+            <span aria-hidden>·</span>
+            <Link href="/instructors" className="underline underline-offset-2" data-testid="settings-instructors">
+              Teachers waitlist
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/design-system" className="underline underline-offset-2" data-testid="settings-design-system">
+              Design system
+            </Link>
+            <span aria-hidden>·</span>
+            <Link href="/corporate" className="underline underline-offset-2" data-testid="settings-corporate">
+              Workplace prototype
+            </Link>
           </div>
           <div className="rounded-md border border-border p-3">
             <VoiceToggle />
