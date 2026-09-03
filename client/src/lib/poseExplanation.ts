@@ -157,6 +157,22 @@ const CATEGORY_FEELS: Record<Category, string[]> = {
     "No yanking — wait for the tissue to yield",
     "Square the hips even when one side is louder",
   ],
+  Core: [
+    "Low belly drawing in, not braced into the throat",
+    "Hips in one long line — not piked, not sagging",
+    "Ribs knitted so the low back stays quiet",
+    "Breath steady; never hold it as the midline works",
+    "Shoulders away from the ears while the trunk stays strong",
+    "Move slow enough that the brace never leaks",
+  ],
+  "Supine/Prone": [
+    "Back of the head and sacrum heavy on the floor",
+    "Low back unforced — small range is still the work",
+    "Shoulders dropping away from the ears",
+    "Jaw and forehead stay quiet",
+    "Legs active without gripping the neck",
+    "Let the floor hold you while the shape stays honest",
+  ],
   Inversions: [
     "Weight in the foundation, neck long",
     "Core lifting the hips rather than dumping into the shoulders",

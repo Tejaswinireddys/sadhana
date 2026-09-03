@@ -13,6 +13,8 @@ export type Category =
   | "Forward Bends"
   | "Backbends"
   | "Hip Openers"
+  | "Core"
+  | "Supine/Prone"
   | "Inversions"
   | "Restorative";
 
@@ -22,6 +24,8 @@ export const CATEGORIES: Category[] = [
   "Forward Bends",
   "Backbends",
   "Hip Openers",
+  "Core",
+  "Supine/Prone",
   "Inversions",
   "Restorative",
 ];
@@ -2749,7 +2753,7 @@ const RAW_ASANAS: RawAsana[] = [
     slug: "uttana-padasana",
     sanskrit: "Uttana Padasana",
     english: "Raised Legs Pose",
-    category: "Seated",
+    category: "Core",
     difficulty: "Intermediate",
     hold: "20–40 sec",
     holdSeconds: 30,
@@ -3057,7 +3061,7 @@ const RAW_ASANAS: RawAsana[] = [
     slug: "dolphin-plank",
     sanskrit: "Makara Phalakasana",
     english: "Dolphin Plank",
-    category: "Backbends",
+    category: "Core",
     difficulty: "Intermediate",
     hold: "20–40 sec",
     holdSeconds: 30,
@@ -3739,7 +3743,7 @@ const RAW_ASANAS: RawAsana[] = [
     slug: "glute-bridge-march",
     sanskrit: "Glute Bridge March",
     english: "Glute Bridge March",
-    category: "Backbends",
+    category: "Core",
     difficulty: "Beginner",
     hold: "20–40 sec",
     holdSeconds: 30,
@@ -3761,7 +3765,7 @@ const RAW_ASANAS: RawAsana[] = [
     slug: "active-hamstring-raise",
     sanskrit: "Active Hamstring Raise",
     english: "Active Straight-Leg Raise",
-    category: "Forward Bends",
+    category: "Supine/Prone",
     difficulty: "Beginner",
     hold: "20–30 sec each side",
     holdSeconds: 25,
@@ -3805,7 +3809,7 @@ const RAW_ASANAS: RawAsana[] = [
     slug: "prone-y-lift",
     sanskrit: "Prone Y Lift",
     english: "Prone Y-Lift",
-    category: "Backbends",
+    category: "Supine/Prone",
     difficulty: "Beginner",
     hold: "15–25 sec",
     holdSeconds: 20,
@@ -3871,7 +3875,7 @@ const RAW_ASANAS: RawAsana[] = [
     slug: "scapular-plank-push",
     sanskrit: "Scapular Plank Push",
     english: "Scapular Plank Push-Up",
-    category: "Backbends",
+    category: "Core",
     difficulty: "Intermediate",
     hold: "20–40 sec",
     holdSeconds: 30,
@@ -3893,7 +3897,7 @@ const RAW_ASANAS: RawAsana[] = [
     slug: "pelvic-clock",
     sanskrit: "Pelvic Clock",
     english: "Pelvic Clock",
-    category: "Restorative",
+    category: "Supine/Prone",
     difficulty: "Beginner",
     hold: "1–2 min",
     holdSeconds: 90,
@@ -4069,7 +4073,7 @@ const RAW_ASANAS: RawAsana[] = [
     slug: "soft-bridge-pulse",
     sanskrit: "Soft Bridge Pulse",
     english: "Soft Bridge Pulse",
-    category: "Backbends",
+    category: "Supine/Prone",
     difficulty: "Beginner",
     hold: "30–45 sec",
     holdSeconds: 35,
@@ -4393,7 +4397,7 @@ const RAW_ASANAS: RawAsana[] = [
     slug: "dead-bug",
     sanskrit: "Dead Bug",
     english: "Dead Bug",
-    category: "Seated",
+    category: "Core",
     difficulty: "Beginner",
     hold: "6–10 slow reps",
     holdSeconds: 45,

@@ -12,7 +12,14 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { ASANAS } from "./content.ts";
+import { ASANAS, CATEGORIES } from "./content.ts";
+import {
+  CORE_FAMILY_SLUGS,
+  SUPINE_PRONE_FAMILY_SLUGS,
+  expectedFamily,
+  isClassicalAsanaName,
+  isSupineOrProneBase,
+} from "./poseTaxonomy.ts";
 import { EXTRAS } from "./variations.ts";
 import { STRETCH_ZONES } from "./zones.ts";
 import { BEST_FOR } from "./bestFor.ts";
@@ -189,13 +196,15 @@ test("categories follow base position, not marketing vibe", () => {
   const boat = bySlug["navasana"]!;
   const birdDog = bySlug["chakravakasana"]!;
 
-  assert.notEqual(dolphin.category, "Standing", "Dolphin Plank is a forearm plank, not a standing pose");
-  assert.notEqual(dead.category, "Restorative", "Dead Bug is a core drill, not a wind-down");
+  assert.equal(dolphin.category, "Core", "Dolphin Plank is a forearm plank");
+  assert.equal(dead.category, "Core", "Dead Bug is a core drill");
   assert.notEqual(plank.category, "Standing", "Plank is not on the feet");
   assert.notEqual(chaturanga.category, "Standing", "Chaturanga is not on the feet");
   assert.notEqual(birdDog.category, "Restorative", "Bird Dog is a core drill, not a wind-down");
-  assert.equal(dolphin.category, plank.category, "Dolphin Plank should match Plank");
-  assert.equal(dead.category, boat.category, "Dead Bug should match Boat as core work");
+  // Classical assignments stay in the seven original families.
+  assert.equal(plank.category, "Backbends");
+  assert.equal(boat.category, "Seated");
+  assert.equal(birdDog.category, "Backbends");
 });
 
 test("every pose carries a 0–5 practice-arc slot", () => {
@@ -210,4 +219,100 @@ test("every pose carries a 0–5 practice-arc slot", () => {
   assert.equal(bySlug["savasana"]?.arcSlot, 5);
   assert.equal(bySlug["makarasana"]?.arcSlot, 5);
   assert.equal(bySlug["supta-baddha-konasana"]?.arcSlot, 5);
+});
+
+test("Core and Supine/Prone families exist and only hold the audited drills", () => {
+  assert.ok(CATEGORIES.includes("Core"));
+  assert.ok(CATEGORIES.includes("Supine/Prone"));
+  assert.equal(ASANAS.length, 207);
+
+  const bySlug = Object.fromEntries(ASANAS.map((a) => [a.slug, a]));
+  for (const slug of CORE_FAMILY_SLUGS) {
+    assert.equal(bySlug[slug]?.category, "Core", slug);
+  }
+  for (const slug of SUPINE_PRONE_FAMILY_SLUGS) {
+    assert.equal(bySlug[slug]?.category, "Supine/Prone", slug);
+  }
+
+  const core = ASANAS.filter((a) => a.category === "Core");
+  const floor = ASANAS.filter((a) => a.category === "Supine/Prone");
+  assert.deepEqual(
+    core.map((a) => a.slug).sort(),
+    [...CORE_FAMILY_SLUGS].sort(),
+  );
+  assert.deepEqual(
+    floor.map((a) => a.slug).sort(),
+    [...SUPINE_PRONE_FAMILY_SLUGS].sort(),
+  );
+});
+
+test("no supine or prone base is filed under Standing or Seated", () => {
+  const leaked = ASANAS.filter(
+    (a) => isSupineOrProneBase(a) && (a.category === "Standing" || a.category === "Seated"),
+  ).map((a) => `${a.slug} [${a.category}]`);
+  assert.deepEqual(leaked, []);
+});
+
+test("classical asana families are unchanged except Raised Legs (supine core)", () => {
+  const bySlug = Object.fromEntries(ASANAS.map((a) => [a.slug, a]));
+  assert.equal(bySlug["savasana"]?.category, "Restorative");
+  assert.equal(bySlug["sirsasana"]?.category, "Inversions");
+  assert.equal(bySlug["setu-bandhasana"]?.category, "Backbends");
+  assert.equal(bySlug["navasana"]?.category, "Seated");
+  assert.equal(bySlug["kumbhakasana"]?.category, "Backbends");
+  assert.equal(bySlug["chakravakasana"]?.category, "Backbends");
+  assert.equal(bySlug["bhujangasana"]?.category, "Backbends");
+  assert.equal(bySlug["salabhasana"]?.category, "Backbends");
+
+  const movedClassical = ASANAS.filter(
+    (a) =>
+      isClassicalAsanaName(a) &&
+      (a.category === "Core" || a.category === "Supine/Prone") &&
+      expectedFamily(a.slug) == null,
+  ).map((a) => a.slug);
+  assert.deepEqual(movedClassical, []);
+  assert.equal(bySlug["uttana-padasana"]?.category, "Core");
+});
+
+test("filtering by Core and Supine/Prone returns only genuine members", () => {
+  const core = ASANAS.filter((a) => a.category === "Core");
+  assert.ok(core.length >= 5, `Core family too small: ${core.length}`);
+  const coreSpot = [
+    "dolphin-plank",
+    "dead-bug",
+    "scapular-plank-push",
+    "glute-bridge-march",
+    "uttana-padasana",
+  ];
+  for (const slug of coreSpot) {
+    const pose = core.find((a) => a.slug === slug);
+    assert.ok(pose, `missing ${slug} in Core filter`);
+    assert.equal(expectedFamily(slug), "Core");
+    const blob = `${pose.summary} ${pose.steps[0]?.text ?? ""}`.toLowerCase();
+    assert.ok(
+      /plank|core|brace|bridge|legs/.test(blob),
+      `${slug} Core membership looks unrelated: ${pose.summary}`,
+    );
+  }
+
+  const floor = ASANAS.filter((a) => a.category === "Supine/Prone");
+  assert.ok(floor.length >= 4, `Supine/Prone family too small: ${floor.length}`);
+  const floorSpot = [
+    "pelvic-clock",
+    "prone-y-lift",
+    "active-hamstring-raise",
+    "soft-bridge-pulse",
+  ];
+  for (const slug of floorSpot) {
+    const pose = floor.find((a) => a.slug === slug);
+    assert.ok(pose, `missing ${slug} in Supine/Prone filter`);
+    assert.equal(expectedFamily(slug), "Supine/Prone");
+    assert.ok(
+      isSupineOrProneBase(pose),
+      `${slug} should start on the back or belly`,
+    );
+  }
+  for (const pose of floor) {
+    assert.ok(isSupineOrProneBase(pose), `${pose.slug} in Supine/Prone is not a floor-lying shape`);
+  }
 });

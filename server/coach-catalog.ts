@@ -973,7 +973,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "kumbhakasana",
     "english": "Plank Pose",
     "sanskrit": "Kumbhakasana",
-    "category": "Standing",
+    "category": "Backbends",
     "level": "Beginner",
     "holdSeconds": 45,
     "benefits": [
@@ -996,7 +996,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "vasisthasana",
     "english": "Side Plank Pose",
     "sanskrit": "Vasisthasana",
-    "category": "Standing",
+    "category": "Backbends",
     "level": "Intermediate",
     "holdSeconds": 30,
     "benefits": [
@@ -1065,7 +1065,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "chaturanga-dandasana",
     "english": "Four-Limbed Staff Pose",
     "sanskrit": "Chaturanga Dandasana",
-    "category": "Standing",
+    "category": "Backbends",
     "level": "Intermediate",
     "holdSeconds": 8,
     "benefits": [
@@ -1387,7 +1387,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "bakasana",
     "english": "Crow Pose",
     "sanskrit": "Bakasana",
-    "category": "Standing",
+    "category": "Inversions",
     "level": "Advanced",
     "holdSeconds": 20,
     "benefits": [
@@ -1411,7 +1411,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "parivrtta-anjaneyasana",
     "english": "Revolved Low Lunge",
     "sanskrit": "Parivrtta Anjaneyasana",
-    "category": "Standing",
+    "category": "Hip Openers",
     "level": "Intermediate",
     "holdSeconds": 30,
     "benefits": [
@@ -1503,7 +1503,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "parighasana",
     "english": "Gate Pose",
     "sanskrit": "Parighasana",
-    "category": "Standing",
+    "category": "Seated",
     "level": "Beginner",
     "holdSeconds": 30,
     "benefits": [
@@ -1799,7 +1799,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "chakravakasana",
     "english": "Bird Dog Pose",
     "sanskrit": "Chakravakasana",
-    "category": "Restorative",
+    "category": "Backbends",
     "level": "Beginner",
     "holdSeconds": 25,
     "benefits": [
@@ -1987,7 +1987,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "ashtanga-namaskara",
     "english": "Knees-Chest-Chin",
     "sanskrit": "Ashtanga Namaskara",
-    "category": "Standing",
+    "category": "Backbends",
     "level": "Beginner",
     "holdSeconds": 10,
     "benefits": [
@@ -2396,7 +2396,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "mayurasana",
     "english": "Peacock Pose",
     "sanskrit": "Mayurasana",
-    "category": "Standing",
+    "category": "Inversions",
     "level": "Advanced",
     "holdSeconds": 15,
     "benefits": [
@@ -2444,7 +2444,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "astavakrasana",
     "english": "Eight-Angle Pose",
     "sanskrit": "Astavakrasana",
-    "category": "Standing",
+    "category": "Inversions",
     "level": "Advanced",
     "holdSeconds": 12,
     "benefits": [
@@ -2467,7 +2467,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "tittibhasana",
     "english": "Firefly Pose",
     "sanskrit": "Tittibhasana",
-    "category": "Standing",
+    "category": "Inversions",
     "level": "Advanced",
     "holdSeconds": 12,
     "benefits": [
@@ -2490,7 +2490,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "parsva-bakasana",
     "english": "Side Crow Pose",
     "sanskrit": "Parsva Bakasana",
-    "category": "Standing",
+    "category": "Inversions",
     "level": "Advanced",
     "holdSeconds": 12,
     "benefits": [
@@ -2513,7 +2513,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "eka-pada-koundinyasana-ii",
     "english": "Koundinya’s Pose II",
     "sanskrit": "Eka Pada Koundinyasana II",
-    "category": "Standing",
+    "category": "Inversions",
     "level": "Advanced",
     "holdSeconds": 10,
     "benefits": [
@@ -2767,7 +2767,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "uttana-padasana",
     "english": "Raised Legs Pose",
     "sanskrit": "Uttana Padasana",
-    "category": "Seated",
+    "category": "Core",
     "level": "Intermediate",
     "holdSeconds": 30,
     "benefits": [
@@ -2814,7 +2814,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "bhujapidasana",
     "english": "Shoulder-Pressing Pose",
     "sanskrit": "Bhujapidasana",
-    "category": "Standing",
+    "category": "Inversions",
     "level": "Advanced",
     "holdSeconds": 15,
     "benefits": [
@@ -2860,7 +2860,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "eka-pada-bakasana",
     "english": "One-Legged Crow Pose",
     "sanskrit": "Eka Pada Bakasana",
-    "category": "Standing",
+    "category": "Inversions",
     "level": "Advanced",
     "holdSeconds": 10,
     "benefits": [
@@ -2929,7 +2929,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "eka-pada-adho-mukha-svanasana",
     "english": "Three-Legged Dog",
     "sanskrit": "Eka Pada Adho Mukha Svanasana",
-    "category": "Standing",
+    "category": "Inversions",
     "level": "Beginner",
     "holdSeconds": 20,
     "benefits": [
@@ -3090,7 +3090,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "dolphin-plank",
     "english": "Dolphin Plank",
     "sanskrit": "Makara Phalakasana",
-    "category": "Standing",
+    "category": "Core",
     "level": "Intermediate",
     "holdSeconds": 30,
     "benefits": [
@@ -3803,7 +3803,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "glute-bridge-march",
     "english": "Glute Bridge March",
     "sanskrit": "Glute Bridge March",
-    "category": "Backbends",
+    "category": "Core",
     "level": "Beginner",
     "holdSeconds": 30,
     "benefits": [
@@ -3826,7 +3826,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "active-hamstring-raise",
     "english": "Active Straight-Leg Raise",
     "sanskrit": "Active Hamstring Raise",
-    "category": "Forward Bends",
+    "category": "Supine/Prone",
     "level": "Beginner",
     "holdSeconds": 25,
     "benefits": [
@@ -3872,7 +3872,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "prone-y-lift",
     "english": "Prone Y-Lift",
     "sanskrit": "Prone Y Lift",
-    "category": "Backbends",
+    "category": "Supine/Prone",
     "level": "Beginner",
     "holdSeconds": 20,
     "benefits": [
@@ -3941,7 +3941,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "scapular-plank-push",
     "english": "Scapular Plank Push-Up",
     "sanskrit": "Scapular Plank Push",
-    "category": "Standing",
+    "category": "Core",
     "level": "Intermediate",
     "holdSeconds": 30,
     "benefits": [
@@ -3964,7 +3964,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "pelvic-clock",
     "english": "Pelvic Clock",
     "sanskrit": "Pelvic Clock",
-    "category": "Restorative",
+    "category": "Supine/Prone",
     "level": "Beginner",
     "holdSeconds": 90,
     "benefits": [
@@ -4148,7 +4148,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "soft-bridge-pulse",
     "english": "Soft Bridge Pulse",
     "sanskrit": "Soft Bridge Pulse",
-    "category": "Backbends",
+    "category": "Supine/Prone",
     "level": "Beginner",
     "holdSeconds": 35,
     "benefits": [
@@ -4424,7 +4424,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "copenhagen-adductor",
     "english": "Copenhagen Adductor",
     "sanskrit": "Copenhagen Adductor Hold",
-    "category": "Standing",
+    "category": "Hip Openers",
     "level": "Intermediate",
     "holdSeconds": 30,
     "benefits": [
@@ -4470,7 +4470,7 @@ export const COACH_CATALOG: CoachPose[] = [
     "slug": "dead-bug",
     "english": "Dead Bug",
     "sanskrit": "Dead Bug",
-    "category": "Restorative",
+    "category": "Core",
     "level": "Beginner",
     "holdSeconds": 45,
     "benefits": [

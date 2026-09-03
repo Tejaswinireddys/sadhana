@@ -80,6 +80,7 @@ function bodyHay(a: Asana): string {
 /** Whole-query anatomy terms that should hit a category (or body-region tags) first. */
 function anatomyTarget(q: string): { categories: Category[]; tagsOnly: boolean } | null {
   if (/^hips?(\s+openers?)?$/.test(q)) return { categories: ["Hip Openers"], tagsOnly: false };
+  if (/^cores?$/.test(q)) return { categories: ["Core"], tagsOnly: false };
   if (/^backbends?$/.test(q)) return { categories: ["Backbends"], tagsOnly: false };
   if (/^(low(er)?\s+)?backs?$/.test(q)) return { categories: ["Backbends", "Forward Bends"], tagsOnly: false };
   if (/^necks?$/.test(q)) return { categories: [], tagsOnly: true };

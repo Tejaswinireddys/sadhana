@@ -60,4 +60,21 @@ describe("rankedPoses — anatomy vs distinctive names", () => {
       );
     }
   });
+
+  it("maps a core query onto the Core family", () => {
+    const ranked = rankedPoses("core");
+    assert.ok(ranked.length > 0, "core matched nothing");
+    const coreHits = ranked.filter((p) => p.category === "Core");
+    assert.ok(coreHits.length >= 5, `expected the Core family in results, got ${coreHits.length}`);
+    assert.ok(
+      coreHits.some((p) => p.slug === "dolphin-plank"),
+      "Dolphin Plank should appear for core",
+    );
+    assert.ok(
+      coreHits.some((p) => p.slug === "dead-bug"),
+      "Dead Bug should appear for core",
+    );
+    const firstCore = ranked.findIndex((p) => p.category === "Core");
+    assert.ok(firstCore >= 0 && firstCore < 3, `Core poses should lead, first at ${firstCore}`);
+  });
 });
