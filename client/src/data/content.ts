@@ -2,6 +2,7 @@
 import { EXTRAS } from "./variations";
 import { FOCUS_ZONES, STRETCH_ZONES, DEFAULT_FOCUS_ZONE } from "./zones";
 import { bestForFor } from "./bestFor";
+import { arcSlotFor, type ArcSlot } from "./arcSlots";
 
 export { DEFAULT_FOCUS_ZONE };
 
@@ -78,6 +79,12 @@ export type Asana = {
   benefits: string[];
   /** When to reach for this pose — shown as "Best for" on the detail page. */
   bestFor: string[];
+  /**
+   * Practice-arc slot: 0 centering · 1 warm-up · 2 build/standing ·
+   * 3 peak · 4 cool-down · 5 rest. Plans sort by this; regenerate may
+   * shuffle within a slot, never across slots.
+   */
+  arcSlot: ArcSlot;
   contraindications: string[]; // legacy flat list (kept for back-compat)
   avoidIf: AvoidRow[]; // structured "who should avoid"
   modifications: string;
@@ -97,7 +104,7 @@ export type StretchZone = {
 
 // Raw asana literals (without the merged extras). The fully-typed ASANAS
 // array below is produced by merging EXTRAS into these at module load.
-type RawAsana = Omit<Asana, "avoidIf" | "variations" | "stretchZones" | "bestFor">;
+type RawAsana = Omit<Asana, "avoidIf" | "variations" | "stretchZones" | "bestFor" | "arcSlot">;
 
 const RAW_ASANAS: RawAsana[] = [
   {
@@ -4784,10 +4791,18 @@ export const ASANAS: Asana[] = RAW_ASANAS.map((raw) => {
     stepMotion: step.stepMotion ?? extra?.stepMotions[i],
     focusZone: step.focusZone ?? zones?.[i],
   }));
+  const bestFor = bestForFor(raw.slug);
   return {
     ...raw,
     steps,
-    bestFor: bestForFor(raw.slug),
+    bestFor,
+    arcSlot: arcSlotFor({
+      slug: raw.slug,
+      category: raw.category,
+      difficulty: raw.difficulty,
+      english: raw.english,
+      bestFor,
+    }),
     avoidIf: extra?.avoidIf ?? [],
     stretchZones: STRETCH_ZONES[raw.slug] ?? [
       { region: "Full body", sensation: "A balanced, whole-body engagement", intensity: "medium", primary: true },

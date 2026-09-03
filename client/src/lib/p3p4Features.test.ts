@@ -153,6 +153,45 @@ describe("adaptive generator", () => {
     }
   });
 
+  it("sorts the whole plan by arc slot, not just the closing bucket", () => {
+    for (const minutes of [10, 15, 20, 25]) {
+      for (let variant = 0; variant < 20; variant++) {
+        for (const need of ["movement", "calm"] as const) {
+          const result = generateAdaptiveSession({ intentMinutes: minutes, need, variant });
+          const poses = result.session.poses;
+          const slots = poses.map((p) => p.arcSlot ?? poseArcRank(p.slug));
+          for (let i = 1; i < slots.length; i++) {
+            assert.ok(
+              slots[i]! >= slots[i - 1]!,
+              `${minutes}min ${need} v${variant} not monotonic: ${poses.map((p, j) => `${p.slug}:${slots[j]}`).join(" → ")}`,
+            );
+          }
+          let seenLate = false;
+          for (let i = 0; i < slots.length; i++) {
+            if (slots[i]! >= 4) seenLate = true;
+            if (seenLate && slots[i]! <= 1) {
+              assert.fail(
+                `${minutes}min ${need} v${variant} slot ≥4 before slot ≤1: ${poses.map((p) => p.slug).join(" → ")}`,
+              );
+            }
+          }
+          const warmupAt = slots.findIndex((s) => s === 1);
+          assert.ok(
+            warmupAt === 1 || warmupAt === 2,
+            `${minutes}min ${need} v${variant} warm-up at ${warmupAt + 1}`,
+          );
+          const peakAt = slots.findIndex((s) => s === 3);
+          assert.ok(peakAt >= 0, `${minutes}min ${need} v${variant} has no peak`);
+          const frac = (peakAt + 1) / poses.length;
+          assert.ok(
+            frac >= 0.45 && frac <= 0.65,
+            `${minutes}min ${need} v${variant} peak at ${peakAt + 1}/${poses.length} (${frac.toFixed(2)})`,
+          );
+        }
+      }
+    }
+  });
+
   it("does not silently shorten a length the practitioner picked", () => {
     const result = generateAdaptiveSession({
       intentMinutes: 20,

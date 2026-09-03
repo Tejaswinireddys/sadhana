@@ -2,6 +2,12 @@
 // from today's check-in without needing an LLM or network.
 
 import { ASANAS, asanaBySlug, type Asana, type Mood } from "@/data/content";
+import {
+  ARC_SLOT,
+  CHILD_SLUGS,
+  REST_SLUGS,
+  type ArcSlot,
+} from "@/data/arcSlots";
 
 /** Which audience the active profile targets — gates audience-specific poses/copy. */
 export type TrainerAudience = "All" | "Men" | "Women" | "Pregnancy";
@@ -19,6 +25,8 @@ export type TrainerPose = {
   holdSeconds: number;
   sides: "once" | "each";
   why: string;
+  /** 0 centering · 1 warm-up · 2 build · 3 peak · 4 cool-down · 5 rest */
+  arcSlot: ArcSlot;
 };
 
 export type TrainerSession = {
@@ -458,58 +466,80 @@ function holdLimitsFor(slug: string, pose: Asana, experience: TrainerExperience)
   return { min: band.min, max };
 }
 
-/**
- * Opening shapes that must start a class even when the catalog files them
- * as Restorative (Cat-Cow) or Standing (Mountain).
- */
-const WARMUPS = new Set([
-  "sukhasana",
-  "vajrasana",
-  "tadasana",
-  "urdhva-hastasana",
+/** Pools used to inject a missing arc role so regenerate cannot starve a slot. */
+const CENTERING_POOL = ["sukhasana", "tadasana", "vajrasana", "dandasana", "virasana"];
+const WARMUP_POOL = [
   "marjaryasana-bitilasana",
+  "urdhva-hastasana",
   "ardha-uttanasana",
   "pawanmuktasana",
+  "adho-mukha-svanasana",
+  "high-lunge",
+];
+const BUILD_POOL = [
+  "anjaneyasana",
+  "trikonasana",
+  "virabhadrasana-ii",
+  "utkatasana",
+  "baddha-konasana",
+  "paschimottanasana",
+  "seated-side-bend",
+  "banana-pose",
+  "janu-sirsasana",
+  "uttanasana",
+  "vrksasana",
+  "garudasana",
+  "high-lunge",
+];
+const PEAK_POOL: Record<string, string[]> = {
+  calm: ["setu-bandhasana", "salamba-setu-bandhasana", "soft-bridge-pulse"],
+  sleep: ["salamba-setu-bandhasana", "setu-bandhasana"],
+  energy: ["camatkarasana", "virabhadrasana-i", "utkatasana"],
+  flexibility: ["eka-pada-rajakapotasana", "hanumanasana", "setu-bandhasana"],
+  focus: ["parivrtta-hasta-padangusthasana", "natarajasana", "setu-bandhasana"],
+  movement: ["virabhadrasana-i", "setu-bandhasana", "camatkarasana", "kumbhakasana"],
+  strength: ["kumbhakasana", "navasana", "ardha-navasana", "utkatasana"],
+  restorative: ["setu-bandhasana", "salamba-setu-bandhasana"],
+};
+const COOLDOWN_POOL = [
+  "supta-matsyendrasana",
+  "jathara-parivartanasana",
+  "balasana",
+  "supta-kapotasana",
+  "shashankasana",
+];
+const REST_POOL = ["savasana", "constructive-rest", "viparita-karani", "parsva-savasana"];
+
+const TWIST_SLUGS = new Set([
+  "supta-matsyendrasana",
+  "jathara-parivartanasana",
+  "ardha-matsyendrasana",
+  "bharadvajasana",
+  "prenatal-supported-twist",
 ]);
 
-/** Arc stages: 0 warm-up → 1 build → 2 peak → 3 cool-down → 4 rest. */
-export function poseArcRank(s: string): number {
+/**
+ * Arc slots: 0 centering · 1 warm-up · 2 build/standing · 3 peak · 4 cool-down · 5 rest.
+ * Catalog poses carry this as `asana.arcSlot`; regenerate only shuffles inside a slot.
+ */
+export function poseArcRank(s: string): ArcSlot {
   const pose = asanaBySlug(s);
-  if (!pose) return 1;
-  if (CLOSERS.has(s)) return 4;
-  if (WARMUPS.has(s) || GENTLE.has(s)) return 0;
-  if (ISOMETRIC.has(s) || HIGH_LOAD.has(s) || pose.difficulty === "Advanced") return 2;
-  if (pose.category === "Standing") return 1;
-  if (pose.category === "Hip Openers") {
-    // Kneeling / standing hip openers belong in the build, not after the peak.
-    // Reclined pigeons and figure-fours are the cool-down.
-    if (/^supta-/.test(s) || /reclined|supine/i.test(pose.english)) return 3;
-    return 1;
-  }
-  if (
-    pose.category === "Seated" ||
-    pose.category === "Restorative" ||
-    pose.category === "Forward Bends"
-  ) {
-    return 3;
-  }
-  return 1;
-}
-
-function arcRank(s: string): number {
-  return poseArcRank(s);
+  if (pose) return pose.arcSlot;
+  if (REST_SLUGS.has(s)) return ARC_SLOT.rest;
+  if (CHILD_SLUGS.has(s)) return ARC_SLOT.cooldown;
+  return ARC_SLOT.build;
 }
 
 function arcOrder(slugs: string[]): string[] {
   return slugs
-    .map((s, i) => ({ s, i, r: arcRank(s) }))
+    .map((s, i) => ({ s, i, r: poseArcRank(s) }))
     .sort((a, b) => a.r - b.r || a.i - b.i)
     .map((x) => x.s);
 }
 
 export function orderPosesByArc<T extends { slug: string }>(poses: T[]): T[] {
   return poses
-    .map((p, i) => ({ p, i, r: arcRank(p.slug) }))
+    .map((p, i) => ({ p, i, r: poseArcRank(p.slug) }))
     .sort((a, b) => a.r - b.r || a.i - b.i)
     .map((x) => x.p);
 }
@@ -538,29 +568,167 @@ function shuffled<T>(items: T[], seed: number): T[] {
 }
 
 /**
- * Pick a different subset/order inside each arc bucket. Closers stay at the
- * end (at most two). Used by Adaptive "Regenerate" so the control is not a no-op.
+ * Choose a subset sorted by arc slot. Variant only reshuffles inside a slot —
+ * rest never migrates into the opening.
  */
-function pickVariantSlugs(slugs: string[], target: number, variant: number): string[] {
-  const buckets: string[][] = [[], [], [], [], []];
+function selectArcSlugs(
+  slugs: string[],
+  target: number,
+  variant: number,
+  safe: (s: string) => boolean,
+  need: string,
+): string[] {
+  const n = Math.max(6, target);
+  const buckets = bucketize(slugs);
+  const taken = new Set(slugs);
+
+  const counts = slotCounts(n);
+  fillSlot(buckets[0]!, CENTERING_POOL, counts[0]!, taken, safe, 0);
+  fillSlot(buckets[1]!, WARMUP_POOL, counts[1]!, taken, safe, 1);
+  fillSlot(
+    buckets[3]!,
+    [...(PEAK_POOL[need] ?? []), ...(PEAK_POOL.movement ?? [])],
+    counts[3]!,
+    taken,
+    safe,
+    3,
+  );
+  fillSlot(buckets[4]!, COOLDOWN_POOL, counts[4]!, taken, safe, 4);
+  fillSlot(buckets[5]!, REST_POOL, counts[5]!, taken, safe, 5);
+  fillSlot(buckets[2]!, BUILD_POOL, counts[2]!, taken, safe, 2);
+
+  // Prefer a twist and Child's Pose in the cool-down so the close stays
+  // twist → child → rest even when the working set is large.
+  if (!buckets[4]!.some((s) => TWIST_SLUGS.has(s))) {
+    fillSlot(buckets[4]!, [...TWIST_SLUGS], buckets[4]!.length + 1, taken, safe, 4);
+  }
+  if (!buckets[4]!.some((s) => CHILD_SLUGS.has(s))) {
+    fillSlot(buckets[4]!, [...CHILD_SLUGS], buckets[4]!.length + 1, taken, safe, 4);
+  }
+  if (!buckets[5]!.some((s) => REST_SLUGS.has(s))) {
+    fillSlot(buckets[5]!, REST_POOL, buckets[5]!.length + 1, taken, safe, 5);
+  }
+
+  const picked = [
+    ...pickFromBucket(buckets[0]!, counts[0]!, variant, 0),
+    ...pickFromBucket(buckets[1]!, counts[1]!, variant, 1),
+    ...pickFromBucket(buckets[2]!, counts[2]!, variant, 2),
+    ...pickFromBucket(buckets[3]!, counts[3]!, variant, 3),
+    ...pickFromBucket(buckets[4]!, counts[4]!, variant, 4, TWIST_SLUGS, new Set(["balasana", "salamba-balasana", "wide-child-pose"])),
+    ...pickFromBucket(buckets[5]!, counts[5]!, variant, 5, new Set(), REST_SLUGS),
+  ];
+
+  // Re-sort so a short pool after safety filtering cannot invert the arc.
+  return arcOrder(Array.from(new Set(picked)));
+}
+
+function bucketize(slugs: string[]): string[][] {
+  const buckets: string[][] = [[], [], [], [], [], []];
+  const seen = new Set<string>();
   for (const s of slugs) {
-    buckets[arcRank(s)]!.push(s);
+    if (seen.has(s)) continue;
+    seen.add(s);
+    buckets[poseArcRank(s)]!.push(s);
   }
-  const mixed = [0, 1, 2, 3].map((r) => shuffled(buckets[r]!, variant * 11 + r + 3));
-  const closers = shuffled(buckets[4]!, variant * 11 + 9).slice(0, 2);
-  const workingNeed = Math.max(3, target - closers.length);
-  const working: string[] = [];
-  // One from each stage that has poses, so a large warm-up pool cannot starve
-  // standing / peak work when we then fill to length in rank order.
-  for (const b of mixed) {
-    if (working.length >= workingNeed) break;
-    if (b[0] && !working.includes(b[0])) working.push(b[0]);
+  return buckets;
+}
+
+function pushUnique(bucket: string[], slug: string, taken: Set<string>): boolean {
+  if (taken.has(slug)) return false;
+  taken.add(slug);
+  bucket.push(slug);
+  return true;
+}
+
+function fillSlot(
+  bucket: string[],
+  pool: string[],
+  need: number,
+  taken: Set<string>,
+  safe: (s: string) => boolean,
+  slot: number,
+): void {
+  for (const s of pool) {
+    if (bucket.length >= need) return;
+    if (!safe(s)) continue;
+    if (poseArcRank(s) !== slot) continue;
+    pushUnique(bucket, s, taken);
   }
-  for (const s of mixed.flat()) {
-    if (working.length >= workingNeed) break;
-    if (!working.includes(s)) working.push(s);
+}
+
+/**
+ * How many poses per slot so the warm-up lands at 1-based position 2 or 3
+ * and the peak cluster sits between 45% and 65% of the sequence.
+ */
+function slotCounts(n: number): number[] {
+  const len = Math.max(6, n);
+  const C = 1;
+  const W = 1;
+  const Pmin = 1;
+  const Dmin = len >= 8 ? 2 : 1;
+  const R = 1;
+  let leftover = len - C - W - Pmin - Dmin - R;
+
+  const lo = Math.max(1, Math.ceil(len * 0.45));
+  const hi = Math.max(lo, Math.floor(len * 0.65));
+  const targetPeak = Math.round((lo + hi) / 2);
+  let B = Math.max(0, targetPeak - C - W - 1);
+  if (B > leftover) B = Math.max(0, leftover);
+  leftover -= B;
+
+  let P = Pmin;
+  let D = Dmin;
+  while (leftover > 0) {
+    const lastPeak = C + W + B + P;
+    if (lastPeak < hi) {
+      P += 1;
+      leftover -= 1;
+      continue;
+    }
+    D += 1;
+    leftover -= 1;
   }
-  return arcOrder([...working, ...closers.filter((s) => !working.includes(s))]);
+
+  while (C + W + B + 1 > hi && B > 0) {
+    B -= 1;
+    D += 1;
+  }
+  while (C + W + B + 1 < lo) {
+    if (D > Dmin) {
+      D -= 1;
+      B += 1;
+    } else {
+      break;
+    }
+  }
+
+  return [C, W, B, P, D, R];
+}
+
+function pickFromBucket(
+  bucket: string[],
+  count: number,
+  variant: number,
+  slot: number,
+  preferFirst: Set<string> = new Set(),
+  preferLast: Set<string> = new Set(),
+): string[] {
+  const pool = variant > 0 ? shuffled(bucket, variant * 11 + slot + 3) : bucket.slice();
+  const first: string[] = [];
+  const mid: string[] = [];
+  const last: string[] = [];
+  for (const s of pool) {
+    if (preferLast.has(s)) last.push(s);
+    else if (preferFirst.has(s)) first.push(s);
+    else mid.push(s);
+  }
+  // Reserve preferred closers / openers so slice(0, count) cannot drop
+  // Savasana in favour of a restorative that happened to shuffle first.
+  const takeLast = last.slice(0, count);
+  const remaining = count - takeLast.length;
+  const takeFirst = first.slice(0, remaining);
+  const takeMid = mid.slice(0, Math.max(0, remaining - takeFirst.length));
+  return [...takeFirst, ...takeMid, ...takeLast];
 }
 
 /** Minimum number of on-theme working poses before we'll claim a focus. */
@@ -699,11 +867,9 @@ export function composeTrainerSession(
     if (inject) slugs.splice(Math.min(1, slugs.length), 0, inject);
   }
 
-  if (variant === 0) slugs = slugs.slice(0, targetPoseCount);
-
   // Did enough of the requested focus survive to honestly call it that?
   const signature = slugs.filter(
-    (s) => (SEQUENCES[key] ?? []).includes(s) && !CLOSERS.has(s),
+    (s) => (SEQUENCES[key] ?? []).includes(s) && poseArcRank(s) < ARC_SLOT.cooldown,
   ).length;
   const deliveredNeed = signature >= MIN_SIGNATURE_POSES ? key : "restorative";
   if (deliveredNeed !== key) {
@@ -723,9 +889,9 @@ export function composeTrainerSession(
     );
   }
 
-  // Warm-up → peak → cool-down, so the promise of "closes in rest" is a fact
-  // about the sequence rather than a claim in a sentence.
-  slugs = variant > 0 ? pickVariantSlugs(slugs, targetPoseCount, variant) : arcOrder(slugs);
+  // Centering → warm-up → build → peak → cool-down → rest. Regenerating
+  // reshuffles inside a slot; it never promotes rest into the opening.
+  slugs = selectArcSlugs(slugs, targetPoseCount, variant, safe, deliveredNeed);
 
   if (
     deliveredNeed !== "restorative" &&
@@ -735,25 +901,12 @@ export function composeTrainerSession(
     const inject = ["tadasana", "urdhva-hastasana", "anjaneyasana"].find(
       (s) => safe(s) && !slugs.includes(s),
     );
-    if (inject) slugs = arcOrder([...slugs, inject]);
+    if (inject) slugs = selectArcSlugs([...slugs, inject], targetPoseCount, variant, safe, deliveredNeed);
   }
 
-  // At most two closing shapes. Filling a long session's leftover time with
-  // four consecutive rest poses is technically "closing in rest" and nobody
-  // would call it a practice.
-  let closersKept = 0;
-  slugs = slugs.filter((s) => !CLOSERS.has(s) || ++closersKept <= 2);
-  slugs = arcOrder(slugs);
-
-  // Guarantee the closer AFTER truncation. Doing it before meant balasana and
-  // savasana — last in every authored sequence — were the first things the
-  // length cap threw away, and strength sessions ended on Plank.
-  if (!slugs.some((s) => CLOSERS.has(s))) {
-    const closer = ["savasana", "constructive-rest", "balasana", "parsva-savasana"].find(safe);
-    if (closer) {
-      if (slugs.length >= targetPoseCount) slugs.pop();
-      slugs.push(closer);
-    }
+  if (!slugs.some((s) => poseArcRank(s) === ARC_SLOT.rest)) {
+    const closer = REST_POOL.find(safe);
+    if (closer) slugs = arcOrder([...slugs, closer]);
   }
 
   // ---- hold times ---------------------------------------------------------
@@ -797,6 +950,7 @@ export function composeTrainerSession(
     holdSeconds: holds[i],
     sides: EACH_SIDE.has(s) ? "each" : "once",
     why: whyFor(asanaBySlug(s)!, audience),
+    arcSlot: poseArcRank(s),
   }));
 
   // If safe holds can't fill the requested time, say so rather than quietly

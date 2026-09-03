@@ -6,6 +6,7 @@ import { asanaBySlug, type Asana } from "@/data/content";
 import {
   composeTrainerSession,
   orderPosesByArc,
+  poseArcRank,
   type TrainerAudience,
   type TrainerSession,
 } from "./yogaTrainer";
@@ -98,6 +99,7 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
       holdSeconds: scaleHoldSeconds(30, advice.holdScale),
       sides: "once",
       why: "Kept because you locked this pose",
+      arcSlot: poseArcRank(slug),
     });
   }
 
@@ -107,6 +109,7 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
       holdSeconds: scaleHoldSeconds(45, advice.holdScale),
       sides: "once" as const,
       why: "Restorative fallback after safety filtering",
+      arcSlot: poseArcRank(slug),
     }));
   }
 
@@ -198,6 +201,7 @@ export function swapPose(
             ...p,
             slug: toSlug,
             why: `Swapped from ${fromSlug} → ${next.english}`,
+            arcSlot: poseArcRank(toSlug),
           }
         : p,
     ),

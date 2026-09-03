@@ -304,3 +304,68 @@ describe("composeTrainerSession — a steady practice stands up", () => {
     }
   });
 });
+
+function assertArcShape(
+  poses: { slug: string; arcSlot?: number }[],
+  label: string,
+) {
+  const slots = poses.map((p) => p.arcSlot ?? poseArcRank(p.slug));
+  for (let i = 1; i < slots.length; i++) {
+    assert.ok(
+      slots[i]! >= slots[i - 1]!,
+      `${label} slot order broke: ${poses.map((p, j) => `${p.slug}:${slots[j]}`).join(" → ")}`,
+    );
+  }
+  const n = poses.length;
+  const warmupAt = slots.findIndex((s) => s === 1);
+  assert.ok(warmupAt === 1 || warmupAt === 2, `${label} warm-up at position ${warmupAt + 1}, expected 2 or 3`);
+  const peakAt = slots.findIndex((s) => s === 3);
+  assert.ok(peakAt >= 0, `${label} has no peak`);
+  const frac = (peakAt + 1) / n;
+  assert.ok(
+    frac >= 0.45 && frac <= 0.65,
+    `${label} peak at position ${peakAt + 1}/${n} (${frac.toFixed(2)}), expected 45–65%`,
+  );
+  const lateBeforeEarly = poses.some((_, i) =>
+    poses.slice(0, i).some((_, j) => slots[j]! >= 4 && slots[i]! <= 1),
+  );
+  assert.equal(lateBeforeEarly, false, `${label} placed cool-down/rest before centering/warm-up`);
+}
+
+describe("composeTrainerSession — full-plan arc slots", () => {
+  it("sorts the generated array by monotonically non-decreasing slot", () => {
+    for (const minutes of [10, 15, 20, 25]) {
+      for (const { id } of NEED_OPTIONS) {
+        for (const variant of [0, 1, 2, 3]) {
+          const s = composeTrainerSession({ ...base, timeMinutes: minutes, need: id }, { variant });
+          assertArcShape(s.poses, `${minutes}min/${id}/v${variant}`);
+          assert.ok(
+            s.poses.every((p) => p.arcSlot === poseArcRank(p.slug)),
+            `${id} v${variant} pose.arcSlot drifted from catalog`,
+          );
+        }
+      }
+    }
+  });
+
+  it("never places slot ≥ 4 before slot ≤ 1 across 20 regenerations", () => {
+    for (const minutes of [10, 15, 20, 25]) {
+      for (let variant = 0; variant < 20; variant++) {
+        const s = composeTrainerSession(
+          { ...base, timeMinutes: minutes, need: "movement" },
+          { variant },
+        );
+        const slots = s.poses.map((p) => p.arcSlot);
+        let seenLate = false;
+        for (const slot of slots) {
+          if (slot >= 4) seenLate = true;
+          if (seenLate && slot <= 1) {
+            assert.fail(
+              `${minutes}min v${variant} rest before warm-up: ${s.poses.map((p) => `${p.slug}:${p.arcSlot}`).join(" → ")}`,
+            );
+          }
+        }
+      }
+    }
+  });
+});

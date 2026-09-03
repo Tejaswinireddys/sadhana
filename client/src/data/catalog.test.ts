@@ -197,3 +197,17 @@ test("categories follow base position, not marketing vibe", () => {
   assert.equal(dolphin.category, plank.category, "Dolphin Plank should match Plank");
   assert.equal(dead.category, boat.category, "Dead Bug should match Boat as core work");
 });
+
+test("every pose carries a 0–5 practice-arc slot", () => {
+  const bySlug = Object.fromEntries(ASANAS.map((a) => [a.slug, a]));
+  const bad = ASANAS.filter((a) => a.arcSlot < 0 || a.arcSlot > 5).map((a) => a.slug);
+  assert.deepEqual(bad, []);
+  assert.equal(bySlug["sukhasana"]?.arcSlot, 0);
+  assert.equal(bySlug["marjaryasana-bitilasana"]?.arcSlot, 1);
+  assert.equal(bySlug["setu-bandhasana"]?.arcSlot, 3);
+  assert.equal(bySlug["supta-matsyendrasana"]?.arcSlot, 4);
+  assert.equal(bySlug["balasana"]?.arcSlot, 4);
+  assert.equal(bySlug["savasana"]?.arcSlot, 5);
+  assert.equal(bySlug["makarasana"]?.arcSlot, 5);
+  assert.equal(bySlug["supta-baddha-konasana"]?.arcSlot, 5);
+});
