@@ -8,6 +8,7 @@ import {
   holdRemainingAfterInstruction,
   instructionCountdown,
   remainingFooterLabel,
+  remainingFromPhases,
 } from "./guidedDuration.ts";
 
 describe("guided duration", () => {
@@ -55,6 +56,18 @@ describe("guided duration", () => {
     assert.equal(remainingFooterLabel(0), "wrapping up");
     assert.equal(remainingFooterLabel(12), "12 sec left");
     assert.equal(remainingFooterLabel(90), "~2 min left");
+  });
+
+  it("keeps footer remaining aligned with a long How-to countdown", () => {
+    const left = remainingFromPhases({
+      poses: [{ holdSeconds: 5, stepCount: 8, instructionSeconds: 62 }],
+      index: 0,
+      phase: "instruction",
+      instructionLeft: 53,
+      phaseRemaining: 5,
+    });
+    assert.equal(left, 58);
+    assert.equal(remainingFooterLabel(left), "58 sec left");
   });
 
   it("counts both sides plus a switch for bilateral poses", () => {

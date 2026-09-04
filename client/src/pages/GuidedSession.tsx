@@ -110,10 +110,10 @@ import {
 import {
   estimateInstructionSeconds,
   guidedPhaseLabel,
-  guidedSessionSeconds,
   holdRemainingAfterInstruction,
   instructionCountdown,
   remainingFooterLabel,
+  remainingFromPhases,
 } from "@/lib/guidedDuration";
 import { resolvePreMood, shouldAskPreMood } from "@/lib/moods";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -541,21 +541,30 @@ export default function GuidedSession() {
       ? steps[stepIndex]?.pose || current?.pose
       : current?.pose;
 
-  // ---- session time estimate (holds + transitions + narration) --------------
-  const totalEstimateSeconds = useMemo(() => {
-    return guidedSessionSeconds(
-      todays.map((a, i) => ({
-        holdSeconds: a.holdSeconds,
-        sides: a.sides,
-        stepCount: a.steps?.length ?? 0,
-        instructionSeconds:
-          i === index && voiceDuration > 0
-            ? estimateInstructionSeconds(a.steps?.length ?? 0, voiceDuration)
-            : undefined,
-      })),
-    );
-  }, [todays, index, voiceDuration]);
-  const remainingEstimate = Math.max(0, totalEstimateSeconds - elapsedTotal);
+  // ---- session time remaining (current phase + later poses) -----------------
+  const remainingEstimate = remainingFromPhases({
+    poses: todays.map((a, i) => ({
+      holdSeconds: a.holdSeconds,
+      sides: a.sides,
+      stepCount: a.steps?.length ?? 0,
+      instructionSeconds:
+        i === index && voiceDuration > 0
+          ? estimateInstructionSeconds(a.steps?.length ?? 0, voiceDuration)
+          : undefined,
+    })),
+    index,
+    phase,
+    instructionLeft: instructionCountdown({
+      usingMp3:
+        voiceEnabled &&
+        instructionModeRef.current === "mp3" &&
+        !audioBrokenRef.current,
+      audioCurrentTime: audioRef.current?.currentTime ?? 0,
+      audioDuration: voiceDuration || (audioRef.current?.duration ?? 0),
+      phaseRemaining,
+    }),
+    phaseRemaining,
+  });
 
   // ---- speech-synthesis (robot voice only when allowRobotVoice) -------------
   const speak = useCallback(

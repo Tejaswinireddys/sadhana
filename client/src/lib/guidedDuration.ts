@@ -84,3 +84,41 @@ export function remainingFooterLabel(seconds: number): string {
   if (s < 60) return `${s} sec left`;
   return `~${Math.round(s / 60)} min left`;
 }
+
+/** Remaining wall-clock from the live phase, not elapsed subtracted from a stale total. */
+export function remainingFromPhases(opts: {
+  poses: Array<{
+    holdSeconds: number;
+    sides?: "each" | "once" | "single";
+    stepCount?: number;
+    instructionSeconds?: number;
+  }>;
+  index: number;
+  phase: GuidedPhase | string;
+  instructionLeft: number;
+  phaseRemaining: number;
+}): number {
+  const current = opts.poses[opts.index];
+  if (!current) return 0;
+  const hold = Math.max(0, current.holdSeconds);
+  const instruction = current.instructionSeconds ?? estimateInstructionSeconds(current.stepCount ?? 0);
+  let currentLeft = 0;
+  switch (opts.phase) {
+    case "transitionIn":
+      currentLeft = Math.max(0, opts.phaseRemaining) + instruction + hold;
+      break;
+    case "instruction":
+      currentLeft = Math.max(0, opts.instructionLeft) + hold;
+      break;
+    case "sideSwitch":
+      currentLeft = Math.max(0, opts.phaseRemaining) + instruction + hold;
+      break;
+    case "hold":
+      currentLeft = Math.max(0, opts.phaseRemaining);
+      break;
+    default:
+      currentLeft = 0;
+  }
+  const later = guidedSessionSeconds(opts.poses.slice(opts.index + 1));
+  return Math.max(0, Math.round(currentLeft + later));
+}
