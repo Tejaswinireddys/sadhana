@@ -202,7 +202,9 @@ function fitToBudget(poses: QuizPose[], budget: "10" | "20" | "30"): QuizPose[] 
 export type SavedQuizPlan = Pick<
   BuiltQuizPlan,
   "title" | "minutes" | "timeLabel" | "poses" | "breathSlug" | "introPoseSlug" | "experience" | "intent"
->;
+> & {
+  savedAt?: string;
+};
 
 export function saveQuizPlan(plan: BuiltQuizPlan | SavedQuizPlan): void {
   writeJson<SavedQuizPlan>(KEYS.quizPlan, {
@@ -214,6 +216,7 @@ export function saveQuizPlan(plan: BuiltQuizPlan | SavedQuizPlan): void {
     introPoseSlug: plan.introPoseSlug,
     experience: plan.experience,
     intent: plan.intent,
+    savedAt: "savedAt" in plan && plan.savedAt ? plan.savedAt : new Date().toISOString(),
   });
 }
 

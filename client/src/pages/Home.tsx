@@ -380,7 +380,9 @@ export default function Home() {
     !!quizPlan;
   // A true first-timer: no quiz, nothing practiced, no path, nothing mid-session.
   const isNewcomer = !isLoading && !hasPracticed && !profile && !showResume && !quizDone;
-  const showQuizPlanCta = !isLoading && !hasPracticed && !showResume && !!quizPlan;
+  // Quiz plans stay available after a profile exists or after other practice —
+  // retaking the quiz must still offer a way back to the plan just created.
+  const showQuizPlanCta = !isLoading && !showResume && !!quizPlan;
   const ProfileIcon = profile ? resolveIcon(profile.icon) : Compass;
 
   // Daily reminder banner: show if not practiced today AND it's past 6 PM local.
@@ -508,8 +510,10 @@ export default function Home() {
               <div className="space-y-1">
                 <p className="font-serif text-xl leading-tight">Start {quizPlan?.title}</p>
                 <p className="text-sm text-muted-foreground">
-                  {quizPlan?.poses.length} guided poses · {quizPlan?.timeLabel}. Retake the quiz
-                  anytime if you want a different first session.
+                  {quizPlan?.poses.length} guided poses · {quizPlan?.timeLabel}
+                  {profile
+                    ? `. Separate from your ${profile.name} profile session below.`
+                    : ". Retake the quiz anytime if you want a different first session."}
                 </p>
               </div>
             </div>

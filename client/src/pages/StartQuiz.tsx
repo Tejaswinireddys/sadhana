@@ -442,6 +442,7 @@ export default function StartQuiz() {
                   href="/"
                   onClick={() => {
                     writeString(KEYS.onboardingDone, "1");
+                    persistQuizPrefs(plan.intent, plan.experience);
                     saveQuizPlan(plan);
                   }}
                 >
