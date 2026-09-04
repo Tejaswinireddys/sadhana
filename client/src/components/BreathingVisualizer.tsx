@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, RotateCcw } from "lucide-react";
+import { breathDisplayRound, breathTickDelta } from "@/lib/breathingClock";
 
 export type BreathPhase = { label: string; seconds: number };
 
@@ -45,6 +46,7 @@ function phaseTargets(label: string): { from: number; to: number } {
 
 export function BreathingVisualizer({ config, onComplete, accent = "text-primary" }: Props) {
   const [running, setRunning] = useState(false);
+  const [started, setStarted] = useState(false);
   const [round, setRound] = useState(0); // completed rounds
   const [phaseIdx, setPhaseIdx] = useState(0);
   const [phaseElapsed, setPhaseElapsed] = useState(0); // seconds into current phase
@@ -97,9 +99,12 @@ export function BreathingVisualizer({ config, onComplete, accent = "text-primary
 
   const tick = useCallback(
     (ts: number) => {
-      if (lastTsRef.current == null) lastTsRef.current = ts;
-      const dt = (ts - lastTsRef.current) / 1000;
-      lastTsRef.current = ts;
+      const { dt, nextLast } = breathTickDelta(lastTsRef.current, ts);
+      lastTsRef.current = nextLast;
+      if (dt === 0) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
 
       phaseElapsedRef.current += dt;
       totalRef.current += dt;
@@ -142,6 +147,7 @@ export function BreathingVisualizer({ config, onComplete, accent = "text-primary
 
   const start = () => {
     setDone(false);
+    setStarted(true);
     setRunning(true);
     // reset
     phaseElapsedRef.current = 0;
@@ -168,6 +174,7 @@ export function BreathingVisualizer({ config, onComplete, accent = "text-primary
   const reset = () => {
     stopLoop();
     setRunning(false);
+    setStarted(false);
     setDone(false);
     phaseElapsedRef.current = 0;
     phaseIdxRef.current = 0;
@@ -185,6 +192,13 @@ export function BreathingVisualizer({ config, onComplete, accent = "text-primary
   const ph = phases[phaseIdx];
   const phaseRemaining = ph ? Math.max(0, Math.ceil(ph.seconds - phaseElapsed)) : 0;
   const activeSide = config.alternateNostril ? (round % 2 === 0 ? "left" : "right") : null;
+  const inProgress = started && !done;
+  const displayRound = breathDisplayRound({
+    started,
+    done,
+    completedRounds: round,
+    totalRounds,
+  });
 
   const px = 240;
   const circlePx = Math.round(px * scale);
@@ -211,7 +225,7 @@ export function BreathingVisualizer({ config, onComplete, accent = "text-primary
         />
         {/* phase text overlay */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          {config.alternateNostril && running && (
+          {config.alternateNostril && inProgress && (
             <div className="mb-2 flex items-center gap-2" data-testid="text-nostril-side">
               <span
                 className={`inline-block h-3 w-3 rounded-full ${
@@ -231,7 +245,7 @@ export function BreathingVisualizer({ config, onComplete, accent = "text-primary
           <p className="font-serif text-2xl" data-testid="text-breath-phase">
             {done ? "Complete" : ph?.label ?? "Ready"}
           </p>
-          {running && !done && (
+          {inProgress && (
             <p className="mt-1 font-serif text-4xl tabular-nums" data-testid="text-breath-count">
               {phaseRemaining}
             </p>
@@ -241,13 +255,13 @@ export function BreathingVisualizer({ config, onComplete, accent = "text-primary
 
       {/* Round counter */}
       <p className="text-sm text-muted-foreground" data-testid="text-round-counter">
-        Round <span className="tabular-nums">{Math.min(round + (running ? 1 : 0), totalRounds)}</span> of{" "}
+        Round <span className="tabular-nums">{displayRound}</span> of{" "}
         <span className="tabular-nums">{totalRounds}</span>
       </p>
 
       {/* Controls */}
       <div className="flex items-center gap-3">
-        {!running && !done && round === 0 && phaseElapsed === 0 ? (
+        {!running && !done && !started ? (
           <Button size="lg" onClick={start} data-testid="button-breath-start">
             <Play className="mr-2 h-5 w-5" /> Start
           </Button>

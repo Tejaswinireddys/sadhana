@@ -6,7 +6,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { generateAdaptiveSession, swapPose } from "@/lib/adaptiveGenerator";
+import { generateAdaptiveSession, pickEasierSwap, swapPose } from "@/lib/adaptiveGenerator";
 import { adviseNextSession, readOutcomes } from "@/lib/adaptiveRecovery";
 import { usePractice } from "@/context/PracticeContext";
 import { asanaBySlug } from "@/data/content";
@@ -139,7 +139,8 @@ export default function AdaptivePlan() {
         <Badge variant="outline">Explainable · safety-first</Badge>
         <h1 className="font-serif text-3xl font-semibold tracking-tight">{result.advice.headline}</h1>
         <p className="text-muted-foreground">
-          Hard contraindications always win. You can swap or lock poses before starting.
+          Hard contraindications always win. Lock keeps a pose when you regenerate. Unlock it
+          before swapping to an easier pose.
         </p>
       </header>
 
@@ -225,6 +226,7 @@ export default function AdaptivePlan() {
                       size="sm"
                       className="min-h-11"
                       variant={isLocked ? "default" : "outline"}
+                      data-testid={`adaptive-lock-${p.slug}`}
                       onClick={() =>
                         setLocked((L) =>
                           isLocked ? L.filter((s) => s !== p.slug) : [...L, p.slug],
@@ -245,8 +247,30 @@ export default function AdaptivePlan() {
                       size="sm"
                       className="min-h-11"
                       variant="ghost"
+                      disabled={isLocked}
+                      title={
+                        isLocked
+                          ? "Unlock this pose to swap it. Lock only keeps it when you regenerate."
+                          : "Replace with an easier pose that is not already in this plan"
+                      }
+                      data-testid={`adaptive-swap-${p.slug}`}
                       onClick={() => {
-                        const alt = "balasana";
+                        if (isLocked) {
+                          toast({
+                            title: "Unlock this pose first",
+                            description: "Lock only keeps the pose when you regenerate.",
+                          });
+                          return;
+                        }
+                        const used = result.session.poses.map((x) => x.slug);
+                        const alt = pickEasierSwap(p.slug, used);
+                        if (!alt) {
+                          toast({
+                            title: "No unused easier pose",
+                            description: "Every restful swap is already in this plan.",
+                          });
+                          return;
+                        }
                         const swapped = swapPose(result.session, p.slug, alt);
                         if (swapped) {
                           setResult((r) =>

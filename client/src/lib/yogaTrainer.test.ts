@@ -222,7 +222,13 @@ describe("composeTrainerSession — reasoning copy", () => {
 
   it("reads as a whole sentence when sore areas are given", () => {
     const s = composeTrainerSession({ ...base, soreParts: ["Hips"], need: "flexibility" });
-    assert.match(s.reasoning, /^Because your hips/);
+    assert.match(s.reasoning, /^Because your hips are asking for care/);
+  });
+
+  it("uses plural agreement for knees", () => {
+    const s = composeTrainerSession({ ...base, soreParts: ["Knees"], need: "flexibility" });
+    assert.match(s.reasoning, /your knees are asking for care/);
+    assert.equal(/knees is asking/.test(s.reasoning), false);
   });
 });
 

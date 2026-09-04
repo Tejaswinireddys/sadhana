@@ -97,11 +97,8 @@ export default function Privacy() {
             /start
           </Link>{" "}
           may be captured anonymously when PostHog is configured so operators can see per-question
-          drop-off. You can review aggregated funnel metrics at{" "}
-          <Link href="/analytics/funnel" className="underline underline-offset-2">
-            /analytics/funnel
-          </Link>
-          .
+          drop-off. Funnel metrics are reviewed internally; this Privacy page does not link a
+          public operator dashboard.
         </p>
       </section>
 

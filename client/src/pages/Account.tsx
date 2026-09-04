@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { accountAuthTab, readUrlParam } from "@/lib/hashQuery";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,6 +90,10 @@ export default function Account() {
   const [legalOk, setLegalOk] = useState(false);
   const [pendingVerifyEmail, setPendingVerifyEmail] = useState<string | null>(null);
   const [authTab, setAuthTab] = useState(() => accountAuthTab(readUrlParam("tab")));
+  const { data: mailStatus } = useQuery<{ emailEnabled: boolean }>({
+    queryKey: ["/api/auth/mail-status"],
+  });
+  const emailEnabled = mailStatus?.emailEnabled === true;
 
   const busy = signIn.isPending || signUp.isPending || reset.isPending;
 
@@ -556,10 +561,29 @@ export default function Account() {
             <TabsContent value="reset">
               <div className="space-y-6">
                 <form className="space-y-4" onSubmit={submitForgot}>
-                  <p className="text-sm text-muted-foreground">
-                    Request a one-time reset code for your email. On this open-source build the code
-                    appears in server logs (and below in development).
-                  </p>
+                  {emailEnabled ? (
+                    <p className="text-sm text-muted-foreground" data-testid="reset-delivery-copy">
+                      We&apos;ll email a one-time reset code if this address has an account. It
+                      expires in 60 minutes — check spam if it doesn&apos;t arrive. If you still
+                      can&apos;t get in, email{" "}
+                      <a className="underline underline-offset-2" href="mailto:privacy@sadhana.app">
+                        privacy@sadhana.app
+                      </a>
+                      .
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground" data-testid="reset-delivery-copy">
+                      Email delivery is not configured on this server, so a reset code cannot be
+                      sent to your inbox. Contact the person who runs this copy of Sadhana, or email{" "}
+                      <a className="underline underline-offset-2" href="mailto:privacy@sadhana.app">
+                        privacy@sadhana.app
+                      </a>
+                      .
+                      {import.meta.env.DEV
+                        ? " In development, a code may still appear below after you request one."
+                        : ""}
+                    </p>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="forgot-email">Email</Label>
                     <Input
@@ -577,10 +601,19 @@ export default function Account() {
                     type="submit"
                     variant="outline"
                     className="min-h-11 w-full cursor-pointer"
-                    disabled={forgot.isPending}
+                    disabled={
+                      forgot.isPending ||
+                      (mailStatus != null && !emailEnabled && !import.meta.env.DEV)
+                    }
                     data-testid="forgot-submit"
                   >
-                    {forgot.isPending ? "Sending…" : "Email me a reset code"}
+                    {forgot.isPending
+                      ? "Sending…"
+                      : emailEnabled
+                        ? "Email me a reset code"
+                        : import.meta.env.DEV
+                          ? "Request a reset code"
+                          : "Email is unavailable"}
                   </Button>
                   {forgotHint && (
                     <p className="text-sm text-muted-foreground" role="status" data-testid="forgot-hint">

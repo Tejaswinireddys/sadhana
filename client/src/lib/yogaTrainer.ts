@@ -846,6 +846,18 @@ const RESTORATIVE_POOL = [
   "savasana",
 ];
 
+/**
+ * Subject-verb agreement for "your knees are asking" vs "your neck is asking".
+ * A single part that already looks plural (hips, knees, wrists) takes "are".
+ */
+export function careAgreement(parts: string[]): "is" | "are" {
+  if (parts.length !== 1) return "are";
+  const w = (parts[0] ?? "").trim().toLowerCase();
+  if (w.endsWith("ss")) return "is";
+  if (w.endsWith("s")) return "are";
+  return "is";
+}
+
 /** Compose a personalized practice from the trainer check-in. */
 export function composeTrainerSession(
   c: TrainerCheckIn,
@@ -1078,7 +1090,7 @@ export function composeTrainerSession(
   // "with 30 minutes for strength, I've shaped…"
   const deliveredLabel = (NEED_LABEL[deliveredNeed] ?? deliveredNeed).toLowerCase();
   const reasoning = c.soreParts.length
-    ? `Because your ${c.soreParts.join(" and ").toLowerCase()} ${c.soreParts.length > 1 ? "are" : "is"} asking for care, I've shaped ${c.timeMinutes} minutes of ${deliveredLabel} that meets you where you are and closes in rest.`
+    ? `Because your ${c.soreParts.join(" and ").toLowerCase()} ${careAgreement(c.soreParts)} asking for care, I've shaped ${c.timeMinutes} minutes of ${deliveredLabel} that meets you where you are and closes in rest.`
     : `Here are ${c.timeMinutes} minutes of ${deliveredLabel}, shaped for how you're feeling today and closing in rest.`;
 
   let standingExclusion: string | null = null;

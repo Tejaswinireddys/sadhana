@@ -16,8 +16,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Ruler, TrendingDown } from "lucide-react";
+import { Ruler, TrendingDown, TrendingUp } from "lucide-react";
 import type { MobilityCheckIn as CheckIn } from "@shared/schema";
+import { mobilityCheckInCopy } from "@/lib/mobilityCheckIn";
 
 /** Recommended check-in days, scaled to the program's real length. */
 function checkinDaysFor(totalDays: number): number[] {
@@ -41,6 +42,7 @@ export function MobilityCheckInCard({
   totalDays?: number;
 }) {
   const CHECKIN_DAYS = checkinDaysFor(totalDays);
+  const copy = mobilityCheckInCopy(pathwaySlug);
   const { toast } = useToast();
   const { data: checkIns = [], isLoading } = useQuery<CheckIn[]>({
     queryKey: ["/api/mobility", pathwaySlug],
@@ -85,38 +87,38 @@ export function MobilityCheckInCard({
     <Card className="shadow-soft" data-testid="card-mobility-checkin">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 font-serif text-lg">
-          <Ruler className="h-5 w-5 text-primary" /> Mobility check-in
+          <Ruler className="h-5 w-5 text-primary" /> {copy.title}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         <p className="text-sm text-muted-foreground" data-testid="text-mobility-prompt">
-          {isDay1
-            ? "Record your starting measurement — the distance in inches between your front hip and the floor in your deepest half-split. This is your baseline; not a judgment."
-            : "Log the distance in inches between your front hip and the floor in your deepest half-split. Optional: your backbend depth."}
+          {isDay1 ? copy.prompt : copy.followUpPrompt}
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="mob-front">Front split (inches to floor)</Label>
+            <Label htmlFor="mob-front">{copy.primaryLabel}</Label>
             <Input
               id="mob-front"
               type="number"
               inputMode="numeric"
-              min={0}
-              placeholder="e.g. 8"
+              min={copy.min}
+              max={copy.max}
+              placeholder={copy.primaryPlaceholder}
               value={front}
               onChange={(e) => setFront(e.target.value)}
               data-testid="input-front-split"
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="mob-back">Backbend depth (optional)</Label>
+            <Label htmlFor="mob-back">{copy.secondaryLabel}</Label>
             <Input
               id="mob-back"
               type="number"
               inputMode="numeric"
               min={0}
-              placeholder="optional"
+              max={copy.mode === "splits" ? 48 : 10}
+              placeholder={copy.secondaryPlaceholder}
               value={back}
               onChange={(e) => setBack(e.target.value)}
               data-testid="input-back-split"
@@ -152,9 +154,13 @@ export function MobilityCheckInCard({
               className="flex items-center gap-2 text-sm font-medium"
               data-testid="text-mobility-progress"
             >
-              <TrendingDown className="h-4 w-4 text-primary" />
+              {copy.higherIsBetter ? (
+                <TrendingUp className="h-4 w-4 text-primary" />
+              ) : (
+                <TrendingDown className="h-4 w-4 text-primary" />
+              )}
               {chartData.length > 1
-                ? `Progress: ${delta <= 0 ? "" : "+"}${delta} inches since Day ${first.day}`
+                ? `Change: ${delta <= 0 ? "" : "+"}${delta} ${copy.chartUnit} since Day ${first.day}`
                 : "Your baseline is recorded — log again to see progress."}
             </div>
             <div className="h-52 w-full" data-testid="chart-mobility">
@@ -174,7 +180,7 @@ export function MobilityCheckInCard({
                     stroke="hsl(var(--muted-foreground))"
                     fontSize={12}
                     allowDecimals={false}
-                    label={{ value: "inches", angle: -90, position: "insideLeft", fontSize: 11 }}
+                    label={{ value: copy.chartUnit, angle: -90, position: "insideLeft", fontSize: 11 }}
                   />
                   <RTooltip
                     contentStyle={{
@@ -183,7 +189,7 @@ export function MobilityCheckInCard({
                       borderRadius: 8,
                       fontSize: 12,
                     }}
-                    formatter={(v: number) => [`${v} in`, "Front split gap"]}
+                    formatter={(v: number) => [`${v}`, copy.chartValue]}
                     labelFormatter={(d) => `Day ${d}`}
                   />
                   <Line

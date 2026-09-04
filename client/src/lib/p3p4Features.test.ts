@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { adviseNextSession, scaleHoldSeconds, type SessionOutcome } from "./adaptiveRecovery";
-import { generateAdaptiveSession, swapPose } from "./adaptiveGenerator";
+import { generateAdaptiveSession, pickEasierSwap, swapPose } from "./adaptiveGenerator";
 import { poseArcRank, isStandingBuild, standingFloorFor } from "./yogaTrainer";
 import { parseVoiceCommand } from "./voiceControl";
 import { PILOT_POSES, manualConfidence, isPilotPose } from "./poseCoach";
@@ -111,12 +111,21 @@ describe("adaptive generator", () => {
     assert.ok(result.session.reasoning.length > 0);
   });
 
-  it("can swap a pose", () => {
+  it("can swap a pose without duplicating one already in the session", () => {
     const result = generateAdaptiveSession({ intentMinutes: 12, need: "calm" });
     const from = result.session.poses[0]!.slug;
-    const swapped = swapPose(result.session, from, "balasana");
+    const used = result.session.poses.map((p) => p.slug);
+    const alt = pickEasierSwap(from, used);
+    assert.ok(alt, `no easier unused pose from ${from} in ${used.join(",")}`);
+    const swapped = swapPose(result.session, from, alt);
     assert.ok(swapped);
-    assert.ok(swapped!.session.poses.some((p) => p.slug === "balasana"));
+    const slugs = swapped!.session.poses.map((p) => p.slug);
+    assert.equal(new Set(slugs).size, slugs.length, `duplicate after swap: ${slugs.join(",")}`);
+    assert.ok(slugs.includes(alt));
+    const alreadyIn = used.find((s) => s !== from);
+    if (alreadyIn) {
+      assert.equal(swapPose(result.session, from, alreadyIn), null);
+    }
   });
 
   it("reshuffles within the arc when variant changes", () => {

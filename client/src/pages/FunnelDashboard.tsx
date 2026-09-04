@@ -1,10 +1,7 @@
 /**
- * Product analytics dashboard — drop-off, completion, paywall conversion,
- * retention cohorts, and sessions-before-cancel.
- *
- * Reads the local product event buffer (and can load demo data). When PostHog
- * is configured in production, the same metric functions run on exported events;
- * HogQL recipes are listed below for the hosted PostHog UI.
+ * Product analytics dashboard.
+ * Production: this-device transparency only (no demo stream, env names, or SQL).
+ * Development: operator tools (demo data, HogQL recipes).
  */
 import { useMemo, useState } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -42,15 +39,17 @@ function pct(n: number): string {
   return `${Math.round(n * 1000) / 10}%`;
 }
 
+const isOperator = import.meta.env.DEV;
+
 export default function FunnelDashboard() {
-  useDocumentTitle("Funnel analytics · Sadhana");
+  useDocumentTitle(isOperator ? "Funnel analytics · Sadhana" : "Practice metrics · Sadhana");
   const [tick, setTick] = useState(0);
   const [useDemo, setUseDemo] = useState(false);
 
   const events: LoggedEvent[] = useMemo(() => {
     void tick;
     const live = readProductEventBuffer();
-    if (useDemo || live.length < 8) return buildDemoEvents();
+    if (isOperator && (useDemo || live.length < 8)) return buildDemoEvents();
     return live;
   }, [tick, useDemo]);
 
@@ -80,52 +79,65 @@ export default function FunnelDashboard() {
     <div className="mx-auto max-w-6xl space-y-6 py-2" data-testid="funnel-dashboard">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="font-serif text-3xl font-semibold tracking-tight">Funnel analytics</h1>
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">
+            {isOperator ? "Funnel analytics" : "Practice metrics"}
+          </h1>
           <p className="max-w-2xl text-sm text-muted-foreground">
-            Per-question drop-off, quiz completion, paywall conversion, retention, and
-            sessions-before-cancel.{" "}
-            {posthogConfigured()
-              ? "PostHog is configured — live capture is on for funnel events."
-              : "PostHog key unset — showing local buffer / demo metrics (set VITE_PUBLIC_POSTHOG_KEY)."}
+            {isOperator ? (
+              <>
+                Per-question drop-off, quiz completion, paywall conversion, retention, and
+                sessions-before-cancel.{" "}
+                {posthogConfigured()
+                  ? "PostHog is configured — live capture is on for funnel events."
+                  : "PostHog is not configured in this environment — showing the local buffer or demo metrics."}
+              </>
+            ) : (
+              <>
+                Metrics stored in this browser only. This is not a live, product-wide dashboard and
+                does not include other people&apos;s data.
+              </>
+            )}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="min-h-11"
-            onClick={() => {
-              setUseDemo(false);
-              setTick((t) => t + 1);
-            }}
-          >
-            Refresh buffer
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="min-h-11"
-            onClick={() => {
-              clearProductEventBuffer();
-              appendProductEvents(buildDemoEvents());
-              setUseDemo(false);
-              setTick((t) => t + 1);
-            }}
-          >
-            Load demo data
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="min-h-11"
-            onClick={() => {
-              setUseDemo(true);
-              setTick((t) => t + 1);
-            }}
-          >
-            Use demo stream
-          </Button>
-        </div>
+        {isOperator && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-11"
+              onClick={() => {
+                setUseDemo(false);
+                setTick((t) => t + 1);
+              }}
+            >
+              Refresh buffer
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-11"
+              onClick={() => {
+                clearProductEventBuffer();
+                appendProductEvents(buildDemoEvents());
+                setUseDemo(false);
+                setTick((t) => t + 1);
+              }}
+            >
+              Load demo data
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="min-h-11"
+              onClick={() => {
+                setUseDemo(true);
+                setTick((t) => t + 1);
+              }}
+            >
+              Use demo stream
+            </Button>
+          </div>
+        )}
       </header>
 
       <Card data-testid="chart-dropoff">
@@ -259,6 +271,7 @@ export default function FunnelDashboard() {
         </CardContent>
       </Card>
 
+      {isOperator && (
       <Card>
         <CardHeader>
           <CardTitle className="font-serif text-lg">PostHog HogQL recipes</CardTitle>
@@ -282,6 +295,7 @@ WHERE event IN ('quiz_started','quiz_completed')
 GROUP BY 1`}</pre>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

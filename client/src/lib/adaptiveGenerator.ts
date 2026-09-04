@@ -231,6 +231,26 @@ function isLikelyUnsafe(asana: Asana, soreParts: string[]): boolean {
   return soreParts.some((p) => blob.includes(p.toLowerCase()));
 }
 
+/** Restorative swaps, easiest first. Never reuse a slug already in the session. */
+export const EASIER_SWAP_SLUGS = [
+  "balasana",
+  "sukhasana",
+  "constructive-rest",
+  "savasana",
+  "viparita-karani",
+] as const;
+
+export function pickEasierSwap(fromSlug: string, usedSlugs: Iterable<string>): string | null {
+  const used = new Set(usedSlugs);
+  for (const slug of EASIER_SWAP_SLUGS) {
+    if (slug === fromSlug) continue;
+    if (used.has(slug)) continue;
+    if (!asanaBySlug(slug)) continue;
+    return slug;
+  }
+  return null;
+}
+
 export function swapPose(
   session: TrainerSession,
   fromSlug: string,
@@ -238,6 +258,7 @@ export function swapPose(
 ): { session: TrainerSession; explanation: string } | null {
   const next = asanaBySlug(toSlug);
   if (!next) return null;
+  if (session.poses.some((p) => p.slug === toSlug)) return null;
   const poses = orderPosesByArc(
     session.poses.map((p) =>
       p.slug === fromSlug

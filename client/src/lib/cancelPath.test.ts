@@ -15,6 +15,15 @@ describe("two-tap cancel path", () => {
     assert.match(home, /CancelAccessBanner/);
   });
 
+  it("empty subscription state offers Home and sign-in, not only How to cancel", () => {
+    const page = readFileSync(resolve("client/src/pages/CancelConfirm.tsx"), "utf8");
+    assert.match(page, /No active paid subscription found on this device/);
+    assert.match(page, /data-testid="button-cancel-empty-home"/);
+    assert.match(page, /href="\/"/);
+    assert.match(page, /data-testid="button-cancel-empty-signin"/);
+    assert.match(page, /href="\/account"/);
+  });
+
   it("confirm page has one Confirm cancellation action and no retention copy", () => {
     const page = readFileSync(resolve("client/src/pages/CancelConfirm.tsx"), "utf8");
     assert.match(page, /data-testid="button-confirm-cancel"/);

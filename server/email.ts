@@ -58,6 +58,11 @@ function fromAddress(): string {
   return process.env.EMAIL_FROM?.trim() || "Sadhana <onboarding@resend.dev>";
 }
 
+/** True when Resend or a webhook can actually deliver mail (not console-only). */
+export function emailDeliveryConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY?.trim() || process.env.EMAIL_WEBHOOK_URL?.trim());
+}
+
 export function appBaseUrl(): string {
   if (process.env.PUBLIC_APP_URL?.trim()) {
     return process.env.PUBLIC_APP_URL.trim().replace(/\/$/, "");

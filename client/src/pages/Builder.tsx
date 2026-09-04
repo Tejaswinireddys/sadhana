@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ASANAS, CATEGORIES, asanaBySlug, type Category, type Asana } from "@/data/content";
+import { matchesCategoryFilter } from "@/data/poseTaxonomy";
 import { usePractice } from "@/context/PracticeContext";
 import type { CustomFlow } from "@shared/schema";
 import {
@@ -190,7 +191,7 @@ function BuilderView({
 
   const filtered = useMemo(() => {
     return ASANAS.filter((a) => {
-      if (category !== "All" && a.category !== category) return false;
+      if (category !== "All" && !matchesCategoryFilter(a, category)) return false;
       if (level !== "All" && a.difficulty !== level) return false;
       if (q.trim()) {
         const t = q.trim().toLowerCase();

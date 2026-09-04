@@ -12,6 +12,7 @@
  * Openers instead of every pose whose cues mention "hip-width".
  */
 import { ASANAS, type Asana, type Category } from "@/data/content";
+import { matchesCategoryFilter } from "@/data/poseTaxonomy";
 
 const NAME_WEIGHT = 10;
 const SANSKRIT_WEIGHT = 8;
@@ -93,7 +94,7 @@ function anatomyMatches(a: Asana, q: string, qSquashed: string): boolean {
   if (!target) return false;
   if (nameHit(a, q, qSquashed)) return true;
   if (target.tagsOnly) return contains(anatomyTagHay(a), q, qSquashed);
-  return target.categories.includes(a.category);
+  return target.categories.some((c) => matchesCategoryFilter(a, c));
 }
 
 /** Does this pose match at all? Mirrors the results page exactly. */
@@ -133,7 +134,8 @@ export function scorePose(a: Asana, q: string, qSquashed: string): number {
     score += SANSKRIT_WEIGHT;
   }
   const target = anatomyTarget(q);
-  const mappedCategory = !!target && !target.tagsOnly && target.categories.includes(a.category);
+  const mappedCategory =
+    !!target && !target.tagsOnly && target.categories.some((c) => matchesCategoryFilter(a, c));
   const tagHit =
     mappedCategory ||
     contains(tagHay(a), q, qSquashed) ||

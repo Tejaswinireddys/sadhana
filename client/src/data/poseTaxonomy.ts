@@ -13,6 +13,13 @@ export const CORE_FAMILY_SLUGS = [
   "uttana-padasana",
 ] as const;
 
+/** Poses whose catalog family is elsewhere but still belong in a Core filter. */
+export const CORE_TRAINING_FOCUS_SLUGS = [
+  "kumbhakasana", // Plank (Backbends)
+  "vasisthasana", // Side Plank (Backbends)
+  "navasana", // Boat (Seated)
+] as const;
+
 export const SUPINE_PRONE_FAMILY_SLUGS = [
   "pelvic-clock",
   "prone-y-lift",
@@ -21,12 +28,26 @@ export const SUPINE_PRONE_FAMILY_SLUGS = [
 ] as const;
 
 const CORE_SET = new Set<string>(CORE_FAMILY_SLUGS);
+const CORE_TRAINING_FOCUS = new Set<string>([...CORE_FAMILY_SLUGS, ...CORE_TRAINING_FOCUS_SLUGS]);
 const SUPINE_PRONE_SET = new Set<string>(SUPINE_PRONE_FAMILY_SLUGS);
 
 export function expectedFamily(slug: string): Category | null {
   if (CORE_SET.has(slug)) return "Core";
   if (SUPINE_PRONE_SET.has(slug)) return "Supine/Prone";
   return null;
+}
+
+/**
+ * Library / builder category chips. Core includes poses whose primary family
+ * is elsewhere (Plank, Side Plank, Boat) so a core practice search finds them.
+ */
+export function matchesCategoryFilter(
+  asana: Pick<Asana, "slug" | "category">,
+  category: Category | "All",
+): boolean {
+  if (category === "All") return true;
+  if (category === "Core") return CORE_TRAINING_FOCUS.has(asana.slug);
+  return asana.category === category;
 }
 
 /**

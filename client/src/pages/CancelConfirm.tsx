@@ -66,9 +66,17 @@ export default function CancelConfirm() {
       {error && (
         <div className="space-y-3 rounded-2xl border border-border p-4 text-sm">
           <p>No active paid subscription found on this device.</p>
-          <Button asChild variant="outline" className="min-h-11">
-            <Link href="/cancel">How to cancel</Link>
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button asChild className="min-h-11" data-testid="button-cancel-empty-home">
+              <Link href="/">Back to Home</Link>
+            </Button>
+            <Button asChild variant="outline" className="min-h-11" data-testid="button-cancel-empty-signin">
+              <Link href="/account">Sign in to find your subscription</Link>
+            </Button>
+            <Button asChild variant="ghost" className="min-h-11">
+              <Link href="/cancel">How to cancel</Link>
+            </Button>
+          </div>
           {import.meta.env.DEV && (
             <Button
               variant="secondary"

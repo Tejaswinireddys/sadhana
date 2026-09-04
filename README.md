@@ -76,8 +76,9 @@ custom sequence builder.
 - **Backend** — Node + Express, Drizzle ORM, Postgres
 - **Assets** — hand-composed pose illustrations and pre-generated voice
   narrations shipped as static files
-- **Deployed on** — [Render](https://render.com) (web service) +
-  [Supabase](https://supabase.com) (Postgres). Both free tiers.
+- **Deployed on** — [Render](https://render.com) (web service, **Starter / always-on**) +
+  [Supabase](https://supabase.com) (Postgres). The web service must not use Render's
+  free tier: free instances sleep and first visitors see hosting logs instead of the app.
 
 ## Run locally
 
@@ -113,12 +114,13 @@ The app is set up for one-click deploy on Render.
    Postgres connection string.
 5. First boot creates all tables automatically.
 
-The app runs on Render's free tier. Free-tier apps spin down after 15
-minutes of inactivity; the first visit after that takes ~30–50 seconds to wake.
-**Before sharing the product publicly, move the web service to a paid always-on
-plan** and attach a custom domain via `PUBLIC_APP_URL` (the default
-`*.onrender.com` URL is fine for demos only). With `PUBLIC_APP_URL` set, OG tags,
-canonical URLs, and `/robots.txt` rewrite automatically at serve time.
+The Blueprint in `render.yaml` requests Render **Starter** so the instance stays
+warm. Confirm that plan in the Render dashboard after deploy — a free instance
+will still sleep, and the first visit shows Render's "Application loading" screen
+for ~30–50 seconds instead of Home. **Before sharing the product publicly, the
+web service must be paid / always-on.** Attach a custom domain via `PUBLIC_APP_URL`
+(the default `*.onrender.com` URL is fine for demos only). With `PUBLIC_APP_URL`
+set, OG tags, canonical URLs, and `/robots.txt` rewrite automatically at serve time.
 
 For error monitoring set `SENTRY_DSN` (server) and `VITE_SENTRY_DSN` (browser).
 Regenerate pose WebP siblings with `npm run gen:pose-webp` after adding PNGs.

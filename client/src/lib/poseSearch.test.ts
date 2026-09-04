@@ -74,7 +74,23 @@ describe("rankedPoses — anatomy vs distinctive names", () => {
       coreHits.some((p) => p.slug === "dead-bug"),
       "Dead Bug should appear for core",
     );
+    assert.ok(
+      ranked.some((p) => p.slug === "kumbhakasana"),
+      "Plank should appear for a core search even though its family is Backbends",
+    );
+    assert.ok(
+      ranked.some((p) => p.slug === "vasisthasana"),
+      "Side Plank should appear for a core search",
+    );
+    assert.ok(
+      ranked.some((p) => p.slug === "navasana"),
+      "Boat should appear for a core search",
+    );
     const firstCore = ranked.findIndex((p) => p.category === "Core");
-    assert.ok(firstCore >= 0 && firstCore < 3, `Core poses should lead, first at ${firstCore}`);
+    assert.ok(firstCore >= 0, "Core family missing from results");
+    const firstFocus = ranked.findIndex((p) =>
+      ["dolphin-plank", "dead-bug", "kumbhakasana", "navasana", "vasisthasana"].includes(p.slug),
+    );
+    assert.ok(firstFocus >= 0 && firstFocus < 3, `core-training poses should lead, first at ${firstFocus}`);
   });
 });

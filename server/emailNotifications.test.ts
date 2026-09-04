@@ -16,6 +16,7 @@ import {
   sendSubscriptionStartedEmail,
   sendVerificationEmail,
   sendWelcomeEmail,
+  emailDeliveryConfigured,
 } from "./email";
 
 describe("email formatting helpers", () => {
@@ -91,5 +92,22 @@ describe("email notification templates", () => {
     const result = await sendWelcomeEmail({ to: "" });
     assert.equal(result.sent, false);
     assert.equal(result.error, "No recipient email");
+  });
+
+  it("reports whether a real mail transport is configured", () => {
+    const prevResend = process.env.RESEND_API_KEY;
+    const prevHook = process.env.EMAIL_WEBHOOK_URL;
+    delete process.env.RESEND_API_KEY;
+    delete process.env.EMAIL_WEBHOOK_URL;
+    assert.equal(emailDeliveryConfigured(), false);
+    process.env.RESEND_API_KEY = "re_test";
+    assert.equal(emailDeliveryConfigured(), true);
+    delete process.env.RESEND_API_KEY;
+    process.env.EMAIL_WEBHOOK_URL = "https://example.com/hook";
+    assert.equal(emailDeliveryConfigured(), true);
+    if (prevResend === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = prevResend;
+    if (prevHook === undefined) delete process.env.EMAIL_WEBHOOK_URL;
+    else process.env.EMAIL_WEBHOOK_URL = prevHook;
   });
 });

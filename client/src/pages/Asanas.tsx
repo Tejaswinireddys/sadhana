@@ -8,6 +8,7 @@ import { PoseCardVideo } from "@/components/PoseCardVideo";
 import { EmptyState } from "@/components/EmptyState";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ASANAS, CATEGORIES, type Category, type Asana } from "@/data/content";
+import { matchesCategoryFilter } from "@/data/poseTaxonomy";
 import { audienceChipFromProfileId, type AudienceChip } from "@/data/profiles";
 import { DEFAULT_AUDIENCE_FILTER, matchesAudience } from "@/lib/asanaLibraryFilters";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -71,7 +72,7 @@ export default function Asanas() {
 
   const list = useMemo(() => {
     return ASANAS.filter((a) => {
-      if (category !== "All" && a.category !== category) return false;
+      if (category !== "All" && !matchesCategoryFilter(a, category)) return false;
       if (level !== "All" && a.difficulty !== level) return false;
       if (time === "Under 30s hold" && a.holdSeconds >= 30) return false;
       if (time === "1 min+" && a.holdSeconds < 60) return false;

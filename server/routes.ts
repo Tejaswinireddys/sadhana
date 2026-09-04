@@ -43,6 +43,7 @@ import {
   sendPasswordResetEmail,
   sendVerificationEmail,
   sendWelcomeEmail,
+  emailDeliveryConfigured,
 } from "./email";
 import { z } from "zod";
 import { reportError } from "./errorReporting";
@@ -100,6 +101,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     // Signed in: report what is still parked on this device so the UI can offer
     // to merge it rather than silently claiming it.
     res.json({ user: publicUser(user), deviceRows: await storage.countOwnerData(req.deviceOwnerId) });
+  });
+
+  /** Whether this deployment can send mail (no secrets). Used to avoid promising email. */
+  app.get("/api/auth/mail-status", (_req, res) => {
+    res.json({ emailEnabled: emailDeliveryConfigured() });
   });
 
   app.post("/api/auth/signup", async (req, res) => {

@@ -2,8 +2,10 @@ services:
   - type: web
     name: sadhana
     runtime: node
-    # Starter keeps the web service warm (no free-tier spin-down) so /healthz
-    # and Stripe webhooks stay reachable between practice sessions.
+    # Always-on Starter (not free). Free-tier spin-down shows Render's
+    # "Application loading" screen to first-time visitors for ~30–50s.
+    # Keep this plan so /healthz, Stripe webhooks, and the first Home visit
+    # reach the product instead of hosting logs.
     plan: starter
     buildCommand: npm ci --include=dev && npm run build && npm prune --omit=dev
     startCommand: node dist/index.cjs
