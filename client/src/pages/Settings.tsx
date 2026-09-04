@@ -52,6 +52,7 @@ import { Moon, Sun, Laptop, Download, Upload, Trash2, Bell, CalendarPlus, Info, 
 import { Link } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { formatSessionPoseLine } from "@/lib/sessionAsanas";
 
 const DEFAULT_REMINDER: ReminderPrefs = { enabled: true, hour: 18, notifications: false };
 
@@ -718,7 +719,9 @@ export default function Settings() {
                 <p className="truncate font-medium">
                   {s.date.slice(0, 10)} · {s.durationMinutes} min · {s.kind}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">{s.asanas}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {formatSessionPoseLine(s.asanas)}
+                </p>
               </div>
               <Button
                 size="sm"

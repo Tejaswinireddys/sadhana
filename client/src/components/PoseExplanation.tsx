@@ -355,11 +355,6 @@ export function PoseExplanation({ slug }: { slug: string }) {
                   </li>
                 ))}
               </ul>
-              {tab === "watch" && expl.modification && (
-                <p className="border-t border-border/50 pt-3 text-xs text-muted-foreground">
-                  Modification: {expl.modification}
-                </p>
-              )}
             </div>
           </div>
         </div>

@@ -16,16 +16,8 @@ import { PATHWAYS, BREATHING, AFFIRMATIONS } from "@/data/content";
 import { KIDS_POSES, KIDS_BREATH } from "@/data/kids";
 import { Wind, Route as RouteIcon, Sparkles, LayoutGrid, Smile, Search as SearchIcon } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { difficultyBadgeClass } from "@/lib/difficultyBadge";
 import { useRecentSearches } from "@/context/RecentSearchesContext";
-
-const diffColor: Record<string, string> = {
-  // Tinted fills with brand-coloured text were the worst offenders in the audit
-  // ("Intermediate" was effectively invisible). Text sits on the page surface
-  // colour, which the contrast test covers.
-  Beginner: "bg-secondary/15 text-foreground border-secondary/40",
-  Intermediate: "bg-primary/10 text-foreground border-primary/40",
-  Advanced: "bg-destructive/10 text-foreground border-destructive/40",
-};
 
 function readQuery(): string {
   // `/search?q=warrior` — the query lives on `location.search` now.
@@ -212,7 +204,7 @@ export default function Search() {
                             <p className="truncate font-serif text-base" data-testid={`search-pose-english-${a.slug}`}>
                               {a.english}
                             </p>
-                            <Badge variant="outline" className={`shrink-0 text-[10px] ${diffColor[a.difficulty]}`}>
+                            <Badge variant="outline" className={`shrink-0 text-[10px] ${difficultyBadgeClass(a.difficulty)}`}>
                               {a.difficulty}
                             </Badge>
                           </div>

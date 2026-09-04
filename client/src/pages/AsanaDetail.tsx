@@ -14,6 +14,7 @@ import { VoicePlayer } from "@/components/VoicePlayer";
 import { PoseExplanation } from "@/components/PoseExplanation";
 import { asanaBySlug, type Difficulty, type Severity } from "@/data/content";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
+import { difficultyBadgeClass } from "@/lib/difficultyBadge";
 import { CONTENT_REVIEW } from "@/data/contentProvenance";
 import { manifestAudioUrl, usePoseMedia } from "@/lib/poseMediaApi";
 import { pronunciationFor, shouldShowPronunciation } from "@/lib/sanskritPronunciation";
@@ -233,7 +234,9 @@ export default function AsanaDetail() {
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{asana.category}</Badge>
-            <Badge variant="outline">{asana.difficulty}</Badge>
+            <Badge variant="outline" className={difficultyBadgeClass(asana.difficulty)}>
+              {asana.difficulty}
+            </Badge>
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-primary">What it is</p>

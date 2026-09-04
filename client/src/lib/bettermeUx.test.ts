@@ -57,7 +57,26 @@ describe("Premium quiz-first UX contract", () => {
     assert.match(home, /data-testid="card-quiz-plan"/);
     assert.match(home, /Retake quiz/);
     assert.match(home, /!quizDone/);
+    assert.match(home, /showQuizPlanCta = !isLoading && !showResume && !!quizPlan/);
+    assert.match(home, /Separate from your/);
     assert.equal(/Secondary destinations live here/.test(home), false);
+  });
+
+  it("keeps difficulty badges on the readable foreground token", () => {
+    const asanas = readFileSync(resolve("client/src/pages/Asanas.tsx"), "utf8");
+    const search = readFileSync(resolve("client/src/pages/Search.tsx"), "utf8");
+    const detail = readFileSync(resolve("client/src/pages/AsanaDetail.tsx"), "utf8");
+    const badge = readFileSync(resolve("client/src/lib/difficultyBadge.ts"), "utf8");
+    assert.match(asanas, /difficultyBadgeClass/);
+    assert.match(search, /difficultyBadgeClass/);
+    assert.match(detail, /difficultyBadgeClass/);
+    assert.match(badge, /text-foreground/);
+    assert.equal(/text-secondary-foreground/.test(badge), false);
+  });
+
+  it("renders recent session poses as names, not a JSON array", () => {
+    const settings = readFileSync(resolve("client/src/pages/Settings.tsx"), "utf8");
+    assert.match(settings, /formatSessionPoseLine\(s\.asanas\)/);
   });
 
   it("defines funnel and landing motion helpers", () => {

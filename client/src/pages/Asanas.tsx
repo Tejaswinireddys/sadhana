@@ -15,18 +15,13 @@ import { useProgressiveList } from "@/hooks/useProgressiveList";
 import type { FavoriteAsana, UserProfile } from "@shared/schema";
 import { Heart, Smile, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { difficultyBadgeClass } from "@/lib/difficultyBadge";
 import { FadeIn } from "@/components/motion";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-
-const diffColor: Record<string, string> = {
-  Beginner: "bg-secondary/20 text-secondary-foreground border-secondary/30",
-  Intermediate: "bg-primary/15 text-primary border-primary/30",
-  Advanced: "bg-destructive/15 text-destructive border-destructive/30",
-};
 
 const LEVELS = ["All", "Beginner", "Intermediate", "Advanced"] as const;
 type LevelFilter = (typeof LEVELS)[number];
@@ -337,7 +332,7 @@ export default function Asanas() {
                           <h3 className="font-serif text-lg leading-tight">{a.english}</h3>
                           <p className="text-sm italic text-muted-foreground">{a.sanskrit}</p>
                         </div>
-                        <Badge variant="outline" className={`shrink-0 ${diffColor[a.difficulty]}`}>
+                        <Badge variant="outline" className={`shrink-0 ${difficultyBadgeClass(a.difficulty)}`}>
                           {a.difficulty}
                         </Badge>
                       </div>
