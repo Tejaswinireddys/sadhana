@@ -198,8 +198,7 @@ export default function Landing() {
                 Choose a mood — or let the quiz decide
               </h2>
               <p className="text-base text-muted-foreground md:text-lg">
-                Every path opens the same kind funnel: five questions, then a session you can start
-                today.
+                Every path opens a short quiz, then a session you can start today.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:gap-4">
@@ -279,7 +278,7 @@ export default function Landing() {
                 Built to stay kind
               </h2>
               <p className="text-muted-foreground">
-                Conversion without dark patterns — the product you can recommend.
+                No signup wall and no streak shame — a practice you can recommend.
               </p>
             </Reveal>
             <div className="grid gap-3 md:grid-cols-2">

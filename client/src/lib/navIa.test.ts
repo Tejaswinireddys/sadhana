@@ -42,6 +42,25 @@ describe("primary navigation IA", () => {
   });
 });
 
+describe("one main landmark", () => {
+  it("keeps the shell wrapper from nesting a second main", () => {
+    const sidebar = readFileSync(resolve("client/src/components/ui/sidebar.tsx"), "utf8");
+    const inset = sidebar.slice(sidebar.indexOf("function SidebarInset"));
+    assert.match(inset, /<div/);
+    assert.equal(inset.includes("<main"), false);
+    assert.match(layout, /id="main-content"/);
+  });
+});
+
+describe("instructors destinations", () => {
+  it("sends adaptive practice to /adaptive and offers a waitlist join", () => {
+    const instructors = readFileSync(resolve("client/src/pages/Instructors.tsx"), "utf8");
+    assert.match(instructors, /href="\/adaptive"/);
+    assert.equal(/href="\/pathways"/.test(instructors), false);
+    assert.match(instructors, /data-testid="teachers-waitlist-join"/);
+  });
+});
+
 describe("pose self-check discoverability", () => {
   const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
   const guided = readFileSync(resolve("client/src/pages/GuidedSession.tsx"), "utf8");

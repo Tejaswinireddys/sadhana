@@ -62,7 +62,18 @@ export const KEYS = {
   poseCoachConsent: "sadhana.poseCoach.consent",
   webPush: "sadhana.webPush",
   practiceBuddy: "sadhana.practiceBuddy",
+  quizPlan: "sadhana.quiz.plan",
+  teachersWaitlist: "sadhana.teachersWaitlist.email",
 } as const;
+
+/** Map quiz/register experience to the pose-detail variation tab. */
+export function poseLevelFromExperience(
+  level: string | null | undefined,
+): "beginner" | "intermediate" | "advanced" {
+  if (level === "new") return "beginner";
+  if (level === "regular") return "advanced";
+  return "intermediate";
+}
 
 export type ReminderPrefs = {
   enabled: boolean;

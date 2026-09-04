@@ -18,6 +18,7 @@ describe("Premium quiz-first UX contract", () => {
     assert.match(landing, /landing-brand-rise/);
     assert.match(landing, /landing-cta-glow/);
     assert.equal(/hard paywall|forced trial|countdown discount/i.test(landing), false);
+    assert.equal(/kind funnel|Conversion without dark patterns/i.test(landing), false);
   });
 
   it("ships a quiz → building → plan reveal funnel that loads a real session", () => {
@@ -33,11 +34,30 @@ describe("Premium quiz-first UX contract", () => {
     assert.equal(/hard paywall|forced trial|countdown discount/i.test(quiz), false);
   });
 
+  it("keeps implementation copy out of Settings and Plans", () => {
+    const settings = readFileSync(resolve("client/src/pages/Settings.tsx"), "utf8");
+    const plus = readFileSync(resolve("client/src/pages/Plus.tsx"), "utf8");
+    const billing = readFileSync(resolve("server/billing.ts"), "utf8");
+    assert.equal(/production service worker/.test(settings), false);
+    assert.match(settings, /import\.meta\.env\.DEV/);
+    assert.equal(/Stripe keys are set/.test(plus), false);
+    assert.equal(/Stripe keys are set/.test(billing), false);
+  });
+
   it("keeps /start chrome-free in the app shell", () => {
     const app = readFileSync(resolve("client/src/App.tsx"), "utf8");
     const layout = readFileSync(resolve("client/src/components/AppLayout.tsx"), "utf8");
     assert.match(app, /path="\/start"/);
     assert.match(layout, /location === "\/start"/);
+  });
+
+  it("treats quiz completion as Home onboarding, not a second newcomer quiz", () => {
+    const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
+    assert.match(home, /readQuizPlan/);
+    assert.match(home, /data-testid="card-quiz-plan"/);
+    assert.match(home, /Retake quiz/);
+    assert.match(home, /!quizDone/);
+    assert.equal(/Secondary destinations live here/.test(home), false);
   });
 
   it("defines funnel and landing motion helpers", () => {

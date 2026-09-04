@@ -45,6 +45,35 @@ function uniq(items: string[]): string[] {
   return out;
 }
 
+function tokenOverlap(a: string, b: string): number {
+  const at = tokens(a);
+  const bt = tokens(b);
+  if (at.size < 3 || bt.size < 3) return 0;
+  let hit = 0;
+  for (const w of at) if (bt.has(w)) hit++;
+  return hit / Math.min(at.size, bt.size);
+}
+
+/** Drop near-duplicate cautions that differ only by punctuation or wrapping. */
+function uniqLoose(items: string[]): string[] {
+  const out: string[] = [];
+  for (const raw of items) {
+    const t = raw.trim();
+    if (!t) continue;
+    const n = normalizeCue(t);
+    const duplicate = out.some((existing) => {
+      const e = normalizeCue(existing);
+      if (e === n) return true;
+      const [shorter, longer] = e.length <= n.length ? [e, n] : [n, e];
+      if (shorter.length >= 16 && longer.includes(shorter)) return true;
+      return tokenOverlap(existing, t) >= 0.7;
+    });
+    if (duplicate) continue;
+    out.push(t);
+  }
+  return out;
+}
+
 function normalizeCue(text: string): string {
   return text
     .toLowerCase()
@@ -265,7 +294,7 @@ export function buildPoseExplanation(
     ...(isPlaceholderCues(beginner.cues) ? [] : beginner.cues.slice(0, 2)),
   ]).slice(0, 4);
 
-  const watchOuts = uniq([
+  const watchOuts = uniqLoose([
     ...asana.avoidIf
       .filter((r) => r.severity === "modify" || r.severity === "caution")
       .map((r) => r.condition),

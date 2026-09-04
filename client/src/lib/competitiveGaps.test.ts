@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { buildTcx, buildWorkoutCsv } from "./healthExport.ts";
 import { pairBuddy, clearBuddyPair, readBuddy, writeBuddy } from "./practiceBuddy.ts";
+import { buddyPairingError } from "./buddyPairing.ts";
 import { upcomingLive, INSTRUCTORS } from "../data/instructors.ts";
 import { isHabitDay, readHabitPlan } from "./habitPlan.ts";
 import { QUICK_SESSIONS } from "../data/quickSessions.ts";
@@ -51,6 +52,7 @@ describe("practice buddy", () => {
       const cleared = clearBuddyPair();
       assert.equal(cleared.pairedWithCode, null);
       assert.ok(readBuddy().code);
+      assert.match(buddyPairingError("", "SB-AAAAAA") ?? "", /SB-/);
     } finally {
       globalThis.localStorage = original;
     }

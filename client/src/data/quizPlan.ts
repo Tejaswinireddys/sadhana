@@ -3,8 +3,14 @@
  * BetterMe-style funnels often stop at a marketing “plan”; Sadhana loads practice.
  */
 import { asanaBySlug } from "./content";
-import { sessionMinutes, sessionTimeLabel } from "./quickSessions";
-import type { ExperienceLevel, PracticeIntent } from "@/lib/localPrefs";
+import { sessionMinutes, sessionSeconds, sessionTimeLabel } from "./quickSessions";
+import {
+  KEYS,
+  readJson,
+  writeJson,
+  type ExperienceLevel,
+  type PracticeIntent,
+} from "@/lib/localPrefs";
 
 export type QuizAnswers = {
   goal?: string;
@@ -169,25 +175,52 @@ function timeFor(raw?: string): "10" | "20" | "30" {
   return "10";
 }
 
-/** Trim or pad a pose list so wall-clock length roughly matches the chosen budget. */
+/** Trim or scale a pose list so wall-clock length matches the chosen budget. */
 function fitToBudget(poses: QuizPose[], budget: "10" | "20" | "30"): QuizPose[] {
   const target = budget === "10" ? 10 : budget === "20" ? 20 : 28;
   let list = [...poses];
   // Drop middle poses (keep openers + closer) while too long.
-  while (sessionMinutes(list) > target + 3 && list.length > 4) {
+  while (sessionMinutes(list) > target + 2 && list.length > 4) {
     const mid = Math.floor(list.length / 2) - 1;
     if (mid <= 0 || mid >= list.length - 2) break;
     list.splice(mid, 1);
   }
-  // If still short on a long budget, gently extend rests.
-  if (sessionMinutes(list) < target - 4) {
-    list = list.map((p, i) =>
-      i === list.length - 1 || i === list.length - 2
-        ? { ...p, holdSeconds: Math.round(p.holdSeconds * 1.35) }
-        : p,
-    );
+  for (let i = 0; i < 8; i++) {
+    const mins = sessionMinutes(list);
+    if (Math.abs(mins - target) <= 2) break;
+    const secs = sessionSeconds(list);
+    if (secs <= 0) break;
+    const scale = Math.min(2.6, Math.max(0.65, (target * 60) / secs));
+    list = list.map((p) => ({
+      ...p,
+      holdSeconds: Math.max(20, Math.round(p.holdSeconds * scale)),
+    }));
   }
   return list;
+}
+
+export type SavedQuizPlan = Pick<
+  BuiltQuizPlan,
+  "title" | "minutes" | "timeLabel" | "poses" | "breathSlug" | "introPoseSlug" | "experience" | "intent"
+>;
+
+export function saveQuizPlan(plan: BuiltQuizPlan | SavedQuizPlan): void {
+  writeJson<SavedQuizPlan>(KEYS.quizPlan, {
+    title: plan.title,
+    minutes: plan.minutes,
+    timeLabel: plan.timeLabel,
+    poses: plan.poses,
+    breathSlug: plan.breathSlug,
+    introPoseSlug: plan.introPoseSlug,
+    experience: plan.experience,
+    intent: plan.intent,
+  });
+}
+
+export function readQuizPlan(): SavedQuizPlan | null {
+  const raw = readJson<Partial<SavedQuizPlan> | null>(KEYS.quizPlan, null);
+  if (!raw?.title || !Array.isArray(raw.poses) || raw.poses.length === 0) return null;
+  return raw as SavedQuizPlan;
 }
 
 export function buildQuizPlan(answers: QuizAnswers): BuiltQuizPlan {

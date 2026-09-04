@@ -28,6 +28,27 @@ describe("quizPlan", () => {
     assert.notEqual(sleep.poses[0]?.slug, strength.poses[0]?.slug);
   });
 
+  it("keeps a 10-minute sleep quiz near 10 minutes", () => {
+    const plan = buildQuizPlan({
+      goal: "sleep",
+      body: "full",
+      experience: "new",
+      time: "10",
+      habit: "unsure",
+    });
+    assert.match(plan.title, /Sleep/i);
+    assert.ok(plan.minutes >= 8, `expected ≥8 min, got ${plan.minutes}`);
+    assert.ok(plan.minutes <= 12, `expected ≤12 min, got ${plan.minutes}`);
+    assert.match(plan.timeLabel, /\d+ min/);
+  });
+
+  it("honors 20 and 30 minute budgets within a small window", () => {
+    const twenty = buildQuizPlan({ goal: "calm", body: "full", experience: "new", time: "20" });
+    const thirty = buildQuizPlan({ goal: "strength", body: "full", experience: "some", time: "30" });
+    assert.ok(twenty.minutes >= 18 && twenty.minutes <= 22, `20-min plan was ${twenty.minutes}`);
+    assert.ok(thirty.minutes >= 26 && thirty.minutes <= 32, `30-min plan was ${thirty.minutes}`);
+  });
+
   it("parses program refs from the landing tiles", () => {
     assert.deepEqual(parseProgramRef("?ref=program-desk"), PROGRAM_SEEDS["program-desk"]);
     assert.equal(parseProgramRef("?ref=unknown"), null);

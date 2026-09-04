@@ -16,6 +16,7 @@ import {
   startBillingScheduler,
 } from "./billing";
 import { registerBuddyRoutes } from "./buddy";
+import { registerTeachersWaitlistRoutes } from "./teachersWaitlist";
 import { publicAppOrigin } from "./publicUrl";
 import { captureServerException, initServerSentry } from "./sentry";
 import { sendJson404 } from "./json404";
@@ -148,6 +149,7 @@ async function ensureSchema() {
   registerPushRoutes(app);
   registerBillingRoutes(app);
   registerBuddyRoutes(app);
+  registerTeachersWaitlistRoutes(app);
   startPushScheduler();
   startBillingScheduler();
 

@@ -353,3 +353,12 @@ test("pose illustrations read stored imageAlt; decorative images stay empty", ()
   const home = readFileSync(path.join(ROOT, "client/src/pages/Home.tsx"), "utf8");
   assert.match(home, /alt=\{a\.imageAlt\}/);
 });
+
+test("Thunderbolt watch-outs do not repeat the same knee caution", () => {
+  const vajra = ASANAS.find((a) => a.slug === "vajrasana");
+  assert.ok(vajra);
+  const { watchOuts } = buildPoseExplanation(vajra);
+  const normalized = watchOuts.map((w) => w.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
+  const injury = normalized.filter((w) => w.includes("knee injury") && w.includes("block"));
+  assert.equal(injury.length, 1, `duplicate knee-injury lines: ${watchOuts.join(" | ")}`);
+});

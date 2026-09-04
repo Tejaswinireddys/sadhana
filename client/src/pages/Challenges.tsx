@@ -16,6 +16,7 @@ import {
   writeBuddy,
   type PracticeBuddy,
 } from "@/lib/practiceBuddy";
+import { buddyPairingError } from "@/lib/buddyPairing";
 import { useToast } from "@/hooks/use-toast";
 
 /**
@@ -144,7 +145,13 @@ export default function Challenges() {
               />
               <Button
                 className="min-h-11"
+                disabled={!pairCode.trim()}
                 onClick={() => {
+                  const invalid = buddyPairingError(pairCode, buddy.code);
+                  if (invalid) {
+                    toast({ title: "Could not pair", description: invalid });
+                    return;
+                  }
                   void pairBuddyRemote(pairCode, name.trim() || "Friend").then((next) => {
                     setBuddy(next);
                     setPairCode("");

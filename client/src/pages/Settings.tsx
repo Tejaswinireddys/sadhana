@@ -330,14 +330,18 @@ export default function Settings() {
             <Link href="/instructors" className="underline underline-offset-2" data-testid="settings-instructors">
               Teachers waitlist
             </Link>
-            <span aria-hidden>·</span>
-            <Link href="/design-system" className="underline underline-offset-2" data-testid="settings-design-system">
-              Design system
-            </Link>
-            <span aria-hidden>·</span>
-            <Link href="/corporate" className="underline underline-offset-2" data-testid="settings-corporate">
-              Workplace prototype
-            </Link>
+            {import.meta.env.DEV && (
+              <>
+                <span aria-hidden>·</span>
+                <Link href="/design-system" className="underline underline-offset-2" data-testid="settings-design-system">
+                  Design system
+                </Link>
+                <span aria-hidden>·</span>
+                <Link href="/corporate" className="underline underline-offset-2" data-testid="settings-corporate">
+                  Workplace prototype
+                </Link>
+              </>
+            )}
           </div>
           <div className="rounded-md border border-border p-3">
             <VoiceToggle />
@@ -431,9 +435,9 @@ export default function Settings() {
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Web Push fires at your chosen local hour even when the tab is closed (production service
-            worker). The in-app banner is only a fallback. Missed-day copy stays compassionate — we
-            never threaten your streak.
+            Web Push can fire at your chosen local hour even when the tab is closed. The in-app
+            banner is only a fallback. Missed-day copy stays compassionate — we never threaten your
+            streak.
           </p>
         </CardContent>
       </Card>
@@ -672,9 +676,11 @@ export default function Settings() {
             notes. When PostHog is configured, anonymous acquisition-funnel events from /start may
             still be captured so we can fix drop-off — see Privacy for details.
           </p>
-          <Button variant="outline" className="min-h-11 w-full justify-start" asChild>
-            <Link href="/analytics/funnel">Open funnel analytics dashboard</Link>
-          </Button>
+          {import.meta.env.DEV && (
+            <Button variant="outline" className="min-h-11 w-full justify-start" asChild>
+              <Link href="/analytics/funnel">Open funnel analytics dashboard</Link>
+            </Button>
+          )}
           <div className="flex items-center justify-between gap-3">
             <Label htmlFor="voice-control">Hands-free voice control in guided practice</Label>
             <Switch

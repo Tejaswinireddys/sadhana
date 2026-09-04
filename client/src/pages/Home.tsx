@@ -25,6 +25,7 @@ import { resolveIcon } from "@/lib/icons";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
 import { homeProgressTiles } from "@shared/practiceStats";
 import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/lib/localPrefs";
+import { readQuizPlan } from "@/data/quizPlan";
 import { isHabitDay, readHabitPlan } from "@/lib/habitPlan";
 import type { UserProfile, Enrollment, FavoriteAsana, CustomFlow, Journal } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
@@ -244,6 +245,39 @@ export default function Home() {
     navigate("/guided");
   };
 
+  const startSavedQuizPlan = () => {
+    const saved = readQuizPlan();
+    if (!saved) return;
+    const poses = saved.poses
+      .map((p) => {
+        const asana = asanaBySlug(p.slug);
+        return asana
+          ? {
+              asana,
+              holdSeconds: p.holdSeconds,
+              ...(p.sides === "each" ? { sides: "each" as const } : {}),
+            }
+          : null;
+      })
+      .filter(
+        (
+          x,
+        ): x is {
+          asana: NonNullable<ReturnType<typeof asanaBySlug>>;
+          holdSeconds: number;
+          sides?: "each";
+        } => x != null,
+      );
+    if (!poses.length) return;
+    loadSession(poses, {
+      label: saved.title,
+      plannedMinutes: saved.minutes,
+      breathSlug: saved.breathSlug ?? null,
+      introPoseSlug: saved.introPoseSlug,
+    });
+    navigate("/guided");
+  };
+
   /** Run a sequence saved in the Builder without a detour through its page. */
   const startCustomFlow = (flow: CustomFlow) => {
     const parsed = JSON.parse(flow.poseSequence || "[]") as {
@@ -339,9 +373,14 @@ export default function Home() {
   );
 
   const hasPracticed = stats && stats.totalSessions > 0;
-  // A true first-timer: nothing practiced, no path chosen, nothing mid-session.
-  // These users get one clear "start here" instead of the full menu.
-  const isNewcomer = !isLoading && !hasPracticed && !profile && !showResume;
+  const quizPlan = readQuizPlan();
+  const quizDone =
+    readString(KEYS.onboardingDone) === "1" ||
+    !!readString(KEYS.experienceLevel) ||
+    !!quizPlan;
+  // A true first-timer: no quiz, nothing practiced, no path, nothing mid-session.
+  const isNewcomer = !isLoading && !hasPracticed && !profile && !showResume && !quizDone;
+  const showQuizPlanCta = !isLoading && !hasPracticed && !showResume && !!quizPlan;
   const ProfileIcon = profile ? resolveIcon(profile.icon) : Compass;
 
   // Daily reminder banner: show if not practiced today AND it's past 6 PM local.
@@ -453,6 +492,39 @@ export default function Home() {
                 data-testid="button-new-here-warmup"
               >
                 <Play className="mr-1.5 h-4 w-4" /> Or start 5-minute warm-up
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {showQuizPlanCta && (
+        <Card className="surface-banner border-primary/30" data-testid="card-quiz-plan">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+                <Sparkles className="h-5 w-5" />
+              </span>
+              <div className="space-y-1">
+                <p className="font-serif text-xl leading-tight">Start {quizPlan?.title}</p>
+                <p className="text-sm text-muted-foreground">
+                  {quizPlan?.poses.length} guided poses · {quizPlan?.timeLabel}. Retake the quiz
+                  anytime if you want a different first session.
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+              <Button
+                className="min-h-11 w-full cursor-pointer sm:w-auto"
+                onClick={startSavedQuizPlan}
+                data-testid="button-start-quiz-plan"
+              >
+                <Play className="mr-1.5 h-4 w-4" /> Start my plan
+              </Button>
+              <Button variant="ghost" size="sm" className="min-h-11 cursor-pointer" asChild>
+                <Link href="/start" data-testid="button-retake-quiz">
+                  Retake quiz
+                </Link>
               </Button>
             </div>
           </CardContent>
@@ -1267,7 +1339,7 @@ export default function Home() {
           More from Practice, Progress, and You
         </h2>
         <p className="text-sm text-muted-foreground">
-          Secondary destinations live here — not as extra top-level nav.
+          Shortcuts to trainer, pathways, journal, and account.
         </p>
         {[
           {

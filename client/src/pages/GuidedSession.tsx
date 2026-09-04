@@ -107,6 +107,14 @@ import {
   TRANSITION_SECONDS,
   SIDE_SWITCH_SECONDS,
 } from "@/data/quickSessions";
+import {
+  estimateInstructionSeconds,
+  guidedPhaseLabel,
+  guidedSessionSeconds,
+  holdRemainingAfterInstruction,
+  instructionCountdown,
+  remainingFooterLabel,
+} from "@/lib/guidedDuration";
 import { resolvePreMood, shouldAskPreMood } from "@/lib/moods";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { resolveStepAt } from "@/lib/narrationTiming";
@@ -533,15 +541,21 @@ export default function GuidedSession() {
       ? steps[stepIndex]?.pose || current?.pose
       : current?.pose;
 
-  // ---- session time estimate ------------------------------------------------
+  // ---- session time estimate (holds + transitions + narration) --------------
   const totalEstimateSeconds = useMemo(() => {
-    return todays.reduce((sum, a) => {
-      const base = a.holdSeconds + TRANSITION_SECONDS;
-      return sum + (a.sides === "each" ? base + a.holdSeconds + SIDE_SWITCH_SECONDS : base);
-    }, 0);
-  }, [todays]);
-  const [remainingEstimate, setRemainingEstimate] = useState(totalEstimateSeconds);
-  useEffect(() => setRemainingEstimate(totalEstimateSeconds), [totalEstimateSeconds]);
+    return guidedSessionSeconds(
+      todays.map((a, i) => ({
+        holdSeconds: a.holdSeconds,
+        sides: a.sides,
+        stepCount: a.steps?.length ?? 0,
+        instructionSeconds:
+          i === index && voiceDuration > 0
+            ? estimateInstructionSeconds(a.steps?.length ?? 0, voiceDuration)
+            : undefined,
+      })),
+    );
+  }, [todays, index, voiceDuration]);
+  const remainingEstimate = Math.max(0, totalEstimateSeconds - elapsedTotal);
 
   // ---- speech-synthesis (robot voice only when allowRobotVoice) -------------
   const speak = useCallback(
@@ -962,13 +976,10 @@ export default function GuidedSession() {
     if (a) a.pause();
     speechPlayerRef.current?.cancel();
     speechPlayerRef.current = null;
-    const hold = current?.holdSeconds ?? 30;
-    const usedVoice =
-      voiceEnabled &&
-      instructionModeRef.current === "mp3" &&
-      !audioBrokenRef.current;
-    const vd = usedVoice ? Math.round(voiceDuration) : 0;
-    const remaining = Math.max(3, hold - vd) + pendingExtension.current;
+    const remaining = holdRemainingAfterInstruction(
+      current?.holdSeconds ?? 30,
+      pendingExtension.current,
+    );
     pendingExtension.current = 0;
     setPhaseRemaining(remaining);
     setHoldBudget(remaining);
@@ -1022,7 +1033,6 @@ export default function GuidedSession() {
         return next;
       });
       if (phase === "hold") holdElapsed.current += 1;
-      setRemainingEstimate((r) => Math.max(0, r - 1));
       if (phase === "hold") holdSecondsRef.current += 1;
 
       if (phase === "hold") {
@@ -1426,6 +1436,9 @@ export default function GuidedSession() {
             setShowPostMood(false);
             setShowRpe(true);
           }}
+          onDismiss={() => {
+            setShowPostMood(false);
+          }}
         />
         {showRpe && (
           <div
@@ -1683,6 +1696,9 @@ export default function GuidedSession() {
             setShowPreMood(false);
             beginSession();
           }}
+          onDismiss={() => {
+            setShowPreMood(false);
+          }}
         />
         <div className="animate-fade-in flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
           <MicVocal className="h-10 w-10 text-primary" />
@@ -1743,8 +1759,15 @@ export default function GuidedSession() {
         ? phaseRemaining
         : isHold
           ? phaseRemaining
-          : // instruction: show remaining hold estimate (voice + hold)
-            (current?.holdSeconds ?? 0) - Math.round(voiceEnabled ? audioRef.current?.currentTime ?? 0 : 0);
+          : instructionCountdown({
+              usingMp3:
+                voiceEnabled &&
+                instructionModeRef.current === "mp3" &&
+                !audioBrokenRef.current,
+              audioCurrentTime: audioRef.current?.currentTime ?? 0,
+              audioDuration: voiceDuration || (audioRef.current?.duration ?? 0),
+              phaseRemaining,
+            });
 
   const activeCaption =
     phase === "transitionIn"
@@ -2032,6 +2055,12 @@ export default function GuidedSession() {
           >
             {mmss(bottomCountdown)}
           </span>
+          <p
+            className="text-sm font-medium text-muted-foreground"
+            data-testid="guided-phase-label"
+          >
+            {guidedPhaseLabel(phase)}
+          </p>
 
           {isHold && holdBudget > 0 && (
             <div
@@ -2179,7 +2208,7 @@ export default function GuidedSession() {
             data-testid="guided-pace-label"
           >
             <TimerIcon className="h-3.5 w-3.5" />
-            ~{Math.max(1, Math.round(remainingEstimate / 60))} min left ·{" "}
+            {remainingFooterLabel(remainingEstimate)} ·{" "}
             {pace === 0.75 ? "slow" : pace === 1.25 ? "fast" : "normal"}
             {side === 2 ? " · side 2" : isEach ? " · side 1" : ""}
             {playback?.kind === "speech" ? " · robot voice" : ""}

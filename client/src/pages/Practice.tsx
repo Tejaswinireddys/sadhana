@@ -392,6 +392,9 @@ export default function Practice() {
             setShowPreMood(false);
             startTimer();
           }}
+          onDismiss={() => {
+            setShowPreMood(false);
+          }}
         />
         <div className="animate-fade-in space-y-6">
           <header className="space-y-3">

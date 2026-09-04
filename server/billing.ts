@@ -198,7 +198,7 @@ export function registerBillingRoutes(app: Express) {
       termsVersion: BILLING_TERMS_VERSION,
       note: stripe
         ? "Checkout is live. Cancel in two taps from Home — no dark patterns."
-        : "Core practice stays free. Paid checkout activates when Stripe keys are set — you will never be charged silently.",
+        : "Core practice stays free. Paid plans are on a waitlist — you will never be charged silently.",
     });
   });
 
@@ -321,7 +321,7 @@ export function registerBillingRoutes(app: Express) {
     if (!stripe) {
       return res.status(503).json({
         error: "Billing is not configured on this deployment",
-        hint: "Free practice stays available. Paid tiers turn on when Stripe keys are set — no surprise charges.",
+        hint: "Free practice stays available. Paid plans are on a waitlist — no surprise charges.",
       });
     }
     const plan = String(req.body?.plan || "");

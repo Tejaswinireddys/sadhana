@@ -77,6 +77,11 @@ describe("closed dialogs leave the accessibility tree", () => {
   it("unmounts mood check-in content when closed", () => {
     const src = read("client/src/components/MoodCheckIn.tsx");
     assert.match(src, /\{open \? \(/);
+    assert.match(src, /onDismiss \?\? onSkip/);
+    const guided = read("client/src/pages/GuidedSession.tsx");
+    const pre = guided.slice(guided.indexOf("testIdPrefix=\"premood\""));
+    assert.match(pre, /onDismiss=\{\(\) => \{\s*setShowPreMood\(false\);/);
+    assert.equal(/onDismiss=\{\(\) => \{\s*setShowPreMood\(false\);\s*beginSession/.test(pre), false);
   });
 
   it("removes dismissed toasts quickly instead of leaving them for ~16 minutes", () => {

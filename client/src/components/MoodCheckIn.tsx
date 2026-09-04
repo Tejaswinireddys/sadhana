@@ -20,6 +20,7 @@ export function MoodCheckIn({
   confirmLabel,
   onPick,
   onSkip,
+  onDismiss,
   testIdPrefix,
 }: {
   open: boolean;
@@ -28,10 +29,12 @@ export function MoodCheckIn({
   confirmLabel: string;
   onPick: (mood: Mood) => void;
   onSkip: () => void;
+  /** Overlay / X close. Defaults to onSkip when omitted. */
+  onDismiss?: () => void;
   testIdPrefix: string;
 }) {
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onSkip()}>
+    <Dialog open={open} onOpenChange={(o) => !o && (onDismiss ?? onSkip)()}>
       {open ? (
       <DialogContent className="max-w-md" data-testid={`dialog-${testIdPrefix}`}>
         <DialogHeader>

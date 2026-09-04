@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { formatDuration } from "@/lib/formatDuration";
+import { guidedSessionSeconds } from "@/lib/guidedDuration";
 
 const MAX_POSES = 20;
 
@@ -66,7 +67,13 @@ function parseSequence(json: string): SeqPose[] {
 }
 
 function totalSeconds(poses: SeqPose[]): number {
-  return poses.reduce((sum, p) => sum + p.holdSeconds * (p.sides === "each" ? 2 : 1), 0);
+  return guidedSessionSeconds(
+    poses.map((p) => ({
+      holdSeconds: p.holdSeconds,
+      sides: p.sides,
+      stepCount: asanaBySlug(p.slug)?.steps.length ?? 0,
+    })),
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -557,7 +564,10 @@ export default function Builder() {
     apiRequest("PUT", `/api/custom-flows/${flow.id}`, {
       lastUsedAt: new Date().toISOString(),
     }).catch(() => {});
-    loadSession(poses, { label: flow.name });
+    loadSession(poses, {
+      label: flow.name,
+      plannedMinutes: Math.max(1, Math.round(totalSeconds(seq) / 60)),
+    });
     toast({ title: `${flow.name} loaded`, description: `${poses.length} poses queued.` });
     navigate("/guided");
   };

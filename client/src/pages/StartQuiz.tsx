@@ -13,7 +13,7 @@ import { captureProduct, rememberFunnelFlowId, trackAppFirstOpen } from "@/lib/p
 import { cn } from "@/lib/utils";
 import { usePractice } from "@/context/PracticeContext";
 import { asanaBySlug } from "@/data/content";
-import { buildQuizPlan, parseProgramRef, type QuizAnswers } from "@/data/quizPlan";
+import { buildQuizPlan, parseProgramRef, saveQuizPlan, type QuizAnswers } from "@/data/quizPlan";
 import { parseAttribution, attributionProps } from "../../../funnel/attribution";
 import { resolveFlowId } from "../../../funnel/flows";
 import { ArrowLeft, ArrowRight, Check, ChevronRight, Sparkles } from "lucide-react";
@@ -215,6 +215,7 @@ export default function StartQuiz() {
         void captureProduct("quiz_completed", { flow_id: flowId, duration_ms: duration });
         const built = buildQuizPlan(nextAnswers);
         persistQuizPrefs(built.intent, built.experience);
+        saveQuizPlan(built);
         setPhase("building");
       }
     }, 220);
@@ -229,6 +230,7 @@ export default function StartQuiz() {
   const startPractice = () => {
     writeString(KEYS.onboardingDone, "1");
     persistQuizPrefs(plan.intent, plan.experience);
+    saveQuizPlan(plan);
     const poses = plan.poses
       .map((p) => {
         const asana = asanaBySlug(p.slug);
@@ -436,7 +438,13 @@ export default function StartQuiz() {
                 Start my first session <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
               <Button size="lg" variant="outline" className="min-h-12 w-full" asChild>
-                <Link href="/" onClick={() => writeString(KEYS.onboardingDone, "1")}>
+                <Link
+                  href="/"
+                  onClick={() => {
+                    writeString(KEYS.onboardingDone, "1");
+                    saveQuizPlan(plan);
+                  }}
+                >
                   Explore the app first
                 </Link>
               </Button>

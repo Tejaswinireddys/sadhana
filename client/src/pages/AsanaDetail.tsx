@@ -18,6 +18,7 @@ import { CONTENT_REVIEW } from "@/data/contentProvenance";
 import { manifestAudioUrl, usePoseMedia } from "@/lib/poseMediaApi";
 import { pronunciationFor, shouldShowPronunciation } from "@/lib/sanskritPronunciation";
 import { usagesForAsana } from "@/data/asanaUsage";
+import { KEYS, poseLevelFromExperience, readString } from "@/lib/localPrefs";
 import { QUICK_SESSIONS, quickSessionMeta } from "@/data/quickSessions";
 import { usePractice } from "@/context/PracticeContext";
 import { EmptyState } from "@/components/EmptyState";
@@ -147,7 +148,9 @@ export default function AsanaDetail() {
   const { data: poseMedia } = usePoseMedia(slug || undefined);
   const { add, todays, loadSession } = usePractice();
   const { toast } = useToast();
-  const [level, setLevel] = useState<Level>("intermediate");
+  const [level, setLevel] = useState<Level>(() =>
+    poseLevelFromExperience(readString(KEYS.experienceLevel)),
+  );
   useDocumentTitle(asana ? `${asana.english} · Sadhana` : "Pose · Sadhana");
 
   if (!asana) {

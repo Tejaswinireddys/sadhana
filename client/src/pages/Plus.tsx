@@ -208,7 +208,7 @@ export default function Plus() {
             {billing.note ||
               (billing.enabled
                 ? "Checkout is live."
-                : "Free forever on this deployment until paid checkout is configured.")}
+                : "Free forever here — paid plans are on a waitlist.")}
           </p>
           <p className="text-sm">
             <Link
