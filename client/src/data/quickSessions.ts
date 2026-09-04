@@ -1,6 +1,14 @@
 import { CloudMoon, HeartPulse, Moon, Smile, Sunrise, Wind } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { Mood } from "@/data/content";
+import { asanaBySlug, type Mood } from "@/data/content";
+import {
+  guidedSessionSeconds,
+  guidedTimeLabel,
+  SIDE_SWITCH_SECONDS,
+  TRANSITION_SECONDS,
+} from "@/lib/guidedDuration";
+
+export { SIDE_SWITCH_SECONDS, TRANSITION_SECONDS };
 
 /** Mood-based one-tap sessions used on Home and the Practice hub. */
 export type QuickSession = {
@@ -27,17 +35,28 @@ export type QuickSession = {
  * computed ~9 min from the same pose list, so the header and footer of one
  * screen disagreed. Anything user-facing now comes from `sessionMinutes()`.
  */
-export const TRANSITION_SECONDS = 5;
-export const SIDE_SWITCH_SECONDS = 2;
+type TimedPose = {
+  holdSeconds: number;
+  sides?: "each" | "single" | "once";
+  slug?: string;
+  stepCount?: number;
+  instructionSeconds?: number;
+  steps?: { length: number };
+};
 
-type TimedPose = { holdSeconds: number; sides?: "each" | "single" | "once" };
+function withCatalogTiming(poses: TimedPose[]): Parameters<typeof guidedSessionSeconds>[0] {
+  return poses.map((p) => ({
+    holdSeconds: p.holdSeconds,
+    sides: p.sides,
+    slug: p.slug,
+    stepCount: p.stepCount ?? p.steps?.length ?? (p.slug ? asanaBySlug(p.slug)?.steps.length ?? 0 : 0),
+    instructionSeconds: p.instructionSeconds,
+  }));
+}
 
-/** Total wall-clock seconds for a pose list, including transitions. */
+/** Total wall-clock seconds: get-ready, recorded instruction, hold, transitions. */
 export function sessionSeconds(poses: TimedPose[]): number {
-  return poses.reduce((sum, p) => {
-    const base = p.holdSeconds + TRANSITION_SECONDS;
-    return sum + (p.sides === "each" ? base + p.holdSeconds + SIDE_SWITCH_SECONDS : base);
-  }, 0);
+  return guidedSessionSeconds(withCatalogTiming(poses));
 }
 
 /** Rounded minutes for display, e.g. 9 . Never returns 0. */
@@ -45,22 +64,24 @@ export function sessionMinutes(poses: TimedPose[]): number {
   return Math.max(1, Math.round(sessionSeconds(poses) / 60));
 }
 
-/** Display label for a session's length, e.g. "9 min". */
+/** Display label for a session's length — same rounding as the guided player. */
 export function sessionTimeLabel(poses: TimedPose[]): string {
-  return `${sessionMinutes(poses)} min`;
+  return guidedTimeLabel(sessionSeconds(poses));
 }
 
 /**
- * Confirm-screen line: pose count plus the same minutes the launch card showed.
+ * Confirm-screen line: pose count plus the same duration the launch card showed.
  * Duration stays out of `label` so the journal title is not a baked-in time.
  */
 export function preSessionSummary(opts: {
   label?: string | null;
   poseCount: number;
-  minutes: number;
+  minutes?: number;
+  timeLabel?: string;
 }): string {
   const poseWord = opts.poseCount === 1 ? "pose" : "poses";
-  const core = `${opts.poseCount} ${poseWord} · ${opts.minutes} min · a continuous voice-narrated flow.`;
+  const time = opts.timeLabel ?? (opts.minutes != null ? guidedTimeLabel(opts.minutes * 60) : "");
+  const core = `${opts.poseCount} ${poseWord} · ${time} · a continuous voice-narrated flow.`;
   const label = opts.label?.trim();
   return label ? `${label} · ${core}` : core;
 }

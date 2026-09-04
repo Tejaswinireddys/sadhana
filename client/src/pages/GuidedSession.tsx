@@ -102,7 +102,6 @@ import {
   QUICK_SESSIONS,
   preSessionSummary,
   quickSessionMeta,
-  sessionMinutes,
   sessionTimeLabel,
   TRANSITION_SECONDS,
   SIDE_SWITCH_SECONDS,
@@ -546,6 +545,7 @@ export default function GuidedSession() {
     poses: todays.map((a, i) => ({
       holdSeconds: a.holdSeconds,
       sides: a.sides,
+      slug: a.slug,
       stepCount: a.steps?.length ?? 0,
       instructionSeconds:
         i === index && voiceDuration > 0
@@ -1716,7 +1716,7 @@ export default function GuidedSession() {
             {preSessionSummary({
               label: meta.label,
               poseCount: todays.length,
-              minutes: meta.plannedMinutes ?? sessionMinutes(todays),
+              timeLabel: sessionTimeLabel(todays),
             })}
           </p>
           {introVideo && (

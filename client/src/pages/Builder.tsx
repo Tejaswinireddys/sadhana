@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { formatDuration } from "@/lib/formatDuration";
-import { guidedSessionSeconds } from "@/lib/guidedDuration";
+import { sessionSeconds } from "@/data/quickSessions";
 
 const MAX_POSES = 20;
 
@@ -67,13 +67,7 @@ function parseSequence(json: string): SeqPose[] {
 }
 
 function totalSeconds(poses: SeqPose[]): number {
-  return guidedSessionSeconds(
-    poses.map((p) => ({
-      holdSeconds: p.holdSeconds,
-      sides: p.sides,
-      stepCount: asanaBySlug(p.slug)?.steps.length ?? 0,
-    })),
-  );
+  return sessionSeconds(poses);
 }
 
 /* ------------------------------------------------------------------ */

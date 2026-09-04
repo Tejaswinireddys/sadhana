@@ -12,19 +12,21 @@ import {
 } from "./quickSessions.ts";
 
 describe("mood-session duration on the confirm screen", () => {
-  it("shows I'm tired as 4 poses · 7 min, matching the hub card", () => {
+  it("shows I'm tired with the same guided duration on the hub card and confirm line", () => {
     const tired = QUICK_SESSIONS.find((q) => q.id === "tired");
     assert.ok(tired);
     assert.equal(tired.poses.length, 4);
-    assert.equal(sessionTimeLabel(tired.poses), "7 min");
-    assert.equal(quickSessionMeta(tired).plannedMinutes, 7);
+    const label = sessionTimeLabel(tired.poses);
+    const minutes = sessionMinutes(tired.poses);
+    assert.match(label, /\d+ min/);
+    assert.equal(quickSessionMeta(tired).plannedMinutes, minutes);
     assert.equal(
       preSessionSummary({
         label: tired.label,
         poseCount: tired.poses.length,
-        minutes: sessionMinutes(tired.poses),
+        timeLabel: label,
       }),
-      "I'm tired · 4 poses · 7 min · a continuous voice-narrated flow.",
+      `I'm tired · 4 poses · ${label} · a continuous voice-narrated flow.`,
     );
   });
 
@@ -52,7 +54,7 @@ describe("mood-session duration on the confirm screen", () => {
     const preStart = src.slice(src.indexOf("// ---- pre-start"));
     assert.match(preStart, /preSessionSummary/);
     assert.match(preStart, /data-testid="pre-session-summary"/);
-    assert.match(preStart, /plannedMinutes \?\? sessionMinutes\(todays\)/);
+    assert.match(preStart, /sessionTimeLabel\(todays\)/);
     assert.equal(/\{todays\.length\} poses · a continuous/.test(preStart), false);
   });
 });
