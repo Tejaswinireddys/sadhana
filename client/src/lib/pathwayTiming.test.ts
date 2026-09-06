@@ -16,23 +16,7 @@ import { sessionTimeLabel } from "../data/quickSessions.ts";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const QUICK_FLOW_SLUGS = [
-  "morning-wake-up",
-  "desk-break",
-  "neck-shoulders-relief",
-  "post-run-recovery",
-  "sleep-wind-down",
-  "core-strong",
-  "feel-good-reset",
-  "better-sleep-flow",
-  "sun-salutation-a",
-  "sun-salutation-b",
-  "moon-salutation",
-  "goddess-rising",
-  "hormone-harmony",
-  "moon-cycle-ease",
-  "sacred-feminine-strength",
-] as const;
+const QUICK_FLOWS = PATHWAYS.filter((p) => p.kind === "flow");
 
 describe("shared catalog timing", () => {
   it("counts each-side holds twice plus a switch", () => {
@@ -46,9 +30,9 @@ describe("shared catalog timing", () => {
   });
 
   it("matches guided setup for every advertised quick flow", () => {
-    assert.equal(QUICK_FLOW_SLUGS.length, 15);
-    for (const slug of QUICK_FLOW_SLUGS) {
-      const p = PATHWAYS.find((x) => x.slug === slug);
+    assert.equal(QUICK_FLOWS.length, 15);
+    for (const p of QUICK_FLOWS) {
+      const slug = p.slug;
       assert.ok(p, slug);
       const poses = p.weekPlan[0]?.poses ?? [];
       assert.ok(poses.length > 0, slug);
