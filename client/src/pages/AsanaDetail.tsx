@@ -21,6 +21,7 @@ import { pronunciationFor, shouldShowPronunciation } from "@/lib/sanskritPronunc
 import { usagesForAsana } from "@/data/asanaUsage";
 import { KEYS, poseLevelFromExperience, readString } from "@/lib/localPrefs";
 import { QUICK_SESSIONS, quickSessionMeta } from "@/data/quickSessions";
+import { catalogSessionMinutes } from "@/lib/pathwayTiming";
 import { usePractice } from "@/context/PracticeContext";
 import { EmptyState } from "@/components/EmptyState";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -189,6 +190,7 @@ export default function AsanaDetail() {
     const hold = asana.variations[level]?.holdSeconds ?? asana.holdSeconds;
     loadSession([{ asana, holdSeconds: hold }], {
       label: `${asana.english} · practice now`,
+      plannedMinutes: catalogSessionMinutes([{ slug: asana.slug, holdSeconds: hold }]),
     });
     navigate("/guided");
   };
@@ -565,8 +567,9 @@ export default function AsanaDetail() {
                     <span
                       className="hidden shrink-0 rounded-lg bg-accent/40 p-1 text-foreground/75 sm:block"
                       data-testid={`step-motion-${asana.slug}-${i}`}
+                      aria-hidden
                     >
-                      <StepMotion motion={step.stepMotion} size={64} />
+                      <StepMotion motion={step.stepMotion} size={64} decorative label={step.text} />
                     </span>
                   )}
                   <p className="text-sm">{step.text}</p>

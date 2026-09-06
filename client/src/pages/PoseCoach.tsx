@@ -6,8 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   PILOT_POSES,
+  cameraStatusMessage,
+  classifyCameraError,
   manualConfidence,
   requestCameraStream,
+  type CameraRequestStatus,
   type CoachFeedback,
 } from "@/lib/poseCoach";
 import { KEYS, readString, writeString } from "@/lib/localPrefs";
@@ -19,9 +22,9 @@ export default function PoseCoach() {
   const pose = PILOT_POSES.find((p) => p.slug === slug)!;
   const [consent, setConsent] = useState(() => readString(KEYS.poseCoachConsent) === "1");
   const [cameraOn, setCameraOn] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState<CameraRequestStatus>("idle");
   const [checks, setChecks] = useState<boolean[]>(() => pose.cues.map(() => false));
   const [feedback, setFeedback] = useState<CoachFeedback | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -40,11 +43,12 @@ export default function PoseCoach() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     setCameraOn(false);
+    setCameraStatus((s) => (s === "ready" || s === "pending" ? "idle" : s));
   };
 
   const startCamera = async () => {
-    setError(null);
     stopCamera();
+    setCameraStatus("pending");
     try {
       // A private on-device preview only — we never read frame pixels, analyze
       // the body, or score the pose. It's a mirror to help you frame yourself.
@@ -55,8 +59,10 @@ export default function PoseCoach() {
         await videoRef.current.play();
       }
       setCameraOn(true);
+      setCameraStatus("ready");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not open camera");
+      const status = classifyCameraError(e);
+      setCameraStatus(status);
       setCameraOn(false);
     }
   };
@@ -120,8 +126,17 @@ export default function PoseCoach() {
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 {!cameraOn ? (
-                  <Button className="min-h-11" variant="outline" onClick={() => void startCamera()}>
-                    Show camera preview (optional)
+                  <Button
+                    className="min-h-11"
+                    variant="outline"
+                    onClick={() => void startCamera()}
+                    disabled={cameraStatus === "pending"}
+                    data-testid="button-camera-preview"
+                    aria-busy={cameraStatus === "pending"}
+                  >
+                    {cameraStatus === "pending"
+                      ? "Waiting for camera…"
+                      : "Show camera preview (optional)"}
                   </Button>
                 ) : (
                   <Button className="min-h-11" variant="ghost" onClick={stopCamera}>
@@ -129,6 +144,19 @@ export default function PoseCoach() {
                   </Button>
                 )}
               </div>
+              {cameraStatus !== "idle" && cameraStatus !== "ready" && (
+                <p
+                  className={
+                    cameraStatus === "pending"
+                      ? "text-sm text-muted-foreground"
+                      : "text-sm text-destructive"
+                  }
+                  role={cameraStatus === "pending" ? "status" : "alert"}
+                  data-testid="camera-status"
+                >
+                  {cameraStatusMessage(cameraStatus)}
+                </p>
+              )}
 
               {cameraOn && (
                 <div className="space-y-1">
@@ -175,11 +203,6 @@ export default function PoseCoach() {
                 >
                   Self-check: {(feedback.confidence * 100).toFixed(0)}% of cues confirmed —{" "}
                   {feedback.message}
-                </p>
-              )}
-              {error && (
-                <p className="text-sm text-destructive" role="alert">
-                  {error}
                 </p>
               )}
               <Button variant="outline" className="min-h-11" asChild>

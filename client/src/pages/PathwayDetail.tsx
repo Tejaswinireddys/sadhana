@@ -18,6 +18,13 @@ import type { Enrollment, Session } from "@shared/schema";
 import { todayISO, daysSince } from "@/lib/sadhana";
 import { ArrowLeft, CalendarDays, Repeat, Clock, Play, X } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import {
+  catalogDurationCopy,
+  catalogSessionMinutes,
+  poseSides,
+  queueCatalogPoses,
+  weekSessionLabel,
+} from "@/lib/pathwayTiming";
 
 const MS_PER_DAY = 86400000;
 
@@ -39,12 +46,6 @@ function completedWeeksFromSessions(
     done.add(weekN);
   }
   return done;
-}
-
-function formatSeconds(total: number): string {
-  if (total < 60) return `${total}s`;
-  const m = Math.round(total / 60);
-  return `≈ ${m} minute${m === 1 ? "" : "s"}`;
 }
 
 export default function PathwayDetail() {
@@ -123,15 +124,11 @@ export default function PathwayDetail() {
   // Load a week's poses into the practice timer and jump to the timer screen.
   // We override each asana's holdSeconds with the week-specific target.
   const startWeek = (week: PathwayWeek) => {
-    const poses = week.poses
-      .map((p) => {
-        const asana = asanaBySlug(p.asanaSlug);
-        return asana ? { asana, holdSeconds: p.holdSeconds } : null;
-      })
-      .filter((x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } => x != null);
+    const poses = queueCatalogPoses(week.poses);
     loadSession(poses, {
       label: `${pathway.name} — Week ${week.weekNumber}`,
       pathwaySlug: pathway.slug,
+      plannedMinutes: catalogSessionMinutes(week.poses),
     });
     toast({
       title: `Week ${week.weekNumber} loaded`,
@@ -286,7 +283,7 @@ export default function PathwayDetail() {
           {pathway.weekPlan.map((week) => {
             const isCurrent = enrollment != null && currentWeek === week.weekNumber;
             const isDone = completedWeeks.has(week.weekNumber);
-            const totalHold = week.poses.reduce((sum, p) => sum + p.holdSeconds, 0);
+            const duration = catalogDurationCopy(week.poses);
             const sessionsPerWeek = week.sessionsPerWeek ?? pathway.sessionsPerWeek;
             return (
               <li key={week.weekNumber} className="relative" data-testid={`week-${week.weekNumber}`}>
@@ -333,7 +330,8 @@ export default function PathwayDetail() {
                             </span>
                             <p className="text-xs font-medium leading-tight">{asana?.english ?? p.asanaSlug}</p>
                             <p className="text-[11px] text-muted-foreground">
-                              {p.holdSeconds}s{p.note ? ` · ${p.note}` : ""}
+                              {p.holdSeconds}s{poseSides(p) === "each" ? " each" : ""}
+                              {p.note && !/each side/i.test(p.note) ? ` · ${p.note}` : ""}
                             </p>
                           </div>
                         );
@@ -343,7 +341,8 @@ export default function PathwayDetail() {
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
                       <div className="space-y-0.5 text-xs text-muted-foreground">
                         <p className="flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5" /> {formatSeconds(totalHold)} per session
+                          <Clock className="h-3.5 w-3.5" /> {weekSessionLabel(week)} guided
+                          {duration.showTimerOnly ? ` · ${duration.timerLabel} timer-only` : ""}
                         </p>
                         <p className="flex items-center gap-1.5">
                           <Repeat className="h-3.5 w-3.5" /> {sessionsPerWeek}x this week

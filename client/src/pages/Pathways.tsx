@@ -5,31 +5,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PoseImage } from "@/components/PoseImage";
 import { WarmupCard } from "@/components/WarmupCard";
-import { PATHWAYS, asanaBySlug } from "@/data/content";
+import { PATHWAYS } from "@/data/content";
 import type { Pathway } from "@/data/content";
 import { poseImageAlt } from "@/data/poseImageAlts";
 import type { Enrollment } from "@shared/schema";
 import { usePractice } from "@/context/PracticeContext";
 import { CalendarDays, Repeat, Clock, Sparkles, Play, Zap, Flower2, Trophy } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-
-// Build the ordered pose queue for a quick flow from its single week plan.
-// A "each side" note flags a bilateral hold so guided mode re-narrates side 2.
-function flowPoses(p: Pathway) {
-  const week = p.weekPlan[0];
-  if (!week) return [];
-  return week.poses
-    .map((pose) => {
-      const asana = asanaBySlug(pose.asanaSlug);
-      if (!asana) return null;
-      const sides: "once" | "each" = /each side/i.test(pose.note ?? "") ? "each" : "once";
-      return { asana, holdSeconds: pose.holdSeconds, sides };
-    })
-    .filter(
-      (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
-        x != null,
-    );
-}
+import {
+  catalogDurationCopy,
+  flowPoses,
+  flowSessionLabel,
+  flowSessionMinutes,
+  queueCatalogPoses,
+} from "@/lib/pathwayTiming";
 
 // Pick up to three representative pose slugs spread across the program so the
 // card previews the journey (start → middle → goal) rather than a single pose.
@@ -83,7 +72,11 @@ function FlowCard({ p, onStart }: { p: Pathway; onStart: (p: Pathway) => void })
           )}
           <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" /> {p.minutesPerSession ?? p.timePerSession} min
+              <Clock className="h-3.5 w-3.5" /> {flowSessionLabel(p)}
+              {(() => {
+                const d = catalogDurationCopy(flowPoses(p));
+                return d.showTimerOnly ? ` · ${d.timerLabel} timer-only` : "";
+              })()}
             </span>
             <span>· {poseCount} poses</span>
             <span>· All levels</span>
@@ -189,9 +182,13 @@ export default function Pathways() {
 
   // Quick flows launch straight into a guided session — skip the detail page.
   const startFlow = (p: Pathway) => {
-    const poses = flowPoses(p);
+    const poses = queueCatalogPoses(flowPoses(p));
     if (!poses.length) return;
-    loadSession(poses, { label: p.name, pathwaySlug: p.slug });
+    loadSession(poses, {
+      label: p.name,
+      pathwaySlug: p.slug,
+      plannedMinutes: flowSessionMinutes(p),
+    });
     navigate("/guided");
   };
 

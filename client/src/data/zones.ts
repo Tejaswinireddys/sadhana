@@ -934,9 +934,9 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
   ],
   "supported-fish-block": [
-    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
-    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
-    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+    { region: "Chest & collarbones", sensation: "Soft opening over the block", intensity: "medium", primary: true },
+    { region: "Upper back", sensation: "Supported arch without effort", intensity: "medium", primary: true },
+    { region: "Throat & neck", sensation: "Long and easy — head stays supported", intensity: "low", primary: false },
   ],
   "reclined-goddess": [
     { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
@@ -1169,14 +1169,14 @@ export const STRETCH_ZONES: Record<string, StretchZone[]> = {
     { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
   ],
   "prenatal-thread-needle": [
-    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
-    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
-    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+    { region: "Shoulders", sensation: "The threaded arm rests and releases", intensity: "medium", primary: true },
+    { region: "Upper back", sensation: "Gentle twist without belly compression", intensity: "medium", primary: true },
+    { region: "Hips & knees", sensation: "Wide tabletop base supporting the belly", intensity: "low", primary: false },
   ],
   "prenatal-side-angle": [
-    { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },
-    { region: "Breath", sensation: "Space to breathe through the shape", intensity: "low", primary: false },
-    { region: "Support", sensation: "Grounding through the foundation", intensity: "medium", primary: true }
+    { region: "Front thigh", sensation: "Steady strength in the shorter stance", intensity: "medium", primary: true },
+    { region: "Side waist", sensation: "Length without compressing the belly", intensity: "medium", primary: true },
+    { region: "Shoulders & chest", sensation: "Top arm reaching, chest staying open", intensity: "low", primary: false },
   ],
   "prenatal-supported-twist": [
     { region: "Primary tissues", sensation: "Steady, honest sensation without sharp pain", intensity: "medium", primary: true },

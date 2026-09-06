@@ -4,6 +4,7 @@ import { FOCUS_ZONES, STRETCH_ZONES, DEFAULT_FOCUS_ZONE } from "./zones";
 import { bestForFor } from "./bestFor";
 import { poseImageAlt } from "./poseImageAlts";
 import { arcSlotFor, type ArcSlot } from "./arcSlots";
+import { resolveStretchZones } from "../lib/stretchZones";
 
 export { DEFAULT_FOCUS_ZONE };
 
@@ -4816,9 +4817,7 @@ export const ASANAS: Asana[] = RAW_ASANAS.map((raw) => {
       bestFor,
     }),
     avoidIf: extra?.avoidIf ?? [],
-    stretchZones: STRETCH_ZONES[raw.slug] ?? [
-      { region: "Full body", sensation: "A balanced, whole-body engagement", intensity: "medium", primary: true },
-    ],
+    stretchZones: resolveStretchZones(raw, STRETCH_ZONES[raw.slug]),
     variations: extra?.variations ?? {
       beginner: { description: raw.modifications, props: [], cues: [], holdSeconds: raw.holdSeconds },
       intermediate: { description: raw.summary, props: [], cues: [], holdSeconds: raw.holdSeconds },

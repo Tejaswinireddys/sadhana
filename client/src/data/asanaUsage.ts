@@ -2,6 +2,7 @@
 // users into a session, not leave them staring at a catalog card.
 import { PATHWAYS, WARMUP } from "./content";
 import { QUICK_SESSIONS, sessionTimeLabel } from "./quickSessions";
+import { flowSessionMinutes } from "../lib/pathwayTiming";
 import { PROFILES } from "./profiles";
 
 export type AsanaUsageHit =
@@ -31,7 +32,7 @@ export function usagesForAsana(slug: string): AsanaUsageHit[] {
         kind: "flow",
         slug: p.slug,
         name: p.name,
-        minutes: p.minutesPerSession ?? 10,
+        minutes: flowSessionMinutes(p),
       });
     }
   }

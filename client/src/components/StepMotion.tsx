@@ -25,6 +25,10 @@ type Props = {
   motion: StepMotionKey;
   size?: number;
   className?: string;
+  /** When set, overrides the generic motion name (e.g. "Hips lifting cue"). */
+  label?: string;
+  /** Decorative beside visible step text — do not announce a conflicting cue. */
+  decorative?: boolean;
 };
 
 const G = 84;
@@ -34,11 +38,13 @@ function Frame({
   size,
   className,
   label,
+  decorative,
 }: {
   children: React.ReactNode;
   size: number;
   className?: string;
   label: string;
+  decorative?: boolean;
 }) {
   return (
     <svg
@@ -51,8 +57,9 @@ function Frame({
       strokeLinecap="round"
       strokeLinejoin="round"
       className={`step-svg ${className ?? ""}`}
-      role="img"
-      aria-label={label}
+      role={decorative ? "presentation" : "img"}
+      aria-hidden={decorative ? true : undefined}
+      aria-label={decorative ? undefined : label}
     >
       {children}
       <line x1="14" y1={G} x2="86" y2={G} strokeWidth={1.5} opacity={0.3} />
@@ -206,10 +213,21 @@ const LABELS: Record<StepMotionKey, string> = {
   settle: "Settle and breathe",
 };
 
-export function StepMotion({ motion, size = 80, className }: Props) {
+export function stepMotionLabel(motion: StepMotionKey, stepText?: string): string {
+  const text = stepText?.trim();
+  if (text) return text;
+  return LABELS[motion] ?? "Movement cue";
+}
+
+export function StepMotion({ motion, size = 80, className, label, decorative }: Props) {
   const draw = PRIMITIVES[motion] || PRIMITIVES.settle;
   return (
-    <Frame size={size} className={className} label={LABELS[motion]}>
+    <Frame
+      size={size}
+      className={className}
+      label={label ?? LABELS[motion]}
+      decorative={decorative}
+    >
       {draw()}
     </Frame>
   );
