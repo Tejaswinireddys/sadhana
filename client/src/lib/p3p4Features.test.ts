@@ -4,7 +4,13 @@ import { adviseNextSession, scaleHoldSeconds, type SessionOutcome } from "./adap
 import { generateAdaptiveSession, pickEasierSwap, swapPose } from "./adaptiveGenerator";
 import { poseArcRank, isStandingBuild, standingFloorFor } from "./yogaTrainer";
 import { parseVoiceCommand } from "./voiceControl";
-import { PILOT_POSES, manualConfidence, isPilotPose } from "./poseCoach";
+import {
+  PILOT_POSES,
+  cameraStatusMessage,
+  classifyCameraError,
+  isPilotPose,
+  manualConfidence,
+} from "./poseCoach";
 import { roleDefaults } from "./household";
 import { PATHWAYS, asanaBySlug } from "../data/content";
 import { profileById } from "../data/profiles";
@@ -418,6 +424,20 @@ describe("pose coach pilot", () => {
     const fb = manualConfidence([true, true, false], 3);
     assert.ok(fb.confidence > 0.5 && fb.confidence < 1);
     assert.equal(fb.mode, "manual");
+  });
+
+  it("surfaces pending, denied, unavailable, and timeout camera states", () => {
+    assert.match(cameraStatusMessage("pending")!, /Waiting for camera/i);
+    assert.match(cameraStatusMessage("denied")!, /denied/i);
+    assert.match(cameraStatusMessage("unavailable")!, /No camera/i);
+    assert.match(cameraStatusMessage("timeout")!, /timed out/i);
+    const denied = new DOMException("Permission denied", "NotAllowedError");
+    assert.equal(classifyCameraError(denied), "denied");
+    const missing = new DOMException("Requested device not found", "NotFoundError");
+    assert.equal(classifyCameraError(missing), "unavailable");
+    const timeout = new Error("Camera request timed out.");
+    timeout.name = "AbortError";
+    assert.equal(classifyCameraError(timeout), "timeout");
   });
 });
 

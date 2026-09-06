@@ -51,6 +51,10 @@ import { buildJournalEntry, logPracticeSession } from "@/lib/logPracticeSession"
 import { estimateBreathCount } from "@/lib/sessionBreaths";
 import { captureProduct } from "@/lib/productAnalytics";
 import { sessionCredit, sessionExitCopy, sessionHeadline, type SessionCredit } from "@/lib/sessionCredit";
+import {
+  completionLeavePath,
+  shouldFireBackgroundSave,
+} from "@/lib/guidedCompletion";
 import { guidedClockFrozen } from "@/lib/guidedClock";
 import {
   GUIDED_SR,
@@ -106,6 +110,7 @@ import {
   TRANSITION_SECONDS,
   SIDE_SWITCH_SECONDS,
 } from "@/data/quickSessions";
+import { catalogSessionMinutes, warmupSessionLabel, warmupSessionMinutes } from "@/lib/pathwayTiming";
 import {
   estimateInstructionSeconds,
   guidedPhaseLabel,
@@ -248,7 +253,11 @@ export default function GuidedSession() {
           x != null,
       );
     if (!poses.length) return;
-    loadSession(poses, { label: WARMUP.title, pathwaySlug: null });
+    loadSession(poses, {
+      label: WARMUP.title,
+      pathwaySlug: null,
+      plannedMinutes: warmupSessionMinutes(),
+    });
   };
 
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
@@ -1285,10 +1294,28 @@ export default function GuidedSession() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [started, finished]);
 
+  const leaveCompletedSession = (path: string) => {
+    if (
+      shouldFireBackgroundSave({
+        credited,
+        sessionLogged: sessionLogged.current,
+        saving,
+      })
+    ) {
+      void finalizeSession(postMood, rpe);
+    }
+    setFinished(false);
+    setStarted(false);
+    setShowPostMood(false);
+    setShowRpe(false);
+    saveProgress(null);
+    clear();
+    navigate(path);
+  };
+
   const attemptExit = (trigger?: HTMLButtonElement | null) => {
     if (finished) {
-      clear();
-      navigate("/");
+      leaveCompletedSession(completionLeavePath("home"));
       return;
     }
     if (trigger) exitTriggerRef.current = trigger;
@@ -1354,7 +1381,7 @@ export default function GuidedSession() {
             <CardContent className="flex flex-col gap-3 p-4">
               <div className="flex items-center gap-2">
                 <Flame className="h-4 w-4 text-primary" />
-                <p className="font-serif text-lg">5-min warm-up</p>
+                <p className="font-serif text-lg">{warmupSessionLabel()} warm-up</p>
               </div>
               <p className="text-sm text-muted-foreground">Wake the spine before a longer flow.</p>
               <Button onClick={startWarmup} data-testid="button-hub-warmup">
@@ -1615,7 +1642,11 @@ export default function GuidedSession() {
                 totalSessions={guestStats?.totalSessions ?? 0}
                 currentStreak={guestStats?.currentStreak ?? 0}
                 onDismiss={() => {
-                  declineBlocking(guestStats?.totalSessions ?? 0);
+                  try {
+                    declineBlocking(guestStats?.totalSessions ?? 0);
+                  } catch {
+                    /* localStorage can throw in locked-down browsers */
+                  }
                   setSavePromptDismissed(true);
                 }}
               />
@@ -1623,17 +1654,8 @@ export default function GuidedSession() {
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
             <Button
               size="lg"
-              onClick={async () => {
-                if (credited && !sessionLogged.current) {
-                  await finalizeSession(postMood, rpe);
-                }
-                if (sessionLogged.current || !credited) {
-                  clear();
-                  navigate("/");
-                }
-              }}
+              onClick={() => leaveCompletedSession(completionLeavePath("home"))}
               data-testid="button-log-continue"
-              disabled={saving}
             >
               Done — back home
             </Button>
@@ -1641,19 +1663,15 @@ export default function GuidedSession() {
               <Button
                 size="lg"
                 variant="outline"
-                onClick={async () => {
-                  if (!sessionLogged.current) {
-                    await finalizeSession(postMood, rpe);
-                  }
-                  if (sessionLogged.current) {
-                    clear();
-                    navigate(
-                      `/journal?new=1&title=${encodeURIComponent(summaryEntry.title)}&body=${encodeURIComponent(summaryEntry.body)}`,
-                    );
-                  }
-                }}
+                onClick={() =>
+                  leaveCompletedSession(
+                    completionLeavePath("journal", {
+                      title: summaryEntry.title,
+                      body: summaryEntry.body,
+                    }),
+                  )
+                }
                 data-testid="button-journal-prompt"
-                disabled={saving}
               >
                 <NotebookPen className="mr-1.5 h-4 w-4" /> Reflect in journal
               </Button>
