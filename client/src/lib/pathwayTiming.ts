@@ -3,7 +3,7 @@
  * guided setup, and the live player. Holds-only sums used to advertise
  * "4 min" while the same queue opened as an 8–25 minute narrated session.
  */
-import { asanaBySlug, type DailyPlan, type Pathway, type PathwayWeek } from "@/data/content";
+import { asanaBySlug, WARMUP, type DailyPlan, type Pathway, type PathwayWeek } from "@/data/content";
 import {
   guidedSessionSeconds,
   guidedTimeLabel,
@@ -84,6 +84,18 @@ export function weekSessionLabel(week: PathwayWeek): string {
 
 export function dailySessionLabel(day: DailyPlan): string {
   return catalogSessionLabel(day.poses);
+}
+
+export function warmupPoses(): CatalogPose[] {
+  return WARMUP.steps;
+}
+
+export function warmupSessionLabel(): string {
+  return catalogSessionLabel(WARMUP.steps);
+}
+
+export function warmupSessionMinutes(): number {
+  return catalogSessionMinutes(WARMUP.steps);
 }
 
 /** When timer-only is materially shorter, surface both so the card is honest. */

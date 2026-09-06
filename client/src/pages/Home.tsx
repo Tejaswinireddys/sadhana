@@ -36,6 +36,8 @@ import {
   flowSessionLabel,
   flowSessionMinutes,
   queueCatalogPoses,
+  warmupSessionLabel,
+  warmupSessionMinutes,
 } from "@/lib/pathwayTiming";
 import { EmptyState } from "@/components/EmptyState";
 import { ScrollRow } from "@/components/ScrollRow";
@@ -234,7 +236,7 @@ export default function Home() {
     document.getElementById("quick-start")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  // One-tap gentle on-ramp for absolute newcomers — a 5-minute guided warm-up
+  // One-tap gentle on-ramp for absolute newcomers — a short guided warm-up
   // so the first thing they see is a single, obvious "start" rather than a
   // wall of equally-weighted choices.
   const startWarmup = () => {
@@ -248,7 +250,11 @@ export default function Home() {
           x != null,
       );
     if (!poses.length) return;
-    loadSession(poses, { label: WARMUP.title, pathwaySlug: null });
+    loadSession(poses, {
+      label: WARMUP.title,
+      pathwaySlug: null,
+      plannedMinutes: warmupSessionMinutes(),
+    });
     navigate("/guided");
   };
 
@@ -493,7 +499,7 @@ export default function Home() {
                 onClick={startWarmup}
                 data-testid="button-new-here-warmup"
               >
-                <Play className="mr-1.5 h-4 w-4" /> Or start 5-minute warm-up
+                <Play className="mr-1.5 h-4 w-4" /> Or start {warmupSessionLabel()} warm-up
               </Button>
             </div>
           </CardContent>

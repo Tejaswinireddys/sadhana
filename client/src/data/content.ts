@@ -4829,7 +4829,7 @@ export const ASANAS: Asana[] = RAW_ASANAS.map((raw) => {
 // ---- Warm-up routine (shown above pathways) ----
 /** Short runnable warm-up — Start loads these into guided practice. */
 export const WARMUP = {
-  title: "Always warm up first — 5 min",
+  title: "Always warm up first",
   description: "A short sequence to wake up the spine and joints before any pathway.",
   steps: [
     {
@@ -6261,7 +6261,7 @@ export const PATHWAYS: Pathway[] = [
   {
     slug: "morning-wake-up",
     name: "Morning Wake-Up",
-    tagline: "A gentle 10-minute flow to greet the day and wake the whole body.",
+    tagline: "A gentle flow to greet the day and wake the whole body.",
     target: "Virabhadrasana I",
     targetPose: "warrior-1",
     targetImgSlug: "virabhadrasana-i",
@@ -6298,7 +6298,7 @@ export const PATHWAYS: Pathway[] = [
   {
     slug: "desk-break",
     name: "Desk Break",
-    tagline: "A 7-minute reset to undo the desk slump and free the spine.",
+    tagline: "A short reset to undo the desk slump and free the spine.",
     target: "Gomukhasana",
     targetPose: "seated",
     targetImgSlug: "gomukhasana",
@@ -6331,7 +6331,7 @@ export const PATHWAYS: Pathway[] = [
   {
     slug: "neck-shoulders-relief",
     name: "Neck & Shoulders Relief",
-    tagline: "An 8-minute flow to melt tension from the neck, shoulders, and upper back.",
+    tagline: "A short flow to melt tension from the neck, shoulders, and upper back.",
     target: "Matsyasana",
     targetPose: "bridge",
     targetImgSlug: "matsyasana",
@@ -6364,7 +6364,7 @@ export const PATHWAYS: Pathway[] = [
   {
     slug: "post-run-recovery",
     name: "Post-Run Recovery",
-    tagline: "A 12-minute cool-down to open tight hips, hamstrings, and calves after a run.",
+    tagline: "A cool-down to open tight hips, hamstrings, and calves after a run.",
     target: "Paschimottanasana",
     targetPose: "seated-fold",
     targetImgSlug: "paschimottanasana",
@@ -6397,7 +6397,7 @@ export const PATHWAYS: Pathway[] = [
   {
     slug: "sleep-wind-down",
     name: "Sleep Wind-Down",
-    tagline: "A calming 12-minute flow to quiet the mind and prepare the body for sleep.",
+    tagline: "A calming flow to quiet the mind and prepare the body for sleep.",
     target: "Constructive Rest",
     targetPose: "savasana",
     targetImgSlug: "constructive-rest",
@@ -6431,7 +6431,7 @@ export const PATHWAYS: Pathway[] = [
   {
     slug: "core-strong",
     name: "Core Strong",
-    tagline: "A 10-minute flow to build steady strength through the core and shoulders.",
+    tagline: "A strength flow through the core and shoulders.",
     target: "Kumbhakasana",
     targetPose: "plank",
     targetImgSlug: "kumbhakasana",
@@ -6465,7 +6465,7 @@ export const PATHWAYS: Pathway[] = [
   {
     slug: "feel-good-reset",
     name: "Feel-Good Reset",
-    tagline: "A 12-minute mood lift — stretch, twist, roar, and melt.",
+    tagline: "A mood lift — stretch, twist, roar, and melt.",
     target: "Simhasana",
     targetPose: "seated",
     targetImgSlug: "simhasana",
@@ -7468,7 +7468,7 @@ export const PATHWAYS: Pathway[] = [
   {
     slug: "better-sleep-flow",
     name: "Better Sleep Flow",
-    tagline: "A 12-minute wind-down you can repeat nightly.",
+    tagline: "A wind-down you can repeat nightly.",
     target: "Savasana",
     targetPose: "corpse",
     targetImgSlug: "savasana",

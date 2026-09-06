@@ -110,7 +110,7 @@ import {
   TRANSITION_SECONDS,
   SIDE_SWITCH_SECONDS,
 } from "@/data/quickSessions";
-import { catalogSessionMinutes } from "@/lib/pathwayTiming";
+import { catalogSessionMinutes, warmupSessionLabel, warmupSessionMinutes } from "@/lib/pathwayTiming";
 import {
   estimateInstructionSeconds,
   guidedPhaseLabel,
@@ -256,13 +256,7 @@ export default function GuidedSession() {
     loadSession(poses, {
       label: WARMUP.title,
       pathwaySlug: null,
-      plannedMinutes: catalogSessionMinutes(
-        WARMUP.steps.map((s) => ({
-          asanaSlug: s.asanaSlug,
-          holdSeconds: s.holdSeconds,
-          sides: s.sides,
-        })),
-      ),
+      plannedMinutes: warmupSessionMinutes(),
     });
   };
 
@@ -1387,7 +1381,7 @@ export default function GuidedSession() {
             <CardContent className="flex flex-col gap-3 p-4">
               <div className="flex items-center gap-2">
                 <Flame className="h-4 w-4 text-primary" />
-                <p className="font-serif text-lg">5-min warm-up</p>
+                <p className="font-serif text-lg">{warmupSessionLabel()} warm-up</p>
               </div>
               <p className="text-sm text-muted-foreground">Wake the spine before a longer flow.</p>
               <Button onClick={startWarmup} data-testid="button-hub-warmup">

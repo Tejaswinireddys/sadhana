@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { PATHWAYS, asanaBySlug } from "../data/content.ts";
+import { PATHWAYS, WARMUP, asanaBySlug } from "../data/content.ts";
 import {
   catalogSessionLabel,
   catalogSessionMinutes,
@@ -11,6 +11,8 @@ import {
   poseSides,
   timerOnlySessionSeconds,
   weekSessionLabel,
+  warmupSessionLabel,
+  warmupSessionMinutes,
 } from "./pathwayTiming.ts";
 import { sessionTimeLabel } from "../data/quickSessions.ts";
 import { readFileSync } from "node:fs";
@@ -27,6 +29,28 @@ describe("shared catalog timing", () => {
       { slug: "anjaneyasana", holdSeconds: 30, note: "each side" },
     ]);
     assert.ok(each > once, `each-side ${each} should exceed single-side ${once}`);
+  });
+
+  it("flow taglines do not advertise a conflicting minute count", () => {
+    for (const p of QUICK_FLOWS) {
+      assert.equal(
+        /\d+-minute|\d+ min(?:ute)?s?\b/i.test(p.tagline),
+        false,
+        `${p.slug} tagline still names minutes: ${p.tagline}`,
+      );
+    }
+  });
+
+  it("warmup catalog minutes match guided setup instead of a 5-minute literal", () => {
+    assert.equal(/5 min/.test(WARMUP.title), false, WARMUP.title);
+    assert.equal(warmupSessionLabel(), catalogSessionLabel(WARMUP.steps));
+    assert.ok(warmupSessionMinutes() > 5, `warmup guided ${warmupSessionMinutes()} min`);
+    const warmupCard = readFileSync(resolve("client/src/components/WarmupCard.tsx"), "utf8");
+    assert.match(warmupCard, /warmupSessionLabel/);
+    const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
+    assert.equal(/5-minute warm-up/.test(home), false);
+    const hub = readFileSync(resolve("client/src/pages/GuidedSession.tsx"), "utf8");
+    assert.equal(/5-min warm-up/.test(hub), false);
   });
 
   it("matches guided setup for every advertised quick flow", () => {
