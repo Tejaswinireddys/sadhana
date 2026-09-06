@@ -98,6 +98,20 @@ export function warmupSessionMinutes(): number {
   return catalogSessionMinutes(WARMUP.steps);
 }
 
+/** Program-card range from the same week/day math as setup and the player. */
+export function pathwaySessionRangeLabel(p: Pathway): string {
+  if (p.kind === "flow") return flowSessionLabel(p);
+  const buckets =
+    p.kind === "daily" && p.dailyPlan?.length
+      ? p.dailyPlan.map((day) => catalogSessionMinutes(day.poses))
+      : p.weekPlan.map((week) => catalogSessionMinutes(week.poses));
+  if (!buckets.length) return p.timePerSession;
+  const lo = Math.min(...buckets);
+  const hi = Math.max(...buckets);
+  const range = lo === hi ? `${lo} min` : `${lo}–${hi} min`;
+  return p.sessionsPerWeek > 1 ? `${range}, ${p.sessionsPerWeek}x/week` : range;
+}
+
 /** When timer-only is materially shorter, surface both so the card is honest. */
 export function catalogDurationCopy(poses: CatalogPose[]): {
   guidedLabel: string;

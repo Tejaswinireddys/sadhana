@@ -13,6 +13,7 @@ import {
   weekSessionLabel,
   warmupSessionLabel,
   warmupSessionMinutes,
+  pathwaySessionRangeLabel,
 } from "./pathwayTiming.ts";
 import { sessionTimeLabel } from "../data/quickSessions.ts";
 import { readFileSync } from "node:fs";
@@ -79,6 +80,14 @@ describe("shared catalog timing", () => {
     }
   });
 
+  it("derives Front Splits program copy from week math instead of 15 min literal", () => {
+    const front = PATHWAYS.find((p) => p.slug === "front-splits");
+    assert.ok(front);
+    const label = pathwaySessionRangeLabel(front);
+    assert.equal(/15 min/.test(label), false, label);
+    assert.match(label, /10–18 min, 4x\/week/);
+  });
+
   it("counts both sides on Front Splits week 1 instead of a holds-only sum", () => {
     const front = PATHWAYS.find((p) => p.slug === "front-splits");
     assert.ok(front);
@@ -106,6 +115,7 @@ describe("shared catalog timing", () => {
   it("renders derived minutes on flow cards and week cards, not authored literals", () => {
     const pathways = readFileSync(resolve("client/src/pages/Pathways.tsx"), "utf8");
     assert.match(pathways, /flowSessionLabel/);
+    assert.match(pathways, /pathwaySessionRangeLabel/);
     assert.equal(/p\.minutesPerSession \?\? p\.timePerSession/.test(pathways), false);
 
     const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
@@ -113,6 +123,7 @@ describe("shared catalog timing", () => {
 
     const detail = readFileSync(resolve("client/src/pages/PathwayDetail.tsx"), "utf8");
     assert.match(detail, /weekSessionLabel/);
+    assert.match(detail, /pathwaySessionRangeLabel/);
     assert.equal(/poses\.reduce\(\(sum, p\) => sum \+ p\.holdSeconds/.test(detail), false);
 
     const daily = readFileSync(resolve("client/src/components/DailyProgram.tsx"), "utf8");

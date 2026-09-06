@@ -17,6 +17,7 @@ import {
   flowPoses,
   flowSessionLabel,
   flowSessionMinutes,
+  pathwaySessionRangeLabel,
   queueCatalogPoses,
 } from "@/lib/pathwayTiming";
 
@@ -161,7 +162,7 @@ function PathwayCard({ p, enrolled }: { p: Pathway; enrolled: boolean }) {
               <Repeat className="h-3.5 w-3.5" /> {p.sessionsPerWeek} sessions / week
             </p>
             <p className="flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" /> {p.timePerSession}
+              <Clock className="h-3.5 w-3.5" /> {pathwaySessionRangeLabel(p)}
             </p>
             {p.goalDescription && (
               <p className="pt-1 text-foreground/80">{p.goalDescription}</p>

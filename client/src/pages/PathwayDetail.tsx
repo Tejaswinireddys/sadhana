@@ -21,6 +21,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   catalogDurationCopy,
   catalogSessionMinutes,
+  pathwaySessionRangeLabel,
   poseSides,
   queueCatalogPoses,
   weekSessionLabel,
@@ -181,7 +182,7 @@ export default function PathwayDetail() {
                 <Repeat className="h-3 w-3" /> {pathway.sessionsPerWeek}x / week
               </Badge>
               <Badge variant="outline" className="gap-1">
-                <Clock className="h-3 w-3" /> {pathway.timePerSession}
+                <Clock className="h-3 w-3" /> {pathwaySessionRangeLabel(pathway)}
               </Badge>
             </div>
             {enrollment && (
@@ -230,7 +231,7 @@ export default function PathwayDetail() {
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             <Badge variant="outline" className="gap-1"><CalendarDays className="h-3 w-3" /> {pathway.weeks} weeks</Badge>
             <Badge variant="outline" className="gap-1"><Repeat className="h-3 w-3" /> {pathway.sessionsPerWeek}x / week</Badge>
-            <Badge variant="outline" className="gap-1"><Clock className="h-3 w-3" /> {pathway.timePerSession}</Badge>
+            <Badge variant="outline" className="gap-1"><Clock className="h-3 w-3" /> {pathwaySessionRangeLabel(pathway)}</Badge>
           </div>
 
           {enrollment ? (
