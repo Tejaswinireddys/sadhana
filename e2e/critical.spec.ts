@@ -105,8 +105,13 @@ test.describe("critical journeys", () => {
     await page.getByTestId("button-practice-now").click();
     await expect(page).toHaveURL(/\/guided/);
     const skipMood = page.getByTestId("premood-skip");
-    if (await skipMood.isVisible().catch(() => false)) {
+    await skipMood.waitFor({ state: "visible", timeout: 8_000 }).catch(() => {});
+    if (await skipMood.isVisible()) {
       await skipMood.click();
+    }
+    const begin = page.getByTestId("button-begin-guided");
+    if (await begin.isVisible().catch(() => false)) {
+      await begin.click();
     }
     const skipPose = page.getByTestId("button-skip-pose");
     await expect(skipPose).toBeVisible({ timeout: 15_000 });
@@ -131,12 +136,23 @@ test.describe("critical journeys", () => {
 
   test("pose coach shows a camera pending or error state", async ({ page }) => {
     await page.goto("/pose-coach");
+    await expect(page.getByRole("heading", { name: /Pose self-check/i })).toBeVisible();
     const consent = page.getByTestId("pose-coach-consent");
-    if (await consent.isVisible().catch(() => false)) {
+    await consent.waitFor({ state: "visible", timeout: 8_000 }).catch(() => {});
+    if (await consent.isVisible()) {
       await consent.click();
     }
+    await expect(page.getByTestId("button-camera-preview")).toBeVisible({ timeout: 10_000 });
     await page.getByTestId("button-camera-preview").click();
     await expect(page.getByTestId("camera-status")).toBeVisible({ timeout: 12_000 });
+  });
+
+  test("Front Splits header uses derived week range not a 15 min literal", async ({ page }) => {
+    await page.goto("/pathways/front-splits");
+    await expect(page.getByRole("heading", { name: "Front Splits" })).toBeVisible();
+    await expect(page.getByText("15 min, 4x/week")).toHaveCount(0);
+    await expect(page.getByText(/10–18 min, 4x\/week/).first()).toBeVisible();
+    await expect(page.getByText(/10 min guided/).first()).toBeVisible();
   });
 
   test("Supported Fish lists real body regions", async ({ page }) => {
