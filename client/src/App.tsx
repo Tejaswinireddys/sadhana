@@ -69,6 +69,7 @@ const Plus = lazyPage(() => import("@/pages/Plus"));
 const Challenges = lazyPage(() => import("@/pages/Challenges"));
 const AdaptivePlan = lazyPage(() => import("@/pages/AdaptivePlan"));
 const PoseCoach = lazyPage(() => import("@/pages/PoseCoach"));
+const InstructorSession = lazyPage(() => import("@/pages/InstructorSession"));
 const Instructors = lazyPage(() => import("@/pages/Instructors"));
 const Household = lazyPage(() => import("@/pages/Household"));
 const Corporate = lazyPage(() => import("@/pages/Corporate"));
@@ -143,6 +144,7 @@ function AppRouter() {
           <Route path="/challenges" component={Challenges} />
           <Route path="/adaptive" component={AdaptivePlan} />
           <Route path="/pose-coach" component={PoseCoach} />
+          <Route path="/instructor" component={InstructorSession} />
           <Route path="/instructors" component={Instructors} />
           <Route path="/teachers" component={Instructors} />
           <Route path="/household" component={Household} />
