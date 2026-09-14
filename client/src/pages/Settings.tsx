@@ -602,7 +602,7 @@ export default function Settings() {
           <p className="text-sm text-muted-foreground">
             Limited offline help for flaky networks: the app shell and a few foundation pose images
             only. Guided sequences, timings, narration, and your journal still need a connection.
-            Full offline sessions are not available yet.
+            Downloadable offline sessions are not included in this pack yet.
           </p>
           <p className="text-xs text-muted-foreground" data-testid="offline-status">
             {offlineStatus.present
