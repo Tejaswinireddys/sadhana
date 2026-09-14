@@ -9,7 +9,7 @@ import {
 } from "./guidedCompletion.ts";
 
 describe("guided completion leave", () => {
-  it("sends Done home and Reflect to a new journal entry", () => {
+  it("sends Done home and Reflect to edit the auto-saved journal entry when possible", () => {
     assert.equal(completionLeavePath("home"), "/");
     const journal = completionLeavePath("journal", {
       title: "Mountain Pose",
@@ -18,6 +18,14 @@ describe("guided completion leave", () => {
     assert.match(journal, /^\/journal\?/);
     assert.match(journal, /new=1/);
     assert.match(journal, /title=Mountain/);
+    assert.equal(
+      completionLeavePath("journal", {
+        title: "Mountain Pose",
+        body: "2 minutes · 1 pose",
+        editId: 42,
+      }),
+      "/journal?edit=42",
+    );
   });
 
   it("never blocks leaving on an in-flight or failed save", () => {

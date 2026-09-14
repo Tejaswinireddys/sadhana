@@ -63,6 +63,8 @@ export type Variation = {
   props: string[];
   cues: string[];
   holdSeconds: number;
+  /** When set, How-to steps follow this variation instead of the shared asana.steps. */
+  steps?: { text: string; pose?: string }[];
 };
 
 export type Variations = {
@@ -1038,7 +1040,7 @@ const RAW_ASANAS: RawAsana[] = [
     slug: "kumbhakasana",
     sanskrit: "Kumbhakasana",
     english: "Plank Pose",
-    category: "Backbends",
+    category: "Core",
     difficulty: "Beginner",
     hold: "30–45 sec",
     holdSeconds: 45,
@@ -1060,7 +1062,7 @@ const RAW_ASANAS: RawAsana[] = [
     slug: "vasisthasana",
     sanskrit: "Vasisthasana",
     english: "Side Plank Pose",
-    category: "Backbends",
+    category: "Core",
     difficulty: "Intermediate",
     hold: "20–30 sec each side",
     holdSeconds: 30,

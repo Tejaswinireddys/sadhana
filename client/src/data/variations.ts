@@ -1248,6 +1248,12 @@ export const EXTRAS: Record<string, AsanaExtras> = {
         props: ["blanket", "none"],
         cues: ["Lower the knees for a half plank", "Keep the shoulders stacked over the wrists", "Draw the belly in so the hips do not sag"],
         holdSeconds: 20,
+        steps: [
+          { text: "From hands and knees, stack the shoulders over the wrists and spread the fingers wide.", pose: "plank" },
+          { text: "Keep the knees on the floor and walk the hands forward until you form a long line from head to knees.", pose: "plank" },
+          { text: "Draw the lower belly in so the hips do not sag; keep the neck long.", pose: "plank" },
+          { text: "Press the floor away and hold for about 20 seconds with steady breath.", pose: "plank" },
+        ],
       },
       intermediate: {
         description: "Full plank with a straight line from the crown to the heels, core engaged.",

@@ -91,7 +91,8 @@ function creditedLine(
   const n = Math.max(1, minutes);
   const minuteWord = n === 1 ? "minute" : "minutes";
   if (posesTotal != null && posesTotal > 0 && posesCompleted != null) {
-    return `${posesCompleted} of ${posesTotal} poses, ${n} ${minuteWord} — that counts.`;
+    const poseWord = posesTotal === 1 ? "pose" : "poses";
+    return `${posesCompleted} of ${posesTotal} ${poseWord}, ${n} ${minuteWord} — that counts.`;
   }
   return `${n} ${minuteWord} in. That counts.`;
 }

@@ -219,8 +219,8 @@ test("categories follow base position, not marketing vibe", () => {
   assert.notEqual(plank.category, "Standing", "Plank is not on the feet");
   assert.notEqual(chaturanga.category, "Standing", "Chaturanga is not on the feet");
   assert.notEqual(birdDog.category, "Restorative", "Bird Dog is a core drill, not a wind-down");
-  // Classical assignments stay in the seven original families.
-  assert.equal(plank.category, "Backbends");
+  // Classical families stay for traditional poses; modern strength drills use Core.
+  assert.equal(plank.category, "Core");
   assert.equal(boat.category, "Seated");
   assert.equal(birdDog.category, "Backbends");
 });
@@ -277,7 +277,7 @@ test("classical asana families are unchanged except Raised Legs (supine core)", 
   assert.equal(bySlug["sirsasana"]?.category, "Inversions");
   assert.equal(bySlug["setu-bandhasana"]?.category, "Backbends");
   assert.equal(bySlug["navasana"]?.category, "Seated");
-  assert.equal(bySlug["kumbhakasana"]?.category, "Backbends");
+  assert.equal(bySlug["kumbhakasana"]?.category, "Core");
   assert.equal(bySlug["chakravakasana"]?.category, "Backbends");
   assert.equal(bySlug["bhujangasana"]?.category, "Backbends");
   assert.equal(bySlug["salabhasana"]?.category, "Backbends");

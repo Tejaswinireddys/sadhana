@@ -436,9 +436,9 @@ export default function Settings() {
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Web Push can fire at your chosen local hour even when the tab is closed. The in-app
-            banner is only a fallback. Missed-day copy stays compassionate — we never threaten your
-            streak.
+            Reminder notifications can arrive at your chosen hour even if Sadhana is closed. If
+            notifications are off, you will still see a gentle in-app nudge when the app is open.
+            Missed-day copy stays compassionate — we never threaten your streak.
           </p>
         </CardContent>
       </Card>
@@ -600,8 +600,9 @@ export default function Settings() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Cache shell assets and a few foundation pose images for flaky networks. API practice
-            data is never stored offline.
+            Limited offline help for flaky networks: the app shell and a few foundation pose images
+            only. Guided sequences, timings, narration, and your journal still need a connection.
+            Full offline sessions are not available yet.
           </p>
           <p className="text-xs text-muted-foreground" data-testid="offline-status">
             {offlineStatus.present
@@ -674,7 +675,7 @@ export default function Settings() {
           </div>
           <p className="text-xs text-muted-foreground">
             Off by default for in-app session events. Never includes journal text, emails, or injury
-            notes. When PostHog is configured, anonymous acquisition-funnel events from /start may
+            notes. When product analytics is enabled, anonymous acquisition-funnel events from /start may
             still be captured so we can fix drop-off — see Privacy for details.
           </p>
           {import.meta.env.DEV && (

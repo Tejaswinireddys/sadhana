@@ -11,6 +11,10 @@ import { readUrlParam } from "@/lib/hashQuery";
 import { Sparkles, ShieldAlert, Wind } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
+function isHoldPhase(label: string): boolean {
+  return /hold|retain|pause/i.test(label);
+}
+
 function initialBreathSlug(): string {
   const fromUrl = readUrlParam("slug") || readUrlParam("technique");
   if (fromUrl && BREATHING.some((b) => b.slug === fromUrl)) return fromUrl;
@@ -20,12 +24,16 @@ function initialBreathSlug(): string {
 export default function Breathing() {
   useDocumentTitle("Breathing · Sadhana");
   const { toast } = useToast();
-  const [activeSlug, setActiveSlug] = useState<string>(initialBreathSlug);
+  const [activeSlug, setActiveSlug] = useState(initialBreathSlug);
   const active: BreathTechnique = useMemo(
     () => BREATHING.find((b) => b.slug === activeSlug) ?? BREATHING[0],
     [activeSlug],
   );
-  const [rounds, setRounds] = useState<number>(active.defaultRounds);
+  const [rounds, setRounds] = useState(active.defaultRounds);
+  /** Skip hold phases — matches “shorten or skip holds” advice on Box Breathing. */
+  const [skipHolds, setSkipHolds] = useState(false);
+  /** Scale hold seconds (1 = full, 0.5 = half). Ignored when skipHolds. */
+  const [holdScale, setHoldScale] = useState(1);
 
   useEffect(() => {
     const onChange = () => {
@@ -33,33 +41,60 @@ export default function Breathing() {
       if (fromUrl && BREATHING.some((b) => b.slug === fromUrl)) {
         setActiveSlug(fromUrl);
         setRounds(BREATHING.find((b) => b.slug === fromUrl)!.defaultRounds);
+        setSkipHolds(false);
+        setHoldScale(1);
       }
     };
-    const events = ["pushState", "replaceState", "popstate", "hashchange"];
-    events.forEach((e) => window.addEventListener(e, onChange));
-    return () => events.forEach((e) => window.removeEventListener(e, onChange));
+    for (const e of ["pushState", "replaceState", "popstate", "hashchange"]) {
+      window.addEventListener(e, onChange);
+    }
+    return () => {
+      for (const e of ["pushState", "replaceState", "popstate", "hashchange"]) {
+        window.removeEventListener(e, onChange);
+      }
+    };
   }, []);
 
   const selectTechnique = (slug: string) => {
     const t = BREATHING.find((b) => b.slug === slug)!;
     setActiveSlug(slug);
     setRounds(t.defaultRounds);
-    // Keep deep links shareable / back-button friendly.
+    setSkipHolds(false);
+    setHoldScale(1);
     const next = `/breathing?slug=${encodeURIComponent(slug)}`;
     if (`${window.location.pathname}${window.location.search}` !== next) {
       window.history.replaceState(window.history.state, "", next);
     }
   };
 
+  const hasHoldPhases = active.phases.some((p) => isHoldPhase(p.label));
+
+  const phases = useMemo(() => {
+    return active.phases
+      .map((p) => {
+        if (!isHoldPhase(p.label)) return p;
+        if (skipHolds) return null;
+        if (holdScale === 1) return p;
+        return { ...p, seconds: Math.max(1, Math.round(p.seconds * holdScale)) };
+      })
+      .filter((p): p is (typeof active.phases)[number] => p != null);
+  }, [active.phases, skipHolds, holdScale]);
+
+  const totalSeconds = phases.reduce((s, p) => s + p.seconds, 0) * rounds;
+  const totalLabel =
+    totalSeconds < 60
+      ? `${totalSeconds} sec`
+      : `${Math.floor(totalSeconds / 60)} min${totalSeconds % 60 ? ` ${totalSeconds % 60} sec` : ""}`;
+
   const config: BreathConfig = {
-    phases: active.phases,
+    phases,
     rounds,
     alternateNostril: active.alternateNostril,
     rapid: active.rapid,
   };
 
-  const onComplete = (totalSeconds: number) => {
-    const minutes = Math.max(1, Math.round(totalSeconds / 60));
+  const onComplete = (elapsedSeconds: number) => {
+    const minutes = Math.max(1, Math.round(elapsedSeconds / 60));
     void logPracticeSession({
       minutes,
       poseNames: [active.name],
@@ -98,13 +133,13 @@ export default function Breathing() {
         </p>
       </header>
 
-      {/* Technique selector */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {BREATHING.map((t) => {
           const isActive = t.slug === activeSlug;
           return (
             <button
               key={t.slug}
+              type="button"
               onClick={() => selectTechnique(t.slug)}
               className="text-left"
               data-testid={`button-technique-${t.slug}`}
@@ -121,9 +156,7 @@ export default function Breathing() {
                       <h3 className="flex items-center gap-1.5 font-serif text-lg leading-tight">
                         <Wind className="h-4 w-4 text-secondary" /> {t.name}
                       </h3>
-                      {t.sanskrit && (
-                        <p className="text-xs text-muted-foreground">{t.sanskrit}</p>
-                      )}
+                      {t.sanskrit && <p className="text-xs text-muted-foreground">{t.sanskrit}</p>}
                     </div>
                     <Badge variant="outline" className="shrink-0 tabular-nums">
                       {t.pattern}
@@ -137,7 +170,6 @@ export default function Breathing() {
         })}
       </div>
 
-      {/* Active technique */}
       <Card className="shadow-soft" data-testid={`panel-technique-${active.slug}`}>
         <CardContent className="space-y-6 p-6">
           <div className="space-y-1">
@@ -152,42 +184,81 @@ export default function Breathing() {
             <p className="text-sm text-muted-foreground">{active.description}</p>
           </div>
 
-          {/* Rounds control */}
-          <div className="max-w-sm space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium" htmlFor="rounds-slider">
-                Rounds
-              </label>
-              <span className="font-serif text-lg tabular-nums" data-testid="text-rounds-value">
-                {rounds}
-              </span>
+          <div className="max-w-sm space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium" htmlFor="rounds-slider">
+                  Rounds
+                </label>
+                <span className="font-serif text-lg tabular-nums" data-testid="text-rounds-value">
+                  {rounds}
+                </span>
+              </div>
+              <Slider
+                id="rounds-slider"
+                min={1}
+                max={12}
+                step={1}
+                value={[rounds]}
+                onValueChange={(v) => setRounds(v[0])}
+                data-testid="slider-rounds"
+              />
             </div>
-            <Slider
-              id="rounds-slider"
-              min={1}
-              max={12}
-              step={1}
-              value={[rounds]}
-              onValueChange={(v) => setRounds(v[0])}
-              data-testid="slider-rounds"
-            />
+
+            {hasHoldPhases && (
+              <div className="space-y-3 rounded-lg border border-border/70 p-3">
+                <p className="text-sm font-medium">Adapt holds</p>
+                <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={skipHolds}
+                    onChange={(e) => setSkipHolds(e.target.checked)}
+                    data-testid="checkbox-skip-holds"
+                  />
+                  Skip hold phases
+                </label>
+                {!skipHolds && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm" htmlFor="hold-scale-slider">
+                        Hold length
+                      </label>
+                      <span className="text-sm tabular-nums" data-testid="text-hold-scale">
+                        {holdScale === 1 ? "Full" : holdScale === 0.5 ? "Half" : `${holdScale}×`}
+                      </span>
+                    </div>
+                    <Slider
+                      id="hold-scale-slider"
+                      min={0.5}
+                      max={1}
+                      step={0.25}
+                      value={[holdScale]}
+                      onValueChange={(v) => setHoldScale(v[0])}
+                      data-testid="slider-hold-scale"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <p className="text-sm text-muted-foreground" data-testid="text-breath-duration">
+              About {totalLabel} total · pattern {phases.map((p) => p.seconds).join("-")}
+            </p>
           </div>
 
-          {/* Guided audio for this technique */}
           <VoicePlayer
             src={`${import.meta.env.BASE_URL}audio/breath-${active.slug}.mp3`}
             slug={active.slug}
             label={`Guided audio — ${active.name}`}
           />
 
-          {/* Visualizer (key forces a clean reset when technique/rounds change) */}
           <BreathingVisualizer
-            key={`${active.slug}-${rounds}`}
+            key={`${active.slug}-${rounds}-${skipHolds}-${holdScale}`}
             config={config}
             onComplete={onComplete}
           />
 
-          {/* Benefits + who should avoid */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 rounded-lg bg-accent/40 p-4">
               <h3 className="flex items-center gap-2 font-serif text-base">

@@ -63,6 +63,7 @@ export default function Practice() {
   const [paused, setPaused] = useState(false);
   const [elapsedTotal, setElapsedTotal] = useState(0);
   const sessionLogged = useRef(false);
+  const journalEntryId = useRef<number | null>(null);
   const skippedIndices = useRef<Set<number>>(new Set());
   const completedIndices = useRef<Set<number>>(new Set());
   const creditRef = useRef(sessionCredit({
@@ -163,6 +164,7 @@ export default function Practice() {
       }
 
       sessionLogged.current = true;
+      journalEntryId.current = result.journalId ?? null;
       setSaveFailed(false);
       saveProgress(null);
       if (result.milestone) {
@@ -357,8 +359,11 @@ export default function Practice() {
             {credited && (
               <Button
                 onClick={() => {
+                  const id = journalEntryId.current;
                   navigate(
-                    `/journal?new=1&title=${encodeURIComponent(meta.label ?? "Practice reflection")}`,
+                    id
+                      ? `/journal?edit=${id}`
+                      : `/journal?new=1&title=${encodeURIComponent(meta.label ?? "Practice reflection")}`,
                   );
                 }}
                 data-testid="button-journal-prompt"
@@ -401,7 +406,7 @@ export default function Practice() {
             <h1 className="font-serif text-3xl font-semibold tracking-tight">Today's practice</h1>
             <p className="text-muted-foreground">
               {meta.label ? `${meta.label} · ` : ""}
-              {todays.length} poses queued. Press start when you're ready.
+              {todays.length} {todays.length === 1 ? "pose" : "poses"} queued. Press start when you're ready.
             </p>
             <div className="inline-flex rounded-full border border-border bg-card p-0.5 text-sm" data-testid="mode-toggle">
               <button

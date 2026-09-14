@@ -336,6 +336,8 @@ export default function GuidedSession() {
   const lastPostMood = useRef<Mood | null>(null);
   const finishedMinutes = useRef(1);
   const sessionLogged = useRef(false);
+  /** Journal row id from auto-save — Reflect edits this instead of creating a duplicate. */
+  const journalEntryId = useRef<number | null>(null);
   useWakeLock(started && !clockFrozen && !finished);
   const posesCompleted = useRef(0);
   // Indices the practitioner skipped past rather than held. Logging a
@@ -819,6 +821,7 @@ export default function GuidedSession() {
       }
 
       sessionLogged.current = true;
+      journalEntryId.current = result.journalId ?? null;
       setSaveFailed(false);
       saveProgress(null);
       if (result.milestone) {
@@ -1668,6 +1671,7 @@ export default function GuidedSession() {
                     completionLeavePath("journal", {
                       title: summaryEntry.title,
                       body: summaryEntry.body,
+                      editId: journalEntryId.current,
                     }),
                   )
                 }
@@ -1683,6 +1687,7 @@ export default function GuidedSession() {
                 onClick={() => {
                   // "Do one more pose" — restart from the last pose for another round.
                   sessionLogged.current = false;
+                  journalEntryId.current = null;
                   setFinished(false);
                   setShowPostMood(false);
                   setConfetti(false);

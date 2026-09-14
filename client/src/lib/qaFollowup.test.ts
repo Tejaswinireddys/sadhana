@@ -134,18 +134,18 @@ describe("adaptive lock and easier swap", () => {
 });
 
 describe("Core filter training focus", () => {
-  it("includes Plank, Side Plank, and Boat without recategorizing them", () => {
+  it("lists Plank and Side Plank as Core, and still finds Boat under the Core filter", () => {
     const plank = ASANAS.find((a) => a.slug === "kumbhakasana");
     const side = ASANAS.find((a) => a.slug === "vasisthasana");
     const boat = ASANAS.find((a) => a.slug === "navasana");
     assert.ok(plank && side && boat);
-    assert.equal(plank.category, "Backbends");
-    assert.equal(side.category, "Backbends");
+    assert.equal(plank.category, "Core");
+    assert.equal(side.category, "Core");
     assert.equal(boat.category, "Seated");
     assert.equal(matchesCategoryFilter(plank, "Core"), true);
     assert.equal(matchesCategoryFilter(side, "Core"), true);
     assert.equal(matchesCategoryFilter(boat, "Core"), true);
-    assert.equal(matchesCategoryFilter(plank, "Backbends"), true);
+    assert.equal(matchesCategoryFilter(plank, "Backbends"), false);
     assert.equal(matchesCategoryFilter(boat, "Seated"), true);
     const tadasana = ASANAS.find((a) => a.slug === "tadasana")!;
     assert.equal(matchesCategoryFilter(tadasana, "Core"), false);

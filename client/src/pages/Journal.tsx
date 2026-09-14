@@ -58,8 +58,34 @@ export default function Journal() {
   const [query, setQuery] = useState("");
   const [moodFilter, setMoodFilter] = useState<Mood | "All">("All");
 
-  // Pre-fill once from deep-link params (e.g. after a practice session), then clear sticky query.
+  // Prefill from deep-link params (Reflect after practice), then clear sticky query.
   useEffect(() => {
+    const editRaw = readUrlParam("edit");
+    if (editRaw) {
+      const editId = Number(editRaw);
+      if (Number.isFinite(editId)) {
+        const existing = entries.find((e) => e.id === editId);
+        if (existing) {
+          let tags: string[] = [];
+          try {
+            tags = JSON.parse(existing.tags || "[]");
+          } catch {
+            tags = [];
+          }
+          setDraft({
+            id: existing.id,
+            title: existing.title || "",
+            body: existing.body,
+            mood: (existing.mood as Mood) || "",
+            tags: tags.join(", "),
+          });
+          setOpen(true);
+          clearStickySearchParams();
+          return;
+        }
+        if (isLoading) return;
+      }
+    }
     const openNew = readUrlParam("new");
     if (!openNew) return;
     setDraft({
@@ -70,7 +96,7 @@ export default function Journal() {
     setOpen(true);
     // Drop the one-shot `?new=1&title=…&body=…` prefill params from the URL.
     clearStickySearchParams();
-  }, []);
+  }, [entries, isLoading]);
 
   const save = useMutation({
     mutationFn: (d: Draft) => {
@@ -90,6 +116,10 @@ export default function Journal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
+      void import("@/lib/practiceDataSync").then(({ broadcastPracticeDataChanged }) =>
+        broadcastPracticeDataChanged("journal"),
+      );
       setOpen(false);
       setDraft(emptyDraft);
       toast({ title: "Entry saved" });

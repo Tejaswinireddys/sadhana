@@ -267,16 +267,17 @@ export function BreathingVisualizer({ config, onComplete, accent = "text-primary
           </Button>
         ) : (
           <>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={togglePause}
-              disabled={done}
-              data-testid="button-breath-pause"
-            >
-              {running ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
-              {running ? "Pause" : "Resume"}
-            </Button>
+            {!done && (
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={togglePause}
+                data-testid="button-breath-pause"
+              >
+                {running ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
+                {running ? "Pause" : "Resume"}
+              </Button>
+            )}
             <Button size="lg" variant="ghost" onClick={done ? start : reset} data-testid="button-breath-reset">
               <RotateCcw className="mr-2 h-5 w-5" /> {done ? "Again" : "Reset"}
             </Button>

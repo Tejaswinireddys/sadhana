@@ -7,5 +7,5 @@ export const CONTENT_REVIEW = {
   version: CONTENT_SCHEMA_VERSION,
   reviewedAt: "July 31, 2026",
   note:
-    "Pose contraindications and modifications are authored educational guidance, not clinical clearance. A credentialed yoga/clinical review board should re-approve this catalog before commercial medical claims.",
+    "Pose contraindications and modifications are educational author notes, not medical advice or clinical clearance. Catalog copy was last editor-reviewed on the date above; it has not been certified by a medical board.",
 } as const;

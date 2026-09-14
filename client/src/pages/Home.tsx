@@ -386,9 +386,14 @@ export default function Home() {
     !!quizPlan;
   // A true first-timer: no quiz, nothing practiced, no path, nothing mid-session.
   const isNewcomer = !isLoading && !hasPracticed && !profile && !showResume && !quizDone;
-  // Quiz plans stay available after a profile exists or after other practice —
-  // retaking the quiz must still offer a way back to the plan just created.
-  const showQuizPlanCta = !isLoading && !showResume && !!quizPlan;
+  // Quiz plans stay available after a profile exists — unless the active profile
+  // already covers the same intent (e.g. Better Sleep), so Today shows one primary session.
+  const quizOverlapsProfile =
+    !!quizPlan &&
+    !!profile &&
+    (profile.id === "better-sleep" ||
+      (/sleep|evening|rest/i.test(quizPlan.title) && /sleep|evening|rest/i.test(profile.name)));
+  const showQuizPlanCta = !isLoading && !showResume && !!quizPlan && !quizOverlapsProfile;
   const ProfileIcon = profile ? resolveIcon(profile.icon) : Compass;
 
   // Daily reminder banner: show if not practiced today AND it's past 6 PM local.
@@ -450,18 +455,6 @@ export default function Home() {
       <CancelAccessBanner />
       <HomeCancelSubscriptionCta />
 
-      {/* Guests with repeated practice on the line get one honest heads-up per day. */}
-      {showSaveBanner && (
-        <SavePracticeBanner
-          totalSessions={stats?.totalSessions ?? 0}
-          currentStreak={stats?.currentStreak ?? 0}
-          onDismiss={() => {
-            dismissBanner();
-            setSavePromptDismissed(true);
-          }}
-        />
-      )}
-
       <Reveal className="space-y-4" aria-labelledby="primary-practice-heading">
         <div className="flex items-center gap-2">
           <Play className="h-5 w-5 text-primary" />
@@ -518,7 +511,7 @@ export default function Home() {
                 <p className="text-sm text-muted-foreground">
                   {quizPlan?.poses.length} guided poses · {quizPlan?.timeLabel}
                   {profile
-                    ? `. Separate from your ${profile.name} profile session below.`
+                    ? `. Prefer a different focus? Your ${profile.name} profile is under Change today's practice.`
                     : ". Retake the quiz anytime if you want a different first session."}
                 </p>
               </div>
@@ -776,6 +769,20 @@ export default function Home() {
       )}
       </Reveal>
 
+      {/* Guests with repeated practice on the line get one honest heads-up per day. */}
+      {showSaveBanner && (
+        <SavePracticeBanner
+          totalSessions={stats?.totalSessions ?? 0}
+          currentStreak={stats?.currentStreak ?? 0}
+          onDismiss={() => {
+            dismissBanner();
+            setSavePromptDismissed(true);
+          }}
+        />
+      )}
+
+
+
       {/* Favorited poses — one-tap practice */}
       {favoriteAsanas.length > 0 ? (
         <section className="space-y-3" data-testid="section-favorite-poses">
@@ -909,8 +916,9 @@ export default function Home() {
                     className="mt-auto min-h-11 w-full cursor-pointer"
                     onClick={() => startQuickSession(q)}
                     data-testid={`button-begin-quick-${q.id}`}
+                    aria-label={`Start ${q.label} — ${sessionTimeLabel(q.poses)}`}
                   >
-                    <Play className="mr-1.5 h-4 w-4" /> Start mood session
+                    <Play className="mr-1.5 h-4 w-4" /> Start {q.label}
                   </Button>
                 </CardContent>
               </Card>

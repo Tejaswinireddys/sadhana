@@ -5,6 +5,9 @@ import { track } from "@/lib/analytics";
 import { captureProduct } from "@/lib/productAnalytics";
 import { recordOutcome, writeLastRpe, type RpeScore } from "@/lib/adaptiveRecovery";
 import { bumpCorporateAggregate } from "@/lib/corporate";
+import {
+  broadcastPracticeDataChanged,
+} from "@/lib/practiceDataSync";
 import type { Milestone } from "@shared/schema";
 import type { Mood } from "@/data/content";
 
@@ -76,6 +79,8 @@ export function buildJournalEntry(args: {
 export type LogSessionResult = {
   ok: boolean;
   error?: string;
+  /** Journal row created for this session — Reflect should edit this id. */
+  journalId?: number;
   milestone?: { title: string; message: string };
 };
 
@@ -118,6 +123,7 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
     });
     queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
     queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
+    broadcastPracticeDataChanged("session");
     track("practice_complete", { minutes: Math.max(1, minutes), kind });
     void captureProduct("session_completed", {
       actual_minutes: Math.max(1, minutes),
@@ -140,6 +146,7 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
     return { ok: false, error: (e as Error).message || "Could not save your session." };
   }
 
+  let journalId: number | undefined;
   try {
     const entry = buildJournalEntry({
       label,
@@ -152,14 +159,21 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
       postMood,
       breathCount,
     });
-    await apiRequest("POST", "/api/journal", {
+    const journalRes = await apiRequest("POST", "/api/journal", {
       date: todayISO(),
       title: entry.title,
       body: journalBody ?? entry.body,
       mood: postMood ?? preMood ?? null,
       tags: JSON.stringify(journalTags),
     });
+    try {
+      const created = (await journalRes.json()) as { id?: number };
+      if (typeof created?.id === "number") journalId = created.id;
+    } catch {
+      /* response body optional */
+    }
     queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
+    broadcastPracticeDataChanged("journal");
   } catch {
     // Session is already saved; journal failure is non-fatal.
   }
@@ -179,11 +193,11 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
         await apiRequest("POST", "/api/milestones", { kind: h.kind }).catch(() => {});
       }
       queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
-      return { ok: true, milestone: { title: hit.title, message: hit.message } };
+      return { ok: true, journalId, milestone: { title: hit.title, message: hit.message } };
     }
   } catch {
     /* ignore milestone errors */
   }
 
-  return { ok: true };
+  return { ok: true, journalId };
 }
