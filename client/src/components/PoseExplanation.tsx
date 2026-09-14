@@ -1,7 +1,7 @@
 /**
  * PoseExplanation — studio how-to training (detail page).
  *
- * HD how-to video + coaching voice, focus halo on the cued body region, and
+ * Pose demo + coaching voice, focus halo on the cued body region, and
  * Form · Breath · Align coaching. Start training is obvious and synced.
  *
  * Honors voiceEnabled: when OFF, silent step countdown still drives the guide.
@@ -273,7 +273,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
           <p className="text-sm text-muted-foreground">
             {asana.sanskrit}
             {" · "}
-            HD how-to video follows each spoken cue so you see and hear the shape together.
+            A pose demo follows each spoken cue so you see and hear the shape together. Generated demos are illustrative — not a filmed class.
           </p>
         </div>
 

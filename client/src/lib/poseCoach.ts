@@ -49,12 +49,65 @@ export function manualConfidence(checked: boolean[], total: number): CoachFeedba
   };
 }
 
-export async function requestCameraStream(): Promise<MediaStream> {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("Camera is not available in this browser.");
+export type CameraRequestStatus =
+  | "idle"
+  | "pending"
+  | "ready"
+  | "denied"
+  | "unavailable"
+  | "timeout";
+
+export const CAMERA_REQUEST_TIMEOUT_MS = 8_000;
+
+export function cameraStatusMessage(status: CameraRequestStatus): string | null {
+  switch (status) {
+    case "pending":
+      return "Waiting for camera permission…";
+    case "denied":
+      return "Camera permission was denied. You can still use the checklist, or allow the camera in your browser settings and try again.";
+    case "unavailable":
+      return "No camera is available on this device. You can still use the checklist.";
+    case "timeout":
+      return "The camera request timed out. Try again, or continue with the checklist.";
+    default:
+      return null;
   }
-  return navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-    audio: false,
+}
+
+export function classifyCameraError(err: unknown): Exclude<CameraRequestStatus, "idle" | "pending" | "ready"> {
+  const name = err instanceof DOMException ? err.name : err instanceof Error ? err.name : "";
+  const message = err instanceof Error ? err.message : "";
+  if (name === "NotAllowedError" || name === "PermissionDeniedError" || /denied|permission/i.test(message)) {
+    return "denied";
+  }
+  if (name === "AbortError" || /timed? ?out/i.test(message)) return "timeout";
+  return "unavailable";
+}
+
+export async function requestCameraStream(opts?: { timeoutMs?: number }): Promise<MediaStream> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    const err = new Error("Camera is not available in this browser.");
+    err.name = "NotFoundError";
+    throw err;
+  }
+  const timeoutMs = opts?.timeoutMs ?? CAMERA_REQUEST_TIMEOUT_MS;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error("Camera request timed out.");
+      err.name = "AbortError";
+      reject(err);
+    }, timeoutMs);
   });
+  try {
+    return await Promise.race([
+      navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      }),
+      timeout,
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }

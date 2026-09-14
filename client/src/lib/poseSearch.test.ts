@@ -76,7 +76,7 @@ describe("rankedPoses — anatomy vs distinctive names", () => {
     );
     assert.ok(
       ranked.some((p) => p.slug === "kumbhakasana"),
-      "Plank should appear for a core search even though its family is Backbends",
+      "Plank should appear for a core search with its Core catalog family",
     );
     assert.ok(
       ranked.some((p) => p.slug === "vasisthasana"),

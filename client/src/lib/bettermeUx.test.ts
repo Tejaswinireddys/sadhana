@@ -57,8 +57,9 @@ describe("Premium quiz-first UX contract", () => {
     assert.match(home, /data-testid="card-quiz-plan"/);
     assert.match(home, /Retake quiz/);
     assert.match(home, /!quizDone/);
-    assert.match(home, /showQuizPlanCta = !isLoading && !showResume && !!quizPlan/);
-    assert.match(home, /Separate from your/);
+    assert.match(home, /showQuizPlanCta = !isLoading && !showResume && !!quizPlan && !quizOverlapsProfile/);
+    assert.match(home, /quizOverlapsProfile/);
+    assert.match(home, /Change today's practice/);
     assert.equal(/Secondary destinations live here/.test(home), false);
   });
 

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PoseImage } from "@/components/PoseImage";
 import { WARMUP, asanaBySlug } from "@/data/content";
 import { usePractice } from "@/context/PracticeContext";
+import { catalogDurationCopy, warmupPoses, warmupSessionLabel, warmupSessionMinutes } from "@/lib/pathwayTiming";
 import { Flame, Play } from "lucide-react";
 
 export function WarmupCard() {
@@ -22,7 +23,11 @@ export function WarmupCard() {
           x != null,
       );
     if (!poses.length) return;
-    loadSession(poses, { label: WARMUP.title, pathwaySlug: null });
+    loadSession(poses, {
+      label: WARMUP.title,
+      pathwaySlug: null,
+      plannedMinutes: warmupSessionMinutes(),
+    });
     navigate("/guided");
   };
 
@@ -33,9 +38,17 @@ export function WarmupCard() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <Flame className="h-5 w-5 text-primary" />
-              <h3 className="font-serif text-lg">{WARMUP.title}</h3>
+              <h3 className="font-serif text-lg">
+                {WARMUP.title} — {warmupSessionLabel()}
+              </h3>
             </div>
-            <p className="text-sm text-muted-foreground">{WARMUP.description}</p>
+            <p className="text-sm text-muted-foreground">
+              {WARMUP.description}
+              {(() => {
+                const d = catalogDurationCopy(warmupPoses());
+                return d.showTimerOnly ? ` ${d.timerLabel} timer-only.` : "";
+              })()}
+            </p>
           </div>
           <Button
             className="shrink-0 gap-1.5"

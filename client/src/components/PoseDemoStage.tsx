@@ -1,7 +1,7 @@
 /**
  * PoseDemoStage — the visual heart of pose explanation / guided practice.
  *
- * Primary (trainer): HD how-to video scrubbed to coaching voice when prefer3D
+ * Primary (trainer): pose demo scrubbed to coaching voice when prefer3D
  * is false. Optional: narration-synced 3D figurine when prefer3D is true.
  * Poster PNG is a soft recognition layer under video / 3D.
  *
@@ -212,7 +212,7 @@ export function PoseDemoStage({
     };
   }, [useVideo, showSources, slug, media.hls, media.mp4, media.webm]);
 
-  // Measure for focus halo (object-contain letterboxing aware for practice).
+  // Measure for focus halo (object-contain letterboxing using the displayed media aspect).
   useEffect(() => {
     if (use3D) return;
     const el = wrapRef.current;
@@ -221,7 +221,16 @@ export function PoseDemoStage({
       const wrapW = el.clientWidth;
       const wrapH = el.clientHeight;
       if (variant === "practice") {
-        const aspect = 887 / 1774;
+        const mediaEl = (videoRef.current ?? el.querySelector("img")) as
+          | (HTMLVideoElement & { naturalWidth?: number; naturalHeight?: number })
+          | HTMLImageElement
+          | null;
+        let aspect = 887 / 1774;
+        if (mediaEl instanceof HTMLVideoElement && mediaEl.videoWidth > 0 && mediaEl.videoHeight > 0) {
+          aspect = mediaEl.videoWidth / mediaEl.videoHeight;
+        } else if (mediaEl instanceof HTMLImageElement && mediaEl.naturalWidth > 0 && mediaEl.naturalHeight > 0) {
+          aspect = mediaEl.naturalWidth / mediaEl.naturalHeight;
+        }
         let w = wrapW;
         let h = w / aspect;
         if (h > wrapH) {
@@ -243,8 +252,15 @@ export function PoseDemoStage({
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    return () => ro.disconnect();
-  }, [variant, slug, use3D]);
+    const mediaEl = videoRef.current ?? el.querySelector("img");
+    mediaEl?.addEventListener("loadedmetadata", update);
+    mediaEl?.addEventListener("load", update);
+    return () => {
+      ro.disconnect();
+      mediaEl?.removeEventListener("loadedmetadata", update);
+      mediaEl?.removeEventListener("load", update);
+    };
+  }, [variant, slug, use3D, videoReady, useVideo]);
 
   // Restart clip with narration (seek + play) when parent bumps restartToken.
   // Voice-sync mode owns the playhead — do not yank it back to 0.

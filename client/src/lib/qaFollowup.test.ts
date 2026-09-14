@@ -7,10 +7,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { ASANAS } from "../data/content";
+import { ASANAS, PATHWAYS } from "../data/content";
 import { matchesCategoryFilter } from "../data/poseTaxonomy";
 import { breathDisplayRound, breathTickDelta } from "./breathingClock";
-import { mobilityCheckInCopy } from "./mobilityCheckIn";
+import { asksForFloorSplitMeasurement, mobilityCheckInCopy } from "./mobilityCheckIn";
 import { pickEasierSwap } from "./adaptiveGenerator";
 import { careAgreement } from "./yogaTrainer";
 
@@ -49,8 +49,7 @@ describe("program-specific mobility check-in", () => {
     assert.equal(chair.mode, "chair");
     assert.match(chair.primaryLabel, /Comfort/);
     assert.match(chair.secondaryLabel, /Seated range/);
-    assert.equal(/front hip|half-split|Front split|Backbend depth/i.test(chair.prompt), false);
-    assert.equal(/front hip|half-split|Front split/i.test(chair.followUpPrompt), false);
+    assert.equal(asksForFloorSplitMeasurement(chair), false);
     assert.match(chair.prompt, /chair/i);
   });
 
@@ -58,6 +57,36 @@ describe("program-specific mobility check-in", () => {
     const splits = mobilityCheckInCopy("sixty-day-splits");
     assert.equal(splits.mode, "splits");
     assert.match(splits.primaryLabel, /Front split/);
+    assert.equal(asksForFloorSplitMeasurement(splits), true);
+  });
+
+  it("does not ask non-split daily programs for a half-split measurement", () => {
+    const daily = PATHWAYS.filter((p) => p.kind === "daily");
+    assert.ok(daily.length >= 8);
+    for (const p of daily) {
+      const copy = mobilityCheckInCopy(p.slug);
+      if (p.slug === "sixty-day-splits") {
+        assert.equal(copy.mode, "splits", p.slug);
+        continue;
+      }
+      if (p.slug === "7-day-backbend-journey") {
+        assert.equal(copy.mode, "backbend", p.slug);
+        assert.equal(asksForFloorSplitMeasurement(copy), false, p.slug);
+        continue;
+      }
+      if (p.slug === "chair-limited-mobility") {
+        assert.equal(copy.mode, "chair", p.slug);
+      } else if (p.slug === "prenatal-gentle-week") {
+        assert.equal(copy.mode, "prenatal", p.slug);
+        assert.match(copy.prompt, /prenatal/i);
+      } else if (p.slug === "7-day-hip-opening") {
+        assert.equal(copy.mode, "hips", p.slug);
+      } else {
+        assert.equal(copy.mode, "comfort", p.slug);
+      }
+      assert.equal(asksForFloorSplitMeasurement(copy), false, p.slug);
+      assert.match(copy.primaryLabel, /Comfort/);
+    }
   });
 });
 
@@ -105,18 +134,18 @@ describe("adaptive lock and easier swap", () => {
 });
 
 describe("Core filter training focus", () => {
-  it("includes Plank, Side Plank, and Boat without recategorizing them", () => {
+  it("lists Plank and Side Plank as Core, and still finds Boat under the Core filter", () => {
     const plank = ASANAS.find((a) => a.slug === "kumbhakasana");
     const side = ASANAS.find((a) => a.slug === "vasisthasana");
     const boat = ASANAS.find((a) => a.slug === "navasana");
     assert.ok(plank && side && boat);
-    assert.equal(plank.category, "Backbends");
-    assert.equal(side.category, "Backbends");
+    assert.equal(plank.category, "Core");
+    assert.equal(side.category, "Core");
     assert.equal(boat.category, "Seated");
     assert.equal(matchesCategoryFilter(plank, "Core"), true);
     assert.equal(matchesCategoryFilter(side, "Core"), true);
     assert.equal(matchesCategoryFilter(boat, "Core"), true);
-    assert.equal(matchesCategoryFilter(plank, "Backbends"), true);
+    assert.equal(matchesCategoryFilter(plank, "Backbends"), false);
     assert.equal(matchesCategoryFilter(boat, "Seated"), true);
     const tadasana = ASANAS.find((a) => a.slug === "tadasana")!;
     assert.equal(matchesCategoryFilter(tadasana, "Core"), false);

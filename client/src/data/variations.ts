@@ -1248,6 +1248,12 @@ export const EXTRAS: Record<string, AsanaExtras> = {
         props: ["blanket", "none"],
         cues: ["Lower the knees for a half plank", "Keep the shoulders stacked over the wrists", "Draw the belly in so the hips do not sag"],
         holdSeconds: 20,
+        steps: [
+          { text: "From hands and knees, stack the shoulders over the wrists and spread the fingers wide.", pose: "plank" },
+          { text: "Keep the knees on the floor and walk the hands forward until you form a long line from head to knees.", pose: "plank" },
+          { text: "Draw the lower belly in so the hips do not sag; keep the neck long.", pose: "plank" },
+          { text: "Press the floor away and hold for about 20 seconds with steady breath.", pose: "plank" },
+        ],
       },
       intermediate: {
         description: "Full plank with a straight line from the crown to the heels, core engaged.",
@@ -4042,7 +4048,7 @@ export const EXTRAS: Record<string, AsanaExtras> = {
       intermediate: { description: "Fish Pose with a block under the upper back — effortless heart opening for tired chests.", props: ["none"], cues: ["Lie back over the block and rest the arms open","Let the head rest on the floor or a blanket","Sit and place a block lengthwise under the upper back"], holdSeconds: 25 },
       advanced: { description: "A fuller range or longer hold — opens the chest gently.", props: ["none"], cues: ["Lie back over the block and rest the arms open","Let the head rest on the floor or a blanket","Counters screen posture"], holdSeconds: 40 },
     },
-    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+    stepMotions: ["ground", "settle", "settle", "inhale", "ground"],
   },
   "reclined-goddess": {
     avoidIf: [
@@ -4653,7 +4659,7 @@ export const EXTRAS: Record<string, AsanaExtras> = {
       intermediate: { description: "A wide-knee threaded twist that frees the shoulders without compressing the belly.", props: ["none"], cues: ["Slide one arm under, resting the shoulder softly","Keep the other hand for light support","Come to hands and knees with knees wider for the belly"], holdSeconds: 25 },
       advanced: { description: "A fuller range or longer hold — shoulder and upper-back relief in pregnancy.", props: ["none"], cues: ["Slide one arm under, resting the shoulder softly","Keep the other hand for light support","Soft spinal mobility"], holdSeconds: 40 },
     },
-    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+    stepMotions: ["ground", "arm-extend", "ground", "inhale", "twist"],
   },
   "prenatal-side-angle": {
     avoidIf: [
@@ -4666,7 +4672,7 @@ export const EXTRAS: Record<string, AsanaExtras> = {
       intermediate: { description: "A shorter-stance side angle with room for the belly — strength and side-body length.", props: ["none"], cues: ["Front forearm rests on the thigh","Top arm reaches up or forward","Step into a shorter Warrior II stance"], holdSeconds: 25 },
       advanced: { description: "A fuller range or longer hold — leg strength with belly space.", props: ["none"], cues: ["Front forearm rests on the thigh","Top arm reaches up or forward","Side-body opening"], holdSeconds: 40 },
     },
-    stepMotions: ["ground", "lift", "settle", "inhale", "settle"],
+    stepMotions: ["ground", "hip-shift", "arm-extend", "inhale", "hip-shift"],
   },
   "prenatal-supported-twist": {
     avoidIf: [

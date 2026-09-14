@@ -219,8 +219,8 @@ test("categories follow base position, not marketing vibe", () => {
   assert.notEqual(plank.category, "Standing", "Plank is not on the feet");
   assert.notEqual(chaturanga.category, "Standing", "Chaturanga is not on the feet");
   assert.notEqual(birdDog.category, "Restorative", "Bird Dog is a core drill, not a wind-down");
-  // Classical assignments stay in the seven original families.
-  assert.equal(plank.category, "Backbends");
+  // Classical families stay for traditional poses; modern strength drills use Core.
+  assert.equal(plank.category, "Core");
   assert.equal(boat.category, "Seated");
   assert.equal(birdDog.category, "Backbends");
 });
@@ -277,7 +277,7 @@ test("classical asana families are unchanged except Raised Legs (supine core)", 
   assert.equal(bySlug["sirsasana"]?.category, "Inversions");
   assert.equal(bySlug["setu-bandhasana"]?.category, "Backbends");
   assert.equal(bySlug["navasana"]?.category, "Seated");
-  assert.equal(bySlug["kumbhakasana"]?.category, "Backbends");
+  assert.equal(bySlug["kumbhakasana"]?.category, "Core");
   assert.equal(bySlug["chakravakasana"]?.category, "Backbends");
   assert.equal(bySlug["bhujangasana"]?.category, "Backbends");
   assert.equal(bySlug["salabhasana"]?.category, "Backbends");
@@ -361,4 +361,19 @@ test("Thunderbolt watch-outs do not repeat the same knee caution", () => {
   const normalized = watchOuts.map((w) => w.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
   const injury = normalized.filter((w) => w.includes("knee injury") && w.includes("block"));
   assert.equal(injury.length, 1, `duplicate knee-injury lines: ${watchOuts.join(" | ")}`);
+});
+
+test("stretch zones name real body regions, not Primary tissues", () => {
+  const generic = ASANAS.filter((a) =>
+    a.stretchZones.some((z) => /^(Primary tissues|Breath|Support)$/i.test(z.region)),
+  ).map((a) => a.slug);
+  assert.deepEqual(generic, []);
+
+  const fish = ASANAS.find((a) => a.slug === "supported-fish-block");
+  const side = ASANAS.find((a) => a.slug === "prenatal-side-angle");
+  const thread = ASANAS.find((a) => a.slug === "prenatal-thread-needle");
+  assert.ok(fish && side && thread);
+  assert.ok(fish.stretchZones.some((z) => /chest|upper back|throat/i.test(z.region)));
+  assert.ok(side.stretchZones.some((z) => /thigh|side waist|shoulder/i.test(z.region)));
+  assert.ok(thread.stretchZones.some((z) => /shoulder|upper back/i.test(z.region)));
 });

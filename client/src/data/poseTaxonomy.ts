@@ -6,6 +6,8 @@
 import type { Asana, Category } from "./content";
 
 export const CORE_FAMILY_SLUGS = [
+  "kumbhakasana",
+  "vasisthasana",
   "dolphin-plank",
   "dead-bug",
   "scapular-plank-push",
@@ -15,8 +17,7 @@ export const CORE_FAMILY_SLUGS = [
 
 /** Poses whose catalog family is elsewhere but still belong in a Core filter. */
 export const CORE_TRAINING_FOCUS_SLUGS = [
-  "kumbhakasana", // Plank (Backbends)
-  "vasisthasana", // Side Plank (Backbends)
+  // Plank + Side Plank are Core in the catalog; keep Boat discoverable under Core too.
   "navasana", // Boat (Seated)
 ] as const;
 
@@ -46,7 +47,9 @@ export function matchesCategoryFilter(
   category: Category | "All",
 ): boolean {
   if (category === "All") return true;
-  if (category === "Core") return CORE_TRAINING_FOCUS.has(asana.slug);
+  if (category === "Core") {
+    return asana.category === "Core" || CORE_TRAINING_FOCUS.has(asana.slug);
+  }
   return asana.category === category;
 }
 

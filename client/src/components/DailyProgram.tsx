@@ -23,6 +23,8 @@ import type { Pathway, DailyPlan } from "@/data/content";
 import { usePractice } from "@/context/PracticeContext";
 import type { Enrollment, Session } from "@shared/schema";
 import { Clock, Play, Moon, Ruler, Sparkles } from "lucide-react";
+import { catalogSessionMinutes, dailySessionLabel, poseSides, queueCatalogPoses } from "@/lib/pathwayTiming";
+import { mobilityCheckInCopy } from "@/lib/mobilityCheckIn";
 
 const MS_PER_DAY = 86400000;
 
@@ -47,8 +49,8 @@ function focusLabel(focus: string | undefined): string {
 }
 
 function poseLabel(p: DailyPlan["poses"][number]): string {
-  const secs = p.sides === "each" ? `${p.holdSeconds}s each` : `${p.holdSeconds}s`;
-  return p.note ? `${secs} · ${p.note}` : secs;
+  const secs = poseSides(p) === "each" ? `${p.holdSeconds}s each` : `${p.holdSeconds}s`;
+  return p.note && !/each side/i.test(p.note) ? `${secs} · ${p.note}` : secs;
 }
 
 function PoseRow({ p }: { p: DailyPlan["poses"][number] }) {
@@ -118,19 +120,11 @@ export function DailyProgram({
   const behind = enrollment && currentDay - 1 > lastCompleted ? currentDay - 1 - lastCompleted : 0;
 
   const startDay = (d: DailyPlan) => {
-    const poses = d.poses
-      .map((p) => {
-        const asana = asanaBySlug(p.asanaSlug);
-        // Guided mode re-narrates the second side when sides === "each".
-        return asana ? { asana, holdSeconds: p.holdSeconds, sides: p.sides } : null;
-      })
-      .filter(
-        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
-          x != null,
-      );
+    const poses = queueCatalogPoses(d.poses);
     loadSession(poses, {
       label: `${pathway.name} — Day ${d.day}`,
       pathwaySlug: pathway.slug,
+      plannedMinutes: catalogSessionMinutes(d.poses),
     });
     toast({ title: `Day ${d.day} loaded`, description: `${d.theme} — ${d.poses.length} poses queued.` });
     navigate("/guided");
@@ -146,7 +140,8 @@ export function DailyProgram({
         <Card className="border-primary/40 bg-accent/30 shadow-soft">
           <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
             <p className="text-sm text-muted-foreground">
-              Start tracking to unlock your day-by-day journey, progress grid, and mobility check-ins.
+              Start tracking to unlock your day-by-day journey, progress grid, and{" "}
+              {mobilityCheckInCopy(pathway.slug).title.toLowerCase()}s.
             </p>
             <Button onClick={onEnroll} disabled={enrolling} data-testid="button-start-pathway">
               <Play className="mr-1.5 h-4 w-4" /> Start the journey
@@ -164,7 +159,7 @@ export function DailyProgram({
               data-testid="prompt-checkin"
             >
               <Ruler className="h-4 w-4 shrink-0 text-secondary" />
-              Take a moment to record your mobility today — it's rewarding to see the change.
+              {mobilityCheckInCopy(pathway.slug).banner}
             </div>
           )}
 
@@ -209,7 +204,7 @@ export function DailyProgram({
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="gap-1">
-                      <Clock className="h-3 w-3" /> ~{today.totalMinutes} min
+                      <Clock className="h-3 w-3" /> {dailySessionLabel(today)}
                     </Badge>
                     <Badge variant="outline">{focusLabel(today.focus)}</Badge>
                   </div>
@@ -342,7 +337,7 @@ export function DailyProgram({
                   <DialogDescription>
                     {d.restDay
                       ? "A gentle rest day — let your body rebuild."
-                      : `~${d.totalMinutes} min · ${d.poses.length} poses`}
+                      : `${dailySessionLabel(d)} · ${d.poses.length} poses`}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-2">

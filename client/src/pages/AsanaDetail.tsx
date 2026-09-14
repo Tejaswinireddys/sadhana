@@ -21,6 +21,7 @@ import { pronunciationFor, shouldShowPronunciation } from "@/lib/sanskritPronunc
 import { usagesForAsana } from "@/data/asanaUsage";
 import { KEYS, poseLevelFromExperience, readString } from "@/lib/localPrefs";
 import { QUICK_SESSIONS, quickSessionMeta } from "@/data/quickSessions";
+import { catalogSessionMinutes } from "@/lib/pathwayTiming";
 import { usePractice } from "@/context/PracticeContext";
 import { EmptyState } from "@/components/EmptyState";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -175,6 +176,10 @@ export default function AsanaDetail() {
 
   const inToday = !!todays.find((x) => x.slug === asana.slug);
   const variation = asana.variations[level];
+  const howToSteps =
+    variation.steps && variation.steps.length > 0
+      ? variation.steps.map((s) => ({ text: s.text, pose: s.pose, stepMotion: undefined as undefined }))
+      : asana.steps;
   const usages = usagesForAsana(asana.slug);
 
   const addToday = () => {
@@ -189,6 +194,7 @@ export default function AsanaDetail() {
     const hold = asana.variations[level]?.holdSeconds ?? asana.holdSeconds;
     loadSession([{ asana, holdSeconds: hold }], {
       label: `${asana.english} · practice now`,
+      plannedMinutes: catalogSessionMinutes([{ slug: asana.slug, holdSeconds: hold }]),
     });
     navigate("/guided");
   };
@@ -541,7 +547,9 @@ export default function AsanaDetail() {
             <div>
               <p className="text-sm font-medium">Hold time</p>
               <p className="text-sm text-muted-foreground">
-                {asana.hold} · {level} ~{variation.holdSeconds}s
+                {level === "intermediate" && !variation.steps
+                  ? asana.hold
+                  : `About ${variation.holdSeconds} seconds (${level})`}
               </p>
             </div>
           </CardContent>
@@ -552,9 +560,14 @@ export default function AsanaDetail() {
       <section className="space-y-4" aria-labelledby="how-heading">
         <h2 id="how-heading" className="font-serif text-xl">
           How to practice — step by step
+          {variation.steps && variation.steps.length > 0 ? (
+            <span className="ml-2 text-sm font-sans font-normal text-muted-foreground">
+              ({level} variation)
+            </span>
+          ) : null}
         </h2>
         <ol className="space-y-3">
-          {asana.steps.map((step, i) => (
+          {howToSteps.map((step, i) => (
             <li key={i}>
               <Card className="shadow-soft" data-testid={`step-${asana.slug}-${i}`}>
                 <CardContent className="flex items-center gap-4 p-4">
@@ -565,8 +578,9 @@ export default function AsanaDetail() {
                     <span
                       className="hidden shrink-0 rounded-lg bg-accent/40 p-1 text-foreground/75 sm:block"
                       data-testid={`step-motion-${asana.slug}-${i}`}
+                      aria-hidden
                     >
-                      <StepMotion motion={step.stepMotion} size={64} />
+                      <StepMotion motion={step.stepMotion} size={64} decorative label={step.text} />
                     </span>
                   )}
                   <p className="text-sm">{step.text}</p>
