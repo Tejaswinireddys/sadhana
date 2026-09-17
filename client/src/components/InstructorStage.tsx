@@ -88,11 +88,6 @@ export function InstructorStage({
         data-testid="instructor-media-label"
       >
         <p className="text-xs font-medium text-foreground/90">{media.label}</p>
-        {media.missingAssetId ? (
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Missing asset: <code className="text-[11px]">{media.missingAssetId}</code>
-          </p>
-        ) : null}
         {media.reviewStatus !== "instructor_reviewed" ? (
           <p className="mt-1 text-[11px] text-muted-foreground">
             Not instructor-reviewed video

@@ -20,6 +20,7 @@ import {
 } from "../lib/instructorClock.ts";
 import {
   effectiveLevel,
+  effectiveLevelForPose,
   evaluateSafetyPlan,
   relevantRules,
 } from "../lib/instructorSafety.ts";
@@ -155,7 +156,7 @@ describe("instructor safety intake", () => {
   });
 
   it("forces beginner when a prefer_beginner rule applies", () => {
-    const pose = instructorPoseBySlug("kumbhakasana")!;
+    const pose = instructorPoseBySlug("marjaryasana-bitilasana")!;
     const modify = pose.restrictions.find((r) => r.action === "prefer_beginner");
     assert.ok(modify);
     const plan = evaluateSafetyPlan({
@@ -166,7 +167,24 @@ describe("instructor safety intake", () => {
       })),
       requestedLevel: "advanced",
     });
-    assert.equal(plan.forcedLevel, "beginner");
-    assert.equal(effectiveLevel("advanced", plan), "beginner");
+    assert.ok(plan.forcedBeginnerPoseIds.includes(pose.poseId));
+    assert.equal(effectiveLevelForPose(pose.poseId, "advanced", plan), "beginner");
+  });
+
+  it("maps wrist restriction to forearm-plank adaptation (not beginner)", () => {
+    const pose = instructorPoseBySlug("kumbhakasana")!;
+    const wrist = pose.restrictions.find((r) => r.adaptationId === "wrist_forearm_plank");
+    assert.ok(wrist);
+    const plan = evaluateSafetyPlan({
+      poses: [pose],
+      answers: pose.restrictions.map((r) => ({
+        ruleId: r.id,
+        applies: r.id === wrist!.id,
+      })),
+      requestedLevel: "advanced",
+    });
+    assert.equal(plan.forcedAdaptations[pose.poseId], "wrist_forearm_plank");
+    assert.equal(effectiveLevelForPose(pose.poseId, "advanced", plan), "advanced");
+    assert.ok(!plan.forcedBeginnerPoseIds.includes(pose.poseId));
   });
 });

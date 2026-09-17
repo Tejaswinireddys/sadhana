@@ -5,20 +5,25 @@
 import type {
   InstructorMode,
   InstructorPoseDef,
+  InstructorPoseVariant,
   InstructionSegment,
   TimelinePhase,
   VariationLevel,
 } from "@/data/instructorPilot";
+import { resolveTeachingVariant } from "@/data/instructorPilot";
+import type { AdaptationId } from "@/lib/restrictionAdaptations";
 
 export type PoseTimeline = {
   slug: string;
   mode: InstructorMode;
   level: VariationLevel;
+  adaptationId?: AdaptationId | null;
   prepExtraSec: number;
   segments: InstructionSegment[];
   totalSec: number;
   props: string[];
   mediaKind: string;
+  displayName: string;
 };
 
 export type FlatSegment = InstructionSegment & {
@@ -42,20 +47,21 @@ function sideLabel(side: "left" | "right" | "both"): string {
 
 function buildSideSegments(opts: {
   pose: InstructorPoseDef;
-  level: VariationLevel;
+  variant: InstructorPoseVariant;
   mode: InstructorMode;
   side: "left" | "right" | "both";
+  /** Extra seconds applied only to THIS preparation segment. */
   prepExtraSec: number;
   cursor: { t: number };
   out: InstructionSegment[];
   includeTransition: boolean;
 }) {
-  const { pose, level, mode, side, prepExtraSec, cursor, out, includeTransition } = opts;
-  const variant = pose.variants[level];
+  const { pose, variant, mode, side, prepExtraSec, cursor, out, includeTransition } = opts;
   const learn = mode === "learn";
   const sideTag = side === "both" ? "both" : side;
   const suffix = side === "both" ? "" : `-${side}`;
   const anim = variant.media.kind === "presentation_animation";
+  const title = variant.displayName ?? pose.english;
 
   const prepSec = (learn ? 12 : 5) + Math.max(0, prepExtraSec);
   const entrySec = learn ? 18 : 8;
@@ -75,16 +81,16 @@ function buildSideSegments(opts: {
     id: `${pose.slug}${suffix}-prep`,
     phase: "preparation",
     durationSec: prepSec,
-    cue: `Prepare for ${pose.english}${sideLabel(side)}. ${propsLine}`,
-    caption: `${pose.english} · prepare${sideLabel(side)}`,
+    cue: `Prepare for ${title}${sideLabel(side)}. ${propsLine}`,
+    caption: `${title} · prepare${sideLabel(side)}`,
     breathCue: "Take a steady breath while you set up.",
     side: sideTag,
     mediaWindow: anim ? { start: 0, end: 0.35 } : null,
   });
 
   const entryCue = learn
-    ? variant.steps[0] ?? `Move carefully into ${pose.english}.`
-    : `Enter ${pose.english}${sideLabel(side)}.`;
+    ? variant.steps[0] ?? `Move carefully into ${title}.`
+    : `Enter ${title}${sideLabel(side)}.`;
 
   pushSeg(out, cursor, {
     id: `${pose.slug}${suffix}-entry`,
@@ -139,9 +145,7 @@ function buildSideSegments(opts: {
     id: `${pose.slug}${suffix}-exit`,
     phase: "exit",
     durationSec: exitSec,
-    cue: learn
-      ? `Leave ${pose.english} with control${sideLabel(side)}.`
-      : `Exit${sideLabel(side)}.`,
+    cue: learn ? `Leave ${title} with control${sideLabel(side)}.` : `Exit${sideLabel(side)}.`,
     caption: "Exit",
     side: sideTag,
     mediaWindow: anim ? { start: 0.55, end: 1 } : null,
@@ -164,17 +168,19 @@ export function buildPoseTimeline(opts: {
   pose: InstructorPoseDef;
   mode: InstructorMode;
   level: VariationLevel;
+  adaptationId?: AdaptationId | null;
+  /** Extra prep seconds for this pose only (first prep segment). */
   prepExtraSec?: number;
 }): PoseTimeline {
   const prepExtraSec = Math.max(0, opts.prepExtraSec ?? 0);
   const out: InstructionSegment[] = [];
   const cursor = { t: 0 };
-  const variant = opts.pose.variants[opts.level];
+  const variant = resolveTeachingVariant(opts.pose, opts.level, opts.adaptationId);
 
   if (opts.pose.sides === "each") {
     buildSideSegments({
       pose: opts.pose,
-      level: opts.level,
+      variant,
       mode: opts.mode,
       side: "left",
       prepExtraSec,
@@ -193,7 +199,7 @@ export function buildPoseTimeline(opts: {
     });
     buildSideSegments({
       pose: opts.pose,
-      level: opts.level,
+      variant,
       mode: opts.mode,
       side: "right",
       prepExtraSec: 0,
@@ -204,7 +210,7 @@ export function buildPoseTimeline(opts: {
   } else {
     buildSideSegments({
       pose: opts.pose,
-      level: opts.level,
+      variant,
       mode: opts.mode,
       side: "both",
       prepExtraSec,
@@ -218,11 +224,13 @@ export function buildPoseTimeline(opts: {
     slug: opts.pose.slug,
     mode: opts.mode,
     level: opts.level,
+    adaptationId: opts.adaptationId ?? null,
     prepExtraSec,
     segments: out,
     totalSec: cursor.t,
     props: variant.props,
     mediaKind: variant.media.kind,
+    displayName: variant.displayName ?? opts.pose.english,
   };
 }
 
@@ -230,18 +238,27 @@ export function buildSessionTimeline(opts: {
   poses: InstructorPoseDef[];
   mode: InstructorMode;
   level: VariationLevel;
+  /** Optional per-poseId level overrides (e.g. forced beginner). */
+  levelByPoseId?: Record<string, VariationLevel>;
+  /** Per poseId adaptation overrides. */
+  adaptations?: Record<string, AdaptationId>;
+  /** Per poseIndex prep extras (only current prep when player bumps). */
+  prepExtraByPoseIndex?: Record<number, number>;
   prepExtraSec?: number;
 }): {
   poses: PoseTimeline[];
   totalSec: number;
   flat: FlatSegment[];
 } {
-  const poses = opts.poses.map((pose) =>
+  const poses = opts.poses.map((pose, poseIndex) =>
     buildPoseTimeline({
       pose,
       mode: opts.mode,
-      level: opts.level,
-      prepExtraSec: opts.prepExtraSec,
+      level: opts.levelByPoseId?.[pose.poseId] ?? opts.level,
+      adaptationId: opts.adaptations?.[pose.poseId] ?? null,
+      prepExtraSec:
+        opts.prepExtraByPoseIndex?.[poseIndex] ??
+        (poseIndex === 0 ? opts.prepExtraSec ?? 0 : 0),
     }),
   );
   const flat: FlatSegment[] = [];
@@ -253,6 +270,30 @@ export function buildSessionTimeline(opts: {
     abs += pt.totalSec;
   });
   return { poses, totalSec: abs, flat };
+}
+
+/**
+ * After extending the current preparation segment, remap the clock so the
+ * user stays at the same relative position in the current prep (or at the
+ * end of prep if they already passed the old duration).
+ */
+export function remapClockAfterPrepExtend(opts: {
+  flatBefore: FlatSegment[];
+  flatAfter: FlatSegment[];
+  timeSec: number;
+  prepSegmentId: string;
+  addedSec: number;
+}): number {
+  const before = opts.flatBefore.find((s) => s.id === opts.prepSegmentId);
+  const after = opts.flatAfter.find((s) => s.id === opts.prepSegmentId);
+  if (!before || !after) return opts.timeSec + opts.addedSec;
+  const local = opts.timeSec - before.absStartSec;
+  if (local < 0) return opts.timeSec;
+  if (local >= before.durationSec) {
+    // Already past prep — shift by the inserted duration so later segments stay aligned.
+    return opts.timeSec + opts.addedSec;
+  }
+  return after.absStartSec + local;
 }
 
 export function segmentAtTime(flat: FlatSegment[], timeSec: number) {

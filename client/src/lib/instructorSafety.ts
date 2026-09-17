@@ -2,14 +2,15 @@
  * Injury / restriction intake for the instructor pilot.
  *
  * Never claims a practice is "adapted" until the user answers relevant
- * restriction prompts. Rules come from catalog_editor-reviewed avoidIf rows —
- * not invented medical clearance.
+ * restriction prompts. Restriction-specific adaptations (e.g. forearm plank)
+ * are distinct from difficulty "beginner".
  */
 import type {
   InstructorPoseDef,
   InstructorRestrictionRule,
   VariationLevel,
 } from "@/data/instructorPilot";
+import type { AdaptationId } from "@/lib/restrictionAdaptations";
 
 export type RestrictionAnswer = {
   ruleId: string;
@@ -21,7 +22,10 @@ export type SafetyPlan = {
   ready: boolean;
   missingRuleIds: string[];
   excludedPoseIds: string[];
-  forcedLevel: VariationLevel | null;
+  /** Per-pose restriction adaptations — not a blanket beginner force. */
+  forcedAdaptations: Record<string, AdaptationId>;
+  /** Per-pose beginner force when no specific adaptation exists. */
+  forcedBeginnerPoseIds: string[];
   warnings: string[];
   substitutions: Array<{ fromSlug: string; toSlug: string; reason: string }>;
   /** Only true when intake is complete and rules were applied. */
@@ -32,7 +36,7 @@ export function relevantRules(poses: InstructorPoseDef[]): InstructorRestriction
   const map = new Map<string, InstructorRestrictionRule>();
   for (const p of poses) {
     for (const r of p.restrictions) {
-      const key = `${r.bodyArea}|${r.severity}|${r.action}|${r.condition}`;
+      const key = `${r.bodyArea}|${r.severity}|${r.action}|${r.adaptationId ?? ""}|${r.condition}`;
       if (!map.has(key)) map.set(key, r);
     }
   }
@@ -53,7 +57,8 @@ export function evaluateSafetyPlan(opts: {
       ready: false,
       missingRuleIds,
       excludedPoseIds: [],
-      forcedLevel: null,
+      forcedAdaptations: {},
+      forcedBeginnerPoseIds: [],
       warnings: [],
       substitutions: [],
       claimsAdapted: false,
@@ -63,7 +68,8 @@ export function evaluateSafetyPlan(opts: {
   const excludedPoseIds: string[] = [];
   const warnings: string[] = [];
   const substitutions: SafetyPlan["substitutions"] = [];
-  let forcedLevel: VariationLevel | null = null;
+  const forcedAdaptations: Record<string, AdaptationId> = {};
+  const forcedBeginnerPoseIds: string[] = [];
 
   for (const pose of opts.poses) {
     for (const rule of pose.restrictions) {
@@ -78,8 +84,12 @@ export function evaluateSafetyPlan(opts: {
             reason: rule.condition,
           });
         }
+      } else if (rule.action === "use_adaptation" && rule.adaptationId) {
+        forcedAdaptations[pose.poseId] = rule.adaptationId;
+        const name = pose.adaptations[rule.adaptationId]?.displayName ?? rule.adaptationId;
+        warnings.push(`${pose.english}: ${rule.condition} — using ${name}.`);
       } else if (rule.action === "prefer_beginner") {
-        forcedLevel = "beginner";
+        forcedBeginnerPoseIds.push(pose.poseId);
         warnings.push(`${pose.english}: ${rule.condition} — using the beginner variation.`);
       } else {
         warnings.push(`${pose.english}: ${rule.condition}`);
@@ -91,17 +101,31 @@ export function evaluateSafetyPlan(opts: {
     ready: true,
     missingRuleIds: [],
     excludedPoseIds,
-    forcedLevel,
+    forcedAdaptations,
+    forcedBeginnerPoseIds,
     warnings,
     substitutions,
     claimsAdapted: true,
   };
 }
 
+export function effectiveLevelForPose(
+  poseId: string,
+  requested: VariationLevel,
+  plan: SafetyPlan,
+): VariationLevel {
+  if (plan.forcedAdaptations[poseId]) return requested;
+  if (plan.forcedBeginnerPoseIds.includes(poseId)) return "beginner";
+  return requested;
+}
+
+/** @deprecated Prefer effectiveLevelForPose — kept for older call sites. */
 export function effectiveLevel(
   requested: VariationLevel,
   plan: SafetyPlan,
 ): VariationLevel {
-  if (plan.forcedLevel === "beginner") return "beginner";
+  if (plan.forcedBeginnerPoseIds.length > 0 && Object.keys(plan.forcedAdaptations).length === 0) {
+    return "beginner";
+  }
   return requested;
 }
