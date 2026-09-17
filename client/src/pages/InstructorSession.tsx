@@ -119,12 +119,14 @@ export default function InstructorSession() {
   const [journalId, setJournalId] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<InstructorSaveStatus>("idle");
+  const [saveKind, setSaveKind] = useState<"partial" | "complete" | null>(null);
 
   const startedAtRef = useRef<number | null>(null);
   const completedRef = useRef(false);
   const lastTickRef = useRef<number | null>(null);
   const restoredRef = useRef(false);
   const finishingRef = useRef(false);
+  const narrationRef = useRef<HTMLAudioElement | null>(null);
 
   const selectedPoses = useMemo(
     () =>
@@ -266,6 +268,17 @@ export default function InstructorSession() {
     return () => cancelAnimationFrame(raf);
   }, [uiPhase, clock.playing, timeline.totalSec]);
 
+  // Keep narration paused when the shared clock is paused (next/prev/repeat).
+  useEffect(() => {
+    const a = narrationRef.current;
+    if (!a) return;
+    if (!clock.playing || !narrationOn) {
+      a.pause();
+      return;
+    }
+    void a.play().catch(() => undefined);
+  }, [clock.playing, narrationOn, current?.id]);
+
   const finishSession = useCallback(
     async (completedNaturally: boolean) => {
       if (finishingRef.current) return;
@@ -280,21 +293,20 @@ export default function InstructorSession() {
 
       if (kind === "too_brief") {
         setSaveStatus("too_brief");
+        setSaveKind(null);
         setSaveError(null);
         clearInstructorSession();
         finishingRef.current = false;
         return;
       }
 
-      setSaveStatus("saving");
+      setSaveKind(kind === "partial" ? "partial" : "complete");
+      setSaveStatus(kind === "partial" ? "partial" : "saving");
       setSaveError(null);
 
-      if (practicedSec < 30) {
-        setSaveStatus("too_brief");
-        clearInstructorSession();
-        finishingRef.current = false;
-        return;
-      }
+      // Yield so "partial" / "saving" can paint before the network write.
+      await new Promise((r) => setTimeout(r, 0));
+      setSaveStatus("saving");
 
       const minutes = Math.max(1, Math.round(practicedSec / 60));
       const poseNames = queuePoses.map((p) => p.english);
@@ -438,13 +450,13 @@ export default function InstructorSession() {
     setPrepExtraByPoseIndex({});
     setPracticedSec(0);
     setSaveStatus("idle");
+    setSaveKind(null);
     setSaveError(null);
     setJournalId(null);
     completedRef.current = false;
     finishingRef.current = false;
   };
 
-  const showMissingAssets = uiPhase === "setup" || uiPhase === "complete" || uiPhase === "safety";
   const atFirstPose = !current || current.poseIndex === 0;
   const atLastPose = !current || current.poseIndex >= queuePoses.length - 1;
   const prepDisabled = !current || current.phase !== "preparation";
@@ -824,8 +836,9 @@ export default function InstructorSession() {
           {narrationOn && currentVariant.media.narrationUrl && !current.quiet ? (
             <audio
               key={`${current.id}-narration`}
+              ref={narrationRef}
               src={currentVariant.media.narrationUrl}
-              autoPlay
+              autoPlay={clock.playing}
               onError={(e) => {
                 e.currentTarget.removeAttribute("src");
               }}
@@ -841,14 +854,21 @@ export default function InstructorSession() {
               className="font-serif text-2xl"
               data-testid="instructor-save-status"
             >
-              {instructorSaveHeadline(saveStatus)}
+              {instructorSaveHeadline(saveStatus, { wasPartial: saveKind === "partial" })}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground" data-testid="instructor-practiced-time">
+              Practiced {Math.round(practicedSec)}s
+              {timeline.totalSec > 0
+                ? ` · timeline ${Math.round(timeline.totalSec)}s (skipped time is not credited)`
+                : null}
+            </p>
             {saveStatus === "saved" ? (
               <p className="text-sm text-muted-foreground">
-                One practice record for this instructor pilot. Reflect attaches to the same journal
-                entry — it does not create a duplicate.
+                {saveKind === "partial"
+                  ? "Partial practice was written to your journal. Reflect attaches to the same entry."
+                  : "One practice record for this instructor pilot. Reflect attaches to the same journal entry — it does not create a duplicate."}
               </p>
             ) : saveStatus === "too_brief" ? (
               <p className="text-sm text-muted-foreground">
@@ -901,7 +921,7 @@ export default function InstructorSession() {
         </Card>
       ) : null}
 
-      {showMissingAssets ? (
+      {uiPhase === "setup" ? (
         <details className="rounded-xl border p-3 text-sm">
           <summary className="cursor-pointer font-medium">Media still needed (precise list)</summary>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
@@ -912,9 +932,8 @@ export default function InstructorSession() {
             ))}
           </ul>
           <p className="mt-2 text-xs text-muted-foreground">
-            Implemented: structured timeline, Learn/Flow, variation sync, safety intake, shared
-            clock, honest media fallback, session save + reflect-by-edit. Not implemented: filmed
-            instructor video, human VO, validated pose analysis (camera is not scoring here).
+            Filmed instructor prep/entry/hold/exit clips and human VO are not shipped. Presentation
+            animations are labeled honestly in practice — they are not complete instructor media.
           </p>
           <p className="mt-1 text-xs">
             Optional mirror only:{" "}

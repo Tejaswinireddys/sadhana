@@ -38,6 +38,10 @@ describe("instructorSave", () => {
       assert.notEqual(instructorSaveHeadline(status), "Session saved");
     }
     assert.equal(instructorSaveHeadline("saved"), "Session saved");
+    assert.equal(
+      instructorSaveHeadline("saved", { wasPartial: true }),
+      "Partial practice saved",
+    );
     assert.equal(instructorSaveHeadline("too_brief"), "Too brief to save");
   });
 });

@@ -14,6 +14,7 @@ Pilot poses: `tadasana`, `balasana`, `marjaryasana-bitilasana`, `virabhadrasana-
 | Anatomically reviewed 3D | **Missing** | Do not claim otherwise. |
 | Beginner/supported variation film | **Missing** | Beginner UI uses static reference + missing-asset id. |
 | Human voiceover aligned to timeline | **Missing** | |
+| Wrist forearm-plank filmed adaptation | **Missing** | Teaching uses `dolphin-plank` presentation clip + reviewed text; id `filmed-instructor/kumbhakasana/wrist-forearm`. |
 
 ## Precise missing asset ids
 
@@ -23,15 +24,39 @@ See `INSTRUCTOR_PILOT_MISSING_ASSETS` in `client/src/data/instructorPilot.ts`:
 - `filmed-instructor/{slug}/side`
 - `filmed-instructor/{slug}/beginner-front`
 - `human-narration/{slug}`
+- `filmed-instructor/kumbhakasana/wrist-forearm`
+- `filmed-instructor/kumbhakasana/pregnancy-modify`
+- `filmed-instructor/balasana/knee-supported`
+- `filmed-instructor/tadasana/wall-supported`
+
+Per phase (each pilot pose × variation × side when applicable):
+
+| Phase | Required deliverable |
+| --- | --- |
+| preparation | Filmed or reviewed 3D setup (props in frame) |
+| entry | Motion into the shape, cue-aligned |
+| hold | Steady demonstration (or intentional quiet hold) |
+| exit | Clean exit to transition |
+| transition | Bridge into the next pose |
+
+## Integration pipeline (when media arrives)
+
+1. Place reviewed files under a staging folder, e.g. `.data/instructor-media/{poseId}/{variantId}/{phase}-{angle}.{mp4,webm,vtt,mp3}`.
+2. Register ids in `INSTRUCTOR_PILOT_MISSING_ASSETS` → flip status to `ready` and remove from the “needed” list.
+3. Wire `InstructorMediaRef` in `instructorPilot.ts` / `ADAPTATIONS` to the new URLs (keep `kind: "filmed_instructor"` or `reviewed_3d` only when reviewStatus is `instructor_reviewed`).
+4. Extend `buildSessionTimeline` media windows so prep/entry/hold/exit scrub or play the matching clip; keep the shared clock as the single source of truth for captions + narration + timers.
+5. Run `client/src/data/instructorPilot.test.ts` and a manual Learn session (both sides, wrist adaptation, pause/repeat) before claiming the phase complete.
+6. Do **not** mark static posters or free-running presentation loops as complete instructor media.
 
 ## Review honesty
 
-- `reviewStatus` is `not_reviewed` or `editor_catalog_note` only.
+- `reviewStatus` is `not_reviewed` or `editor_catalog_note` only until filmed/reviewed assets land.
 - UI copy says **Not instructor-reviewed video**.
 - Camera pose analysis is **not** part of this pilot. `/pose-coach` remains a labeled mirror / self-check.
+- Consumer practice UI does not show raw asset path ids; the precise manifest stays on setup + this doc.
 
 ## Player behavior without filmed media
 
 - Entry/exit may scrub the presentation animation when `kind === presentation_animation`.
-- Hold phases stay quiet and do **not** fake instruction by zooming a still.
-- If accurate motion media is unavailable, show poster + missing asset id.
+- Hold phases stay quiet and do **not** fake instruction by free-running or zooming a still.
+- If accurate motion media is unavailable, show poster + consumer-facing media label (not raw paths on the practice screen).

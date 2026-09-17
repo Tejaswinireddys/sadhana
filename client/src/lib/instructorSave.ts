@@ -20,7 +20,10 @@ export function classifyInstructorSave(opts: {
   return "complete";
 }
 
-export function instructorSaveHeadline(status: InstructorSaveStatus): string {
+export function instructorSaveHeadline(
+  status: InstructorSaveStatus,
+  opts?: { wasPartial?: boolean },
+): string {
   switch (status) {
     case "too_brief":
       return "Too brief to save";
@@ -29,7 +32,7 @@ export function instructorSaveHeadline(status: InstructorSaveStatus): string {
     case "saving":
       return "Saving…";
     case "saved":
-      return "Session saved";
+      return opts?.wasPartial ? "Partial practice saved" : "Session saved";
     case "failed":
       return "Could not save";
     default:

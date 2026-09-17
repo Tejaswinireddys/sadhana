@@ -46,7 +46,8 @@ export function InstructorStage({
     if (playing && mediaWindow) {
       void v.pause(); // scrubbed to cue — not free-running loop during teaching
     } else if (playing && !mediaWindow) {
-      void v.play().catch(() => undefined);
+      // Hold / quiet phases: stay on the current frame — do not free-run as fake instruction.
+      void v.pause();
     } else {
       v.pause();
     }
