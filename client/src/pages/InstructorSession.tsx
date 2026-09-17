@@ -462,15 +462,22 @@ export default function InstructorSession() {
   const prepDisabled = !current || current.phase !== "preparation";
 
   return (
-    <FadeIn className="mx-auto max-w-3xl space-y-5 pb-28">
-      <header className="space-y-2">
-        <Badge variant="outline">Pilot · 5 poses</Badge>
-        <h1 className="font-serif text-3xl font-semibold tracking-tight">Virtual instructor</h1>
-        <p className="text-sm text-muted-foreground">
-          Learn or Flow through Mountain, Child&apos;s Pose, Cat–Cow, Warrior II, and Plank.
-          Media is labeled honestly — filmed instructor clips are not claimed.
-        </p>
-      </header>
+    <FadeIn className="mx-auto max-w-3xl space-y-5 pb-28 landscape:pb-4">
+      {uiPhase !== "practice" ? (
+        <header className="space-y-2">
+          <Badge variant="outline">Pilot · 5 poses</Badge>
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">Virtual instructor</h1>
+          <p className="text-sm text-muted-foreground">
+            Learn or Flow through Mountain, Child&apos;s Pose, Cat–Cow, Warrior II, and Plank.
+            Media is labeled honestly — filmed instructor clips are not claimed.
+          </p>
+        </header>
+      ) : (
+        <header className="flex items-center justify-between gap-2 landscape:py-0">
+          <Badge variant="outline">Pilot · 5 poses</Badge>
+          <p className="text-xs text-muted-foreground">Virtual instructor</p>
+        </header>
+      )}
 
       {uiPhase === "setup" ? (
         <div className="space-y-4" data-testid="instructor-setup">
@@ -655,21 +662,24 @@ export default function InstructorSession() {
       ) : null}
 
       {uiPhase === "practice" && current && currentPose && currentVariant ? (
-        <div className="space-y-3" data-testid="instructor-player">
+        <div
+          className="flex flex-col gap-2 landscape:max-h-[calc(100dvh-6.5rem)] landscape:overflow-hidden"
+          data-testid="instructor-player"
+        >
           {plan.claimsAdapted ? (
-            <p className="text-xs text-muted-foreground" data-testid="instructor-adapted-note">
+            <p className="text-xs text-muted-foreground landscape:hidden" data-testid="instructor-adapted-note">
               Practice adjusted from your answers
               {plan.warnings[0] ? ` — ${plan.warnings[0]}` : "."}
             </p>
           ) : (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground landscape:hidden">
               Standard pilot sequence (not medically adapted).
             </p>
           )}
 
           <div className="flex items-center justify-between gap-2">
-            <div>
-              <p className="font-serif text-xl font-semibold">
+            <div className="min-w-0">
+              <p className="font-serif text-lg font-semibold landscape:text-base sm:text-xl">
                 {adaptationDisplayName ?? currentPose.english}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -680,57 +690,62 @@ export default function InstructorSession() {
                 {current.side !== "both" ? ` · ${current.side} side` : ""} · {currentPoseLevel}
               </p>
             </div>
-            <div className="text-right text-sm tabular-nums" data-testid="instructor-clock">
+            <div className="shrink-0 text-right text-sm tabular-nums" data-testid="instructor-clock">
               <div>{formatClock(clock.timeSec)}</div>
               <div className="text-xs text-muted-foreground">/ {formatClock(timeline.totalSec)}</div>
             </div>
           </div>
 
-          {/* Mobile-friendly sticky stack: stage + caption + pause */}
-          <div className="sticky top-0 z-30 -mx-1 space-y-2 bg-background/95 px-1 pb-2 pt-1 backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+          {/* Keep demo + cue + pause together (portrait sticky; landscape side-by-side). */}
+          <div
+            className="sticky top-0 z-30 -mx-1 flex min-h-0 flex-1 flex-col gap-2 bg-background/95 px-1 pb-2 pt-1 backdrop-blur landscape:static landscape:mx-0 landscape:flex-row landscape:items-stretch landscape:bg-transparent landscape:p-0 landscape:backdrop-blur-none sm:static sm:mx-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
+            data-testid="instructor-focus-stack"
+          >
             <InstructorStage
               media={currentVariant.media}
               playing={clock.playing}
               mediaProgress={mediaProgress}
               mediaWindow={current.mediaWindow}
-              className="aspect-[3/4] max-h-[40vh] w-full landscape:max-h-[55vh] sm:aspect-video sm:max-h-[50vh]"
+              className="aspect-[3/4] max-h-[38vh] w-full shrink-0 landscape:max-h-none landscape:h-auto landscape:max-w-[46%] landscape:aspect-[4/5] sm:aspect-video sm:max-h-[46vh] sm:landscape:max-h-[70vh] sm:landscape:max-w-[50%]"
             />
 
-            {captionsOn ? (
-              <div
-                className="rounded-xl bg-foreground px-4 py-3 text-sm text-background"
-                data-testid="instructor-caption"
-                aria-live="polite"
-              >
-                {current.caption}
-                {current.breathCue && !current.quiet ? (
-                  <span className="mt-1 block text-xs opacity-80">{current.breathCue}</span>
-                ) : null}
-              </div>
-            ) : null}
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+              {captionsOn ? (
+                <div
+                  className="rounded-xl bg-foreground px-4 py-3 text-sm text-background"
+                  data-testid="instructor-caption"
+                  aria-live="polite"
+                >
+                  {current.caption}
+                  {current.breathCue && !current.quiet ? (
+                    <span className="mt-1 block text-xs opacity-80">{current.breathCue}</span>
+                  ) : null}
+                </div>
+              ) : null}
 
-            <div className="flex justify-center">
-              <Button
-                className="min-h-12 min-w-24"
-                aria-label={clock.playing ? "Pause" : "Resume"}
-                onClick={() => setClock((c) => (c.playing ? pauseClock(c) : resumeClock(c)))}
-                data-testid="instructor-play-pause"
-              >
-                {clock.playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                <span className="ml-2">{clock.playing ? "Pause" : "Play"}</span>
-              </Button>
+              <div className="flex justify-center landscape:justify-start">
+                <Button
+                  className="min-h-12 min-w-24"
+                  aria-label={clock.playing ? "Pause" : "Resume"}
+                  onClick={() => setClock((c) => (c.playing ? pauseClock(c) : resumeClock(c)))}
+                  data-testid="instructor-play-pause"
+                >
+                  {clock.playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                  <span className="ml-2">{clock.playing ? "Pause" : "Play"}</span>
+                </Button>
+              </div>
+
+              <p className="text-sm text-muted-foreground" data-testid="instructor-cue">
+                {current.cue}
+              </p>
+              <p className="text-xs text-muted-foreground landscape:truncate">
+                Props: {currentVariant.props.filter((p) => p !== "none").join(", ") || "none"}
+              </p>
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground" data-testid="instructor-cue">
-            {current.cue}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Props: {currentVariant.props.filter((p) => p !== "none").join(", ") || "none"}
-          </p>
-
           <div
-            className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur md:static md:rounded-2xl md:border md:bg-card md:p-4"
+            className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur landscape:static landscape:rounded-2xl landscape:border landscape:bg-card landscape:p-2 md:static md:rounded-2xl md:border md:bg-card md:p-4"
             data-testid="instructor-controls"
           >
             <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-2">
