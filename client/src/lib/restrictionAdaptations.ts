@@ -245,6 +245,43 @@ export function substituteForRegion(
 /** Trainer wizard: Injured requires a location (or explicit prefer-not-to-say). */
 export const PREFER_NOT_TO_SAY_PART = "Prefer not to say";
 
+/**
+ * Adapt a pose list for guided / practice queues using the same substitutions
+ * as the trainer. Drops poses that remain unsafe after substitution.
+ */
+export function adaptPoseSlugsForRestrictions(
+  slugs: string[],
+  soreParts: string[],
+  isExcluded: (slug: string, soreParts: string[]) => boolean = defaultIsExcluded,
+): string[] {
+  const parts = soreParts.filter((p) => p && p !== "None specific" && p !== PREFER_NOT_TO_SAY_PART);
+  if (parts.length === 0) return slugs;
+  const out: string[] = [];
+  for (const slug of slugs) {
+    const sub = substituteForRegion(slug, parts, isExcluded);
+    const next = sub ?? slug;
+    if (isExcluded(next, parts)) continue;
+    if (!out.includes(next)) out.push(next);
+  }
+  return out;
+}
+
+function defaultIsExcluded(slug: string, soreParts: string[]): boolean {
+  const pose = asanaBySlug(slug);
+  if (!pose) return true;
+  for (const part of soreParts) {
+    const map = REGION_SUBSTITUTIONS[part];
+    // Originals that have a named substitute stay excluded on this surface.
+    if (map?.[slug]) return true;
+    const kw = part.toLowerCase().replace(/s$/, "");
+    const hay = [...pose.contraindications, ...pose.avoidIf.map((a) => a.condition)]
+      .join(" ")
+      .toLowerCase();
+    if (hay.includes(kw) && pose.avoidIf.some((a) => a.severity === "avoid")) return true;
+  }
+  return false;
+}
+
 export function trainerNeedsBodyLocation(body: string[]): boolean {
   return body.some((b) => /injured/i.test(b));
 }
@@ -253,4 +290,29 @@ export function trainerLocationSatisfied(body: string[], soreParts: string[]): b
   if (!trainerNeedsBodyLocation(body)) return true;
   const named = soreParts.filter((p) => p && p !== "None specific");
   return named.length > 0;
+}
+
+/** Last trainer/guided care regions — shared across surfaces for revalidation. */
+const CARE_REGIONS_KEY = "sadhana.careRegions.v1";
+
+export function saveCareRegions(parts: string[]): void {
+  try {
+    if (typeof sessionStorage === "undefined") return;
+    const cleaned = parts.filter((p) => p && p !== "None specific");
+    sessionStorage.setItem(CARE_REGIONS_KEY, JSON.stringify(cleaned));
+  } catch {
+    /* private mode */
+  }
+}
+
+export function loadCareRegions(): string[] {
+  try {
+    if (typeof sessionStorage === "undefined") return [];
+    const raw = sessionStorage.getItem(CARE_REGIONS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
 }

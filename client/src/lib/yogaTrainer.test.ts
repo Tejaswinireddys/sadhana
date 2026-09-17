@@ -71,6 +71,26 @@ describe("composeTrainerSession — safety", () => {
     assert.ok(!s.poses.some((p) => p.slug === "adho-mukha-svanasana"));
   });
 
+  it("substitutes forearm plank for Wrists on strength instead of full Plank", () => {
+    const s = composeTrainerSession({ ...base, soreParts: ["Wrists"], need: "strength" });
+    assert.ok(
+      s.poses.some((p) => p.slug === "dolphin-plank"),
+      `expected dolphin-plank in ${s.poses.map((p) => p.slug).join(",")}`,
+    );
+    assert.ok(!s.poses.some((p) => p.slug === "kumbhakasana"));
+    assert.ok(s.adjustments.some((a) => /forearm|adapt|wrist/i.test(a)));
+  });
+
+  it("does not recommend Plank when Injured without a named location", () => {
+    const s = composeTrainerSession({
+      ...base,
+      body: ["Injured"],
+      soreParts: [],
+      need: "strength",
+    });
+    assert.ok(!s.poses.some((p) => p.slug === "kumbhakasana"));
+  });
+
   it("explains what it removed", () => {
     const s = composeTrainerSession({ ...base, soreParts: ["Wrists"], need: "strength" });
     assert.ok(s.adjustments.some((a) => /wrists/i.test(a)));

@@ -23,6 +23,7 @@ import {
   type TrainerExperience,
   type TrainerSession,
 } from "@/lib/yogaTrainer";
+import { trainerLocationSatisfied, saveCareRegions } from "@/lib/restrictionAdaptations";
 import { cn } from "@/lib/utils";
 import { formatHold } from "@/lib/formatDuration";
 import { ChevronRight, Play, RefreshCw, ShieldAlert, Sparkles, UserRound } from "lucide-react";
@@ -77,12 +78,14 @@ function ChipButton({
   children,
   testId,
   className,
+  label,
 }: {
   selected: boolean;
   onClick: () => void;
   children: React.ReactNode;
   testId?: string;
   className?: string;
+  label?: string;
 }) {
   return (
     <button
@@ -90,6 +93,7 @@ function ChipButton({
       onClick={onClick}
       data-testid={testId}
       aria-pressed={selected}
+      aria-label={label ? `${label}${selected ? ", selected" : ""}` : undefined}
       className={cn(
         "min-h-11 rounded-2xl border px-4 py-4 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         selected
@@ -151,7 +155,7 @@ export default function Trainer() {
 
   const canAdvance =
     step === 0
-      ? body.length > 0
+      ? body.length > 0 && (!showBodyParts || trainerLocationSatisfied(body, soreParts))
       : step === 1
         ? energy !== ""
         : step === 2
@@ -161,10 +165,12 @@ export default function Trainer() {
   const doCompose = async () => {
     setPhase("composing");
     const started = Date.now();
+    const care = showBodyParts ? soreParts.filter((p) => p !== "None specific") : [];
+    saveCareRegions(care);
     const session = composeTrainerSession(
       {
         body,
-        soreParts: showBodyParts ? soreParts.filter((p) => p !== "None specific") : [],
+        soreParts: care,
         energy: energy || "Balanced",
         timeMinutes: timeMinutes ?? 10,
         need: need || "movement",
@@ -190,11 +196,14 @@ export default function Trainer() {
       return asana ? [{ asana, holdSeconds: p.holdSeconds, sides: p.sides }] : [];
     });
     if (!poses.length) return;
+    const care = showBodyParts ? soreParts.filter((p) => p !== "None specific") : [];
+    saveCareRegions(care);
     loadSession(poses, {
       label: `Trainer — ${NEED_LABEL[result.deliveredNeed] ?? result.deliveredNeed}`,
       plannedMinutes: timeMinutes ?? result.totalMinutes,
       // We already asked about body and energy; don't ask a third time.
       preMood: moodFromEnergy(energy),
+      careRegions: care,
     });
     navigate("/guided");
   };
@@ -479,6 +488,12 @@ export default function Trainer() {
           {showBodyParts && (
             <div className="animate-fade-in space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
               <p className="text-sm font-medium">Where, specifically?</p>
+              {body.some((b) => /injured/i.test(b)) ? (
+                <p className="text-xs text-muted-foreground" data-testid="trainer-injury-location-hint">
+                  Choose a body area (or Prefer not to say) so we can adapt — we will not recommend
+                  full Plank without knowing where you are hurt.
+                </p>
+              ) : null}
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
                 {BODY_PARTS.map((part) => (
                   <ChipButton

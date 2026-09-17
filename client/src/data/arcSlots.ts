@@ -114,6 +114,7 @@ const SLOT_OVERRIDE: Record<string, ArcSlot> = {
   dhanurasana: 3,
   camatkarasana: 3,
   kumbhakasana: 3,
+  "dolphin-plank": 3,
   "chaturanga-dandasana": 3,
   navasana: 3,
   "ardha-navasana": 3,
