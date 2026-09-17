@@ -16,6 +16,25 @@ describe("pose explanation watch-outs", () => {
     assert.match(hits[0]!, /^Option:/);
     assert.match(expl.modification, blanket);
   });
+
+  it("changes form cues when difficulty path changes", () => {
+    const asana = asanaBySlug("kumbhakasana");
+    assert.ok(asana);
+    const beginner = buildPoseExplanation(asana, "Beginner");
+    const advanced = buildPoseExplanation(asana, "Advanced");
+    assert.ok(beginner.formCues.length > 0);
+    assert.ok(advanced.formCues.length > 0);
+  });
+});
+
+describe("AsanaDetail wires variation into PoseExplanation", () => {
+  it("passes the selected level into the upper teaching panel", () => {
+    const detail = readFileSync(resolve("client/src/pages/AsanaDetail.tsx"), "utf8");
+    assert.match(detail, /<PoseExplanation slug=\{asana\.slug\} level=\{level\}/);
+    const expl = readFileSync(resolve("client/src/components/PoseExplanation.tsx"), "utf8");
+    assert.match(expl, /level = "intermediate"/);
+    assert.match(expl, /buildPoseExplanation\(asana, difficulty\)/);
+  });
 });
 
 describe("pose-specific feel + step cues", () => {

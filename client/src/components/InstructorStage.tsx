@@ -46,7 +46,8 @@ export function InstructorStage({
     if (playing && mediaWindow) {
       void v.pause(); // scrubbed to cue — not free-running loop during teaching
     } else if (playing && !mediaWindow) {
-      void v.play().catch(() => undefined);
+      // Hold / quiet phases: stay on the current frame — do not free-run as fake instruction.
+      void v.pause();
     } else {
       v.pause();
     }
@@ -88,11 +89,6 @@ export function InstructorStage({
         data-testid="instructor-media-label"
       >
         <p className="text-xs font-medium text-foreground/90">{media.label}</p>
-        {media.missingAssetId ? (
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Missing asset: <code className="text-[11px]">{media.missingAssetId}</code>
-          </p>
-        ) : null}
         {media.reviewStatus !== "instructor_reviewed" ? (
           <p className="mt-1 text-[11px] text-muted-foreground">
             Not instructor-reviewed video

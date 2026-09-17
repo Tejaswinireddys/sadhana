@@ -7,6 +7,11 @@ import {
   clearPersistedPractice,
   type PersistedProgress,
 } from "@/lib/practicePersist";
+import {
+  adaptPoseSlugsForRestrictions,
+  loadCareRegions,
+  saveCareRegions,
+} from "@/lib/restrictionAdaptations";
 
 // A queued pose is an Asana plus optional per-session details that don't live
 // on the base Asana (e.g. whether the pose is held on each side). Guided mode
@@ -37,6 +42,8 @@ export type SessionMeta = {
   preMood?: Mood | null;
   /** Pose slug for an illustrated intro clip on the guided start screen. */
   introPoseSlug?: string | null;
+  /** Body regions asking for care — used to revalidate replacements mid-session. */
+  careRegions?: string[] | null;
 };
 
 type PracticeContextType = {
@@ -67,6 +74,7 @@ const DEFAULT_META: SessionMeta = {
   plannedMinutes: null,
   preMood: null,
   introPoseSlug: null,
+  careRegions: null,
 };
 
 function hydrateFromStorage(): {
@@ -135,24 +143,50 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
   const setMeta = (m: Partial<SessionMeta>) => setMetaState((prev) => ({ ...prev, ...m }));
 
   const loadSession: PracticeContextType["loadSession"] = (poses, m) => {
+    const careRegions = m?.careRegions ?? loadCareRegions();
+    if (careRegions.length > 0) saveCareRegions(careRegions);
+
+    const adapted = adaptPoseSlugsForRestrictions(
+      poses.map((p) => p.asana.slug),
+      careRegions,
+    );
+    const bySlug = new Map(poses.map((p) => [p.asana.slug, p]));
+    const nextPoses = adapted.map((slug) => {
+      const original = bySlug.get(slug);
+      if (original) return original;
+      const asana = asanaBySlug(slug);
+      if (!asana) return null;
+      // Keep hold/sides from the pose we replaced when possible.
+      const replaced = poses.find((p) =>
+        adaptPoseSlugsForRestrictions([p.asana.slug], careRegions)[0] === slug,
+      );
+      return {
+        asana,
+        holdSeconds: replaced?.holdSeconds ?? asana.holdSeconds,
+        sides: replaced?.sides,
+      };
+    }).filter((p): p is NonNullable<typeof p> => p != null);
+
+    const queue = nextPoses.length > 0 ? nextPoses : poses;
+
     setTodays(
-      poses.map(({ asana, holdSeconds, sides }) => ({
+      queue.map(({ asana, holdSeconds, sides }) => ({
         ...asana,
         ...(holdSeconds != null ? { holdSeconds } : {}),
         ...(sides ? { sides } : {}),
       })),
     );
-    setMetaState({ ...DEFAULT_META, ...(m ?? {}) });
+    setMetaState({ ...DEFAULT_META, ...(m ?? {}), careRegions: careRegions.length ? careRegions : null });
     setProgress(null);
     setNeedsRestore(false);
     // Clear stale progress when loading a new session.
     savePersistedPractice({
-      poses: poses.map(({ asana, holdSeconds, sides }) => ({
+      poses: queue.map(({ asana, holdSeconds, sides }) => ({
         slug: asana.slug,
         holdSeconds,
         sides,
       })),
-      meta: { ...DEFAULT_META, ...(m ?? {}) },
+      meta: { ...DEFAULT_META, ...(m ?? {}), careRegions: careRegions.length ? careRegions : null },
       progress: null,
     });
   };

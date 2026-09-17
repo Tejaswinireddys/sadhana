@@ -8,6 +8,11 @@
  */
 import { asanaBySlug, type AvoidRow, type Variation } from "@/data/content";
 import { poseMediaFor, poseHasVideo, poseNarrationSrc } from "@/data/poseMedia";
+import {
+  ADAPTATIONS,
+  adaptationActionFor,
+  type AdaptationId,
+} from "@/lib/restrictionAdaptations";
 
 export const INSTRUCTOR_PILOT_SLUGS = [
   "tadasana",
@@ -70,13 +75,17 @@ export type InstructorRestrictionRule = {
   bodyArea: string;
   condition: string;
   severity: AvoidRow["severity"];
-  action: "exclude" | "prefer_beginner" | "warn";
-  alternativeSlug?: InstructorPilotSlug;
+  action: "exclude" | "prefer_beginner" | "warn" | "use_adaptation";
+  adaptationId?: AdaptationId;
+  alternativeSlug?: string;
   reviewedBy: "catalog_editor";
 };
 
 export type InstructorPoseVariant = {
+  /** Difficulty level, or a restriction-specific adaptation id. */
+  id: VariationLevel | AdaptationId;
   level: VariationLevel;
+  displayName?: string;
   description: string;
   props: string[];
   holdSeconds: number;
@@ -95,6 +104,7 @@ export type InstructorPoseDef = {
   breathing: string;
   restrictions: InstructorRestrictionRule[];
   variants: Record<VariationLevel, InstructorPoseVariant>;
+  adaptations: Partial<Record<AdaptationId, InstructorPoseVariant>>;
 };
 
 const BODY_AREA_HINTS: Array<{ area: string; match: RegExp }> = [
@@ -134,9 +144,7 @@ function mediaForVariant(
       captionsVtt: sources.captions ?? null,
       narrationUrl,
       missingAssetId: `filmed-instructor/${slug}/beginner-front`,
-      label:
-        "Static reference — beginner filmed demonstration is not available yet. " +
-        `Missing asset: filmed-instructor/${slug}/beginner-front`,
+      label: "Static reference — beginner filmed demonstration is not available yet.",
     };
   }
   if (hasAnim) {
@@ -151,7 +159,7 @@ function mediaForVariant(
       narrationUrl,
       missingAssetId: `filmed-instructor/${slug}/front-and-side`,
       label:
-        "Presentation animation (not a filmed instructor). Filmed front/side demos are still needed.",
+        "Presentation animation — not a filmed instructor lesson. Filmed front/side demos are still needed.",
     };
   }
   return {
@@ -160,7 +168,41 @@ function mediaForVariant(
     angle: "unknown",
     poster: sources.poster,
     missingAssetId: `filmed-instructor/${slug}/any`,
-    label: `Demonstration unavailable — missing asset: filmed-instructor/${slug}/any`,
+    label: "Demonstration unavailable for this pose right now.",
+  };
+}
+
+function mediaForAdaptation(adaptationId: AdaptationId): InstructorMediaRef {
+  const a = ADAPTATIONS[adaptationId];
+  const sources = poseMediaFor(a.mediaSlug);
+  const hasAnim = poseHasVideo(a.mediaSlug);
+  return {
+    kind: hasAnim ? "presentation_animation" : "static_reference",
+    reviewStatus: "editor_catalog_note",
+    angle: "front",
+    videoMp4: hasAnim ? sources.mp4 ?? null : null,
+    videoWebm: hasAnim ? sources.webm ?? null : null,
+    poster: sources.poster,
+    captionsVtt: sources.captions ?? null,
+    narrationUrl: poseNarrationSrc(a.mediaSlug),
+    missingAssetId: a.missingAssetId,
+    label: a.mediaConsumerLabel,
+  };
+}
+
+function adaptationVariant(adaptationId: AdaptationId): InstructorPoseVariant {
+  const a = ADAPTATIONS[adaptationId];
+  return {
+    id: adaptationId,
+    level: "beginner",
+    displayName: a.displayName,
+    description: a.description,
+    props: a.props,
+    holdSeconds: a.holdSeconds,
+    cues: a.cues,
+    steps: a.steps,
+    commonMistakes: [],
+    media: mediaForAdaptation(adaptationId),
   };
 }
 
@@ -201,21 +243,52 @@ function restrictionRules(
   avoidIf: AvoidRow[],
 ): InstructorRestrictionRule[] {
   return avoidIf.map((row, i) => {
-    const action =
-      row.severity === "avoid"
-        ? "exclude"
-        : row.severity === "modify"
-          ? "prefer_beginner"
-          : "warn";
+    const bodyArea = bodyAreaFor(row.condition);
+    const mapped = adaptationActionFor({
+      poseSlug: slug,
+      bodyArea,
+      severity: row.severity,
+      condition: row.condition,
+    });
+    if (mapped.type === "use_adaptation") {
+      return {
+        id: `${slug}-r${i}`,
+        bodyArea,
+        condition: row.condition,
+        severity: row.severity,
+        action: "use_adaptation" as const,
+        adaptationId: mapped.adaptationId,
+        reviewedBy: "catalog_editor" as const,
+      };
+    }
+    if (mapped.type === "exclude") {
+      return {
+        id: `${slug}-r${i}`,
+        bodyArea,
+        condition: row.condition,
+        severity: row.severity,
+        action: "exclude" as const,
+        alternativeSlug: mapped.substituteSlug,
+        reviewedBy: "catalog_editor" as const,
+      };
+    }
+    if (mapped.type === "prefer_beginner") {
+      return {
+        id: `${slug}-r${i}`,
+        bodyArea,
+        condition: row.condition,
+        severity: row.severity,
+        action: "prefer_beginner" as const,
+        reviewedBy: "catalog_editor" as const,
+      };
+    }
     return {
       id: `${slug}-r${i}`,
-      bodyArea: bodyAreaFor(row.condition),
+      bodyArea,
       condition: row.condition,
       severity: row.severity,
-      action,
-      alternativeSlug:
-        action === "exclude" && slug !== "balasana" ? "balasana" : undefined,
-      reviewedBy: "catalog_editor",
+      action: "warn" as const,
+      reviewedBy: "catalog_editor" as const,
     };
   });
 }
@@ -227,6 +300,7 @@ function variantFromAsana(
   fallbackSteps: string[],
 ): InstructorPoseVariant {
   return {
+    id: level,
     level,
     description: v.description,
     props: v.props.length ? v.props : ["none"],
@@ -236,6 +310,16 @@ function variantFromAsana(
     commonMistakes: COMMON_MISTAKES[slug][level],
     media: mediaForVariant(slug, level),
   };
+}
+
+function adaptationsFor(slug: InstructorPilotSlug): Partial<Record<AdaptationId, InstructorPoseVariant>> {
+  const out: Partial<Record<AdaptationId, InstructorPoseVariant>> = {};
+  for (const [id, content] of Object.entries(ADAPTATIONS) as Array<
+    [AdaptationId, (typeof ADAPTATIONS)[AdaptationId]]
+  >) {
+    if (content.poseSlug === slug) out[id] = adaptationVariant(id);
+  }
+  return out;
 }
 
 function buildPose(slug: InstructorPilotSlug, sides: "once" | "each"): InstructorPoseDef {
@@ -260,7 +344,20 @@ function buildPose(slug: InstructorPilotSlug, sides: "once" | "each"): Instructo
       ),
       advanced: variantFromAsana(slug, "advanced", asana.variations.advanced, fallbackSteps),
     },
+    adaptations: adaptationsFor(slug),
   };
+}
+
+/** Resolve teaching content for a pose given difficulty + optional adaptation. */
+export function resolveTeachingVariant(
+  pose: InstructorPoseDef,
+  level: VariationLevel,
+  adaptationId?: AdaptationId | null,
+): InstructorPoseVariant {
+  if (adaptationId && pose.adaptations[adaptationId]) {
+    return pose.adaptations[adaptationId]!;
+  }
+  return pose.variants[level];
 }
 
 export const INSTRUCTOR_PILOT_POSES: InstructorPoseDef[] = [
@@ -281,32 +378,46 @@ export function isInstructorPilotSlug(slug: string): slug is InstructorPilotSlug
 
 export const INSTRUCTOR_PILOT_MISSING_ASSETS: Array<{
   id: string;
-  pose: InstructorPilotSlug;
+  pose: InstructorPilotSlug | "kumbhakasana";
   need: string;
   status: "needed";
-}> = INSTRUCTOR_PILOT_SLUGS.flatMap((pose) => [
+}> = [
+  ...INSTRUCTOR_PILOT_SLUGS.flatMap((pose) => [
+    {
+      id: `filmed-instructor/${pose}/front`,
+      pose,
+      need: "Full-body filmed instructor, front view, prep→entry→hold→exit",
+      status: "needed" as const,
+    },
+    {
+      id: `filmed-instructor/${pose}/side`,
+      pose,
+      need: "Matching side view with same instructor/studio/lighting",
+      status: "needed" as const,
+    },
+    {
+      id: `filmed-instructor/${pose}/beginner-front`,
+      pose,
+      need: "Beginner / supported variation demonstration with accurate props",
+      status: "needed" as const,
+    },
+    {
+      id: `human-narration/${pose}`,
+      pose,
+      need: "Approved human voiceover aligned to timeline segments",
+      status: "needed" as const,
+    },
+  ]),
   {
-    id: `filmed-instructor/${pose}/front`,
-    pose,
-    need: "Full-body filmed instructor, front view, prep→entry→hold→exit",
+    id: "filmed-instructor/kumbhakasana/wrist-forearm",
+    pose: "kumbhakasana",
+    need: "Filmed forearm-plank adaptation (elbows under shoulders) matching wrist-injury teaching",
     status: "needed",
   },
   {
-    id: `filmed-instructor/${pose}/side`,
-    pose,
-    need: "Matching side view with same instructor/studio/lighting",
+    id: "filmed-instructor/kumbhakasana/pregnancy-modify",
+    pose: "kumbhakasana",
+    need: "Filmed knees-down pregnancy plank modification",
     status: "needed",
   },
-  {
-    id: `filmed-instructor/${pose}/beginner-front`,
-    pose,
-    need: "Beginner / supported variation demonstration with accurate props",
-    status: "needed",
-  },
-  {
-    id: `human-narration/${pose}`,
-    pose,
-    need: "Approved human voiceover aligned to timeline segments",
-    status: "needed",
-  },
-]);
+];

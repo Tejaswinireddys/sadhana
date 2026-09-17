@@ -8,6 +8,11 @@ import {
   REST_SLUGS,
   type ArcSlot,
 } from "@/data/arcSlots";
+import {
+  PREFER_NOT_TO_SAY_PART,
+  WRIST_LOADING_WHEN_UNKNOWN,
+  substituteForRegion,
+} from "@/lib/restrictionAdaptations";
 
 /** Which audience the active profile targets — gates audience-specific poses/copy. */
 export type TrainerAudience = "All" | "Men" | "Women" | "Pregnancy";
@@ -218,9 +223,12 @@ const REGION_EXCLUSIONS: Record<string, string[]> = {
   ],
   Wrists: [
     "adho-mukha-svanasana", "urdhva-dhanurasana", "bakasana", "mayurasana",
-    "kumbhakasana", "chaturanga-dandasana", "vasisthasana", "camatkarasana",
+    // Keep full Plank / Cat–Cow excluded so peak/warmup fill cannot re-add them
+    // after REGION_SUBSTITUTIONS maps them to dolphin-plank / sukhasana.
+    "kumbhakasana", "marjaryasana-bitilasana",
+    "chaturanga-dandasana", "vasisthasana", "camatkarasana",
     "adho-mukha-vrksasana", "eka-pada-adho-mukha-svanasana", "galavasana",
-    "eka-pada-bakasana", "marjaryasana-bitilasana",
+    "eka-pada-bakasana",
   ],
   Neck: [
     "sirsasana", "halasana", "sarvangasana", "pincha-mayurasana",
@@ -297,14 +305,16 @@ function isContraindicated(
   if (injured) {
     if (asana.difficulty === "Advanced" && !GENTLE.has(asana.slug)) return true;
     if (HIGH_LOAD.has(asana.slug)) return true;
-    // "Injured" with no region named: we don't know what's hurt, so also drop
-    // Intermediate shapes and keep only accessible ones.
-    if (soreParts.length === 0 && asana.difficulty === "Intermediate" && !GENTLE.has(asana.slug)) {
+    // "Injured" with no region named: drop wrist-loading beginners too (e.g. Plank)
+    // so we never recommend full Plank without knowing the injury location.
+    const named = soreParts.filter((p) => p && p !== "None specific" && p !== PREFER_NOT_TO_SAY_PART);
+    if (named.length === 0 && WRIST_LOADING_WHEN_UNKNOWN.has(asana.slug)) return true;
+    if (named.length === 0 && asana.difficulty === "Intermediate" && !GENTLE.has(asana.slug)) {
       return true;
     }
   }
 
-  const parts = new Set(soreParts);
+  const parts = new Set(soreParts.filter((p) => p !== PREFER_NOT_TO_SAY_PART));
   for (const part of parts) {
     if ((REGION_EXCLUSIONS[part] ?? []).includes(asana.slug)) return true;
   }
@@ -327,6 +337,7 @@ function isContraindicated(
     Shoulders: ["shoulder"],
   };
   for (const part of soreParts) {
+    if (part === PREFER_NOT_TO_SAY_PART) continue;
     for (const kw of keywordMap[part] ?? [part.toLowerCase()]) {
       if (haystack.includes(kw) && asana.avoidIf.some((a) => a.severity === "avoid")) {
         return true;
@@ -516,8 +527,8 @@ const PEAK_POOL: Record<string, string[]> = {
   energy: ["camatkarasana", "virabhadrasana-i", "utkatasana"],
   flexibility: ["eka-pada-rajakapotasana", "hanumanasana", "setu-bandhasana"],
   focus: ["parivrtta-hasta-padangusthasana", "natarajasana", "setu-bandhasana"],
-  movement: ["virabhadrasana-i", "setu-bandhasana", "camatkarasana", "kumbhakasana"],
-  strength: ["kumbhakasana", "navasana", "ardha-navasana", "utkatasana"],
+  movement: ["virabhadrasana-i", "setu-bandhasana", "camatkarasana", "kumbhakasana", "dolphin-plank"],
+  strength: ["kumbhakasana", "dolphin-plank", "navasana", "ardha-navasana", "utkatasana"],
   restorative: ["setu-bandhasana", "salamba-setu-bandhasana"],
 };
 const COOLDOWN_POOL = [
@@ -616,14 +627,15 @@ function selectArcSlugs(
   need: string,
   minStanding: number,
   allowStanding: boolean,
+  mapSlug: (s: string) => string = (s) => s,
 ): string[] {
   const n = Math.max(6, target);
   const buckets = bucketize(slugs);
   const taken = new Set(slugs);
 
   const counts = slotCounts(n, allowStanding ? minStanding : 0);
-  fillSlot(buckets[0]!, CENTERING_POOL, counts[0]!, taken, safe, 0);
-  fillSlot(buckets[1]!, WARMUP_POOL, counts[1]!, taken, safe, 1);
+  fillSlot(buckets[0]!, CENTERING_POOL, counts[0]!, taken, safe, 0, mapSlug);
+  fillSlot(buckets[1]!, WARMUP_POOL, counts[1]!, taken, safe, 1, mapSlug);
   if (allowStanding) {
     fillStandingBuild(buckets[2]!, Math.max(counts[2]!, minStanding), taken, safe);
   }
@@ -634,10 +646,11 @@ function selectArcSlugs(
     taken,
     safe,
     3,
+    mapSlug,
   );
-  fillSlot(buckets[4]!, COOLDOWN_POOL, counts[4]!, taken, safe, 4);
-  fillSlot(buckets[5]!, REST_POOL, counts[5]!, taken, safe, 5);
-  fillSlot(buckets[2]!, SEATED_BUILD_POOL, counts[2]!, taken, safe, 2);
+  fillSlot(buckets[4]!, COOLDOWN_POOL, counts[4]!, taken, safe, 4, mapSlug);
+  fillSlot(buckets[5]!, REST_POOL, counts[5]!, taken, safe, 5, mapSlug);
+  fillSlot(buckets[2]!, SEATED_BUILD_POOL, counts[2]!, taken, safe, 2, mapSlug);
 
   // Prefer a twist and Child's Pose in the cool-down so the close stays
   // twist → child → rest even when the working set is large.
@@ -695,9 +708,11 @@ function fillSlot(
   taken: Set<string>,
   safe: (s: string) => boolean,
   slot: number,
+  mapSlug: (s: string) => string = (s) => s,
 ): void {
-  for (const s of pool) {
+  for (const raw of pool) {
     if (bucket.length >= need) return;
+    const s = mapSlug(raw);
     if (!safe(s)) continue;
     if (poseArcRank(s) !== slot) continue;
     pushUnique(bucket, s, taken);
@@ -922,9 +937,27 @@ export function composeTrainerSession(
   }
 
   const beforeSafety = new Set(slugs);
+  // Apply region substitutions (e.g. Plank → forearm plank) before exclusions.
+  const excludeCheck = (slug: string, parts: string[]) => {
+    const pose = asanaBySlug(slug);
+    if (!pose) return true;
+    return isContraindicated(pose, parts, injured, audience);
+  };
+  const adaptSlug = (s: string) => substituteForRegion(s, c.soreParts, excludeCheck) ?? s;
+  const substituted: string[] = [];
+  slugs = slugs.map((s) => {
+    const next = adaptSlug(s);
+    if (next !== s) substituted.push(`${s}→${next}`);
+    return next;
+  });
   slugs = slugs.filter(safe);
   const droppedCount = beforeSafety.size - new Set(slugs).size;
 
+  if (substituted.length > 0 && c.soreParts.length > 0) {
+    adjustments.push(
+      `Adapted ${substituted.length} pose${substituted.length === 1 ? "" : "s"} for your ${c.soreParts.join(" and ").toLowerCase()} (for example, forearm plank instead of full Plank).`,
+    );
+  }
   if (droppedCount > 0) {
     if (injured && c.soreParts.length > 0) {
       adjustments.push(
@@ -964,9 +997,12 @@ export function composeTrainerSession(
   ].map((pool, i) => (variant > 0 ? shuffled(pool, variant * 17 + i + 1) : pool));
 
   // Rebuild toward the requested focus first, then fall back to the safe pool.
+  // Map pool candidates through the same region substitutions so Wrists get
+  // dolphin-plank rather than silently skipping every Plank peak.
   for (const pool of fillPools) {
-    for (const s of pool) {
+    for (const raw of pool) {
       if (slugs.length >= fillCap) break;
+      const s = adaptSlug(raw);
       if (!slugs.includes(s) && safe(s)) slugs.push(s);
     }
   }
@@ -1021,6 +1057,7 @@ export function composeTrainerSession(
     deliveredNeed,
     standingWanted,
     standingOn,
+    adaptSlug,
   );
 
   if (standingOn && slugs.filter(isStandingBuild).length < standingWanted) {
@@ -1143,8 +1180,10 @@ export function toggleBodyAnswer(current: string[], value: string): string[] {
 
 /** Same rule for the "where, specifically?" list. */
 export function toggleBodyPart(current: string[], value: string): string[] {
-  if (value === "None specific") return current.includes(value) ? [] : [value];
-  const without = current.filter((v) => v !== "None specific");
+  if (value === "None specific" || value === "Prefer not to say") {
+    return current.includes(value) ? [] : [value];
+  }
+  const without = current.filter((v) => v !== "None specific" && v !== "Prefer not to say");
   return without.includes(value) ? without.filter((v) => v !== value) : [...without, value];
 }
 
@@ -1166,6 +1205,7 @@ export const BODY_PARTS = [
   "Hamstrings",
   "Knees",
   "Wrists",
+  "Prefer not to say",
   "None specific",
 ];
 

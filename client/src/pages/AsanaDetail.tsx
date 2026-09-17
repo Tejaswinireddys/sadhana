@@ -233,8 +233,42 @@ export default function AsanaDetail() {
         <ArrowLeft className="h-4 w-4" /> Poses
       </button>
 
-      {/* Premium pose explanation — video when available, illustrated guide otherwise */}
-      <PoseExplanation slug={asana.slug} />
+      <div className="space-y-2" data-testid="pose-path-selector">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Practice path for studio how-to
+        </p>
+        <div
+          className="flex flex-wrap gap-2"
+          role="radiogroup"
+          aria-label="Difficulty path for pose training"
+        >
+          {(["beginner", "intermediate", "advanced"] as Level[]).map((lv) => {
+            const selected = level === lv;
+            return (
+              <button
+                key={lv}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-label={`${lv} path${selected ? ", selected" : ""}`}
+                onClick={() => setLevel(lv)}
+                className={cn(
+                  "min-h-11 rounded-full px-4 text-sm font-medium capitalize transition-colors",
+                  selected
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:text-foreground",
+                )}
+                data-testid={`path-chip-${lv}`}
+              >
+                {lv}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Premium pose explanation — follows the selected difficulty path */}
+      <PoseExplanation slug={asana.slug} level={level} />
 
       <header className="space-y-4">
         <div className="space-y-3">
