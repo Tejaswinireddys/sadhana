@@ -42,7 +42,14 @@ const TABS: { id: TeachTab; label: string; icon: typeof Target }[] = [
   { id: "feel", label: "Feel it", icon: Heart },
 ];
 
-export function PoseExplanation({ slug }: { slug: string }) {
+export function PoseExplanation({
+  slug,
+  level = "intermediate",
+}: {
+  slug: string;
+  /** Difficulty path from AsanaDetail — updates steps and coaching panels. */
+  level?: "beginner" | "intermediate" | "advanced";
+}) {
   const asana = asanaBySlug(slug);
   const { toast } = useToast();
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
@@ -63,15 +70,21 @@ export function PoseExplanation({ slug }: { slug: string }) {
   const [restartToken, setRestartToken] = useState(0);
   const [tab, setTab] = useState<TeachTab>("form");
 
-  const steps = asana?.steps ?? [];
+  const difficulty =
+    level === "beginner" ? "Beginner" : level === "advanced" ? "Advanced" : "Intermediate";
+  const variation = asana?.variations[level];
+  const steps =
+    variation?.steps && variation.steps.length > 0
+      ? variation.steps.map((s) => ({ text: s.text, pose: s.pose }))
+      : (asana?.steps ?? []);
   const stepCount = steps.length || 1;
   const SILENT_SECONDS_PER_STEP = 6;
   const silentDuration = stepCount * SILENT_SECONDS_PER_STEP;
   const useSilentGuide = !voiceEnabled || audioFailed;
   const effectiveDuration = useSilentGuide ? silentDuration : duration;
   const expl = useMemo(
-    () => (asana ? buildPoseExplanation(asana) : null),
-    [asana],
+    () => (asana ? buildPoseExplanation(asana, difficulty) : null),
+    [asana, difficulty],
   );
   // Real per-step boundaries (generated file when present, syllable-weighted
   // estimate otherwise) instead of dividing the audio into equal slices.
@@ -105,7 +118,7 @@ export function PoseExplanation({ slug }: { slug: string }) {
     setAudioFailed(false);
     setRestartToken(0);
     setTab("form");
-  }, [slug]);
+  }, [slug, level]);
 
   // Restart the step video whenever the spoken cue advances.
   useEffect(() => {
@@ -272,6 +285,8 @@ export function PoseExplanation({ slug }: { slug: string }) {
           </h2>
           <p className="text-sm text-muted-foreground">
             {asana.sanskrit}
+            {" · "}
+            <span className="capitalize">{level}</span> path
             {" · "}
             A pose demo follows each spoken cue so you see and hear the shape together. Generated demos are illustrative — not a filmed class.
           </p>
