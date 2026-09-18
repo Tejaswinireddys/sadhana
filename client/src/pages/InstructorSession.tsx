@@ -36,7 +36,9 @@ import {
 import {
   effectiveLevelForPose,
   evaluateSafetyPlan,
-  relevantRules,
+  intakePrompts,
+  revalidateReplacement,
+  type IntakePrompt,
   type RestrictionAnswer,
   type SafetyPlan,
 } from "@/lib/instructorSafety";
@@ -79,6 +81,7 @@ const EMPTY_PLAN: SafetyPlan = {
   warnings: [],
   substitutions: [],
   claimsAdapted: false,
+  activeBodyAreas: [],
 };
 
 function isSafetyPlan(value: unknown): value is SafetyPlan {
@@ -179,7 +182,12 @@ export default function InstructorSession() {
     ? resolveTeachingVariant(currentPose, currentPoseLevel, currentAdaptationId)
     : null;
   const adaptationDisplayName = currentVariant?.displayName;
-  const rules = useMemo(() => relevantRules(selectedPoses), [selectedPoses]);
+  const prompts = useMemo(() => intakePrompts(selectedPoses), [selectedPoses]);
+  const [replacePending, setReplacePending] = useState<{
+    slug: string;
+    missing: IntakePrompt[];
+  } | null>(null);
+  const [replaceError, setReplaceError] = useState<string | null>(null);
 
   const previewSec = useMemo(
     () =>
@@ -202,7 +210,15 @@ export default function InstructorSession() {
     setLevel(saved.level);
     setSelected(saved.selected);
     setAnswers(saved.answers);
-    if (isSafetyPlan(saved.plan)) setPlan(saved.plan);
+    if (isSafetyPlan(saved.plan)) {
+      const restored = saved.plan as SafetyPlan;
+      setPlan({
+        ...restored,
+        activeBodyAreas: Array.isArray(restored.activeBodyAreas)
+          ? restored.activeBodyAreas
+          : [],
+      });
+    }
     setPrepExtraByPoseIndex(saved.prepExtraByPoseIndex ?? {});
     setPracticedSec(saved.practicedSec ?? 0);
     startedAtRef.current = saved.startedAt;
@@ -309,7 +325,13 @@ export default function InstructorSession() {
       setSaveStatus("saving");
 
       const minutes = Math.max(1, Math.round(practicedSec / 60));
-      const poseNames = queuePoses.map((p) => p.english);
+      const poseNames = queuePoses.map((p) => {
+        const adaptId = plan.forcedAdaptations[p.poseId];
+        if (adaptId && p.adaptations[adaptId]?.displayName) {
+          return p.adaptations[adaptId]!.displayName;
+        }
+        return p.english;
+      });
       const posesCompleted = completedNaturally
         ? poseNames.length
         : Math.min(poseNames.length, (current?.poseIndex ?? 0) + 1);
@@ -327,7 +349,12 @@ export default function InstructorSession() {
           preMood: null,
           postMood: null,
           kind: "asana",
-          journalTags: ["instructor-pilot", mode, level],
+          journalTags: [
+            "instructor-pilot",
+            mode,
+            level,
+            ...Object.values(plan.forcedAdaptations),
+          ],
         });
         if (result.ok) {
           setSaveStatus("saved");
@@ -344,7 +371,7 @@ export default function InstructorSession() {
         finishingRef.current = false;
       }
     },
-    [practicedSec, queuePoses, mode, level, timeline.totalSec, current?.poseIndex],
+    [practicedSec, queuePoses, mode, level, timeline.totalSec, current?.poseIndex, plan.forcedAdaptations],
   );
 
   useEffect(() => {
@@ -364,9 +391,17 @@ export default function InstructorSession() {
     : 0;
 
   const goSafety = () => {
-    setAnswers(rules.map((r) => ({ ruleId: r.id, applies: null })));
+    setAnswers(prompts.map((p) => ({ ruleId: p.id, applies: null })));
     setPlan(EMPTY_PLAN);
     setUiPhase("safety");
+  };
+
+  const setAreaAnswer = (promptId: string, applies: boolean) => {
+    setAnswers((prev) => {
+      const has = prev.some((a) => a.ruleId === promptId);
+      if (!has) return [...prev, { ruleId: promptId, applies }];
+      return prev.map((a) => (a.ruleId === promptId ? { ...a, applies } : a));
+    });
   };
 
   const confirmSafety = () => {
@@ -384,6 +419,7 @@ export default function InstructorSession() {
     setJournalId(null);
     setSaveError(null);
     setSaveStatus("idle");
+    setSaveKind(null);
     setPracticedSec(0);
     setPrepExtraByPoseIndex({});
     setClock({ timeSec: 0, playing: true, rate: mode === "learn" ? 0.9 : 1 });
@@ -438,8 +474,69 @@ export default function InstructorSession() {
 
   const replaceCurrentPose = (slug: string) => {
     if (!currentPose) return;
-    setSelected((prev) => prev.map((s) => (s === currentPose.slug ? slug : s)));
+    const replacement = instructorPoseBySlug(slug);
+    if (!replacement) return;
+    setReplaceError(null);
+
+    const result = revalidateReplacement({
+      currentPoses: selectedPoses,
+      replacement,
+      replaceSlug: currentPose.slug,
+      answers,
+      requestedLevel: level,
+    });
+
+    if (result.missingPrompts.length > 0) {
+      setReplacePending({ slug, missing: result.missingPrompts });
+      setAnswers((prev) => {
+        const next = [...prev];
+        for (const p of result.missingPrompts) {
+          if (!next.some((a) => a.ruleId === p.id)) {
+            next.push({ ruleId: p.id, applies: null });
+          }
+        }
+        return next;
+      });
+      return;
+    }
+
+    if (result.blockedReason) {
+      setReplaceError(result.blockedReason);
+      return;
+    }
+
+    setSelected(result.nextSelected);
+    setPlan(result.plan);
     setReplaceOpen(false);
+    setReplacePending(null);
+    // Stay on the same clock index — timeline rebuilds for the new pose list.
+    setClock((c) => seekClock(c, c.timeSec));
+  };
+
+  const confirmReplaceAfterAnswers = () => {
+    if (!replacePending || !currentPose) return;
+    const replacement = instructorPoseBySlug(replacePending.slug);
+    if (!replacement) return;
+    const result = revalidateReplacement({
+      currentPoses: selectedPoses,
+      replacement,
+      replaceSlug: currentPose.slug,
+      answers,
+      requestedLevel: level,
+    });
+    if (!result.plan.ready || result.missingPrompts.length > 0) {
+      setReplaceError("Answer the new restriction prompts to continue.");
+      return;
+    }
+    if (result.blockedReason) {
+      setReplaceError(result.blockedReason);
+      return;
+    }
+    setSelected(result.nextSelected);
+    setPlan(result.plan);
+    setReplaceOpen(false);
+    setReplacePending(null);
+    setReplaceError(null);
   };
 
   const resetToSetup = () => {
@@ -596,33 +693,25 @@ export default function InstructorSession() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p id="instructor-safety-desc" className="text-sm text-muted-foreground">
-              Answer these catalog notes so we do not claim an adapted practice without your input.
-              This is not medical clearance.
+              Tell us which body areas need care today. We reuse these answers if you replace a
+              pose mid-session. This is not medical clearance.
             </p>
-            {rules.length === 0 ? (
+            {prompts.length === 0 ? (
               <p className="text-sm">No restriction prompts for this selection.</p>
             ) : (
-              rules.map((r) => {
-                const applies = answers.find((a) => a.ruleId === r.id)?.applies ?? null;
+              prompts.map((p) => {
+                const applies = answers.find((a) => a.ruleId === p.id)?.applies ?? null;
                 return (
-                  <div key={r.id} className="space-y-2 rounded-xl border p-3">
-                    <p className="text-sm font-medium">{r.condition}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Area: {r.bodyArea} · Reviewed by catalog editor (not a clinician)
-                    </p>
+                  <div key={p.id} className="space-y-2 rounded-xl border p-3" data-testid={`instructor-intake-${p.bodyArea}`}>
+                    <p className="text-sm font-medium">{p.title}</p>
+                    <p className="text-xs text-muted-foreground">{p.detail}</p>
                     <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
                         className="min-h-11"
                         variant={applies === true ? "default" : "outline"}
                         aria-pressed={applies === true}
-                        onClick={() =>
-                          setAnswers((prev) =>
-                            prev.map((a) =>
-                              a.ruleId === r.id ? { ...a, applies: true } : a,
-                            ),
-                          )
-                        }
+                        onClick={() => setAreaAnswer(p.id, true)}
                       >
                         Applies to me
                       </Button>
@@ -631,13 +720,7 @@ export default function InstructorSession() {
                         className="min-h-11"
                         variant={applies === false ? "default" : "outline"}
                         aria-pressed={applies === false}
-                        onClick={() =>
-                          setAnswers((prev) =>
-                            prev.map((a) =>
-                              a.ruleId === r.id ? { ...a, applies: false } : a,
-                            ),
-                          )
-                        }
+                        onClick={() => setAreaAnswer(p.id, false)}
                       >
                         Does not apply
                       </Button>
@@ -706,7 +789,8 @@ export default function InstructorSession() {
               playing={clock.playing}
               mediaProgress={mediaProgress}
               mediaWindow={current.mediaWindow}
-              className="aspect-[3/4] max-h-[38vh] w-full shrink-0 landscape:max-h-none landscape:h-auto landscape:max-w-[46%] landscape:aspect-[4/5] sm:aspect-video sm:max-h-[46vh] sm:landscape:max-h-[70vh] sm:landscape:max-w-[50%]"
+              className="aspect-[3/4] max-h-[42vh] w-full shrink-0 landscape:aspect-auto landscape:h-[min(72vh,280px)] landscape:max-h-none landscape:min-h-[200px] landscape:max-w-[58%] sm:aspect-video sm:max-h-[48vh] sm:landscape:h-[min(75vh,320px)] sm:landscape:max-w-[55%]"
+              compactLabel
             />
 
             <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
@@ -741,16 +825,22 @@ export default function InstructorSession() {
               <p className="text-xs text-muted-foreground landscape:truncate">
                 Props: {currentVariant.props.filter((p) => p !== "none").join(", ") || "none"}
               </p>
+              <p
+                className="text-[11px] text-muted-foreground landscape:line-clamp-2"
+                data-testid="instructor-media-status"
+              >
+                {currentVariant.media.label}
+              </p>
             </div>
           </div>
 
           <div
-            className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur landscape:static landscape:rounded-2xl landscape:border landscape:bg-card landscape:p-2 md:static md:rounded-2xl md:border md:bg-card md:p-4"
+            className="fixed inset-x-0 bottom-14 z-40 border-t bg-background/95 p-2 backdrop-blur landscape:static landscape:bottom-auto landscape:rounded-xl landscape:border landscape:bg-card landscape:p-1.5 md:static md:bottom-auto md:rounded-2xl md:border md:bg-card md:p-4"
             data-testid="instructor-controls"
           >
-            <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-2">
+            <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-1.5 landscape:gap-1 md:gap-2">
               <Button
-                className="min-h-12 min-w-12"
+                className="min-h-11 min-w-11 landscape:min-h-10 landscape:min-w-10"
                 variant="outline"
                 aria-label="Previous pose"
                 disabled={atFirstPose}
@@ -759,7 +849,7 @@ export default function InstructorSession() {
                 <ChevronLeft className="h-5 w-5" />
               </Button>
               <Button
-                className="min-h-12 min-w-12"
+                className="min-h-11 min-w-11 landscape:min-h-10 landscape:min-w-10"
                 variant="outline"
                 aria-label="Next pose"
                 disabled={atLastPose}
@@ -768,7 +858,7 @@ export default function InstructorSession() {
                 <ChevronRight className="h-5 w-5" />
               </Button>
               <Button
-                className="min-h-12"
+                className="min-h-11 landscape:min-h-10"
                 variant="outline"
                 onClick={repeatCue}
                 data-testid="instructor-repeat"
@@ -776,7 +866,7 @@ export default function InstructorSession() {
                 <RotateCcw className="mr-1 h-4 w-4" /> Repeat
               </Button>
               <Button
-                className="min-h-12"
+                className="min-h-11 landscape:min-h-10"
                 variant="outline"
                 onClick={easierVariation}
                 data-testid="instructor-easier"
@@ -784,7 +874,7 @@ export default function InstructorSession() {
                 Easier
               </Button>
               <Button
-                className="min-h-12"
+                className="min-h-11 landscape:min-h-10"
                 variant="outline"
                 disabled={prepDisabled}
                 onClick={addPrepFive}
@@ -793,9 +883,13 @@ export default function InstructorSession() {
                 <Plus className="mr-1 h-4 w-4" /> Prep +5s
               </Button>
               <Button
-                className="min-h-12"
+                className="min-h-11 landscape:min-h-10"
                 variant="outline"
-                onClick={() => setReplaceOpen((v) => !v)}
+                onClick={() => {
+                  setReplaceOpen((v) => !v);
+                  setReplacePending(null);
+                  setReplaceError(null);
+                }}
                 data-testid="instructor-replace"
               >
                 <Replace className="mr-1 h-4 w-4" /> Replace
@@ -831,19 +925,72 @@ export default function InstructorSession() {
               </Button>
             </div>
             {replaceOpen ? (
-              <div className="mx-auto mt-3 flex max-w-3xl flex-wrap gap-2">
-                {INSTRUCTOR_PILOT_POSES.map((p) => (
-                  <Button
-                    key={p.slug}
-                    size="sm"
-                    className="min-h-11"
-                    variant="secondary"
-                    disabled={p.slug === currentPose.slug}
-                    onClick={() => replaceCurrentPose(p.slug)}
-                  >
-                    {p.english}
-                  </Button>
-                ))}
+              <div className="mx-auto mt-3 max-w-3xl space-y-3" data-testid="instructor-replace-panel">
+                {replaceError ? (
+                  <p className="text-sm text-destructive" data-testid="instructor-replace-error">
+                    {replaceError}
+                  </p>
+                ) : null}
+                {replacePending ? (
+                  <div className="space-y-2 rounded-xl border p-3" data-testid="instructor-replace-intake">
+                    <p className="text-sm font-medium">
+                      Answer these areas before switching to{" "}
+                      {instructorPoseBySlug(replacePending.slug)?.english ?? "that pose"}:
+                    </p>
+                    {replacePending.missing.map((p) => {
+                      const applies = answers.find((a) => a.ruleId === p.id)?.applies ?? null;
+                      return (
+                        <div key={p.id} className="space-y-2">
+                          <p className="text-sm">{p.title}</p>
+                          <p className="text-xs text-muted-foreground">{p.detail}</p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              className="min-h-11"
+                              variant={applies === true ? "default" : "outline"}
+                              aria-pressed={applies === true}
+                              onClick={() => setAreaAnswer(p.id, true)}
+                            >
+                              Applies to me
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="min-h-11"
+                              variant={applies === false ? "default" : "outline"}
+                              aria-pressed={applies === false}
+                              onClick={() => setAreaAnswer(p.id, false)}
+                            >
+                              Does not apply
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <Button
+                      className="min-h-11"
+                      onClick={confirmReplaceAfterAnswers}
+                      data-testid="instructor-replace-confirm"
+                    >
+                      Confirm replacement
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {INSTRUCTOR_PILOT_POSES.map((p) => (
+                      <Button
+                        key={p.slug}
+                        size="sm"
+                        className="min-h-11"
+                        variant="secondary"
+                        disabled={p.slug === currentPose.slug}
+                        onClick={() => replaceCurrentPose(p.slug)}
+                        data-testid={`instructor-replace-${p.slug}`}
+                      >
+                        {p.english}
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : null}
           </div>
@@ -874,11 +1021,25 @@ export default function InstructorSession() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground" data-testid="instructor-practiced-time">
-              Practiced {Math.round(practicedSec)}s
-              {timeline.totalSec > 0
-                ? ` · timeline ${Math.round(timeline.totalSec)}s (skipped time is not credited)`
-                : null}
+              You practiced about {Math.max(1, Math.round(practicedSec / 60))} minute
+              {Math.round(practicedSec / 60) === 1 ? "" : "s"}
+              {timeline.totalSec > practicedSec + 15
+                ? " — time you skipped or paused is not counted toward your journal."
+                : "."}
             </p>
+            {saveStatus === "saved" && Object.keys(plan.forcedAdaptations).length > 0 ? (
+              <p className="text-xs text-muted-foreground" data-testid="instructor-saved-variants">
+                Saved shapes:{" "}
+                {queuePoses
+                  .map((p) => {
+                    const id = plan.forcedAdaptations[p.poseId];
+                    return id && p.adaptations[id]?.displayName
+                      ? p.adaptations[id]!.displayName
+                      : p.english;
+                  })
+                  .join(", ")}
+              </p>
+            ) : null}
             {saveStatus === "saved" ? (
               <p className="text-sm text-muted-foreground">
                 {saveKind === "partial"

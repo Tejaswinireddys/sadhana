@@ -25,6 +25,19 @@ describe("pose explanation watch-outs", () => {
     assert.ok(beginner.formCues.length > 0);
     assert.ok(advanced.formCues.length > 0);
   });
+
+  it("keeps Beginner Align tips on knees-down plank, not full plank", () => {
+    const asana = asanaBySlug("kumbhakasana");
+    assert.ok(asana);
+    const beginner = buildPoseExplanation(asana, "Beginner");
+    const align = beginner.alignmentTips.join(" | ");
+    assert.match(align, /knees on the floor|head to knees/i);
+    assert.equal(
+      /heels to crown|tailbone toward the heels/i.test(align),
+      false,
+      `Align still teaches full plank: ${align}`,
+    );
+  });
 });
 
 describe("AsanaDetail wires variation into PoseExplanation", () => {

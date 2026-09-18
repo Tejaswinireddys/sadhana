@@ -12,6 +12,8 @@ type Props = {
   /** 0–1 progress through the current media window (entry/exit). */
   mediaProgress?: number;
   mediaWindow?: { start: number; end: number } | null;
+  /** When true, keep status text out of the image (shown by the parent). */
+  compactLabel?: boolean;
   className?: string;
   "data-testid"?: string;
 };
@@ -21,6 +23,7 @@ export function InstructorStage({
   playing,
   mediaProgress = 0,
   mediaWindow = null,
+  compactLabel = false,
   className,
   "data-testid": testId = "instructor-stage",
 }: Props) {
@@ -84,18 +87,24 @@ export function InstructorStage({
         />
       )}
 
-      <div
-        className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/90 via-background/55 to-transparent p-3 pt-10"
-        data-testid="instructor-media-label"
-      >
-        <p className="text-xs font-medium text-foreground/90">{media.label}</p>
-        {media.reviewStatus !== "instructor_reviewed" ? (
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Not instructor-reviewed video
-            {media.reviewStatus === "editor_catalog_note" ? " · catalog note only" : ""}.
-          </p>
-        ) : null}
-      </div>
+      {!compactLabel ? (
+        <div
+          className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/90 via-background/55 to-transparent p-3 pt-10"
+          data-testid="instructor-media-label"
+        >
+          <p className="text-xs font-medium text-foreground/90">{media.label}</p>
+          {media.reviewStatus !== "instructor_reviewed" ? (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Not instructor-reviewed video
+              {media.reviewStatus === "editor_catalog_note" ? " · catalog note only" : ""}.
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <span className="sr-only" data-testid="instructor-media-label">
+          {media.label}
+        </span>
+      )}
     </div>
   );
 }
