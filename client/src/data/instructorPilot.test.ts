@@ -227,4 +227,35 @@ describe("instructor safety intake", () => {
     assert.ok(teaching.steps.some((s) => /fist|forearm/i.test(s)));
     assert.ok(!teaching.steps.some((s) => /wrists under the shoulders/i.test(s)));
   });
+
+  it("keeps Pregnancy out of Knees and splits standing vs digestion", () => {
+    const prompts = intakePrompts(INSTRUCTOR_PILOT_POSES);
+    const knees = prompts.find((p) => p.bodyArea === "knees");
+    const pregnancy = prompts.find((p) => p.bodyArea === "pregnancy");
+    const standing = prompts.find((p) => p.bodyArea === "standing");
+    const digestion = prompts.find((p) => p.bodyArea === "digestion");
+    assert.ok(knees);
+    assert.ok(pregnancy);
+    assert.ok(standing);
+    assert.ok(digestion);
+    assert.ok(
+      knees!.sampleConditions.every((c) => !/pregnan/i.test(c)),
+      "Pregnancy notes must not live under Knees",
+    );
+    assert.ok(pregnancy!.sampleConditions.some((c) => /pregnan/i.test(c)));
+    assert.ok(standing!.sampleConditions.some((c) => /standing|seated/i.test(c)));
+    assert.ok(digestion!.sampleConditions.some((c) => /diarrh/i.test(c)));
+    assert.ok(!standing!.sampleConditions.some((c) => /diarrh/i.test(c)));
+  });
+
+  it("does not load base Cat–Cow media for the fist/forearm adaptation", () => {
+    const catCow = instructorPoseBySlug("marjaryasana-bitilasana")!;
+    const teaching = resolveTeachingVariant(catCow, "beginner", "wrist_fist_catcow");
+    assert.equal(teaching.media.kind, "missing");
+    assert.equal(teaching.media.videoMp4 ?? null, null);
+    assert.equal(teaching.media.videoWebm ?? null, null);
+    assert.equal(teaching.media.poster ?? null, null);
+    assert.match(teaching.media.label, /unavailable|fist|forearm/i);
+    assert.ok(!/marjaryasana-bitilasana\.(webm|mp4)/.test(JSON.stringify(teaching.media)));
+  });
 });

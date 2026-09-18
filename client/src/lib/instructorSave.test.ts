@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   classifyInstructorSave,
+  formatPracticedSummary,
   instructorSaveHeadline,
 } from "./instructorSave.ts";
 import {
@@ -43,6 +44,21 @@ describe("instructorSave", () => {
       "Partial practice saved",
     );
     assert.equal(instructorSaveHeadline("too_brief"), "Too brief to save");
+  });
+
+  it("formats brief practiced time without rounding up to 1 minutes", () => {
+    assert.equal(
+      formatPracticedSummary(0, { plannedSec: 496 }),
+      "You practiced less than a minute — time you skipped or paused is not counted toward your journal.",
+    );
+    assert.equal(
+      formatPracticedSummary(12, { plannedSec: 496 }),
+      "You practiced less than a minute — time you skipped or paused is not counted toward your journal.",
+    );
+    assert.equal(formatPracticedSummary(45), "You practiced about 1 minute.");
+    assert.equal(formatPracticedSummary(60), "You practiced about 1 minute.");
+    assert.equal(formatPracticedSummary(150), "You practiced about 3 minutes.");
+    assert.ok(!/1 minutes/.test(formatPracticedSummary(5, { plannedSec: 100 })));
   });
 });
 

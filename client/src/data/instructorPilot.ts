@@ -63,7 +63,8 @@ export type InstructorMediaRef = {
   angle: CameraAngle;
   videoMp4?: string | null;
   videoWebm?: string | null;
-  poster: string;
+  /** Null when no honest visual is available for this variant. */
+  poster: string | null;
   captionsVtt?: string | null;
   narrationUrl?: string | null;
   missingAssetId?: string;
@@ -108,14 +109,17 @@ export type InstructorPoseDef = {
 };
 
 const BODY_AREA_HINTS: Array<{ area: string; match: RegExp }> = [
-  { area: "wrists", match: /wrist|carpal/i },
+  // Pregnancy before knees — "Pregnancy — widen the knees" is pregnancy, not knees.
+  { area: "pregnancy", match: /pregnan/i },
+  { area: "wrists", match: /wrist|carpal|fist|forearm/i },
   { area: "knees", match: /knee/i },
   { area: "ankles", match: /ankle/i },
   { area: "shoulders", match: /shoulder/i },
-  { area: "spine", match: /spinal|spine|back|disc/i },
+  { area: "spine", match: /spinal|spine|disc|(?<!low )back injury|low back/i },
   { area: "neck", match: /neck/i },
-  { area: "pregnancy", match: /pregnan/i },
   { area: "blood_pressure", match: /blood pressure|dizziness|vertigo/i },
+  { area: "standing", match: /standing|practice seated|balance difficulty/i },
+  { area: "digestion", match: /diarrhea|nausea|digest/i },
 ];
 
 function bodyAreaFor(condition: string): string {
@@ -174,6 +178,21 @@ function mediaForVariant(
 
 function mediaForAdaptation(adaptationId: AdaptationId): InstructorMediaRef {
   const a = ADAPTATIONS[adaptationId];
+  // Never label base-pose media as an adapted demonstration when it does not match.
+  if (!a.mediaMatchesAdaptation || !a.mediaSlug) {
+    return {
+      kind: "missing",
+      reviewStatus: "editor_catalog_note",
+      angle: "unknown",
+      poster: null,
+      videoMp4: null,
+      videoWebm: null,
+      captionsVtt: null,
+      narrationUrl: null,
+      missingAssetId: a.missingAssetId,
+      label: a.mediaConsumerLabel,
+    };
+  }
   const sources = poseMediaFor(a.mediaSlug);
   const hasAnim = poseHasVideo(a.mediaSlug);
   return {
@@ -418,6 +437,18 @@ export const INSTRUCTOR_PILOT_MISSING_ASSETS: Array<{
     id: "filmed-instructor/kumbhakasana/pregnancy-modify",
     pose: "kumbhakasana",
     need: "Filmed knees-down pregnancy plank modification",
+    status: "needed",
+  },
+  {
+    id: "filmed-instructor/balasana/knee-supported",
+    pose: "balasana",
+    need: "Filmed Child’s Pose with knee support / bolster — matching reviewed media",
+    status: "needed",
+  },
+  {
+    id: "filmed-instructor/tadasana/wall-supported",
+    pose: "tadasana",
+    need: "Filmed Mountain Pose at the wall — matching reviewed media",
     status: "needed",
   },
   {

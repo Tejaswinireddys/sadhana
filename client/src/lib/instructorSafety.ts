@@ -52,7 +52,9 @@ const AREA_LABELS: Record<string, string> = {
   neck: "Neck",
   pregnancy: "Pregnancy",
   blood_pressure: "Blood pressure or dizziness",
-  general: "General caution",
+  standing: "Standing or balance",
+  digestion: "Digestion",
+  general: "Other caution",
 };
 
 /** One intake prompt per body area — not one per catalog sentence. */
