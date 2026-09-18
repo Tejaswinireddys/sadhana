@@ -420,4 +420,10 @@ export const INSTRUCTOR_PILOT_MISSING_ASSETS: Array<{
     need: "Filmed knees-down pregnancy plank modification",
     status: "needed",
   },
+  {
+    id: "filmed-instructor/marjaryasana-bitilasana/wrist-fist",
+    pose: "marjaryasana-bitilasana",
+    need: "Filmed Cat–Cow on fists or forearms for wrist restriction",
+    status: "needed",
+  },
 ];

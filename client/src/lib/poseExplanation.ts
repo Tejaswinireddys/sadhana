@@ -286,12 +286,18 @@ export function buildPoseExplanation(
   ]);
   const formCues = formCuesFromCatalog(asana, rawForm, level);
 
+  // Align / teaching topics must follow the selected variation — never the
+  // full/default asana.steps when a variation publishes its own steps.
+  const variantSteps = (primary.steps ?? []).map((s) => s.text).filter(Boolean);
+  const alignmentSource =
+    variantSteps.length > 0
+      ? variantSteps
+      : asana.steps.map((s) => s.text);
   const alignmentTips = uniq([
-    ...asana.steps
-      .map((s) => s.text)
-      .filter((t) => t.length > 0 && t.length < 140)
-      .slice(0, 4),
-    ...(isPlaceholderCues(beginner.cues) ? [] : beginner.cues.slice(0, 2)),
+    ...alignmentSource.filter((t) => t.length > 0 && t.length < 160).slice(0, 4),
+    ...(variantSteps.length === 0 && !isPlaceholderCues(beginner.cues)
+      ? beginner.cues.slice(0, 2)
+      : []),
   ]).slice(0, 4);
 
   const watchOuts = uniqLoose([
@@ -317,7 +323,9 @@ export function buildPoseExplanation(
     alignmentTips:
       alignmentTips.length > 0
         ? alignmentTips
-        : asana.steps.slice(0, 3).map((s) => s.text),
+        : variantSteps.length > 0
+          ? variantSteps.slice(0, 3)
+          : asana.steps.slice(0, 3).map((s) => s.text),
     watchOuts:
       watchOuts.length > 0
         ? watchOuts

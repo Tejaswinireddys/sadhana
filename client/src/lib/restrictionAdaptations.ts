@@ -12,7 +12,8 @@ export type AdaptationId =
   | "wrist_forearm_plank"
   | "pregnancy_plank_modify"
   | "knee_supported_child"
-  | "wall_supported_mountain";
+  | "wall_supported_mountain"
+  | "wrist_fist_catcow";
 
 export type AdaptationAction =
   | { type: "use_adaptation"; adaptationId: AdaptationId }
@@ -138,6 +139,31 @@ export const ADAPTATIONS: Record<AdaptationId, AdaptationContent> = {
     missingAssetId: "filmed-instructor/tadasana/wall-supported",
     reviewedBy: "catalog_editor",
   },
+  wrist_fist_catcow: {
+    id: "wrist_fist_catcow",
+    poseSlug: "marjaryasana-bitilasana",
+    displayName: "Cat–Cow on fists or forearms",
+    description:
+      "Keep the spine moving with the breath while taking weight on the fists or forearms instead of flat palms.",
+    props: ["blanket", "none"],
+    holdSeconds: 45,
+    cues: [
+      "Come onto the fists or forearms — not flat palms",
+      "Knees under the hips, shoulders stacked over the support",
+      "Move slowly with the breath; keep the wrists quiet",
+    ],
+    steps: [
+      "From all fours, curl the hands into fists (knuckles down) or lower onto the forearms.",
+      "Stack the shoulders over the fists or elbows; keep the knees under the hips.",
+      "Inhale to gently arch into Cow; exhale to round into Cat — without pressing into open palms.",
+      "Move for several breaths, then rest with the wrists unloaded.",
+    ],
+    mediaSlug: "marjaryasana-bitilasana",
+    mediaConsumerLabel:
+      "Fist/forearm Cat–Cow reference — filmed wrist-adapted demo is not available yet.",
+    missingAssetId: "filmed-instructor/marjaryasana-bitilasana/wrist-fist",
+    reviewedBy: "catalog_editor",
+  },
 };
 
 /** Map catalog avoidIf body areas + severity to adaptation actions for pilot poses. */
@@ -160,6 +186,14 @@ export function adaptationActionFor(opts: {
     }
     if (severity === "caution" && (area === "wrists" || /carpal/.test(text))) {
       return { type: "use_adaptation", adaptationId: "wrist_forearm_plank" };
+    }
+  }
+  if (poseSlug === "marjaryasana-bitilasana") {
+    if (
+      (severity === "modify" || severity === "caution") &&
+      (area === "wrists" || /wrist|fist|forearm|carpal/.test(text))
+    ) {
+      return { type: "use_adaptation", adaptationId: "wrist_fist_catcow" };
     }
   }
   if (poseSlug === "balasana" && severity === "modify" && (area === "knees" || /knee/.test(text))) {

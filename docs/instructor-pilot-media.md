@@ -28,6 +28,7 @@ See `INSTRUCTOR_PILOT_MISSING_ASSETS` in `client/src/data/instructorPilot.ts`:
 - `filmed-instructor/kumbhakasana/pregnancy-modify`
 - `filmed-instructor/balasana/knee-supported`
 - `filmed-instructor/tadasana/wall-supported`
+- `filmed-instructor/marjaryasana-bitilasana/wrist-fist`
 
 Per phase (each pilot pose × variation × side when applicable):
 
@@ -38,6 +39,8 @@ Per phase (each pilot pose × variation × side when applicable):
 | hold | Steady demonstration (or intentional quiet hold) |
 | exit | Clean exit to transition |
 | transition | Bridge into the next pose |
+
+**Status:** none of the filmed/human assets above are shipped. Presentation animations and static posters remain labeled placeholders — not completed instructor lessons.
 
 ## Integration pipeline (when media arrives)
 
