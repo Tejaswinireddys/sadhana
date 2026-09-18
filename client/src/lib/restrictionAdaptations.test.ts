@@ -30,7 +30,15 @@ describe("restriction adaptations — wrist forearm plank", () => {
     assert.ok(a.steps.some((s) => /forearm/i.test(s)));
     assert.ok(a.cues.some((c) => /elbow/i.test(c)));
     assert.equal(a.mediaSlug, "dolphin-plank");
+    assert.equal(a.mediaMatchesAdaptation, true);
     assert.ok(!/hands under the shoulders/i.test(a.steps.join(" ")));
+  });
+
+  it("marks fist Cat–Cow media as unmatched so players cannot use the base clip", () => {
+    const a = ADAPTATIONS.wrist_fist_catcow;
+    assert.equal(a.mediaMatchesAdaptation, false);
+    assert.equal(a.mediaSlug, null);
+    assert.match(a.mediaConsumerLabel, /unavailable/i);
   });
 
   it("substitutes Plank → dolphin-plank for Wrists after revalidation", () => {

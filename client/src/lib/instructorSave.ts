@@ -39,3 +39,29 @@ export function instructorSaveHeadline(
       return "Session ended";
   }
 }
+
+/**
+ * Format active practiced time for completion copy.
+ * Uses the same active seconds that drive save eligibility — never the skipped clock.
+ */
+export function formatPracticedSummary(
+  practicedSec: number,
+  opts?: { plannedSec?: number },
+): string {
+  const sec = Math.max(0, practicedSec);
+  let timePart: string;
+  if (sec < 30) {
+    timePart = "less than a minute";
+  } else if (sec < 90) {
+    timePart = "about 1 minute";
+  } else {
+    const mins = Math.round(sec / 60);
+    timePart = `about ${mins} minute${mins === 1 ? "" : "s"}`;
+  }
+  const planned = opts?.plannedSec ?? 0;
+  const skippedNote =
+    planned > sec + 15
+      ? " — time you skipped or paused is not counted toward your journal."
+      : ".";
+  return `You practiced ${timePart}${skippedNote}`;
+}

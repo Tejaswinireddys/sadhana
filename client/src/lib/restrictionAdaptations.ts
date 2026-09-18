@@ -31,8 +31,13 @@ export type AdaptationContent = {
   holdSeconds: number;
   cues: string[];
   steps: string[];
-  /** Optional media slug when a different catalog clip matches the shape. */
-  mediaSlug: string;
+  /** Optional media slug when a different catalog clip *verified* matches the shape. */
+  mediaSlug: string | null;
+  /**
+   * True only when mediaSlug is a reviewed visual match for this adaptation.
+   * When false, the player must show unavailable — never the base-pose clip.
+   */
+  mediaMatchesAdaptation: boolean;
   /** Honest consumer label — no raw asset paths. */
   mediaConsumerLabel: string;
   missingAssetId: string;
@@ -65,6 +70,7 @@ export const ADAPTATIONS: Record<AdaptationId, AdaptationContent> = {
     ],
     // Presentation clip for forearm shape (not filmed instructor).
     mediaSlug: "dolphin-plank",
+    mediaMatchesAdaptation: true,
     mediaConsumerLabel:
       "Forearm-plank presentation animation — filmed instructor demo for this adaptation is not available yet.",
     missingAssetId: "filmed-instructor/kumbhakasana/wrist-forearm",
@@ -87,9 +93,10 @@ export const ADAPTATIONS: Record<AdaptationId, AdaptationContent> = {
       "Keep a long line from the crown to the knees.",
       "Hold briefly with easy breath, then rest in Child’s Pose if you prefer.",
     ],
-    mediaSlug: "kumbhakasana",
+    mediaSlug: null,
+    mediaMatchesAdaptation: false,
     mediaConsumerLabel:
-      "Knees-down presentation reference — pregnancy-specific filmed demo is not available yet.",
+      "Demonstration unavailable for knees-down pregnancy plank — matching filmed or reviewed media is not available yet. Follow the text cues.",
     missingAssetId: "filmed-instructor/kumbhakasana/pregnancy-modify",
     reviewedBy: "catalog_editor",
   },
@@ -110,9 +117,10 @@ export const ADAPTATIONS: Record<AdaptationId, AdaptationContent> = {
       "Bring the big toes together and sit the hips toward the heels as far as is comfortable.",
       "Rest the torso on a bolster or the floor and soften the breath.",
     ],
-    mediaSlug: "balasana",
+    mediaSlug: null,
+    mediaMatchesAdaptation: false,
     mediaConsumerLabel:
-      "Supported Child’s Pose reference — filmed supported demo is not available yet.",
+      "Demonstration unavailable for supported Child’s Pose — matching filmed or reviewed media is not available yet. Follow the text cues.",
     missingAssetId: "filmed-instructor/balasana/knee-supported",
     reviewedBy: "catalog_editor",
   },
@@ -133,9 +141,10 @@ export const ADAPTATIONS: Record<AdaptationId, AdaptationContent> = {
       "Lightly touch the wall with the heels and shoulder blades.",
       "Lengthen the crown up and breathe steadily.",
     ],
-    mediaSlug: "tadasana",
+    mediaSlug: null,
+    mediaMatchesAdaptation: false,
     mediaConsumerLabel:
-      "Wall-supported Mountain reference — filmed wall demo is not available yet.",
+      "Demonstration unavailable for wall-supported Mountain — matching filmed or reviewed media is not available yet. Follow the text cues.",
     missingAssetId: "filmed-instructor/tadasana/wall-supported",
     reviewedBy: "catalog_editor",
   },
@@ -158,9 +167,10 @@ export const ADAPTATIONS: Record<AdaptationId, AdaptationContent> = {
       "Inhale to gently arch into Cow; exhale to round into Cat — without pressing into open palms.",
       "Move for several breaths, then rest with the wrists unloaded.",
     ],
-    mediaSlug: "marjaryasana-bitilasana",
+    mediaSlug: null,
+    mediaMatchesAdaptation: false,
     mediaConsumerLabel:
-      "Fist/forearm Cat–Cow reference — filmed wrist-adapted demo is not available yet.",
+      "Demonstration unavailable for fist/forearm Cat–Cow — matching filmed or reviewed media is not available yet. Follow the text cues.",
     missingAssetId: "filmed-instructor/marjaryasana-bitilasana/wrist-fist",
     reviewedBy: "catalog_editor",
   },

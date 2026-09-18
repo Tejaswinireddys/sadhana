@@ -49,6 +49,7 @@ import {
 } from "@/lib/instructorPersist";
 import {
   classifyInstructorSave,
+  formatPracticedSummary,
   instructorSaveHeadline,
   type InstructorSaveStatus,
 } from "@/lib/instructorSave";
@@ -559,7 +560,14 @@ export default function InstructorSession() {
   const prepDisabled = !current || current.phase !== "preparation";
 
   return (
-    <FadeIn className="mx-auto max-w-3xl space-y-5 pb-28 landscape:pb-4">
+    <FadeIn
+      className={cn(
+        "mx-auto max-w-3xl space-y-5",
+        uiPhase === "practice"
+          ? "flex min-h-0 flex-col pb-4 landscape:h-[calc(100dvh-6.75rem)] landscape:max-h-[calc(100dvh-6.75rem)] landscape:overflow-hidden landscape:space-y-2 landscape:pb-0 md:pb-10"
+          : "pb-28",
+      )}
+    >
       {uiPhase !== "practice" ? (
         <header className="space-y-2">
           <Badge variant="outline">Pilot · 5 poses</Badge>
@@ -570,7 +578,7 @@ export default function InstructorSession() {
           </p>
         </header>
       ) : (
-        <header className="flex items-center justify-between gap-2 landscape:py-0">
+        <header className="flex shrink-0 items-center justify-between gap-2 landscape:py-0">
           <Badge variant="outline">Pilot · 5 poses</Badge>
           <p className="text-xs text-muted-foreground">Virtual instructor</p>
         </header>
@@ -746,21 +754,21 @@ export default function InstructorSession() {
 
       {uiPhase === "practice" && current && currentPose && currentVariant ? (
         <div
-          className="flex flex-col gap-2 landscape:max-h-[calc(100dvh-6.5rem)] landscape:overflow-hidden"
+          className="flex min-h-0 flex-1 flex-col gap-2 max-md:pb-[calc(7.5rem+env(safe-area-inset-bottom))] landscape:max-h-none landscape:overflow-hidden landscape:pb-0 md:pb-0"
           data-testid="instructor-player"
         >
           {plan.claimsAdapted ? (
-            <p className="text-xs text-muted-foreground landscape:hidden" data-testid="instructor-adapted-note">
+            <p className="shrink-0 text-xs text-muted-foreground landscape:hidden" data-testid="instructor-adapted-note">
               Practice adjusted from your answers
               {plan.warnings[0] ? ` — ${plan.warnings[0]}` : "."}
             </p>
           ) : (
-            <p className="text-xs text-muted-foreground landscape:hidden">
+            <p className="shrink-0 text-xs text-muted-foreground landscape:hidden">
               Standard pilot sequence (not medically adapted).
             </p>
           )}
 
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex shrink-0 items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="font-serif text-lg font-semibold landscape:text-base sm:text-xl">
                 {adaptationDisplayName ?? currentPose.english}
@@ -779,9 +787,9 @@ export default function InstructorSession() {
             </div>
           </div>
 
-          {/* Keep demo + cue + pause together (portrait sticky; landscape side-by-side). */}
+          {/* Demo + cue use remaining height; Play lives in the reserved control chrome. */}
           <div
-            className="sticky top-0 z-30 -mx-1 flex min-h-0 flex-1 flex-col gap-2 bg-background/95 px-1 pb-2 pt-1 backdrop-blur landscape:static landscape:mx-0 landscape:flex-row landscape:items-stretch landscape:bg-transparent landscape:p-0 landscape:backdrop-blur-none sm:static sm:mx-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
+            className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto landscape:min-h-0 landscape:flex-1 landscape:flex-row landscape:items-stretch landscape:overflow-hidden"
             data-testid="instructor-focus-stack"
           >
             <InstructorStage
@@ -789,44 +797,32 @@ export default function InstructorSession() {
               playing={clock.playing}
               mediaProgress={mediaProgress}
               mediaWindow={current.mediaWindow}
-              className="aspect-[3/4] max-h-[42vh] w-full shrink-0 landscape:aspect-auto landscape:h-[min(72vh,280px)] landscape:max-h-none landscape:min-h-[200px] landscape:max-w-[58%] sm:aspect-video sm:max-h-[48vh] sm:landscape:h-[min(75vh,320px)] sm:landscape:max-w-[55%]"
+              className="aspect-[3/4] max-h-[min(42vh,calc(100dvh-22rem))] w-full shrink-0 landscape:aspect-auto landscape:h-auto landscape:max-h-full landscape:min-h-0 landscape:flex-1 landscape:shrink landscape:basis-0 landscape:w-[46%] landscape:max-w-[46%] sm:aspect-video sm:max-h-[min(48vh,calc(100dvh-18rem))] sm:landscape:w-[50%] sm:landscape:max-w-[50%]"
               compactLabel
             />
 
-            <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 landscape:min-h-0 landscape:overflow-hidden landscape:py-0">
               {captionsOn ? (
                 <div
-                  className="rounded-xl bg-foreground px-4 py-3 text-sm text-background"
+                  className="rounded-xl bg-foreground px-3 py-2 text-sm text-background landscape:max-h-[4.5rem] landscape:overflow-hidden landscape:px-3 landscape:py-1.5 landscape:text-xs"
                   data-testid="instructor-caption"
                   aria-live="polite"
                 >
                   {current.caption}
                   {current.breathCue && !current.quiet ? (
-                    <span className="mt-1 block text-xs opacity-80">{current.breathCue}</span>
+                    <span className="mt-1 block text-xs opacity-80 landscape:hidden">{current.breathCue}</span>
                   ) : null}
                 </div>
               ) : null}
 
-              <div className="flex justify-center landscape:justify-start">
-                <Button
-                  className="min-h-12 min-w-24"
-                  aria-label={clock.playing ? "Pause" : "Resume"}
-                  onClick={() => setClock((c) => (c.playing ? pauseClock(c) : resumeClock(c)))}
-                  data-testid="instructor-play-pause"
-                >
-                  {clock.playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                  <span className="ml-2">{clock.playing ? "Pause" : "Play"}</span>
-                </Button>
-              </div>
-
-              <p className="text-sm text-muted-foreground" data-testid="instructor-cue">
+              <p className="text-sm text-muted-foreground landscape:line-clamp-2 landscape:text-xs" data-testid="instructor-cue">
                 {current.cue}
               </p>
-              <p className="text-xs text-muted-foreground landscape:truncate">
+              <p className="text-xs text-muted-foreground landscape:hidden">
                 Props: {currentVariant.props.filter((p) => p !== "none").join(", ") || "none"}
               </p>
               <p
-                className="text-[11px] text-muted-foreground landscape:line-clamp-2"
+                className="text-[11px] text-muted-foreground landscape:line-clamp-1"
                 data-testid="instructor-media-status"
               >
                 {currentVariant.media.label}
@@ -835,12 +831,21 @@ export default function InstructorSession() {
           </div>
 
           <div
-            className="fixed inset-x-0 bottom-14 z-40 border-t bg-background/95 p-2 backdrop-blur landscape:static landscape:bottom-auto landscape:rounded-xl landscape:border landscape:bg-card landscape:p-1.5 md:static md:bottom-auto md:rounded-2xl md:border md:bg-card md:p-4"
+            className="fixed inset-x-0 bottom-14 z-40 border-t bg-background/95 p-2 backdrop-blur landscape:static landscape:bottom-auto landscape:z-auto landscape:mt-1 landscape:shrink-0 landscape:rounded-xl landscape:border landscape:bg-card landscape:p-1.5 md:static md:bottom-auto md:z-auto md:mt-1 md:rounded-2xl md:border md:bg-card md:p-3"
             data-testid="instructor-controls"
           >
-            <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-1.5 landscape:gap-1 md:gap-2">
+            <div className="mx-auto flex max-w-3xl flex-nowrap items-center justify-start gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-wrap lg:justify-center lg:gap-2 lg:overflow-visible">
               <Button
-                className="min-h-11 min-w-11 landscape:min-h-10 landscape:min-w-10"
+                className="min-h-12 min-w-[5.5rem] shrink-0"
+                aria-label={clock.playing ? "Pause" : "Resume"}
+                onClick={() => setClock((c) => (c.playing ? pauseClock(c) : resumeClock(c)))}
+                data-testid="instructor-play-pause"
+              >
+                {clock.playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                <span className="ml-2">{clock.playing ? "Pause" : "Play"}</span>
+              </Button>
+              <Button
+                className="min-h-11 min-w-11 shrink-0 landscape:min-h-10 landscape:min-w-10"
                 variant="outline"
                 aria-label="Previous pose"
                 disabled={atFirstPose}
@@ -849,7 +854,7 @@ export default function InstructorSession() {
                 <ChevronLeft className="h-5 w-5" />
               </Button>
               <Button
-                className="min-h-11 min-w-11 landscape:min-h-10 landscape:min-w-10"
+                className="min-h-11 min-w-11 shrink-0 landscape:min-h-10 landscape:min-w-10"
                 variant="outline"
                 aria-label="Next pose"
                 disabled={atLastPose}
@@ -858,7 +863,7 @@ export default function InstructorSession() {
                 <ChevronRight className="h-5 w-5" />
               </Button>
               <Button
-                className="min-h-11 landscape:min-h-10"
+                className="min-h-11 shrink-0 landscape:min-h-10"
                 variant="outline"
                 onClick={repeatCue}
                 data-testid="instructor-repeat"
@@ -866,7 +871,7 @@ export default function InstructorSession() {
                 <RotateCcw className="mr-1 h-4 w-4" /> Repeat
               </Button>
               <Button
-                className="min-h-11 landscape:min-h-10"
+                className="min-h-11 shrink-0 landscape:min-h-10"
                 variant="outline"
                 onClick={easierVariation}
                 data-testid="instructor-easier"
@@ -874,7 +879,7 @@ export default function InstructorSession() {
                 Easier
               </Button>
               <Button
-                className="min-h-11 landscape:min-h-10"
+                className="min-h-11 shrink-0 landscape:min-h-10"
                 variant="outline"
                 disabled={prepDisabled}
                 onClick={addPrepFive}
@@ -883,7 +888,7 @@ export default function InstructorSession() {
                 <Plus className="mr-1 h-4 w-4" /> Prep +5s
               </Button>
               <Button
-                className="min-h-11 landscape:min-h-10"
+                className="min-h-11 shrink-0 landscape:min-h-10"
                 variant="outline"
                 onClick={() => {
                   setReplaceOpen((v) => !v);
@@ -895,7 +900,7 @@ export default function InstructorSession() {
                 <Replace className="mr-1 h-4 w-4" /> Replace
               </Button>
               <Button
-                className="min-h-12"
+                className="min-h-11 shrink-0"
                 variant="outline"
                 aria-pressed={captionsOn}
                 onClick={() => setCaptionsOn((v) => !v)}
@@ -904,7 +909,7 @@ export default function InstructorSession() {
                 {captionsOn ? "Captions on" : "Captions off"}
               </Button>
               <Button
-                className="min-h-12"
+                className="min-h-11 shrink-0"
                 variant="outline"
                 aria-pressed={narrationOn}
                 onClick={() => setNarrationOn((v) => !v)}
@@ -917,7 +922,7 @@ export default function InstructorSession() {
                 {narrationOn ? "Narration on" : "Narration off"}
               </Button>
               <Button
-                className="min-h-12"
+                className="min-h-11 shrink-0"
                 variant="ghost"
                 onClick={() => void finishSession(false)}
               >
@@ -1021,11 +1026,7 @@ export default function InstructorSession() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground" data-testid="instructor-practiced-time">
-              You practiced about {Math.max(1, Math.round(practicedSec / 60))} minute
-              {Math.round(practicedSec / 60) === 1 ? "" : "s"}
-              {timeline.totalSec > practicedSec + 15
-                ? " — time you skipped or paused is not counted toward your journal."
-                : "."}
+              {formatPracticedSummary(practicedSec, { plannedSec: timeline.totalSec })}
             </p>
             {saveStatus === "saved" && Object.keys(plan.forcedAdaptations).length > 0 ? (
               <p className="text-xs text-muted-foreground" data-testid="instructor-saved-variants">
