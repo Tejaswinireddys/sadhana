@@ -19,6 +19,8 @@ export type PoseTimeline = {
   level: VariationLevel;
   adaptationId?: AdaptationId | null;
   prepExtraSec: number;
+  /** Total seconds added to this pose's holds by "extend hold". */
+  holdExtraSec: number;
   segments: InstructionSegment[];
   totalSec: number;
   props: string[];
@@ -30,6 +32,17 @@ export type FlatSegment = InstructionSegment & {
   poseIndex: number;
   absStartSec: number;
 };
+
+/**
+ * Stable key for the hold of one pose on one side.
+ *
+ * Extending a hold has to lengthen exactly that hold and nothing else. Keying
+ * by pose index would move when the queue is edited mid-session; keying by
+ * slug + side survives replacements and variation changes.
+ */
+export function holdKeyFor(slug: string, side: "left" | "right" | "both"): string {
+  return side === "both" ? slug : `${slug}-${side}`;
+}
 
 function pushSeg(
   out: InstructionSegment[],
@@ -52,11 +65,23 @@ function buildSideSegments(opts: {
   side: "left" | "right" | "both";
   /** Extra seconds applied only to THIS preparation segment. */
   prepExtraSec: number;
+  /** Extra seconds appended to THIS side's final hold segment. */
+  holdExtraSec: number;
   cursor: { t: number };
   out: InstructionSegment[];
   includeTransition: boolean;
 }) {
-  const { pose, variant, mode, side, prepExtraSec, cursor, out, includeTransition } = opts;
+  const {
+    pose,
+    variant,
+    mode,
+    side,
+    prepExtraSec,
+    holdExtraSec,
+    cursor,
+    out,
+    includeTransition,
+  } = opts;
   const learn = mode === "learn";
   const sideTag = side === "both" ? "both" : side;
   const suffix = side === "both" ? "" : `-${side}`;
@@ -103,6 +128,13 @@ function buildSideSegments(opts: {
     mediaWindow: anim ? { start: 0, end: 1 } : null,
   });
 
+  // The hold is its own segment (or pair of segments) so that extending it
+  // only lengthens the steady part. Rebuilding the whole pose would replay
+  // entering and exiting it, which is exactly what someone asking for more
+  // time in the shape does not want.
+  const holdKey = holdKeyFor(pose.slug, sideTag);
+  const extraHold = Math.max(0, holdExtraSec);
+
   if (learn && variant.commonMistakes[0]) {
     const tipSec = Math.min(8, Math.floor(holdSec / 3));
     pushSeg(out, cursor, {
@@ -115,29 +147,34 @@ function buildSideSegments(opts: {
       side: sideTag,
       quiet: false,
       mediaWindow: null,
+      holdKey,
     });
     pushSeg(out, cursor, {
       id: `${pose.slug}${suffix}-hold`,
       phase: "hold",
-      durationSec: Math.max(6, holdSec - tipSec),
+      durationSec: Math.max(6, holdSec - tipSec) + extraHold,
       cue: variant.cues[1] ?? "Hold with soft, even breath.",
       caption: "Hold",
       breathCue: pose.breathing,
       side: sideTag,
       quiet: true,
       mediaWindow: null,
+      holdKey,
+      extendedBySec: extraHold || undefined,
     });
   } else {
     pushSeg(out, cursor, {
       id: `${pose.slug}${suffix}-hold`,
       phase: "hold",
-      durationSec: holdSec,
+      durationSec: holdSec + extraHold,
       cue: learn ? variant.cues[0] ?? "Hold steadily." : "Hold. Soft breath.",
       caption: "Hold",
       breathCue: pose.breathing,
       side: sideTag,
       quiet: true,
       mediaWindow: null,
+      holdKey,
+      extendedBySec: extraHold || undefined,
     });
   }
 
@@ -171,8 +208,11 @@ export function buildPoseTimeline(opts: {
   adaptationId?: AdaptationId | null;
   /** Extra prep seconds for this pose only (first prep segment). */
   prepExtraSec?: number;
+  /** Extra hold seconds keyed by `holdKeyFor(slug, side)`. */
+  holdExtraByKey?: Record<string, number>;
 }): PoseTimeline {
   const prepExtraSec = Math.max(0, opts.prepExtraSec ?? 0);
+  const holdExtra = opts.holdExtraByKey ?? {};
   const out: InstructionSegment[] = [];
   const cursor = { t: 0 };
   const variant = resolveTeachingVariant(opts.pose, opts.level, opts.adaptationId);
@@ -184,6 +224,7 @@ export function buildPoseTimeline(opts: {
       mode: opts.mode,
       side: "left",
       prepExtraSec,
+      holdExtraSec: holdExtra[holdKeyFor(opts.pose.slug, "left")] ?? 0,
       cursor,
       out,
       includeTransition: false,
@@ -203,6 +244,7 @@ export function buildPoseTimeline(opts: {
       mode: opts.mode,
       side: "right",
       prepExtraSec: 0,
+      holdExtraSec: holdExtra[holdKeyFor(opts.pose.slug, "right")] ?? 0,
       cursor,
       out,
       includeTransition: true,
@@ -214,6 +256,7 @@ export function buildPoseTimeline(opts: {
       mode: opts.mode,
       side: "both",
       prepExtraSec,
+      holdExtraSec: holdExtra[holdKeyFor(opts.pose.slug, "both")] ?? 0,
       cursor,
       out,
       includeTransition: true,
@@ -226,6 +269,7 @@ export function buildPoseTimeline(opts: {
     level: opts.level,
     adaptationId: opts.adaptationId ?? null,
     prepExtraSec,
+    holdExtraSec: Object.values(holdExtra).reduce((a, b) => a + Math.max(0, b), 0),
     segments: out,
     totalSec: cursor.t,
     props: variant.props,
@@ -245,6 +289,8 @@ export function buildSessionTimeline(opts: {
   /** Per poseIndex prep extras (only current prep when player bumps). */
   prepExtraByPoseIndex?: Record<number, number>;
   prepExtraSec?: number;
+  /** Extra hold seconds keyed by `holdKeyFor(slug, side)`. */
+  holdExtraByKey?: Record<string, number>;
 }): {
   poses: PoseTimeline[];
   totalSec: number;
@@ -259,6 +305,7 @@ export function buildSessionTimeline(opts: {
       prepExtraSec:
         opts.prepExtraByPoseIndex?.[poseIndex] ??
         (poseIndex === 0 ? opts.prepExtraSec ?? 0 : 0),
+      holdExtraByKey: opts.holdExtraByKey,
     }),
   );
   const flat: FlatSegment[] = [];
@@ -273,10 +320,33 @@ export function buildSessionTimeline(opts: {
 }
 
 /**
- * After extending the current preparation segment, remap the clock so the
- * user stays at the same relative position in the current prep (or at the
- * end of prep if they already passed the old duration).
+ * After lengthening one segment, keep the clock where the body is.
+ *
+ * The user stays at the same point inside the segment that grew; everything
+ * before it is untouched, and everything after it shifts by the added time.
+ * Without this, adding time re-seeks and the demonstration jumps back to the
+ * start of the pose.
  */
+export function remapClockAfterSegmentExtend(opts: {
+  flatBefore: FlatSegment[];
+  flatAfter: FlatSegment[];
+  timeSec: number;
+  segmentId: string;
+  addedSec: number;
+}): number {
+  const before = opts.flatBefore.find((s) => s.id === opts.segmentId);
+  const after = opts.flatAfter.find((s) => s.id === opts.segmentId);
+  if (!before || !after) return opts.timeSec + opts.addedSec;
+  const local = opts.timeSec - before.absStartSec;
+  if (local < 0) return opts.timeSec;
+  if (local >= before.durationSec) {
+    // Already past it — shift by the inserted duration so later segments stay aligned.
+    return opts.timeSec + opts.addedSec;
+  }
+  return after.absStartSec + local;
+}
+
+/** Back-compat alias for the preparation case. */
 export function remapClockAfterPrepExtend(opts: {
   flatBefore: FlatSegment[];
   flatAfter: FlatSegment[];
@@ -284,16 +354,13 @@ export function remapClockAfterPrepExtend(opts: {
   prepSegmentId: string;
   addedSec: number;
 }): number {
-  const before = opts.flatBefore.find((s) => s.id === opts.prepSegmentId);
-  const after = opts.flatAfter.find((s) => s.id === opts.prepSegmentId);
-  if (!before || !after) return opts.timeSec + opts.addedSec;
-  const local = opts.timeSec - before.absStartSec;
-  if (local < 0) return opts.timeSec;
-  if (local >= before.durationSec) {
-    // Already past prep — shift by the inserted duration so later segments stay aligned.
-    return opts.timeSec + opts.addedSec;
-  }
-  return after.absStartSec + local;
+  return remapClockAfterSegmentExtend({
+    flatBefore: opts.flatBefore,
+    flatAfter: opts.flatAfter,
+    timeSec: opts.timeSec,
+    segmentId: opts.prepSegmentId,
+    addedSec: opts.addedSec,
+  });
 }
 
 export function segmentAtTime(flat: FlatSegment[], timeSec: number) {

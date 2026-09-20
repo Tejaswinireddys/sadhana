@@ -13,6 +13,12 @@ import {
   WRIST_LOADING_WHEN_UNKNOWN,
   substituteForRegion,
 } from "@/lib/restrictionAdaptations";
+import {
+  guidedSessionSeconds,
+  resolveInstructionSeconds,
+  type GuidedTimedPose,
+} from "@/lib/guidedDuration";
+import { evaluateSessionFit, poseOverheadSeconds, type SessionFit } from "@/lib/sessionFit";
 
 /** Which audience the active profile targets — gates audience-specific poses/copy. */
 export type TrainerAudience = "All" | "Men" | "Women" | "Pregnancy";
@@ -37,7 +43,16 @@ export type TrainerPose = {
 export type TrainerSession = {
   reasoning: string;
   poses: TrainerPose[];
+  /** Full wall-clock minutes the guided player will run — not a sum of holds. */
   totalMinutes: number;
+  totalSeconds: number;
+  /**
+   * Whether the requested length was honored, and what length is achievable
+   * when it was not. The UI must offer the shorter option before starting.
+   */
+  fit: SessionFit;
+  /** Set when the queue was shortened to honor the requested length. */
+  trimNote: string | null;
   /** What the practitioner asked for (a NEED_OPTIONS id). */
   requestedNeed: string;
   /**
@@ -347,12 +362,55 @@ function isContraindicated(
   return false;
 }
 
-function estimatedMinutes(poses: TrainerPose[]): number {
-  const secs = poses.reduce(
-    (sum, p) => sum + p.holdSeconds * (p.sides === "each" ? 2 : 1),
-    0,
-  );
-  return Math.max(1, Math.round(secs / 60));
+/** Minimal shape needed to time a queue the way the guided player does. */
+export type TimeablePose = {
+  slug: string;
+  holdSeconds: number;
+  sides: "once" | "each";
+};
+
+/** The queue as the guided player will time it — narration and transitions included. */
+function timedPoses(poses: TimeablePose[]): GuidedTimedPose[] {
+  return poses.map((p) => ({
+    holdSeconds: p.holdSeconds,
+    sides: p.sides,
+    slug: p.slug,
+    stepCount: asanaBySlug(p.slug)?.steps.length ?? 0,
+  }));
+}
+
+/**
+ * Full wall-clock, not a sum of holds.
+ *
+ * Summing holds is what let Trainer advertise "~5 min" for a queue the player
+ * then ran for 14: every pose is spoken through (55–70s of recorded narration)
+ * and separated by a transition before its hold even starts.
+ */
+export function estimatedSessionSeconds(poses: TimeablePose[]): number {
+  return guidedSessionSeconds(timedPoses(poses));
+}
+
+function estimatedMinutes(poses: TimeablePose[]): number {
+  return Math.max(1, Math.round(estimatedSessionSeconds(poses) / 60));
+}
+
+/**
+ * Honest fit for any composed queue — used by Trainer and the adaptive
+ * generator, which both reshape holds after composition and must not report a
+ * length derived from the pre-edit sequence.
+ */
+export function trainerSessionFit(
+  poses: TimeablePose[],
+  requestedMinutes: number,
+  experience: TrainerExperience = "some",
+): SessionFit {
+  return evaluateSessionFit({
+    requestedMinutes,
+    poses: timedPoses(poses),
+    minHoldSeconds: poses.map(
+      (p) => holdLimitsFor(p.slug, asanaBySlug(p.slug)!, experience).min,
+    ),
+  });
 }
 
 /**
@@ -478,8 +536,163 @@ function holdLimitsFor(slug: string, pose: Asana, experience: TrainerExperience)
   // long is right; a beginner allowed only half a Savasana is just a worse
   // session — and it was quietly halving the length of every long practice.
   const scale = band === HOLD_LIMITS.restorative ? 1 : (EXPERIENCE_SCALE[experience] ?? 1);
-  const max = Math.max(band.min, Math.round((band.max * scale) / 5) * 5);
-  return { min: band.min, max };
+  const max = Math.max(5, Math.round((band.max * scale) / 5) * 5);
+  // Scale the floor too. Leaving it fixed meant that whenever the time budget
+  // was tight enough to clamp every pose to its minimum, a beginner and a
+  // regular practitioner were handed the identical 20-second Plank.
+  const min = Math.max(5, Math.min(max, Math.round((band.min * scale) / 5) * 5));
+  return { min, max };
+}
+
+/**
+ * Spread a wall-clock target across holds.
+ *
+ * Only the time the player has not already committed to spoken instruction and
+ * transitions is available — budgeting the full request against holds alone is
+ * what made a 5-minute recommendation open as a 14-minute practice.
+ */
+function allocateHolds(
+  slugs: string[],
+  targetSeconds: number,
+  experience: TrainerExperience,
+): number[] {
+  const bands = slugs.map((s) => holdLimitsFor(s, asanaBySlug(s)!, experience));
+  const sidesCount = slugs.map((s) => (EACH_SIDE.has(s) ? 2 : 1));
+  const weights = slugs.map((s) => (CLOSERS.has(s) ? 1.6 : 1));
+
+  const overheadSeconds = slugs.reduce((sum, s) => {
+    const asana = asanaBySlug(s);
+    return (
+      sum +
+      poseOverheadSeconds({
+        holdSeconds: 0,
+        sides: EACH_SIDE.has(s) ? "each" : "once",
+        slug: s,
+        stepCount: asana?.steps.length ?? 0,
+      })
+    );
+  }, 0);
+  const budget = Math.max(0, targetSeconds - overheadSeconds);
+
+  const round5 = (n: number) => Math.round(n / 5) * 5;
+  const weightedUnits = weights.reduce((a, w, i) => a + w * sidesCount[i], 0) || 1;
+  const perUnit = budget / weightedUnits;
+
+  const holds = slugs.map((_, i) =>
+    Math.min(bands[i].max, Math.max(bands[i].min, round5(perUnit * weights[i]))),
+  );
+
+  // Redistribute any shortfall onto poses that still have headroom, restorative
+  // first. Overshoot is left alone: finishing early beats an unsafe hold.
+  let remaining = budget - holds.reduce((sum, h, i) => sum + h * sidesCount[i], 0);
+  if (remaining > 0) {
+    const absorbers = slugs
+      .map((s, i) => ({ i, restful: CLOSERS.has(s) }))
+      .sort((a, b) => Number(b.restful) - Number(a.restful));
+    for (const { i } of absorbers) {
+      if (remaining <= 0) break;
+      const room = bands[i].max - holds[i];
+      if (room <= 0) continue;
+      const add = round5(Math.min(room, remaining / sidesCount[i]));
+      if (add <= 0) continue;
+      holds[i] += add;
+      remaining -= add * sidesCount[i];
+    }
+  }
+  return holds;
+}
+
+/** Wall-clock for a candidate queue, timed exactly as the guided player will. */
+function sessionSecondsFor(slugs: string[], holds: number[]): number {
+  return guidedSessionSeconds(
+    slugs.map((s, i) => ({
+      holdSeconds: holds[i],
+      sides: EACH_SIDE.has(s) ? ("each" as const) : ("once" as const),
+      slug: s,
+      stepCount: asanaBySlug(s)?.steps.length ?? 0,
+    })),
+  );
+}
+
+/**
+ * Which pose to drop when the queue will not fit the requested length.
+ * Trim the shape the arc can spare — never the opening, the close, or the
+ * standing work a session promised to include.
+ */
+function trimIndexFor(slugs: string[], standingWanted: number): number | null {
+  const standingCount = slugs.filter(isStandingBuild).length;
+  const slots = slugs.map((s) => poseArcRank(s));
+  const peakCount = slots.filter((s) => s === ARC_SLOT.peak).length;
+
+  // Centering and rest are one pose each and hold the arc open; the standing
+  // floor and the only peak are promises too. Everything else can give one up.
+  const eligible: number[] = [];
+  for (let i = 0; i < slugs.length; i++) {
+    const slot = slots[i];
+    if (slot === ARC_SLOT.centering || slot === ARC_SLOT.rest) continue;
+    if (isStandingBuild(slugs[i]) && standingCount <= standingWanted) continue;
+    // Cool-down is the only role a practice can do without. Warm-up, build and
+    // peak each have to keep at least one pose, or the arc stops being a
+    // practice and becomes a list.
+    const slotCount = slots.filter((s) => s === slot).length;
+    if (slot !== ARC_SLOT.cooldown && slotCount === 1) continue;
+    eligible.push(i);
+  }
+  if (eligible.length === 0) return null;
+
+  // A practice builds to its peak a little past halfway. Always trimming the
+  // tail walks the peak toward the end, so score each candidate by where the
+  // peak would land afterwards and take the one that best keeps the shape.
+  const n = slugs.length;
+  const peak = slots.indexOf(ARC_SLOT.peak);
+  const drift = (i: number) => {
+    if (peak < 0) return 0;
+    const peakAfter = i < peak ? peak - 1 : peak;
+    return Math.abs((peakAfter + 1) / Math.max(1, n - 1) - 0.55);
+  };
+
+  // Bilateral poses are narrated twice and held twice, so one of them costs
+  // roughly what two one-sided poses cost. Cutting those first reaches the
+  // requested length in fewer cuts, which keeps more of the practice intact.
+  const cost = (i: number) =>
+    poseOverheadSeconds({
+      holdSeconds: 0,
+      sides: EACH_SIDE.has(slugs[i]) ? "each" : "once",
+      slug: slugs[i],
+      stepCount: asanaBySlug(slugs[i])?.steps.length ?? 0,
+    });
+
+  const best = eligible.sort((a, b) => {
+    const byShape = drift(a) - drift(b);
+    if (Math.abs(byShape) > 1e-6) return byShape;
+    const byCost = cost(b) - cost(a);
+    if (byCost !== 0) return byCost;
+    // Then take from the fullest slot, and the later pose within it.
+    const countA = slots.filter((s) => s === slots[a]).length;
+    const countB = slots.filter((s) => s === slots[b]).length;
+    return countB - countA || b - a;
+  })[0];
+
+  return best;
+}
+
+/**
+ * Does this queue still read as a practice — builds to a peak a little past
+ * halfway, warms up before it builds, and closes after it?
+ *
+ * Trimming is allowed to pass through a badly-shaped intermediate queue (going
+ * from seven poses to five has to cross six), so the caller keeps the last
+ * shape that satisfied this and discards anything that never got back to one.
+ */
+function arcShapeOk(slugs: string[]): boolean {
+  const slots = slugs.map((s) => poseArcRank(s));
+  const warmupAt = slots.indexOf(ARC_SLOT.warmup);
+  if (warmupAt !== 1 && warmupAt !== 2) return false;
+  const peakAt = slots.indexOf(ARC_SLOT.peak);
+  if (peakAt < 0) return false;
+  const frac = (peakAt + 1) / slugs.length;
+  if (frac < 0.45 || frac > 0.65) return false;
+  return slots.every((s, i) => i === 0 || s >= slots[i - 1]);
 }
 
 /** Pools used to inject a missing arc role so regenerate cannot starve a slot. */
@@ -982,8 +1195,12 @@ export function composeTrainerSession(
    * capped, a 5-minute session. Longer sessions need MORE poses, not longer
    * holds — that is what a longer class actually is.
    */
+  // A six-pose floor is right for a real class and wrong for a short one: six
+  // narrated poses cost ~6 minutes before a single hold, so a 5-minute request
+  // could never be honored. Short requests get a shorter arc instead.
+  const poseFloor = c.timeMinutes < 8 ? 3 : c.timeMinutes < 13 ? 5 : 6;
   const targetPoseCount = Math.max(
-    6,
+    poseFloor,
     Math.min(16, Math.round((Math.max(5, c.timeMinutes) * 60) / 90)),
   );
 
@@ -1074,36 +1291,41 @@ export function composeTrainerSession(
   // that doesn't fit goes to the restorative shapes that can absorb it — never
   // onto a plank.
   const targetSeconds = Math.max(5, c.timeMinutes) * 60;
-  const bands = slugs.map((s) => holdLimitsFor(s, asanaBySlug(s)!, experience));
-  const sidesCount = slugs.map((s) => (EACH_SIDE.has(s) ? 2 : 1));
-  const weights = slugs.map((s) => (CLOSERS.has(s) ? 1.6 : 1));
 
-  const round5 = (n: number) => Math.round(n / 5) * 5;
-  const weightedUnits = weights.reduce((a, w, i) => a + w * sidesCount[i], 0) || 1;
-  const perUnit = targetSeconds / weightedUnits;
-
-  const holds = slugs.map((_, i) =>
-    Math.min(bands[i].max, Math.max(bands[i].min, round5(perUnit * weights[i]))),
-  );
-
-  // Redistribute any shortfall onto poses that still have headroom, restorative
-  // first. Overshoot is left alone: finishing early beats an unsafe hold.
-  let remaining =
-    targetSeconds - holds.reduce((sum, h, i) => sum + h * sidesCount[i], 0);
-  if (remaining > 0) {
-    const absorbers = slugs
-      .map((s, i) => ({ i, restful: CLOSERS.has(s) }))
-      .sort((a, b) => Number(b.restful) - Number(a.restful));
-    for (const { i } of absorbers) {
-      if (remaining <= 0) break;
-      const room = bands[i].max - holds[i];
-      if (room <= 0) continue;
-      const add = round5(Math.min(room, remaining / sidesCount[i]));
-      if (add <= 0) continue;
-      holds[i] += add;
-      remaining -= add * sidesCount[i];
+  // A queue can overrun the request even with every hold at its floor, because
+  // narration is fixed cost. When that happens the honest move is to teach
+  // fewer poses properly, not to keep the list and lie about the length.
+  const fitTolerance = Math.max(45, Math.round(targetSeconds * 0.15));
+  let holds = allocateHolds(slugs, targetSeconds, experience);
+  // Keep the shortest queue that still reads as a practice. Intermediate cuts
+  // may pass through a misshapen arc; those are never what we hand back.
+  let keptSlugs = slugs;
+  let keptHolds = holds;
+  let trimmed = 0;
+  let cuts = 0;
+  while (
+    slugs.length > poseFloor &&
+    sessionSecondsFor(slugs, holds) > targetSeconds + fitTolerance
+  ) {
+    const victim = trimIndexFor(slugs, standingOn ? standingWanted : 0);
+    if (victim == null) break;
+    slugs = slugs.filter((_, i) => i !== victim);
+    holds = allocateHolds(slugs, targetSeconds, experience);
+    cuts += 1;
+    if (arcShapeOk(slugs)) {
+      keptSlugs = slugs;
+      keptHolds = holds;
+      trimmed = cuts;
     }
   }
+  slugs = keptSlugs;
+  holds = keptHolds;
+  // Deliberately not an `adjustment`: trimming to honor the requested length is
+  // normal composition, not a safety substitution the UI should flag in amber.
+  const trimNote =
+    trimmed > 0
+      ? `Kept to ${slugs.length} poses so this really is about ${Math.max(1, Math.round(sessionSecondsFor(slugs, holds) / 60))} minutes — each pose is talked through before you hold it, and that time counts.`
+      : null;
 
   const poses: TrainerPose[] = slugs.map((s, i) => ({
     slug: s,
@@ -1113,13 +1335,20 @@ export function composeTrainerSession(
     arcSlot: poseArcRank(s),
   }));
 
-  // If safe holds can't fill the requested time, say so rather than quietly
-  // handing back a third of what was asked for.
+  // Say what the player will actually run. Under-filling and over-running are
+  // both broken promises, so both get an explanation the UI has to surface.
   const actualMinutes = estimatedMinutes(poses);
+  const fit = evaluateSessionFit({
+    requestedMinutes: c.timeMinutes,
+    poses: timedPoses(poses),
+    minHoldSeconds: poses.map((p) => holdLimitsFor(p.slug, asanaBySlug(p.slug)!, experience).min),
+  });
   if (actualMinutes < c.timeMinutes - 3) {
     adjustments.push(
       `This came out at about ${actualMinutes} minutes rather than ${c.timeMinutes} — there weren't enough safe poses left to fill the time without holding something longer than it should be held.`,
     );
+  } else if (fit.explanation) {
+    adjustments.push(fit.explanation);
   }
 
   // Every branch of this sentence has to be a whole sentence. The empty-sore
@@ -1149,6 +1378,9 @@ export function composeTrainerSession(
     reasoning,
     poses,
     totalMinutes: estimatedMinutes(poses),
+    totalSeconds: estimatedSessionSeconds(poses),
+    fit,
+    trimNote,
     requestedNeed: key,
     deliveredNeed,
     adjustments,

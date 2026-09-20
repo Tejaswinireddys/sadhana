@@ -2,6 +2,21 @@
 
 Pilot poses: `tadasana`, `balasana`, `marjaryasana-bitilasana`, `virabhadrasana-ii`, `kumbhakasana`.
 
+> **Start here:** the typed manifest in
+> `client/src/data/instructorMediaManifest.ts` is now the authority on what
+> exists and what may be shown. It carries provenance, usage rights, review
+> stage, reviewer, review date and version for every planned clip, and
+> `isMovementDemonstration()` is the only predicate allowed to gate
+> "this shows how the pose is performed".
+>
+> - Shooting instructions: [`instructor-asset-briefs.md`](./instructor-asset-briefs.md)
+> - Review gates: [`instructor-content-workflow.md`](./instructor-content-workflow.md)
+>
+> **Every manifest row is currently `missing`.** No filmed, rigged, or reviewed
+> AI movement has been produced, so realistic movement demonstrations remain
+> blocked on the assets in the briefs. `instructorMediaManifest.test.ts` fails
+> if anything in the manifest starts claiming otherwise.
+
 ## Implemented now
 
 | Asset | Status | Notes |

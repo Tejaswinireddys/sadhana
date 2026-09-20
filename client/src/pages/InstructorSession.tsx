@@ -5,7 +5,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { FadeIn } from "@/components/motion";
-import { InstructorStage } from "@/components/InstructorStage";
+import {
+  InstructorMediaPreload,
+  InstructorStage,
+  type StageMediaState,
+} from "@/components/InstructorStage";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +24,11 @@ import {
   type VariationLevel,
 } from "@/data/instructorPilot";
 import {
+  availableAngles,
+  manifestCoverage,
+  type CameraAngle,
+} from "@/data/instructorMediaManifest";
+import {
   advanceClock,
   pauseClock,
   resumeClock,
@@ -31,6 +40,7 @@ import {
   formatClock,
   phaseLabel,
   remapClockAfterPrepExtend,
+  remapClockAfterSegmentExtend,
   segmentAtTime,
 } from "@/lib/instructorTimeline";
 import {
@@ -57,6 +67,7 @@ import { logPracticeSession } from "@/lib/logPracticeSession";
 import { completionLeavePath } from "@/lib/guidedCompletion";
 import { cn } from "@/lib/utils";
 import {
+  Camera,
   Captions,
   ChevronLeft,
   ChevronRight,
@@ -72,6 +83,12 @@ import {
 type UiPhase = "setup" | "safety" | "practice" | "complete";
 
 const LEVELS: VariationLevel[] = ["beginner", "intermediate", "advanced"];
+
+/** Static — the manifest is compiled in, so this is computed once. */
+const mediaCoverage = manifestCoverage();
+
+/** Longest the session clock will wait on a stalled clip before continuing. */
+export const STALL_GRACE_MS = 6000;
 
 const EMPTY_PLAN: SafetyPlan = {
   ready: false,
@@ -109,11 +126,14 @@ export default function InstructorSession() {
     INSTRUCTOR_PILOT_POSES.map((p) => p.slug),
   );
   const [prepExtraByPoseIndex, setPrepExtraByPoseIndex] = useState<Record<number, number>>({});
+  const [holdExtraByKey, setHoldExtraByKey] = useState<Record<string, number>>({});
   const [answers, setAnswers] = useState<RestrictionAnswer[]>([]);
   const [plan, setPlan] = useState<SafetyPlan>(EMPTY_PLAN);
   const [captionsOn, setCaptionsOn] = useState(true);
   const [narrationOn, setNarrationOn] = useState(true);
   const [replaceOpen, setReplaceOpen] = useState(false);
+  const [mediaState, setMediaState] = useState<StageMediaState>("idle");
+  const [angle, setAngle] = useState<CameraAngle>("front");
   const [clock, setClock] = useState<InstructorClockState>({
     timeSec: 0,
     playing: false,
@@ -167,8 +187,17 @@ export default function InstructorSession() {
         levelByPoseId,
         adaptations: plan.forcedAdaptations,
         prepExtraByPoseIndex,
+        holdExtraByKey,
       }),
-    [queuePoses, mode, level, levelByPoseId, plan.forcedAdaptations, prepExtraByPoseIndex],
+    [
+      queuePoses,
+      mode,
+      level,
+      levelByPoseId,
+      plan.forcedAdaptations,
+      prepExtraByPoseIndex,
+      holdExtraByKey,
+    ],
   );
 
   const current = segmentAtTime(timeline.flat, clock.timeSec);
@@ -180,9 +209,42 @@ export default function InstructorSession() {
     ? effectiveLevelForPose(currentPose.poseId, level, plan)
     : level;
   const currentVariant = currentPose
-    ? resolveTeachingVariant(currentPose, currentPoseLevel, currentAdaptationId)
+    ? resolveTeachingVariant(currentPose, currentPoseLevel, currentAdaptationId, angle)
     : null;
   const adaptationDisplayName = currentVariant?.displayName;
+
+  /**
+   * Camera angles with a reviewed, published clip for what is on screen now.
+   *
+   * Only ever more than one entry once real footage exists, so the alternate
+   * view control stays hidden rather than offering a toggle that does nothing.
+   */
+  const angleOptions = useMemo(() => {
+    if (!currentPose) return [];
+    return availableAngles({
+      poseId: currentPose.poseId,
+      variantId: currentAdaptationId ?? currentPoseLevel,
+      side: current?.side,
+    });
+  }, [currentPose, currentAdaptationId, currentPoseLevel, current?.side]);
+
+  // Fall back to the front view whenever the current angle is not offered for
+  // what is on screen — a stale "side" would otherwise resolve to nothing.
+  useEffect(() => {
+    if (angle !== "front" && !angleOptions.includes(angle)) setAngle("front");
+  }, [angle, angleOptions]);
+
+  /** The next pose's media, fetched early so a transition does not buffer. */
+  const nextVariantMedia = useMemo(() => {
+    if (!current) return null;
+    const next = queuePoses[current.poseIndex + 1];
+    if (!next) return null;
+    return resolveTeachingVariant(
+      next,
+      effectiveLevelForPose(next.poseId, level, plan),
+      plan.forcedAdaptations[next.poseId] ?? null,
+    ).media;
+  }, [current?.poseIndex, queuePoses, level, plan]);
   const prompts = useMemo(() => intakePrompts(selectedPoses), [selectedPoses]);
   const [replacePending, setReplacePending] = useState<{
     slug: string;
@@ -190,16 +252,37 @@ export default function InstructorSession() {
   } | null>(null);
   const [replaceError, setReplaceError] = useState<string | null>(null);
 
-  const previewSec = useMemo(
-    () =>
+  /**
+   * Both modes' real totals, from the same builder the player runs.
+   *
+   * Showing only the selected mode's length meant choosing Flow to save time
+   * was guesswork. These are the same seconds the clock will count down.
+   */
+  const modeSeconds = useMemo(() => {
+    const forMode = (m: InstructorMode) =>
       buildSessionTimeline({
         poses: selectedPoses,
-        mode,
+        mode: m,
         level,
         prepExtraByPoseIndex: {},
-      }).totalSec,
-    [selectedPoses, mode, level],
-  );
+      }).totalSec;
+    return { learn: forMode("learn"), flow: forMode("flow") };
+  }, [selectedPoses, level]);
+
+  const previewSec = modeSeconds[mode];
+
+  /**
+   * Enter practice at the top of the page.
+   *
+   * The safety form is long, so Start is tapped near the bottom of a scrolled
+   * document. That scroll offset used to survive into the player: at 320x568
+   * it left the pose name, phase label and timer 99px above the fold and
+   * clipped the top of the demonstration.
+   */
+  useEffect(() => {
+    if (uiPhase !== "practice") return;
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [uiPhase]);
 
   // Restore paused practice session from sessionStorage once on mount.
   useEffect(() => {
@@ -221,6 +304,7 @@ export default function InstructorSession() {
       });
     }
     setPrepExtraByPoseIndex(saved.prepExtraByPoseIndex ?? {});
+    setHoldExtraByKey(saved.holdExtraByKey ?? {});
     setPracticedSec(saved.practicedSec ?? 0);
     startedAtRef.current = saved.startedAt;
     setClock({
@@ -243,6 +327,7 @@ export default function InstructorSession() {
       answers,
       plan,
       prepExtraByPoseIndex,
+      holdExtraByKey,
       clock,
       practicedSec,
       startedAt: startedAtRef.current,
@@ -255,12 +340,37 @@ export default function InstructorSession() {
     answers,
     plan,
     prepExtraByPoseIndex,
+    holdExtraByKey,
     clock,
     practicedSec,
   ]);
 
+  /**
+   * A stalled video stalls the whole session.
+   *
+   * Letting the clock run while the demonstration buffers is what puts the
+   * narration and the hold countdown ahead of the body on screen. The timer
+   * resumes from exactly where it stopped once the clip is ready again.
+   */
+  const waitingOnMedia = mediaState === "buffering" || mediaState === "loading";
+
+  // ...but never forever. If a clip stops reporting progress the practice has
+  // to carry on with the text cues rather than freezing on a spinner, so the
+  // stall releases after a grace period.
+  const [stallExpired, setStallExpired] = useState(false);
   useEffect(() => {
-    if (uiPhase !== "practice" || !clock.playing) {
+    if (!waitingOnMedia) {
+      setStallExpired(false);
+      return;
+    }
+    const t = setTimeout(() => setStallExpired(true), STALL_GRACE_MS);
+    return () => clearTimeout(t);
+  }, [waitingOnMedia]);
+
+  const stalled = waitingOnMedia && !stallExpired;
+
+  useEffect(() => {
+    if (uiPhase !== "practice" || !clock.playing || stalled) {
       lastTickRef.current = null;
       return;
     }
@@ -283,18 +393,20 @@ export default function InstructorSession() {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [uiPhase, clock.playing, timeline.totalSec]);
+  }, [uiPhase, clock.playing, stalled, timeline.totalSec]);
 
-  // Keep narration paused when the shared clock is paused (next/prev/repeat).
+  // Narration follows the same gate as the clock: paused when paused, and
+  // silent while the demonstration is buffering so the voice cannot describe a
+  // movement the video has not reached yet.
   useEffect(() => {
     const a = narrationRef.current;
     if (!a) return;
-    if (!clock.playing || !narrationOn) {
+    if (!clock.playing || !narrationOn || stalled) {
       a.pause();
       return;
     }
     void a.play().catch(() => undefined);
-  }, [clock.playing, narrationOn, current?.id]);
+  }, [clock.playing, narrationOn, stalled, current?.id]);
 
   const finishSession = useCallback(
     async (completedNaturally: boolean) => {
@@ -423,6 +535,7 @@ export default function InstructorSession() {
     setSaveKind(null);
     setPracticedSec(0);
     setPrepExtraByPoseIndex({});
+    setHoldExtraByKey({});
     setClock({ timeSec: 0, playing: true, rate: mode === "learn" ? 0.9 : 1 });
     setUiPhase("practice");
   };
@@ -466,6 +579,47 @@ export default function InstructorSession() {
       addedSec,
     });
     setPrepExtraByPoseIndex(nextExtras);
+    setClock((c) => seekClock(c, remapped));
+  };
+
+  /**
+   * Add time to the hold you are already in.
+   *
+   * Only the hold segment grows, so the demonstration keeps showing the held
+   * shape — entering and exiting the pose are not replayed, and the clock
+   * stays exactly where the body is.
+   */
+  const extendHold = () => {
+    if (!current || current.phase !== "hold" || !current.holdKey) return;
+    const flatBefore = timeline.flat;
+    const addedSec = 15;
+    const nextExtras = {
+      ...holdExtraByKey,
+      [current.holdKey]: (holdExtraByKey[current.holdKey] ?? 0) + addedSec,
+    };
+    const after = buildSessionTimeline({
+      poses: queuePoses,
+      mode,
+      level,
+      levelByPoseId,
+      adaptations: plan.forcedAdaptations,
+      prepExtraByPoseIndex,
+      holdExtraByKey: nextExtras,
+    });
+    // The final hold segment is the one that grew; a Learn hold is split into
+    // a cue segment and a quiet segment, and only the quiet one is extended.
+    const grown =
+      [...after.flat]
+        .reverse()
+        .find((s) => s.holdKey === current.holdKey && s.phase === "hold")?.id ?? current.id;
+    const remapped = remapClockAfterSegmentExtend({
+      flatBefore,
+      flatAfter: after.flat,
+      timeSec: clock.timeSec,
+      segmentId: grown,
+      addedSec,
+    });
+    setHoldExtraByKey(nextExtras);
     setClock((c) => seekClock(c, remapped));
   };
 
@@ -546,6 +700,7 @@ export default function InstructorSession() {
     setClock({ timeSec: 0, playing: false, rate: 1 });
     setPlan(EMPTY_PLAN);
     setPrepExtraByPoseIndex({});
+    setHoldExtraByKey({});
     setPracticedSec(0);
     setSaveStatus("idle");
     setSaveKind(null);
@@ -558,13 +713,31 @@ export default function InstructorSession() {
   const atFirstPose = !current || current.poseIndex === 0;
   const atLastPose = !current || current.poseIndex >= queuePoses.length - 1;
   const prepDisabled = !current || current.phase !== "preparation";
+  const holdExtendDisabled = !current || current.phase !== "hold" || !current.holdKey;
+
+  /**
+   * Seconds left in the hold you are in. Counts down the hold segment only, so
+   * it starts when entry finishes rather than when the pose was announced.
+   */
+  const holdRemainingSec =
+    current && current.phase === "hold"
+      ? Math.max(0, current.absStartSec + current.durationSec - clock.timeSec)
+      : null;
 
   return (
     <FadeIn
       className={cn(
         "mx-auto max-w-3xl space-y-5",
         uiPhase === "practice"
-          ? "flex min-h-0 flex-col pb-4 landscape:h-[calc(100dvh-6.75rem)] landscape:max-h-[calc(100dvh-6.75rem)] landscape:overflow-hidden landscape:space-y-2 landscape:pb-0 md:pb-10"
+          ? // Portrait phones get the same treatment landscape already had: the
+            // player owns the space between the app header and the bottom nav,
+            // and overflow scrolls INSIDE the cue stack. Letting the document
+            // scroll instead is what pushed the pose title off the top.
+            // 9rem = app header (3.5) + main's own top padding (2) + bottom
+            // nav (3.5). Reserving only the header and nav left the control
+            // bar 33px behind the nav in landscape, with Play half-covered.
+            // At lg there is no bottom nav, so less needs reserving.
+            "flex min-h-0 flex-col pb-4 max-md:h-[calc(100dvh-9rem-env(safe-area-inset-bottom))] max-md:overflow-hidden landscape:h-[calc(100dvh-7.5rem)] landscape:max-h-[calc(100dvh-7.5rem)] landscape:overflow-hidden landscape:space-y-2 landscape:pb-0 max-lg:landscape:h-[calc(100dvh-9rem-env(safe-area-inset-bottom))] max-lg:landscape:max-h-[calc(100dvh-9rem-env(safe-area-inset-bottom))] md:pb-10"
           : "pb-28",
       )}
     >
@@ -578,7 +751,9 @@ export default function InstructorSession() {
           </p>
         </header>
       ) : (
-        <header className="flex shrink-0 items-center justify-between gap-2 landscape:py-0">
+        // Decorative during practice. On a 320x568 screen this row plus its
+        // gap is ~44px that the demonstration and caption need more.
+        <header className="flex shrink-0 items-center justify-between gap-2 max-md:hidden landscape:hidden">
           <Badge variant="outline">Pilot · 5 poses</Badge>
           <p className="text-xs text-muted-foreground">Virtual instructor</p>
         </header>
@@ -598,7 +773,10 @@ export default function InstructorSession() {
                 onClick={() => setMode("learn")}
                 data-testid="instructor-mode-learn"
               >
-                Learn — slower setup & tips
+                Learn — slower setup &amp; tips
+                <span className="ml-2 tabular-nums opacity-80" data-testid="instructor-learn-duration">
+                  {formatClock(modeSeconds.learn)}
+                </span>
               </Button>
               <Button
                 className="min-h-11"
@@ -608,6 +786,9 @@ export default function InstructorSession() {
                 data-testid="instructor-mode-flow"
               >
                 Flow — brief cues, quieter holds
+                <span className="ml-2 tabular-nums opacity-80" data-testid="instructor-flow-duration">
+                  {formatClock(modeSeconds.flow)}
+                </span>
               </Button>
             </CardContent>
           </Card>
@@ -782,8 +963,16 @@ export default function InstructorSession() {
               </p>
             </div>
             <div className="shrink-0 text-right text-sm tabular-nums" data-testid="instructor-clock">
-              <div>{formatClock(clock.timeSec)}</div>
-              <div className="text-xs text-muted-foreground">/ {formatClock(timeline.totalSec)}</div>
+              {holdRemainingSec != null ? (
+                <div className="font-medium" data-testid="instructor-hold-countdown">
+                  Hold {Math.ceil(holdRemainingSec)}s
+                </div>
+              ) : (
+                <div>{formatClock(clock.timeSec)}</div>
+              )}
+              <div className="text-xs text-muted-foreground" data-testid="instructor-remaining">
+                {formatClock(Math.max(0, timeline.totalSec - clock.timeSec))} left
+              </div>
             </div>
           </div>
 
@@ -797,20 +986,31 @@ export default function InstructorSession() {
               playing={clock.playing}
               mediaProgress={mediaProgress}
               mediaWindow={current.mediaWindow}
-              className="aspect-[3/4] max-h-[min(42vh,calc(100dvh-22rem))] w-full shrink-0 landscape:aspect-auto landscape:h-auto landscape:max-h-full landscape:min-h-0 landscape:flex-1 landscape:shrink landscape:basis-0 landscape:w-[46%] landscape:max-w-[46%] sm:aspect-video sm:max-h-[min(48vh,calc(100dvh-18rem))] sm:landscape:w-[50%] sm:landscape:max-w-[50%]"
+              onMediaStateChange={setMediaState}
+              className="aspect-[3/4] max-h-[min(42vh,calc(100dvh-22rem))] min-h-[7rem] w-full shrink landscape:aspect-auto landscape:h-auto landscape:max-h-full landscape:min-h-0 landscape:flex-1 landscape:shrink landscape:basis-0 landscape:w-[46%] landscape:max-w-[46%] sm:aspect-video sm:max-h-[min(48vh,calc(100dvh-18rem))] sm:landscape:w-[50%] sm:landscape:max-w-[50%]"
               compactLabel
             />
 
             <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 landscape:min-h-0 landscape:overflow-hidden landscape:py-0">
               {captionsOn ? (
                 <div
-                  className="rounded-xl bg-foreground px-3 py-2 text-sm text-background landscape:max-h-[4.5rem] landscape:overflow-hidden landscape:px-3 landscape:py-1.5 landscape:text-xs"
+                  // A long entry cue on a 320px screen used to run past the
+                  // bottom of the stack and get severed mid-sentence. Bound it
+                  // and let it scroll on its own instead.
+                  // 68px = 8px top padding + three 20px lines. `overflow:hidden`
+                  // clips at the PADDING box, so sizing this to include the
+                  // bottom padding let 8px of a fourth line show through.
+                  className="shrink-0 overflow-hidden rounded-xl bg-foreground px-3 py-2 text-sm leading-5 text-background max-md:max-h-[4.25rem] landscape:max-h-[4.5rem] landscape:px-3 landscape:py-1.5 landscape:text-xs"
                   data-testid="instructor-caption"
                   aria-live="polite"
                 >
                   {current.caption}
                   {current.breathCue && !current.quiet ? (
-                    <span className="mt-1 block text-xs opacity-80 landscape:hidden">{current.breathCue}</span>
+                    // A block child inside a line-clamped box bleeds past the
+                    // clamp, so it goes with the clamp on small screens.
+                    <span className="mt-1 block text-xs opacity-80 max-md:hidden landscape:hidden">
+                      {current.breathCue}
+                    </span>
                   ) : null}
                 </div>
               ) : null}
@@ -830,8 +1030,13 @@ export default function InstructorSession() {
             </div>
           </div>
 
+          {/*
+            The bottom nav is 3.5rem PLUS the safe-area inset, so offsetting by
+            3.5rem alone parked these controls under the home indicator on
+            390x844-class devices.
+          */}
           <div
-            className="fixed inset-x-0 bottom-14 z-40 border-t bg-background/95 p-2 backdrop-blur landscape:static landscape:bottom-auto landscape:z-auto landscape:mt-1 landscape:shrink-0 landscape:rounded-xl landscape:border landscape:bg-card landscape:p-1.5 md:static md:bottom-auto md:z-auto md:mt-1 md:rounded-2xl md:border md:bg-card md:p-3"
+            className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t bg-background/95 p-2 backdrop-blur landscape:static landscape:bottom-auto landscape:z-auto landscape:mt-1 landscape:shrink-0 landscape:rounded-xl landscape:border landscape:bg-card landscape:p-1.5 md:static md:bottom-auto md:z-auto md:mt-1 md:rounded-2xl md:border md:bg-card md:p-3"
             data-testid="instructor-controls"
           >
             <div className="mx-auto flex max-w-3xl flex-nowrap items-center justify-start gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-wrap lg:justify-center lg:gap-2 lg:overflow-visible">
@@ -890,6 +1095,16 @@ export default function InstructorSession() {
               <Button
                 className="min-h-11 shrink-0 landscape:min-h-10"
                 variant="outline"
+                disabled={holdExtendDisabled}
+                onClick={extendHold}
+                aria-label="Extend this hold by 15 seconds"
+                data-testid="instructor-extend-hold"
+              >
+                <Plus className="mr-1 h-4 w-4" /> Hold +15s
+              </Button>
+              <Button
+                className="min-h-11 shrink-0 landscape:min-h-10"
+                variant="outline"
                 onClick={() => {
                   setReplaceOpen((v) => !v);
                   setReplacePending(null);
@@ -899,6 +1114,23 @@ export default function InstructorSession() {
               >
                 <Replace className="mr-1 h-4 w-4" /> Replace
               </Button>
+              {angleOptions.length > 1 ? (
+                <Button
+                  className="min-h-11 shrink-0 landscape:min-h-10"
+                  variant="outline"
+                  aria-label={`Switch camera view, currently ${angle}`}
+                  onClick={() =>
+                    setAngle((a) => {
+                      const i = angleOptions.indexOf(a);
+                      return angleOptions[(i + 1) % angleOptions.length];
+                    })
+                  }
+                  data-testid="instructor-camera-angle"
+                >
+                  <Camera className="mr-1 h-4 w-4" />
+                  {angle === "side" ? "Side view" : "Front view"}
+                </Button>
+              ) : null}
               <Button
                 className="min-h-11 shrink-0"
                 variant="outline"
@@ -999,6 +1231,8 @@ export default function InstructorSession() {
               </div>
             ) : null}
           </div>
+
+          <InstructorMediaPreload media={nextVariantMedia} />
 
           {narrationOn && currentVariant.media.narrationUrl && !current.quiet ? (
             <audio
@@ -1104,13 +1338,17 @@ export default function InstructorSession() {
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
             {INSTRUCTOR_PILOT_MISSING_ASSETS.map((a) => (
               <li key={a.id}>
-                <code className="text-xs">{a.id}</code> — {a.need}
+                <code className="text-xs">{a.id}</code> — {a.need}{" "}
+                <Badge variant="outline" className="ml-1 align-middle text-[10px]">
+                  {a.status.replace(/_/g, " ")}
+                </Badge>
               </li>
             ))}
           </ul>
           <p className="mt-2 text-xs text-muted-foreground">
-            Filmed instructor prep/entry/hold/exit clips and human VO are not shipped. Presentation
-            animations are labeled honestly in practice — they are not complete instructor media.
+            {mediaCoverage.publishedDemonstrations === 0
+              ? "No reviewed movement demonstrations are published yet, so this pilot does not yet show how a pose is entered and exited. Presentation animations and posters are placeholders and are labeled as such in practice."
+              : `${mediaCoverage.publishedDemonstrations} of ${mediaCoverage.total} demonstrations are published and instructor-reviewed.`}
           </p>
           <p className="mt-1 text-xs">
             Optional mirror only:{" "}

@@ -13,6 +13,16 @@ import {
   adaptationActionFor,
   type AdaptationId,
 } from "@/lib/restrictionAdaptations";
+import {
+  INSTRUCTOR_CLIP_MANIFEST,
+  isMovementDemonstration,
+  resolveClip,
+  type CameraAngle,
+  type InstructorClipManifest,
+  type ReviewStage,
+  type TimelinePhase,
+  type VariationLevel,
+} from "@/data/instructorMediaManifest";
 
 export const INSTRUCTOR_PILOT_SLUGS = [
   "tadasana",
@@ -24,8 +34,17 @@ export const INSTRUCTOR_PILOT_SLUGS = [
 
 export type InstructorPilotSlug = (typeof INSTRUCTOR_PILOT_SLUGS)[number];
 export type InstructorMode = "learn" | "flow";
-export type VariationLevel = "beginner" | "intermediate" | "advanced";
-export type CameraAngle = "front" | "side" | "unknown";
+
+// Shared media vocabulary lives in the manifest — it is the module that
+// decides what counts as a demonstration, and everything else follows it.
+export type {
+  BodySide,
+  CameraAngle,
+  TimelinePhase,
+  VariantId,
+  VariationLevel,
+} from "@/data/instructorMediaManifest";
+
 export type MediaKind =
   | "filmed_instructor"
   | "reviewed_3d"
@@ -36,13 +55,6 @@ export type MediaReviewStatus =
   | "not_reviewed"
   | "editor_catalog_note"
   | "instructor_reviewed";
-export type TimelinePhase =
-  | "preparation"
-  | "entry"
-  | "hold"
-  | "exit"
-  | "side_switch"
-  | "transition";
 
 export type InstructionSegment = {
   id: string;
@@ -55,12 +67,17 @@ export type InstructionSegment = {
   side: "left" | "right" | "both";
   quiet?: boolean;
   mediaWindow?: { start: number; end: number } | null;
+  /** Set on hold segments — the key an "extend hold" applies to. */
+  holdKey?: string;
+  /** Seconds this hold has already been extended by. */
+  extendedBySec?: number;
 };
 
 export type InstructorMediaRef = {
   kind: MediaKind;
   reviewStatus: MediaReviewStatus;
   angle: CameraAngle;
+  videoHls?: string | null;
   videoMp4?: string | null;
   videoWebm?: string | null;
   /** Null when no honest visual is available for this variant. */
@@ -69,6 +86,16 @@ export type InstructorMediaRef = {
   narrationUrl?: string | null;
   missingAssetId?: string;
   label: string;
+  /**
+   * True only when a reviewed, published clip actually shows the body moving
+   * into and out of the pose. Placeholders are always false — the player uses
+   * this to decide whether it may present the media as instruction.
+   */
+  showsMovement: boolean;
+  /** Phase windows inside the clip, in clip seconds. Empty for placeholders. */
+  phaseSegments: Array<{ phase: TimelinePhase; startSec: number; endSec: number }>;
+  /** The manifest row behind this ref, when there is one. */
+  clipId?: string;
 };
 
 export type InstructorRestrictionRule = {
@@ -129,10 +156,35 @@ function bodyAreaFor(condition: string): string {
   return "general";
 }
 
+/** A reviewed, published clip — the only thing allowed to claim it teaches motion. */
+function mediaFromClip(clip: InstructorClipManifest): InstructorMediaRef {
+  return {
+    kind: clip.provenance.sourceKind === "reviewed_3d" ? "reviewed_3d" : "filmed_instructor",
+    reviewStatus: "instructor_reviewed",
+    angle: clip.angle,
+    videoHls: clip.sources.hls ?? null,
+    videoMp4: clip.sources.mp4 ?? null,
+    videoWebm: clip.sources.webm ?? null,
+    poster: clip.poster,
+    captionsVtt: clip.captionsVtt,
+    narrationUrl: clip.narration.url,
+    label: clip.label,
+    showsMovement: true,
+    phaseSegments: clip.segments,
+    clipId: clip.clipId,
+  };
+}
+
 function mediaForVariant(
   slug: InstructorPilotSlug,
   level: VariationLevel,
+  angle?: CameraAngle,
 ): InstructorMediaRef {
+  // A reviewed demonstration always wins. Today the manifest has none, so this
+  // never fires — it is the seam the produced assets drop into.
+  const clip = resolveClip({ poseId: `pilot-${slug}`, variantId: level, angle });
+  if (clip && isMovementDemonstration(clip)) return mediaFromClip(clip);
+
   const sources = poseMediaFor(slug);
   const hasAnim = poseHasVideo(slug);
   const narrationUrl = poseNarrationSrc(slug);
@@ -149,6 +201,8 @@ function mediaForVariant(
       narrationUrl,
       missingAssetId: `filmed-instructor/${slug}/beginner-front`,
       label: "Static reference — beginner filmed demonstration is not available yet.",
+      showsMovement: false,
+      phaseSegments: [],
     };
   }
   if (hasAnim) {
@@ -164,6 +218,8 @@ function mediaForVariant(
       missingAssetId: `filmed-instructor/${slug}/front-and-side`,
       label:
         "Presentation animation — not a filmed instructor lesson. Filmed front/side demos are still needed.",
+      showsMovement: false,
+      phaseSegments: [],
     };
   }
   return {
@@ -173,11 +229,23 @@ function mediaForVariant(
     poster: sources.poster,
     missingAssetId: `filmed-instructor/${slug}/any`,
     label: "Demonstration unavailable for this pose right now.",
+    showsMovement: false,
+    phaseSegments: [],
   };
 }
 
-function mediaForAdaptation(adaptationId: AdaptationId): InstructorMediaRef {
+function mediaForAdaptation(
+  adaptationId: AdaptationId,
+  angle?: CameraAngle,
+): InstructorMediaRef {
   const a = ADAPTATIONS[adaptationId];
+  const clip = resolveClip({
+    poseId: `pilot-${a.poseSlug}`,
+    variantId: adaptationId,
+    angle,
+  });
+  if (clip && isMovementDemonstration(clip)) return mediaFromClip(clip);
+
   // Never label base-pose media as an adapted demonstration when it does not match.
   if (!a.mediaMatchesAdaptation || !a.mediaSlug) {
     return {
@@ -191,6 +259,8 @@ function mediaForAdaptation(adaptationId: AdaptationId): InstructorMediaRef {
       narrationUrl: null,
       missingAssetId: a.missingAssetId,
       label: a.mediaConsumerLabel,
+      showsMovement: false,
+      phaseSegments: [],
     };
   }
   const sources = poseMediaFor(a.mediaSlug);
@@ -206,6 +276,8 @@ function mediaForAdaptation(adaptationId: AdaptationId): InstructorMediaRef {
     narrationUrl: poseNarrationSrc(a.mediaSlug),
     missingAssetId: a.missingAssetId,
     label: a.mediaConsumerLabel,
+    showsMovement: false,
+    phaseSegments: [],
   };
 }
 
@@ -367,16 +439,28 @@ function buildPose(slug: InstructorPilotSlug, sides: "once" | "each"): Instructo
   };
 }
 
-/** Resolve teaching content for a pose given difficulty + optional adaptation. */
+/**
+ * Resolve teaching content for a pose given difficulty + optional adaptation.
+ *
+ * `angle` re-resolves the media against the manifest so an alternate camera
+ * view swaps the clip without disturbing the cues, steps or timing.
+ */
 export function resolveTeachingVariant(
   pose: InstructorPoseDef,
   level: VariationLevel,
   adaptationId?: AdaptationId | null,
+  angle?: CameraAngle,
 ): InstructorPoseVariant {
-  if (adaptationId && pose.adaptations[adaptationId]) {
-    return pose.adaptations[adaptationId]!;
-  }
-  return pose.variants[level];
+  const variant =
+    adaptationId && pose.adaptations[adaptationId]
+      ? pose.adaptations[adaptationId]!
+      : pose.variants[level];
+
+  if (!angle || angle === "front") return variant;
+  const media = adaptationId
+    ? mediaForAdaptation(adaptationId, angle)
+    : mediaForVariant(pose.slug, level, angle);
+  return { ...variant, media };
 }
 
 export const INSTRUCTOR_PILOT_POSES: InstructorPoseDef[] = [
@@ -395,66 +479,40 @@ export function isInstructorPilotSlug(slug: string): slug is InstructorPilotSlug
   return (INSTRUCTOR_PILOT_SLUGS as readonly string[]).includes(slug);
 }
 
+/**
+ * Precise production list, derived from the manifest so the two cannot drift.
+ *
+ * `status` mirrors the manifest's review stage, so this list distinguishes
+ * missing work from work that exists but has not passed review. Producing an
+ * asset removes it from here by advancing its manifest row — there is no
+ * second list to remember to edit.
+ */
 export const INSTRUCTOR_PILOT_MISSING_ASSETS: Array<{
   id: string;
-  pose: InstructorPilotSlug | "kumbhakasana";
+  pose: string;
   need: string;
-  status: "needed";
+  status: ReviewStage;
 }> = [
-  ...INSTRUCTOR_PILOT_SLUGS.flatMap((pose) => [
-    {
-      id: `filmed-instructor/${pose}/front`,
-      pose,
-      need: "Full-body filmed instructor, front view, prep→entry→hold→exit",
-      status: "needed" as const,
-    },
-    {
-      id: `filmed-instructor/${pose}/side`,
-      pose,
-      need: "Matching side view with same instructor/studio/lighting",
-      status: "needed" as const,
-    },
-    {
-      id: `filmed-instructor/${pose}/beginner-front`,
-      pose,
-      need: "Beginner / supported variation demonstration with accurate props",
-      status: "needed" as const,
-    },
-    {
-      id: `human-narration/${pose}`,
-      pose,
-      need: "Approved human voiceover aligned to timeline segments",
-      status: "needed" as const,
-    },
-  ]),
-  {
-    id: "filmed-instructor/kumbhakasana/wrist-forearm",
-    pose: "kumbhakasana",
-    need: "Filmed forearm-plank adaptation (elbows under shoulders) matching wrist-injury teaching",
-    status: "needed",
-  },
-  {
-    id: "filmed-instructor/kumbhakasana/pregnancy-modify",
-    pose: "kumbhakasana",
-    need: "Filmed knees-down pregnancy plank modification",
-    status: "needed",
-  },
-  {
-    id: "filmed-instructor/balasana/knee-supported",
-    pose: "balasana",
-    need: "Filmed Child’s Pose with knee support / bolster — matching reviewed media",
-    status: "needed",
-  },
-  {
-    id: "filmed-instructor/tadasana/wall-supported",
-    pose: "tadasana",
-    need: "Filmed Mountain Pose at the wall — matching reviewed media",
-    status: "needed",
-  },
-  {
-    id: "filmed-instructor/marjaryasana-bitilasana/wrist-fist",
-    pose: "marjaryasana-bitilasana",
-    need: "Filmed Cat–Cow on fists or forearms for wrist restriction",
-    status: "needed",
-  },
+  ...INSTRUCTOR_CLIP_MANIFEST.filter((clip) => !isMovementDemonstration(clip)).map((clip) => ({
+    id: clip.missingAssetId ?? clip.clipId,
+    pose: clip.poseId.replace(/^pilot-/, ""),
+    need: [
+      clip.modifies ? "Supported / adapted variation" : "Full pose",
+      `${clip.angle} view`,
+      clip.side === "both" ? null : `${clip.side} side`,
+      "prep→entry→hold→exit",
+      clip.equipment.length ? `props: ${clip.equipment.join(", ")}` : null,
+    ]
+      .filter(Boolean)
+      .join(", "),
+    status: clip.review.stage,
+  })),
+  // Narration is a field on a clip rather than a manifest row of its own, so
+  // the voiceover deliverable is listed explicitly.
+  ...INSTRUCTOR_PILOT_SLUGS.map((pose) => ({
+    id: `human-narration/${pose}`,
+    pose,
+    need: "Approved human voiceover aligned to timeline segments",
+    status: "missing" as ReviewStage,
+  })),
 ];

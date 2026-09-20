@@ -24,6 +24,7 @@ import {
   type TrainerSession,
 } from "@/lib/yogaTrainer";
 import { trainerLocationSatisfied, saveCareRegions } from "@/lib/restrictionAdaptations";
+import { nearestOfferedMinutes } from "@/lib/sessionFit";
 import { cn } from "@/lib/utils";
 import { formatHold } from "@/lib/formatDuration";
 import { ChevronRight, Play, RefreshCw, ShieldAlert, Sparkles, UserRound } from "lucide-react";
@@ -162,8 +163,9 @@ export default function Trainer() {
           ? timeMinutes !== null
           : need !== "";
 
-  const doCompose = async () => {
+  const doCompose = async (overrideMinutes?: number) => {
     setPhase("composing");
+    if (overrideMinutes != null) setTimeMinutes(overrideMinutes);
     const started = Date.now();
     const care = showBodyParts ? soreParts.filter((p) => p !== "None specific") : [];
     saveCareRegions(care);
@@ -172,7 +174,7 @@ export default function Trainer() {
         body,
         soreParts: care,
         energy: energy || "Balanced",
-        timeMinutes: timeMinutes ?? 10,
+        timeMinutes: overrideMinutes ?? timeMinutes ?? 10,
         need: need || "movement",
       },
       {
@@ -200,7 +202,9 @@ export default function Trainer() {
     saveCareRegions(care);
     loadSession(poses, {
       label: `Trainer — ${NEED_LABEL[result.deliveredNeed] ?? result.deliveredNeed}`,
-      plannedMinutes: timeMinutes ?? result.totalMinutes,
+      // The length the player will actually run, not the length that was asked
+      // for — those differ whenever narration cannot fit the request.
+      plannedMinutes: result.totalMinutes,
       // We already asked about body and energy; don't ask a third time.
       preMood: moodFromEnergy(energy),
       careRegions: care,
@@ -281,6 +285,11 @@ export default function Trainer() {
               <Badge variant="outline" className="tabular-nums" data-testid="badge-total-minutes">
                 ~{result.totalMinutes} min
               </Badge>
+              {result.trimNote ? (
+                <Badge variant="secondary" data-testid="badge-trimmed">
+                  Shortened to fit
+                </Badge>
+              ) : null}
               <Badge variant="outline">{result.poses.length} poses</Badge>
               <Badge variant="outline" data-testid="badge-delivered-need">
                 {NEED_LABEL[result.deliveredNeed] ?? "Restorative"}
@@ -288,6 +297,31 @@ export default function Trainer() {
             </div>
           </CardContent>
         </Card>
+
+        {result.fit.explanation && (
+          <Card className="border-primary/40 bg-primary/5" data-testid="card-duration-fit">
+            <CardContent className="space-y-3 p-4">
+              <p className="text-sm" data-testid="text-duration-fit">
+                {result.fit.explanation}
+              </p>
+              {(() => {
+                const offer = nearestOfferedMinutes(result.fit.plannedMinutes, TIME_OPTIONS);
+                if (offer == null || offer === timeMinutes) return null;
+                return (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="min-h-11"
+                    data-testid="button-use-fitting-duration"
+                    onClick={() => void doCompose(offer)}
+                  >
+                    Build a {offer}-minute practice instead
+                  </Button>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        )}
 
         {result.adjustments.length > 0 && (
           <Card className="border-amber-500/40 bg-amber-500/5" data-testid="card-adjustments">
@@ -321,7 +355,7 @@ export default function Trainer() {
             size="lg"
             variant="outline"
             className="flex-1"
-            onClick={doCompose}
+            onClick={() => void doCompose()}
             data-testid="button-compose-different"
           >
             <RefreshCw className="mr-2 h-4 w-4" /> Compose a different one
@@ -400,7 +434,7 @@ export default function Trainer() {
             size="lg"
             variant="outline"
             className="flex-1"
-            onClick={doCompose}
+            onClick={() => void doCompose()}
             data-testid="button-compose-different-bottom"
           >
             <RefreshCw className="mr-2 h-4 w-4" /> Compose a different one
@@ -598,7 +632,7 @@ export default function Trainer() {
             Continue
           </Button>
         ) : (
-          <Button disabled={!canAdvance} onClick={doCompose} data-testid="button-compose">
+          <Button disabled={!canAdvance} onClick={() => void doCompose()} data-testid="button-compose">
             <Sparkles className="mr-2 h-4 w-4" /> Compose my practice
           </Button>
         )}

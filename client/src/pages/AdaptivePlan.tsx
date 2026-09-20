@@ -7,12 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { generateAdaptiveSession, pickEasierSwap, swapPose } from "@/lib/adaptiveGenerator";
+import { nearestOfferedMinutes } from "@/lib/sessionFit";
 import { adviseNextSession, readOutcomes } from "@/lib/adaptiveRecovery";
 import { usePractice } from "@/context/PracticeContext";
 import { asanaBySlug } from "@/data/content";
 import { track } from "@/lib/analytics";
 import { useToast } from "@/hooks/use-toast";
 import type { Journal, Session } from "@shared/schema";
+
+const ADAPTIVE_MINUTES = [10, 15, 20, 25];
 
 function poseKey(slugs: string[]): string {
   return slugs.join(",");
@@ -170,7 +173,7 @@ export default function AdaptivePlan() {
       </Card>
 
       <div className="flex flex-wrap items-center gap-2">
-        {[10, 15, 20, 25].map((m) => (
+        {ADAPTIVE_MINUTES.map((m) => (
           <Button
             key={m}
             size="sm"
@@ -191,6 +194,32 @@ export default function AdaptivePlan() {
           Regenerate
         </Button>
       </div>
+      {result.session.fit.explanation ? (
+        <Card className="border-primary/40 bg-primary/5" data-testid="adaptive-duration-fit">
+          <CardContent className="space-y-3 p-4">
+            <p className="text-sm">{result.session.fit.explanation}</p>
+            {(() => {
+              const offer = nearestOfferedMinutes(
+                result.session.fit.plannedMinutes,
+                ADAPTIVE_MINUTES,
+              );
+              if (offer == null || offer === minutes) return null;
+              return (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="min-h-11"
+                  data-testid="adaptive-use-fitting-duration"
+                  onClick={() => pickMinutes(offer)}
+                >
+                  Build a {offer}-minute plan instead
+                </Button>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      ) : null}
+
       {(result.advice.intensity === "easy" || result.advice.intensity === "recover") &&
         minutes <= result.advice.maxMinutes &&
         result.advice.maxMinutes < 25 && (

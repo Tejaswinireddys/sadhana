@@ -5,10 +5,12 @@
 import { asanaBySlug, type Asana } from "@/data/content";
 import {
   composeTrainerSession,
+  estimatedSessionSeconds,
   isStandingBuild,
   orderPosesByArc,
   poseArcRank,
   standingFloorFor,
+  trainerSessionFit,
   type TrainerAudience,
   type TrainerSession,
 } from "./yogaTrainer";
@@ -124,12 +126,12 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
   poses = orderPosesByArc(poses);
   poses = restoreRequestedMinutes(poses, minutes);
 
-  const totalMinutes = Math.max(
-    1,
-    Math.round(
-      poses.reduce((s, p) => s + p.holdSeconds * (p.sides === "each" ? 2 : 1), 0) / 60,
-    ),
-  );
+  // Recomputed from the FINAL queue. Easing, swaps and top-ups all reshape
+  // `poses` after composition, so `raw`'s numbers are stale by this point —
+  // and holds alone were never the length the player runs anyway.
+  const totalSeconds = estimatedSessionSeconds(poses);
+  const totalMinutes = Math.max(1, Math.round(totalSeconds / 60));
+  const fit = trainerSessionFit(poses, minutes);
 
   const explanations = [
     ...advice.reasons,
@@ -159,8 +161,9 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
 
   explanations.push(
     `Hold times scaled ×${advice.holdScale.toFixed(2)} for ${advice.intensity} intensity.`,
-    `Target about ${minutes} minutes (composed ~${totalMinutes} min of holds).`,
+    `Target about ${minutes} minutes (this practice runs ~${totalMinutes} min including spoken instruction).`,
   );
+  if (fit.explanation) explanations.push(fit.explanation);
 
   return {
     advice,
@@ -171,6 +174,8 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
       ...raw,
       poses,
       totalMinutes,
+      totalSeconds,
+      fit,
       adjustments: [...raw.adjustments, ...advice.reasons],
       reasoning: `${advice.headline}. ${raw.reasoning}`,
       standingExclusion,
@@ -201,19 +206,28 @@ function standingExclusionCopy(
 const REST_SLUG = /savasana|viparita-karani|balasana|constructive-rest/;
 
 /** Hold-scale eases effort; leftover seconds go to rest so the minute chip still holds. */
+/**
+ * Top holds back up toward the requested length after easing scaled them down.
+ *
+ * Measured against the wall-clock the player runs, not the sum of holds.
+ * Refilling to "10 minutes of holds" is what turned a 10-minute Adaptive
+ * selection into a 21-minute session: the narration for those poses had
+ * already spent most of the ten minutes.
+ */
 function restoreRequestedMinutes<T extends { slug: string; holdSeconds: number; sides: "once" | "each" }>(
   poses: T[],
   targetMinutes: number,
 ): T[] {
   const targetSeconds = Math.max(5, targetMinutes) * 60;
-  let remaining =
-    targetSeconds - poses.reduce((s, p) => s + p.holdSeconds * (p.sides === "each" ? 2 : 1), 0);
-  if (remaining <= 15) return poses;
+  if (estimatedSessionSeconds(poses) >= targetSeconds - 15) return poses;
+
   const next = poses.map((p) => ({ ...p }));
   const order = next
     .map((_, i) => i)
     .sort((a, b) => Number(REST_SLUG.test(next[b].slug)) - Number(REST_SLUG.test(next[a].slug)));
+
   for (const i of order) {
+    let remaining = targetSeconds - estimatedSessionSeconds(next);
     if (remaining <= 0) break;
     const sides = next[i].sides === "each" ? 2 : 1;
     const room = 300 - next[i].holdSeconds;
@@ -221,7 +235,6 @@ function restoreRequestedMinutes<T extends { slug: string; holdSeconds: number; 
     const add = Math.min(room, Math.round(remaining / sides / 5) * 5);
     if (add <= 0) continue;
     next[i].holdSeconds += add;
-    remaining -= add * sides;
   }
   return next;
 }

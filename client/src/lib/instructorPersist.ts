@@ -12,6 +12,8 @@ export type PersistedInstructorSession = {
   answers: Array<{ ruleId: string; applies: boolean | null }>;
   plan: unknown;
   prepExtraByPoseIndex: Record<number, number>;
+  /** Extra hold seconds keyed by `holdKeyFor(slug, side)`. Absent in older saves. */
+  holdExtraByKey?: Record<string, number>;
   clock: { timeSec: number; playing: boolean; rate: number };
   practicedSec: number;
   startedAt: number | null;
