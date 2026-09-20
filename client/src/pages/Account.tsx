@@ -59,6 +59,73 @@ function validateSignup(input: {
   return null;
 }
 
+/**
+ * Shown once, right after the code is issued.
+ *
+ * On a deployment with no mail transport this is the only credential that can
+ * recover the account, so it is deliberately loud and cannot be re-displayed.
+ */
+function RecoveryCodePanel({
+  code,
+  copied,
+  onCopy,
+  onDismiss,
+}: {
+  code: string;
+  copied: boolean;
+  onCopy: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <Card className="border-primary bg-primary/5" data-testid="recovery-code-panel">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 font-serif text-xl">
+          <ShieldCheck className="h-5 w-5 text-primary" aria-hidden /> Save your recovery code
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          This server cannot send email, so there is no reset link. This code is the only way to
+          set a new password if you forget it. Write it down or put it in a password manager — it
+          is shown once and never again.
+        </p>
+        <p
+          className="select-all rounded-lg border border-primary/40 bg-background px-3 py-3 text-center font-mono text-lg tracking-widest"
+          data-testid="recovery-code-value"
+        >
+          {code}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 cursor-pointer"
+            onClick={onCopy}
+            data-testid="recovery-code-copy"
+          >
+            {copied ? "Copied" : "Copy code"}
+          </Button>
+          <Button
+            type="button"
+            className="min-h-11 cursor-pointer"
+            onClick={onDismiss}
+            data-testid="recovery-code-done"
+          >
+            I&apos;ve saved it
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Lost it? See{" "}
+          <Link href="/help" className="underline underline-offset-2">
+            Help
+          </Link>{" "}
+          for what can and cannot be recovered.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Account() {
   useDocumentTitle("Account · Sadhana");
   const { toast } = useToast();
@@ -80,6 +147,12 @@ export default function Account() {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [resetToken, setResetToken] = useState("");
+  /**
+   * Shown once, never stored. On a deployment with no mail transport this is
+   * the only credential that can recover the account.
+   */
+  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+  const [recoveryCopied, setRecoveryCopied] = useState(false);
   const [resetPassword, setResetPassword] = useState("");
   const [forgotHint, setForgotHint] = useState<string | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
@@ -144,12 +217,22 @@ export default function Account() {
       if ("needsVerification" in result && result.needsVerification) {
         setPendingVerifyEmail(result.email);
         const q = new URLSearchParams({ email: result.email });
-        if (result.verifyToken) q.set("token", result.verifyToken);
+        if ("verifyToken" in result && result.verifyToken) q.set("token", result.verifyToken);
         toast({
           title: "Check your inbox",
           description: result.message,
         });
         navigate(`/verify?${q.toString()}`);
+        return;
+      }
+      // This server cannot send mail, so the recovery code is the only way
+      // back into the account. Show it instead of navigating away.
+      if ("recoveryCode" in result && result.recoveryCode) {
+        setRecoveryCode(result.recoveryCode);
+        toast({
+          title: "Save your recovery code",
+          description: "It is shown once. Without it a forgotten password cannot be reset.",
+        });
         return;
       }
       toast({
@@ -184,7 +267,7 @@ export default function Account() {
     e.preventDefault();
     setError(null);
     try {
-      const { user: signedIn } = await reset.mutateAsync({
+      const { user: signedIn, recoveryCode: nextCode } = await reset.mutateAsync({
         email,
         token: resetToken.trim(),
         password: resetPassword,
@@ -192,9 +275,13 @@ export default function Account() {
       setPassword("");
       setResetPassword("");
       setResetToken("");
+      // Using a recovery code consumes it; the replacement is shown once.
+      if (nextCode) setRecoveryCode(nextCode);
       toast({
         title: "Password updated",
-        description: `Signed in as ${signedIn.displayName || signedIn.email}.`,
+        description: nextCode
+          ? "Signed in. Save the new recovery code below — the old one is now used up."
+          : `Signed in as ${signedIn.displayName || signedIn.email}.`,
       });
     } catch (err) {
       setError(authErrorMessage(err, "Could not reset password."));
@@ -214,6 +301,21 @@ export default function Account() {
             Practice saved here follows you to any browser you sign in from.
           </p>
         </header>
+
+      {recoveryCode ? <RecoveryCodePanel
+        code={recoveryCode}
+        copied={recoveryCopied}
+        onCopy={() => {
+          void navigator.clipboard
+            ?.writeText(recoveryCode)
+            .then(() => setRecoveryCopied(true))
+            .catch(() => setRecoveryCopied(false));
+        }}
+        onDismiss={() => {
+          setRecoveryCode(null);
+          setRecoveryCopied(false);
+        }}
+      /> : null}
 
         <Card data-testid="account-signed-in">
           <CardContent className="space-y-4 p-5">
@@ -350,6 +452,23 @@ export default function Account() {
           switch browsers or clear this one.
         </p>
       </header>
+
+      {recoveryCode ? (
+        <RecoveryCodePanel
+          code={recoveryCode}
+          copied={recoveryCopied}
+          onCopy={() => {
+            void navigator.clipboard
+              ?.writeText(recoveryCode)
+              .then(() => setRecoveryCopied(true))
+              .catch(() => setRecoveryCopied(false));
+          }}
+          onDismiss={() => {
+            setRecoveryCode(null);
+            setRecoveryCopied(false);
+          }}
+        />
+      ) : null}
 
       {pendingVerifyEmail ? (
         <Card className="border-primary/30 bg-primary/5">
@@ -628,15 +747,30 @@ export default function Account() {
 
                 <form className="space-y-4 border-t border-border pt-4" onSubmit={submitReset}>
                   <div className="space-y-2">
-                    <Label htmlFor="reset-token">Reset code</Label>
+                    <Label htmlFor="reset-token">
+                      {emailEnabled ? "Reset code or recovery code" : "Recovery code"}
+                    </Label>
                     <Input
                       id="reset-token"
                       required
                       value={resetToken}
                       onChange={(e) => setResetToken(e.target.value)}
                       className="min-h-11 font-mono text-sm"
+                      placeholder={emailEnabled ? undefined : "ABCDE-FGHJK-MNPQR-STVWX"}
+                      autoCapitalize="characters"
+                      spellCheck={false}
                       data-testid="reset-token"
                     />
+                    {/*
+                      On a server with no mail transport this field is not a
+                      dead end: the recovery code issued at signup is accepted
+                      here, so a forgotten password is still recoverable.
+                    */}
+                    <p className="text-xs text-muted-foreground" data-testid="reset-token-hint">
+                      {emailEnabled
+                        ? "Paste the code from your email, or the recovery code you saved when you created the account."
+                        : "Enter the recovery code you saved when you created the account. Dashes and letter case do not matter."}
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="reset-password">New password</Label>

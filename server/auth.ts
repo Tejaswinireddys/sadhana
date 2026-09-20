@@ -92,6 +92,49 @@ export function resetTokenExpiry(from = new Date()): string {
   return new Date(from.getTime() + RESET_TOKEN_MINUTES * 60_000).toISOString();
 }
 
+/**
+ * A recovery code the practitioner keeps, for deployments with no email.
+ *
+ * Without one, an account created on a server that cannot send mail is dead on
+ * arrival: signup withholds the session until the address is verified, and the
+ * verification link never arrives. This is the only way back in, so it is
+ * shown once at signup and stored hashed like any other reset token.
+ *
+ * 20 base32 characters ≈ 100 bits, grouped for transcription. The alphabet
+ * omits I, L, O, U and 0/1 so a handwritten code is not ambiguous.
+ */
+const RECOVERY_ALPHABET = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
+export const RECOVERY_CODE_GROUPS = 4;
+export const RECOVERY_CODE_GROUP_LEN = 5;
+
+export function newRecoveryCode(): string {
+  const len = RECOVERY_CODE_GROUPS * RECOVERY_CODE_GROUP_LEN;
+  const bytes = randomBytes(len);
+  let out = "";
+  for (let i = 0; i < len; i++) {
+    out += RECOVERY_ALPHABET[bytes[i]! % RECOVERY_ALPHABET.length];
+  }
+  return (out.match(/.{1,5}/g) ?? [out]).join("-");
+}
+
+/**
+ * Codes are read off paper, so accept lowercase, missing dashes and stray
+ * spaces. Normalising before hashing is what makes the code usable at all.
+ */
+export function normalizeRecoveryCode(input: string): string {
+  const bare = input.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return (bare.match(/.{1,5}/g) ?? [bare]).join("-");
+}
+
+export function looksLikeRecoveryCode(input: string): boolean {
+  return /^[A-Z0-9]{5}(-[A-Z0-9]{5}){3}$/.test(normalizeRecoveryCode(input));
+}
+
+/** Recovery codes do not expire on a timer — losing one has no other remedy. */
+export function recoveryCodeExpiry(from = new Date()): string {
+  return new Date(from.getTime() + 10 * 365 * 24 * 3_600_000).toISOString();
+}
+
 export function newVerifyToken(): string {
   return newResetToken();
 }

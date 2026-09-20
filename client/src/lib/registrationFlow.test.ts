@@ -29,7 +29,17 @@ describe("registration + email verification contract", () => {
     assert.match(routes, /\/api\/auth\/verify-email/);
     assert.match(routes, /\/api\/auth\/resend-verification/);
     assert.match(routes, /needsVerification:\s*true/);
-    assert.match(routes, /if\s*\(!user\.emailVerified\)/);
+    // Login is gated on verification — but only where a verification email
+    // could actually have been sent. Demanding it on a deployment with no mail
+    // transport locked every account out of a door that has no key.
+    assert.match(routes, /if\s*\(!user\.emailVerified\s*&&\s*emailDeliveryConfigured\(\)\)/);
+    // The flag itself must stay honest: nothing may mark an address verified
+    // just because no email could be sent to it.
+    assert.equal(
+      /markEmailVerified\(user\.id\);\s*\n\s*const recoveryCode/.test(routes),
+      false,
+      "signup marked an unproven address as verified",
+    );
     assert.match(routes, /sendVerificationEmail/);
     assert.match(routes, /sendWelcomeEmail/);
     assert.match(routes, /sendPasswordChangedEmail/);

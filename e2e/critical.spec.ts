@@ -64,7 +64,10 @@ test.describe("critical journeys", () => {
       await ack.check();
     }
     await page.getByTestId("signup-submit").click();
-    // Dev signup returns a verifyToken and navigates to /verify; auto-verify signs in.
+    // Two ways to arrive signed in, depending on the deployment:
+    //  - mail configured: signup returns a verifyToken, /verify auto-verifies;
+    //  - no mail: there is no inbox to verify, so signup signs you in and
+    //    issues a recovery code instead (the address stays unverified).
     await expect(page.getByTestId("account-signed-in")).toBeVisible({ timeout: 25_000 });
   });
 

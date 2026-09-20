@@ -57,18 +57,41 @@ export default function Help() {
           ) : (
             <>
               <p>
-                This deployment has no transactional email configured, so reset codes cannot be
-                sent. That is a server configuration gap, not a problem with your account — and we
-                would rather say so than show you a button that silently fails.
+                This deployment has no transactional email configured, so no reset code can be sent
+                to your inbox. Instead, every account created here is given a{" "}
+                <strong className="text-foreground">recovery code</strong> at signup — shown once,
+                on screen.
               </p>
-              <p className="font-medium text-foreground">What you can do now:</p>
+              <p className="font-medium text-foreground">If you still have your recovery code:</p>
+              <ol className="list-decimal space-y-1 pl-5">
+                <li>
+                  Open{" "}
+                  <Link href="/account?tab=reset" className="underline underline-offset-2">
+                    Account → Reset
+                  </Link>
+                  .
+                </li>
+                <li>Enter your email, the recovery code, and a new password.</li>
+                <li>
+                  You will be signed in, and issued a fresh recovery code — the old one is used up.
+                  Save the new one.
+                </li>
+              </ol>
+              <p className="text-xs">
+                Letter case and dashes do not matter, so a code copied by hand still works.
+              </p>
+              <p className="font-medium text-foreground">If you lost your recovery code:</p>
               <ul className="list-disc space-y-1 pl-5">
                 <li>
-                  Your practice is stored on this device even when you are signed out. Keep using
-                  Sadhana as a guest — nothing is lost.
+                  The password cannot be reset on this server. That is the trade-off for not
+                  depending on email, and we would rather be plain about it.
                 </li>
                 <li>
-                  If you need the data from a locked account, email{" "}
+                  Your practice is stored on this device even when signed out — keep using Sadhana
+                  as a guest and nothing is lost.
+                </li>
+                <li>
+                  For data held under a locked account, email{" "}
                   <a href="mailto:privacy@sadhana.app" className="underline underline-offset-2">
                     privacy@sadhana.app
                   </a>{" "}
@@ -76,7 +99,8 @@ export default function Help() {
                 </li>
                 <li>
                   If you run this deployment: set <code className="text-xs">RESEND_API_KEY</code> or{" "}
-                  <code className="text-xs">EMAIL_WEBHOOK_URL</code> and redeploy.
+                  <code className="text-xs">EMAIL_WEBHOOK_URL</code> and redeploy to switch on
+                  ordinary email resets.
                 </li>
               </ul>
             </>

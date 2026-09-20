@@ -68,7 +68,9 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email address"),
-  token: z.string().min(16, "Enter the reset code from your email"),
+  // Either an emailed reset code or the recovery code issued at signup on a
+  // deployment that cannot send mail.
+  token: z.string().trim().min(16, "Enter your reset code or recovery code"),
   password: passwordSchema,
 });
 

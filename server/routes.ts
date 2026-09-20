@@ -36,6 +36,10 @@ import {
   newVerifyToken,
   hashVerifyToken,
   verifyTokenExpiry,
+  newRecoveryCode,
+  normalizeRecoveryCode,
+  looksLikeRecoveryCode,
+  recoveryCodeExpiry,
 } from "./auth";
 import {
   sendAccountDeletedEmail,
@@ -119,6 +123,38 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
 
     const user = await storage.createUser(email, await hashPassword(password), displayName);
+
+    /**
+     * With no mail transport there is no inbox to verify against and no way to
+     * send a reset code — an account created here used to be unusable the
+     * moment it existed. Verify it on the spot and hand over a recovery code
+     * instead, which is the only credential that can get them back in.
+     */
+    if (!emailDeliveryConfigured()) {
+      // `emailVerified` stays false — nothing was ever sent, so nothing was
+      // proven, and recording otherwise would make the flag a lie. Login
+      // relaxes its requirement instead (see below).
+      const recoveryCode = newRecoveryCode();
+      await storage.createPasswordResetToken(
+        user.id,
+        hashResetToken(recoveryCode),
+        recoveryCodeExpiry(),
+      );
+      console.info(`[auth] user ${user.id} created with a recovery code (email delivery is off)`);
+
+      const session = newSessionToken();
+      await storage.createAuthSession(user.id, session, sessionExpiry());
+      res.setHeader("Set-Cookie", authCookie(session, isSecure(req)));
+      return res.status(201).json({
+        needsVerification: false,
+        user: publicUser(user),
+        claimed: 0,
+        recoveryCode,
+        message:
+          "Account created. Save your recovery code — this server cannot send email, so it is the only way to reset your password.",
+      });
+    }
+
     const verifyToken = await issueVerification(user);
     // No session until the email is verified — guest practice stays on this device.
     const body: {
@@ -151,7 +187,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
       return res.status(401).json({ error: "Email or password is incorrect" });
     }
-    if (!user.emailVerified) {
+    // Only demand verification when this deployment could actually have sent
+    // one. Otherwise the gate locks every account out of a door that has no
+    // key — the address is unproven, but blocking proves nothing either.
+    if (!user.emailVerified && emailDeliveryConfigured()) {
       return res.status(403).json({
         error: "Verify your email before signing in. Check your inbox or resend the link.",
         needsVerification: true,
@@ -269,7 +308,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid reset" });
     }
     const user = await storage.getUserByEmail(parsed.data.email);
-    const tokenRow = await storage.getPasswordResetToken(hashResetToken(parsed.data.token));
+    // A recovery code is the same kind of secret, just written on paper — so
+    // accept it in lowercase, without dashes, however it was copied.
+    const supplied = parsed.data.token.trim();
+    const usedRecoveryCode = looksLikeRecoveryCode(supplied);
+    const lookupToken = usedRecoveryCode ? normalizeRecoveryCode(supplied) : supplied;
+    const tokenRow = await storage.getPasswordResetToken(hashResetToken(lookupToken));
     if (
       !user ||
       !tokenRow ||
@@ -287,10 +331,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     await storage.deleteAuthSessionsForUser(user.id);
     void sendPasswordChangedEmail({ to: user.email });
 
+    // Using a recovery code consumes it. Without a replacement the next reset
+    // would be a dead end again, so mint one and return it exactly once.
+    let nextRecoveryCode: string | undefined;
+    if (usedRecoveryCode || !emailDeliveryConfigured()) {
+      nextRecoveryCode = newRecoveryCode();
+      await storage.createPasswordResetToken(
+        user.id,
+        hashResetToken(nextRecoveryCode),
+        recoveryCodeExpiry(),
+      );
+    }
+
     const token = newSessionToken();
     await storage.createAuthSession(user.id, token, sessionExpiry());
     res.setHeader("Set-Cookie", authCookie(token, isSecure(req)));
-    res.json({ user: publicUser({ ...user, emailVerified: true }) });
+    res.json({
+      user: publicUser({ ...user, emailVerified: true }),
+      ...(nextRecoveryCode ? { recoveryCode: nextRecoveryCode } : {}),
+    });
   });
 
   /** Full account deletion: practice data + user row + sessions. Requires password. */

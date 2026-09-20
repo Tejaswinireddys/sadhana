@@ -41,13 +41,34 @@ async function resetOwnedCaches() {
 
 export type SignUpResult =
   | { needsVerification: true; email: string; message: string; verifyToken?: string }
+  /**
+   * A deployment with no mail transport cannot verify an inbox or send a reset
+   * code, so signup signs the practitioner in and returns a recovery code
+   * instead. The code is shown exactly once.
+   */
+  | {
+      needsVerification: false;
+      user: PublicUser;
+      claimed: number;
+      recoveryCode: string;
+      message: string;
+    }
   | { needsVerification?: false; user: PublicUser; claimed: number };
 
 export function useSignUp() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { email: string; password: string; displayName?: string }) => {
       const res = await apiRequest("POST", "/api/auth/signup", input, { timeoutMs: 25_000 });
       return (await res.json()) as SignUpResult;
+    },
+    onSuccess: async (result) => {
+      // Signup signs the practitioner in when there is no inbox to verify
+      // against; seed the auth cache so the page does not stay signed out.
+      if (!("user" in result)) return;
+      if (result.user.displayName) writeString(KEYS.practitionerName, result.user.displayName);
+      await resetOwnedCaches();
+      qc.setQueryData(AUTH_QUERY_KEY, { user: result.user, deviceRows: 0 } satisfies AuthState);
     },
   });
 }
@@ -125,7 +146,9 @@ export function useResetPassword() {
   return useMutation({
     mutationFn: async (input: { email: string; token: string; password: string }) => {
       const res = await apiRequest("POST", "/api/auth/reset-password", input);
-      return (await res.json()) as { user: PublicUser };
+      // `recoveryCode` comes back when the used code was a recovery code (it
+      // is consumed), so the account is never left without one.
+      return (await res.json()) as { user: PublicUser; recoveryCode?: string };
     },
     onSuccess: async ({ user }) => {
       if (user.displayName) writeString(KEYS.practitionerName, user.displayName);
