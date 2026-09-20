@@ -109,3 +109,13 @@ describe("security hardening", () => {
     );
   });
 });
+
+describe("SPA known routes", () => {
+  it("lists /help (and /instructor) so hard refresh is HTTP 200", () => {
+    const src = readFileSync(resolve("server/static.ts"), "utf8");
+    assert.match(src, /"help"/);
+    assert.match(src, /"instructor"/);
+    const app = readFileSync(resolve("client/src/App.tsx"), "utf8");
+    assert.match(app, /path="\/help"/);
+  });
+});

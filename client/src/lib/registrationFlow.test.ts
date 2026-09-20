@@ -54,6 +54,25 @@ describe("registration + email verification contract", () => {
     assert.match(billing, /sendPaymentFailedEmail/);
     assert.match(billing, /dispatchRenewalReminders/);
   });
+
+  it("surfaces a recovery code on create and prefers recovery on Reset when email is off", () => {
+    const account = readFileSync(resolve("client/src/pages/Account.tsx"), "utf8");
+    assert.match(account, /data-testid="recovery-code-panel"/);
+    assert.match(account, /data-testid="recovery-code-value"/);
+    assert.match(account, /result\.recoveryCode/);
+    // No-email Reset: recovery form is primary; disabled email CTA is not the story.
+    assert.match(account, /mailStatus != null && !emailEnabled/);
+    assert.match(account, /data-testid="reset-help-link"/);
+    assert.doesNotMatch(
+      account,
+      /Email is unavailable/,
+      "Reset must not lead with a dead email CTA when mail is off",
+    );
+    const help = readFileSync(resolve("client/src/pages/Help.tsx"), "utf8");
+    assert.match(help, /RESEND_API_KEY/);
+    assert.match(help, /EMAIL_WEBHOOK_URL/);
+    assert.match(help, /recovery code/);
+  });
 });
 
 describe("pose-detail path from onboarding experience", () => {

@@ -415,7 +415,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </p>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>
+      <SidebarInset className="min-w-0 overflow-x-clip">
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur lg:px-6">
           <SidebarTrigger data-testid="button-sidebar-toggle" />
           <div className="min-w-0 flex-1 lg:hidden">

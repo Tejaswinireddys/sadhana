@@ -679,123 +679,219 @@ export default function Account() {
 
             <TabsContent value="reset">
               <div className="space-y-6">
-                <form className="space-y-4" onSubmit={submitForgot}>
-                  {emailEnabled ? (
-                    <p className="text-sm text-muted-foreground" data-testid="reset-delivery-copy">
-                      We&apos;ll email a one-time reset code if this address has an account. It
-                      expires in 60 minutes — check spam if it doesn&apos;t arrive. If you still
-                      can&apos;t get in, email{" "}
-                      <a className="underline underline-offset-2" href="mailto:privacy@sadhana.app">
-                        privacy@sadhana.app
-                      </a>
-                      .
-                    </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground" data-testid="reset-delivery-copy">
-                      Email delivery is not configured on this server, so a reset code cannot be
-                      sent to your inbox.{" "}
-                      <Link className="underline underline-offset-2" href="/help" data-testid="reset-help-link">
+                {/*
+                  When email delivery is off, the recovery-code form is the
+                  primary path — a disabled email CTA must not be the main story. When email is on (or still loading),
+                  keep request-code first, then complete the password change.
+                */}
+                {mailStatus != null && !emailEnabled ? (
+                  <>
+                    <div
+                      className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+                      data-testid="reset-delivery-copy"
+                    >
+                      Email delivery is not configured on this server, so a reset
+                      code cannot be sent to your inbox. Use the recovery code you
+                      saved when you created the account.{" "}
+                      <Link
+                        className="underline underline-offset-2"
+                        href="/help"
+                        data-testid="reset-help-link"
+                      >
                         See how to get back in
                       </Link>
-                      , or email{" "}
-                      <a className="underline underline-offset-2" href="mailto:privacy@sadhana.app">
-                        privacy@sadhana.app
-                      </a>
-                      .
                       {import.meta.env.DEV
-                        ? " In development, a code may still appear below after you request one."
+                        ? " In development you can still request a logged code below."
                         : ""}
-                    </p>
-                  )}
-                  <div className="space-y-2">
-                    <Label htmlFor="forgot-email">Email</Label>
-                    <Input
-                      id="forgot-email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="min-h-11"
-                      data-testid="forgot-email"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    className="min-h-11 w-full cursor-pointer"
-                    disabled={
-                      forgot.isPending ||
-                      (mailStatus != null && !emailEnabled && !import.meta.env.DEV)
-                    }
-                    data-testid="forgot-submit"
-                  >
-                    {forgot.isPending
-                      ? "Sending…"
-                      : emailEnabled
-                        ? "Email me a reset code"
-                        : import.meta.env.DEV
-                          ? "Request a reset code"
-                          : "Email is unavailable"}
-                  </Button>
-                  {forgotHint && (
-                    <p className="text-sm text-muted-foreground" role="status" data-testid="forgot-hint">
-                      {forgotHint}
-                    </p>
-                  )}
-                </form>
+                    </div>
 
-                <form className="space-y-4 border-t border-border pt-4" onSubmit={submitReset}>
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-token">
-                      {emailEnabled ? "Reset code or recovery code" : "Recovery code"}
-                    </Label>
-                    <Input
-                      id="reset-token"
-                      required
-                      value={resetToken}
-                      onChange={(e) => setResetToken(e.target.value)}
-                      className="min-h-11 font-mono text-sm"
-                      placeholder={emailEnabled ? undefined : "ABCDE-FGHJK-MNPQR-STVWX"}
-                      autoCapitalize="characters"
-                      spellCheck={false}
-                      data-testid="reset-token"
-                    />
-                    {/*
-                      On a server with no mail transport this field is not a
-                      dead end: the recovery code issued at signup is accepted
-                      here, so a forgotten password is still recoverable.
-                    */}
-                    <p className="text-xs text-muted-foreground" data-testid="reset-token-hint">
-                      {emailEnabled
-                        ? "Paste the code from your email, or the recovery code you saved when you created the account."
-                        : "Enter the recovery code you saved when you created the account. Dashes and letter case do not matter."}
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reset-password">New password</Label>
-                    <Input
-                      id="reset-password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      required
-                      minLength={8}
-                      value={resetPassword}
-                      onChange={(e) => setResetPassword(e.target.value)}
-                      className="min-h-11"
-                      data-testid="reset-password"
-                    />
-                  </div>
-                  <FieldError id="auth-error" message={error} />
-                  <Button
-                    type="submit"
-                    className="min-h-11 w-full cursor-pointer"
-                    disabled={busy}
-                    data-testid="reset-submit"
-                  >
-                    {reset.isPending ? "Updating…" : "Set new password"}
-                  </Button>
-                </form>
+                    <form className="space-y-4" onSubmit={submitReset}>
+                      <div className="space-y-2">
+                        <Label htmlFor="reset-email-recovery">Email</Label>
+                        <Input
+                          id="reset-email-recovery"
+                          type="email"
+                          autoComplete="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="min-h-11"
+                          data-testid="forgot-email"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="reset-token">Recovery code</Label>
+                        <Input
+                          id="reset-token"
+                          required
+                          value={resetToken}
+                          onChange={(e) => setResetToken(e.target.value)}
+                          className="min-h-11 font-mono text-sm"
+                          placeholder="ABCDE-FGHJK-MNPQR-STVWX"
+                          autoCapitalize="characters"
+                          spellCheck={false}
+                          data-testid="reset-token"
+                        />
+                        <p className="text-xs text-muted-foreground" data-testid="reset-token-hint">
+                          Enter the recovery code you saved when you created the
+                          account. Dashes and letter case do not matter.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="reset-password">New password</Label>
+                        <Input
+                          id="reset-password"
+                          type={showPassword ? "text" : "password"}
+                          autoComplete="new-password"
+                          required
+                          minLength={8}
+                          value={resetPassword}
+                          onChange={(e) => setResetPassword(e.target.value)}
+                          className="min-h-11"
+                          data-testid="reset-password"
+                        />
+                      </div>
+                      <FieldError id="auth-error" message={error} />
+                      <Button
+                        type="submit"
+                        className="min-h-11 w-full cursor-pointer"
+                        disabled={busy}
+                        data-testid="reset-submit"
+                      >
+                        {reset.isPending ? "Updating…" : "Set new password"}
+                      </Button>
+                    </form>
+
+                    {import.meta.env.DEV ? (
+                      <form
+                        className="space-y-4 border-t border-border pt-4"
+                        onSubmit={submitForgot}
+                      >
+                        <p className="text-xs text-muted-foreground">
+                          Development only: request a logged reset code when the
+                          mail transport is off.
+                        </p>
+                        <Button
+                          type="submit"
+                          variant="outline"
+                          className="min-h-11 w-full cursor-pointer"
+                          disabled={forgot.isPending}
+                          data-testid="forgot-submit"
+                        >
+                          {forgot.isPending ? "Sending…" : "Request a reset code"}
+                        </Button>
+                        {forgotHint && (
+                          <p
+                            className="text-sm text-muted-foreground"
+                            role="status"
+                            data-testid="forgot-hint"
+                          >
+                            {forgotHint}
+                          </p>
+                        )}
+                      </form>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <form className="space-y-4" onSubmit={submitForgot}>
+                      <p className="text-sm text-muted-foreground" data-testid="reset-delivery-copy">
+                        We&apos;ll email a one-time reset code if this address has an
+                        account. It expires in 60 minutes — check spam if it
+                        doesn&apos;t arrive. If you still can&apos;t get in,{" "}
+                        <Link
+                          className="underline underline-offset-2"
+                          href="/help"
+                          data-testid="reset-help-link"
+                        >
+                          see how to get back in
+                        </Link>{" "}
+                        or email{" "}
+                        <a
+                          className="underline underline-offset-2"
+                          href="mailto:privacy@sadhana.app"
+                        >
+                          privacy@sadhana.app
+                        </a>
+                        .
+                      </p>
+                      <div className="space-y-2">
+                        <Label htmlFor="forgot-email">Email</Label>
+                        <Input
+                          id="forgot-email"
+                          type="email"
+                          autoComplete="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="min-h-11"
+                          data-testid="forgot-email"
+                        />
+                      </div>
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        className="min-h-11 w-full cursor-pointer"
+                        disabled={forgot.isPending}
+                        data-testid="forgot-submit"
+                      >
+                        {forgot.isPending ? "Sending…" : "Email me a reset code"}
+                      </Button>
+                      {forgotHint && (
+                        <p
+                          className="text-sm text-muted-foreground"
+                          role="status"
+                          data-testid="forgot-hint"
+                        >
+                          {forgotHint}
+                        </p>
+                      )}
+                    </form>
+
+                    <form className="space-y-4 border-t border-border pt-4" onSubmit={submitReset}>
+                      <div className="space-y-2">
+                        <Label htmlFor="reset-token">Reset code or recovery code</Label>
+                        <Input
+                          id="reset-token"
+                          required
+                          value={resetToken}
+                          onChange={(e) => setResetToken(e.target.value)}
+                          className="min-h-11 font-mono text-sm"
+                          autoCapitalize="characters"
+                          spellCheck={false}
+                          data-testid="reset-token"
+                        />
+                        <p className="text-xs text-muted-foreground" data-testid="reset-token-hint">
+                          Paste the code from your email, or the recovery code you
+                          saved when you created the account.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="reset-password">New password</Label>
+                        <Input
+                          id="reset-password"
+                          type={showPassword ? "text" : "password"}
+                          autoComplete="new-password"
+                          required
+                          minLength={8}
+                          value={resetPassword}
+                          onChange={(e) => setResetPassword(e.target.value)}
+                          className="min-h-11"
+                          data-testid="reset-password"
+                        />
+                      </div>
+                      <FieldError id="auth-error" message={error} />
+                      <Button
+                        type="submit"
+                        className="min-h-11 w-full cursor-pointer"
+                        disabled={busy}
+                        data-testid="reset-submit"
+                      >
+                        {reset.isPending ? "Updating…" : "Set new password"}
+                      </Button>
+                    </form>
+                  </>
+                )}
               </div>
             </TabsContent>
           </Tabs>

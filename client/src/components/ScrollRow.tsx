@@ -39,7 +39,7 @@ export function ScrollRow({
   }, [children]);
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative max-w-full min-w-0", className)}>
       <div
         ref={ref}
         role="region"
@@ -47,7 +47,7 @@ export function ScrollRow({
         tabIndex={0}
         data-testid={testId}
         className={cn(
-          "-mx-1 flex gap-3 overflow-x-auto px-1 pb-2",
+          "-mx-1 flex max-w-full gap-3 overflow-x-auto overscroll-x-contain px-1 pb-2",
           "snap-x snap-mandatory scroll-smooth",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           "[scrollbar-width:thin]",
