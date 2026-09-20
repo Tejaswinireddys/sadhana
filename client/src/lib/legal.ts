@@ -49,3 +49,27 @@ export function requestWellnessConsent(): void {
   if (hasCurrentLegalAck()) return;
   window.dispatchEvent(new Event(WELLNESS_CONSENT_EVENT));
 }
+
+/** Fired when an immersive player opens or closes. */
+export const IMMERSIVE_PLAYER_EVENT = "sadhana:immersive-player";
+
+let immersivePlayerActive = false;
+
+/**
+ * Guided practice is a full-screen, timed experience with its own fixed
+ * controls. A consent notice that appears over it interrupts the practice and
+ * puts its "Got it" button underneath the player's own control bar — which is
+ * how the notice became undismissable until the user left the session.
+ *
+ * Players declare themselves active here; the banner waits for them.
+ */
+export function setImmersivePlayerActive(active: boolean): void {
+  if (typeof window === "undefined") return;
+  if (immersivePlayerActive === active) return;
+  immersivePlayerActive = active;
+  window.dispatchEvent(new Event(IMMERSIVE_PLAYER_EVENT));
+}
+
+export function isImmersivePlayerActive(): boolean {
+  return immersivePlayerActive;
+}

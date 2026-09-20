@@ -574,7 +574,11 @@ export default function Account() {
                   ) : (
                     <p className="text-sm text-muted-foreground" data-testid="reset-delivery-copy">
                       Email delivery is not configured on this server, so a reset code cannot be
-                      sent to your inbox. Contact the person who runs this copy of Sadhana, or email{" "}
+                      sent to your inbox.{" "}
+                      <Link className="underline underline-offset-2" href="/help" data-testid="reset-help-link">
+                        See how to get back in
+                      </Link>
+                      , or email{" "}
                       <a className="underline underline-offset-2" href="mailto:privacy@sadhana.app">
                         privacy@sadhana.app
                       </a>

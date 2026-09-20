@@ -388,7 +388,11 @@ export function PoseDemoStage({
       className={cn(
         "relative w-full max-w-full overflow-hidden",
         variant === "detail" && "pose-stage-frame rounded-2xl bg-accent/30",
-        variant === "practice" && "flex h-full w-full items-center justify-center",
+        // A 1:2 figure letterboxed into a wide desktop stage left hard black
+        // bars either side. The figure must not be cropped (that removes the
+        // head and feet), so soften what fills the remaining space instead.
+        variant === "practice" &&
+          "flex h-full w-full items-center justify-center rounded-2xl bg-[radial-gradient(ellipse_at_center,hsl(var(--accent)/0.35),hsl(var(--background)))]",
         className,
       )}
       data-testid={testId ?? `pose-demo-stage-${slug}`}

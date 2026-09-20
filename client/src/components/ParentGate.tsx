@@ -1,7 +1,8 @@
-// ParentGate — a simple math-question modal shown when a kid (or anyone) first
-// enters the Kids section in a session. Prevents young children from navigating
-// to adult content. On a correct answer, sets a transient session flag via the
-// KidsGate context (NOT localStorage), so it re-appears next session.
+// ParentGate — a math-question modal shown when a kid (or anyone) first enters
+// the Kids section. Prevents young children from navigating to adult content.
+// A correct answer unlocks via the KidsGate context, which remembers for the
+// rest of the local calendar day so a parent is not re-quizzed on every visit
+// (see KidsGateContext). Clearing site data resets it.
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,

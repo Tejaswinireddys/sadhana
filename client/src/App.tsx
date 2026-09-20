@@ -65,6 +65,7 @@ const VerifyEmail = lazyPage(() => import("@/pages/VerifyEmail"));
 const Privacy = lazyPage(() => import("@/pages/Privacy"));
 const Terms = lazyPage(() => import("@/pages/Terms"));
 const HealthDisclaimer = lazyPage(() => import("@/pages/HealthDisclaimer"));
+const Help = lazyPage(() => import("@/pages/Help"));
 const Plus = lazyPage(() => import("@/pages/Plus"));
 const Challenges = lazyPage(() => import("@/pages/Challenges"));
 const AdaptivePlan = lazyPage(() => import("@/pages/AdaptivePlan"));
@@ -138,6 +139,7 @@ function AppRouter() {
           <Route path="/privacy" component={Privacy} />
           <Route path="/terms" component={Terms} />
           <Route path="/health-disclaimer" component={HealthDisclaimer} />
+          <Route path="/help" component={Help} />
           <Route path="/plus" component={Plus} />
           <Route path="/cancel/confirm" component={CancelConfirm} />
           <Route path="/cancel" component={Cancel} />

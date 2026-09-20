@@ -68,9 +68,20 @@ describe("pose self-check discoverability", () => {
   it("is two taps from Home: Practice nav → Practice hub → /pose-coach", () => {
     assert.match(layout, /href: "\/guided",\s*\n\s*label: "Practice"/);
     assert.match(guided, /data-testid="practice-hub"/);
-    assert.match(guided, /data-testid="button-hub-pose-coach"/);
-    assert.match(guided, /href="\/pose-coach"/);
+    assert.match(guided, /testId: "button-hub-pose-coach"/);
+    assert.match(guided, /href: "\/pose-coach"/);
     assert.match(guided, /Pose self-check/);
+  });
+
+  it("keeps Breathing, Kids and Challenges two taps away even with a queue loaded", () => {
+    // With a session queued (the quiz loads one) the Practice tab opens the
+    // pre-session screen, not the hub — which used to strand these surfaces
+    // behind a long Home scroll.
+    for (const href of ["/breathing", "/kids", "/pathways", "/challenges"]) {
+      assert.match(guided, new RegExp(`href: "${href}"`), `${href} missing from the practice doorways`);
+    }
+    const uses = [...guided.matchAll(/<MoreWaysToPractice\b/g)].length;
+    assert.ok(uses >= 2, `expected the doorways on both the hub and the pre-session screen, saw ${uses}`);
   });
 
   it("lists Pose self-check in Home's Practice explore group", () => {

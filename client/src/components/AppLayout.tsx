@@ -401,6 +401,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <Link href="/health-disclaimer" className="underline-offset-2 hover:underline">
               Health
             </Link>
+            {" · "}
+            <Link
+              href="/help"
+              className="underline-offset-2 hover:underline"
+              data-testid="footer-help"
+            >
+              Help
+            </Link>
           </p>
           <p className="px-2 pt-2 text-xs text-muted-foreground">
             Sādhanā — a daily, dedicated practice.
@@ -428,7 +436,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <main
           id="main-content"
           tabIndex={-1}
-          className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 pb-28 outline-none lg:px-8 lg:py-10 lg:pb-10"
+          // `overflow-x-clip`, not `hidden`: clip does not create a scroll
+          // container, so sticky headers and the pose-lesson controls inside
+          // still work. This stops a decorative bleed (a rotated hero card, a
+          // carousel edge) from putting a horizontal scrollbar on the page.
+          className="mx-auto w-full max-w-5xl flex-1 overflow-x-clip px-4 py-8 pb-28 outline-none lg:px-8 lg:py-10 lg:pb-10"
         >
           {children}
         </main>

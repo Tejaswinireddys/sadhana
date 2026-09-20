@@ -55,6 +55,7 @@ import {
   completionLeavePath,
   shouldFireBackgroundSave,
 } from "@/lib/guidedCompletion";
+import { setImmersivePlayerActive } from "@/lib/legal";
 import { guidedClockFrozen } from "@/lib/guidedClock";
 import {
   GUIDED_SR,
@@ -213,6 +214,37 @@ type StageLayer = {
 /** Live countdown uses clock notation; everything else uses formatDuration. */
 const mmss = formatClock;
 
+/**
+ * Doorways to the practice surfaces that are not the main queue.
+ *
+ * Shown on the practice hub AND on the pre-session screen: with a queue loaded
+ * the hub never renders, and these were the only links to Breathing, Kids,
+ * Pathways and Challenges outside a long Home scroll.
+ */
+function MoreWaysToPractice({ className }: { className?: string }) {
+  const links: Array<{ href: string; label: string; testId: string }> = [
+    { href: "/breathing", label: "Breathing", testId: "button-hub-breathing" },
+    { href: "/kids", label: "Kids", testId: "button-hub-kids" },
+    { href: "/pathways", label: "Pathways", testId: "button-hub-pathways-more" },
+    { href: "/challenges", label: "Challenges", testId: "button-hub-challenges" },
+    { href: "/adaptive", label: "Adaptive plan", testId: "button-hub-adaptive" },
+    { href: "/pose-coach", label: "Pose self-check", testId: "button-hub-pose-coach" },
+  ];
+  return (
+    <section
+      className={cn("flex flex-wrap gap-2", className)}
+      aria-label="More ways to practice"
+      data-testid="more-ways-to-practice"
+    >
+      {links.map((l) => (
+        <Button key={l.href} asChild variant="outline" size="sm" data-testid={l.testId}>
+          <Link href={l.href}>{l.label}</Link>
+        </Button>
+      ))}
+    </section>
+  );
+}
+
 export default function GuidedSession() {
   useDocumentTitle("Practice · Sadhana");
   const {
@@ -339,6 +371,18 @@ export default function GuidedSession() {
   /** Journal row id from auto-save — Reflect edits this instead of creating a duplicate. */
   const journalEntryId = useRef<number | null>(null);
   useWakeLock(started && !clockFrozen && !finished);
+
+  /**
+   * Tell the consent banner a practice is running so it does not open over the
+   * player. Its "Got it" sat underneath the player's own fixed controls, which
+   * made the notice impossible to dismiss without leaving the session.
+   */
+  const immersive = started && !finished;
+  useEffect(() => {
+    setImmersivePlayerActive(immersive);
+    return () => setImmersivePlayerActive(false);
+  }, [immersive]);
+
   const posesCompleted = useRef(0);
   // Indices the practitioner skipped past rather than held. Logging a
   // skipped-through session as "8 poses" was a lie the journal couldn't undo.
@@ -1422,20 +1466,7 @@ export default function GuidedSession() {
             </CardContent>
           </Card>
         </section>
-        <section className="flex flex-wrap gap-2" aria-label="More ways to practice">
-          <Button asChild variant="outline" size="sm" data-testid="button-hub-adaptive">
-            <Link href="/adaptive">Adaptive plan</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm" data-testid="button-hub-pose-coach">
-            <Link href="/pose-coach">Pose self-check</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm" data-testid="button-hub-breathing">
-            <Link href="/breathing">Breathing</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm" data-testid="button-hub-kids">
-            <Link href="/kids">Kids</Link>
-          </Button>
-        </section>
+        <MoreWaysToPractice />
       </div>
     );
   }
@@ -1775,6 +1806,12 @@ export default function GuidedSession() {
           <Button size="lg" onClick={beginSession} data-testid="button-begin-guided">
             <Play className="mr-2 h-5 w-5" /> Begin
           </Button>
+          {/*
+            Once a queue is loaded (the quiz loads one), tapping Practice lands
+            here instead of the hub — which made Breathing, Kids and Challenges
+            unreachable from the nav. Keep the same doorways on this screen.
+          */}
+          <MoreWaysToPractice className="pt-2" />
         </div>
       </>
     );

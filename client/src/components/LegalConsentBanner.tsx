@@ -8,25 +8,39 @@
  */
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { hasCurrentLegalAck, writeLegalAck, WELLNESS_CONSENT_EVENT } from "@/lib/legal";
+import {
+  hasCurrentLegalAck,
+  isImmersivePlayerActive,
+  writeLegalAck,
+  IMMERSIVE_PLAYER_EVENT,
+  WELLNESS_CONSENT_EVENT,
+} from "@/lib/legal";
 import { Button } from "@/components/ui/button";
 
 export function LegalConsentBanner() {
-  const [visible, setVisible] = useState(false);
+  const [requested, setRequested] = useState(false);
+  const [playerActive, setPlayerActive] = useState(isImmersivePlayerActive);
 
   useEffect(() => {
     const onRequest = () => {
-      if (!hasCurrentLegalAck()) setVisible(true);
+      if (!hasCurrentLegalAck()) setRequested(true);
     };
+    const onPlayer = () => setPlayerActive(isImmersivePlayerActive());
     window.addEventListener(WELLNESS_CONSENT_EVENT, onRequest);
-    return () => window.removeEventListener(WELLNESS_CONSENT_EVENT, onRequest);
+    window.addEventListener(IMMERSIVE_PLAYER_EVENT, onPlayer);
+    return () => {
+      window.removeEventListener(WELLNESS_CONSENT_EVENT, onRequest);
+      window.removeEventListener(IMMERSIVE_PLAYER_EVENT, onPlayer);
+    };
   }, []);
 
-  if (!visible) return null;
+  // Hold the notice while a practice is running. The request is remembered, so
+  // it surfaces the moment the session ends rather than being dropped.
+  if (!requested || playerActive) return null;
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-muted/95 px-4 py-3 text-sm shadow-soft-lg backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-muted/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm shadow-soft-lg backdrop-blur"
       role="region"
       aria-label="Privacy and health notice"
       data-testid="banner-legal-consent"
@@ -51,7 +65,7 @@ export function LegalConsentBanner() {
           className="min-h-11 shrink-0"
           onClick={() => {
             writeLegalAck();
-            setVisible(false);
+            setRequested(false);
           }}
           data-testid="banner-legal-accept"
         >

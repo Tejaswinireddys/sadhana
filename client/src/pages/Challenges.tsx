@@ -97,6 +97,18 @@ export default function Challenges() {
           <p className="rounded-md border border-border bg-accent/20 px-3 py-2 font-mono text-sm" data-testid="buddy-code">
             Your code: {buddy.code}
           </p>
+          {/*
+            Say what the code shares before someone hands it out. Scope checked
+            against server/buddy.ts: the only fields any endpoint returns are
+            the code, the display name, and who it is paired with.
+          */}
+          <p className="text-xs text-muted-foreground" data-testid="buddy-code-scope">
+            <strong className="font-medium text-foreground">What this code shares:</strong> the
+            display name above, and that you are paired. That is all — not your practice history,
+            journal, mood check-ins, streak, email, or anything else. Your buddy can send a preset
+            encouragement, which arrives as a push if you have reminders on; there is no messaging.
+            One person can be paired at a time, and unpairing stops it immediately.
+          </p>
           {buddy.pairedWithCode ? (
             <div className="space-y-2">
               <p className="text-sm">

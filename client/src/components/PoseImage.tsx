@@ -13,7 +13,15 @@ import { useCallback, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PoseSvg } from "@/components/PoseSvg";
 import { asanaBySlug } from "@/data/content";
+import { POSE_THUMBS_READY_LIST } from "@/data/poseThumbsReady.generated";
 import { cn } from "@/lib/utils";
+
+/**
+ * Slugs with a pre-scaled thumbnail on disk. Requesting one that was never
+ * generated costs a 404 on every list render — six of them on Pathways alone,
+ * silently repaired by the onError fallback. Ask only for what exists.
+ */
+const POSE_THUMBS_READY = new Set(POSE_THUMBS_READY_LIST);
 
 export function PoseImage({
   slug,
@@ -64,8 +72,11 @@ export function PoseImage({
   const fullWebp = `${import.meta.env.BASE_URL}poses/${slug}.webp`;
   const thumbPng = `${import.meta.env.BASE_URL}poses/thumbs/${slug}.png`;
   const thumbWebp = `${import.meta.env.BASE_URL}poses/thumbs/${slug}.webp`;
-  const src = thumb && !useFullSize ? thumbPng : fullPng;
-  const webpSrc = thumb && !useFullSize ? thumbWebp : fullWebp;
+  // Only reach for a thumb the generator actually produced. The onError
+  // fallback below still covers a file that disappears after generation.
+  const thumbAvailable = thumb && POSE_THUMBS_READY.has(slug) && !useFullSize;
+  const src = thumbAvailable ? thumbPng : fullPng;
+  const webpSrc = thumbAvailable ? thumbWebp : fullWebp;
   const eager = priority || thumb;
   // Always reserve a sized box (authored pose frame is 1:2) to keep CLS near zero.
   const aspectClass = aspect ?? "aspect-[1/2]";
@@ -92,7 +103,7 @@ export function PoseImage({
   }, []);
 
   const handleError = () => {
-    if (thumb && !useFullSize) {
+    if (thumbAvailable) {
       setUseFullSize(true);
       return;
     }
