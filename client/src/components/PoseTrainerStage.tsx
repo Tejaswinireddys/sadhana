@@ -1,18 +1,28 @@
 /**
- * PoseTrainerStage — BetterMe-style presentation + teaching figure.
+ * PoseTrainerStage — presentation surface and teaching figure.
  *
- * Idle / watch: looping step-journey demo video for every pose that ships a clip
- * (library + detail + guided intro moments).
+ * Idle / watch (library, detail, search): the looping step-journey clip, which
+ * is a montage of stills and is presented as decoration, not instruction.
  *
- * Active cue teaching: the same how-to clip, scrubbed to the spoken narration
- * step. Illustration / 3D remain the fallback when video is unavailable.
+ * Teaching (`teaching`, or any practice-variant stage): the generated clips are
+ * **not allowed**. `script/gen-pose-videos.ts` crossfades 2–3 stills and, for
+ * 205 of the catalog's poses, opens on a *different* pose chosen by category —
+ * Restorative opens on sukhasana, which is why the first instruction of
+ * Supported Child's Pose showed someone sitting cross-legged. Teaching falls
+ * back to this pose's own illustration, labelled as a static reference, until
+ * a reviewed movement demo exists (`poseDemoAvailability`).
+ *
+ * The same rule applies to the per-step illustration: a step whose pose key
+ * maps to another catalog slug is ignored while teaching, so Warrior I's cues
+ * cannot swap in Anjaneyasana's body.
  */
 import { useEffect, useMemo, useState } from "react";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
 import { PoseHumanStage } from "@/components/PoseHumanStage";
 import { asanaBySlug } from "@/data/content";
 import { hasRigSequence } from "@/data/poseKeyframes";
-import { poseHasShapeJourney } from "@/data/poseKeyImages";
+import { humanStepSlug, poseHasShapeJourney } from "@/data/poseKeyImages";
+import { poseDemoAvailability, STATIC_REFERENCE_LABEL } from "@/data/poseDemoAvailability";
 import { poseMediaFor } from "@/data/poseMedia";
 import { manifestToVideoSources, usePoseMedia } from "@/lib/poseMediaApi";
 import type { FocusZone } from "@/lib/poseMoments";
@@ -33,6 +43,12 @@ export type PoseTrainerStageProps = {
    * visible and scrub it to the spoken cue instead of switching to illustration.
    */
   syncVideoToVoice?: boolean;
+  /**
+   * This stage is teaching the pose right now. Only a reviewed movement
+   * demonstration may be shown; generated clips and foreign step
+   * illustrations are refused. `variant="practice"` implies it.
+   */
+  teaching?: boolean;
   narrationTime?: number;
   narrationDuration?: number;
   guideActive?: boolean;
@@ -57,6 +73,7 @@ export function PoseTrainerStage({
   playing = false,
   restartToken = 0,
   syncVideoToVoice = true,
+  teaching = false,
   narrationTime = 0,
   narrationDuration = 0,
   guideActive = false,
@@ -85,12 +102,17 @@ export function PoseTrainerStage({
   const useRig = hasRigSequence(slug);
   const { data: manifest } = usePoseMedia(slug);
   const media = useMemo(() => manifestToVideoSources(slug, manifest), [slug, manifest]);
-  const hasClip = Boolean(media);
+
+  /** Is this stage claiming to show how the pose is performed? */
+  const isTeaching = teaching || variant === "practice";
+  /** Only a reviewed clip may be presented as instruction. */
+  const demoIsReviewedMovement = poseDemoAvailability(slug).kind === "movement";
+  const clipAllowed = Boolean(media) && (!isTeaching || demoIsReviewedMovement);
 
   /** Looping presentation video whenever we are not mid-cue teaching. */
-  const wantPresentation = hasClip && !guideActive && !videoBlocked;
+  const wantPresentation = clipAllowed && !guideActive && !videoBlocked;
   /** How-to clip scrubbed to the spoken cue during instruction / training. */
-  const wantSyncedHowTo = hasClip && guideActive && !videoBlocked && syncVideoToVoice;
+  const wantSyncedHowTo = clipAllowed && guideActive && !videoBlocked && syncVideoToVoice;
 
   useEffect(() => {
     setVideoBlocked(false);
@@ -101,8 +123,14 @@ export function PoseTrainerStage({
     else onModeChange?.(useRig ? "3d" : "illustrated");
   }, [wantPresentation, wantSyncedHowTo, useRig, onModeChange]);
 
-  const effectiveStepPose = guideActive ? stepPoseKey : poseKey;
-  const effectiveMomentum = !useRig && shapeJourney && guideActive ? momentum ?? "" : "";
+  // A step illustration that resolves to another catalog pose is a different
+  // body, not a stage of this one. While teaching, stay on this pose.
+  const stepPoseIsForeign =
+    !!stepPoseKey && humanStepSlug(slug, poseKey, stepPoseKey) !== slug;
+  const safeStepPoseKey = isTeaching && stepPoseIsForeign ? poseKey : stepPoseKey;
+  const effectiveStepPose = guideActive ? safeStepPoseKey : poseKey;
+  const effectiveMomentum =
+    !useRig && shapeJourney && guideActive && !isTeaching ? momentum ?? "" : "";
 
   if ((wantSyncedHowTo || wantPresentation) && media) {
     return (
@@ -178,6 +206,7 @@ export function PoseTrainerStage({
       side={side}
       focusZone={guideActive ? focusZone : null}
       caption={guideActive ? caption : null}
+      referenceNote={isTeaching && !demoIsReviewedMovement ? STATIC_REFERENCE_LABEL : null}
       variant={variant}
       className={className}
       data-testid={testId}

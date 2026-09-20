@@ -91,6 +91,16 @@ export interface IStorage {
   transferOwnerData(fromOwnerId: string, toOwnerId: string): Promise<number>;
   getSessions(ownerId: string): Promise<Session[]>;
   createSession(ownerId: string, data: InsertSession): Promise<Session>;
+  /**
+   * Amend a session already written — a mood or effort rating added on the
+   * completion screen after the save. Returns undefined when the row is not
+   * this owner's, so a late reflection can never touch someone else's row.
+   */
+  updateSession(
+    ownerId: string,
+    id: number,
+    data: Partial<InsertSession>,
+  ): Promise<Session | undefined>;
   deleteSession(ownerId: string, id: number): Promise<boolean>;
   clearOwnerData(ownerId: string): Promise<void>;
   /** Run a series of writes; MemoryStorage is sequential, Postgres uses a client transaction when possible. */
@@ -335,6 +345,18 @@ export class DatabaseStorage implements IStorage {
     const [row] = await this.orm
       .insert(sessions)
       .values({ ...data, ownerId })
+      .returning();
+    return row;
+  }
+  async updateSession(
+    ownerId: string,
+    id: number,
+    data: Partial<InsertSession>,
+  ): Promise<Session | undefined> {
+    const [row] = await this.orm
+      .update(sessions)
+      .set(data)
+      .where(and(eq(sessions.id, id), eq(sessions.ownerId, ownerId)))
       .returning();
     return row;
   }
@@ -869,6 +891,12 @@ export class MemoryStorage implements IStorage {
   async createSession(ownerId: string, data: InsertSession) {
     const row: Session = { id: this.nextId(), ownerId, ...data } as Session;
     this.sessions.push(row);
+    return row;
+  }
+  async updateSession(ownerId: string, id: number, data: Partial<InsertSession>) {
+    const row = this.sessions.find((s) => s.id === id && s.ownerId === ownerId);
+    if (!row) return undefined;
+    Object.assign(row, data);
     return row;
   }
   async deleteSession(ownerId: string, id: number) {

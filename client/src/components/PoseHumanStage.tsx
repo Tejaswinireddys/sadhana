@@ -28,6 +28,12 @@ export type PoseHumanStageProps = {
   focusZone?: FocusZone | null;
   /** Spoken cue shown as a caption under the figure (training clarity). */
   caption?: string | null;
+  /**
+   * Honest label for what this figure is — e.g. "Static reference — movement
+   * demonstration unavailable". Shown instead of "How to hold it" so a still
+   * is never mistaken for a demonstration of the movement.
+   */
+  referenceNote?: string | null;
   variant?: "detail" | "practice";
   className?: string;
   "data-testid"?: string;
@@ -47,6 +53,7 @@ export function PoseHumanStage({
   side = 1,
   focusZone = null,
   caption = null,
+  referenceNote = null,
   variant = "detail",
   className,
   "data-testid": testId,
@@ -162,11 +169,19 @@ export function PoseHumanStage({
             {caption}
           </p>
         </div>
-      ) : (
-        <span className="pointer-events-none absolute right-2 top-2 z-10 rounded-full bg-background/75 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground backdrop-blur-sm">
-          How to hold it
-        </span>
-      )}
+      ) : null}
+
+      <span
+        className={cn(
+          "pointer-events-none absolute right-2 top-2 z-10 max-w-[75%] rounded-full bg-background/75 px-2 py-0.5 text-right text-[10px] text-muted-foreground backdrop-blur-sm",
+          referenceNote
+            ? "font-normal normal-case leading-snug"
+            : "font-medium uppercase tracking-wide",
+        )}
+        data-testid={`pose-human-note-${slug}`}
+      >
+        {referenceNote ?? "How to hold it"}
+      </span>
     </div>
   );
 }

@@ -18,23 +18,34 @@ import {
   guidedSessionSeconds,
   resolveInstructionSeconds,
   type GuidedTimedPose,
+  type InstructionMode,
 } from "@/lib/guidedDuration";
 
 /** Seconds a pose costs before a single second of hold is counted. */
-export function poseOverheadSeconds(pose: GuidedTimedPose): number {
-  const instruction = resolveInstructionSeconds(pose);
+export function poseOverheadSeconds(
+  pose: GuidedTimedPose,
+  mode: InstructionMode = "guided",
+): number {
+  const instruction = resolveInstructionSeconds(pose, mode);
   const each = pose.sides === "each";
   return TRANSITION_SECONDS + instruction * (each ? 2 : 1) + (each ? SIDE_SWITCH_SECONDS : 0);
 }
 
 /** Narration + transitions for the whole queue — the part holds cannot shrink. */
-export function sessionOverheadSeconds(poses: GuidedTimedPose[]): number {
-  return poses.reduce((sum, p) => sum + poseOverheadSeconds(p), 0);
+export function sessionOverheadSeconds(
+  poses: GuidedTimedPose[],
+  mode: InstructionMode = "guided",
+): number {
+  return poses.reduce((sum, p) => sum + poseOverheadSeconds(p, mode), 0);
 }
 
 /** How many seconds of hold are left for a target wall-clock. Never negative. */
-export function holdBudgetSeconds(targetSeconds: number, poses: GuidedTimedPose[]): number {
-  return Math.max(0, targetSeconds - sessionOverheadSeconds(poses));
+export function holdBudgetSeconds(
+  targetSeconds: number,
+  poses: GuidedTimedPose[],
+  mode: InstructionMode = "guided",
+): number {
+  return Math.max(0, targetSeconds - sessionOverheadSeconds(poses, mode));
 }
 
 export type SessionFit = {
@@ -75,14 +86,17 @@ export function evaluateSessionFit(opts: {
   poses: GuidedTimedPose[];
   /** Per-pose minimum hold, index-aligned with `poses`. Defaults to the pose hold. */
   minHoldSeconds?: number[];
+  /** How the queue will be taught. Changes the answer, so it changes the fit. */
+  mode?: InstructionMode;
 }): SessionFit {
+  const mode = opts.mode ?? "guided";
   const requestedSeconds = Math.max(0, Math.round(opts.requestedMinutes * 60));
-  const plannedSeconds = Math.round(guidedSessionSeconds(opts.poses));
+  const plannedSeconds = Math.round(guidedSessionSeconds(opts.poses, mode));
   const floorPoses = opts.poses.map((p, i) => ({
     ...p,
     holdSeconds: Math.max(0, opts.minHoldSeconds?.[i] ?? p.holdSeconds),
   }));
-  const floorSeconds = Math.round(guidedSessionSeconds(floorPoses));
+  const floorSeconds = Math.round(guidedSessionSeconds(floorPoses, mode));
   const overshootSeconds = Math.max(0, plannedSeconds - requestedSeconds);
   const fits = overshootSeconds <= toleranceSeconds(requestedSeconds);
 
@@ -106,9 +120,21 @@ export function evaluateSessionFit(opts: {
   // Below the floor, trimming holds cannot help — the spoken instruction for
   // this many poses is already longer than the request.
   const belowFloor = requestedSeconds < floorSeconds;
+  const taught =
+    mode === "timer"
+      ? "settled into"
+      : mode === "brief"
+        ? "read through"
+        : "talked through";
+  const counted =
+    mode === "timer"
+      ? "transitions between poses are counted, not just the holds"
+      : mode === "brief"
+        ? "on-screen instruction and transitions are counted, not just the holds"
+        : "spoken instruction and transitions are counted, not just the holds";
   const explanation = belowFloor
-    ? `A guided ${opts.poses.length}-pose practice runs about ${plannedMinutes} min because each pose is talked through before you hold it. Even at the shortest safe holds it is ${floorMinutes} min — ${Math.round(requestedSeconds / 60)} min is not enough time for this sequence.`
-    : `This runs about ${plannedMinutes} min, not ${Math.round(requestedSeconds / 60)} min — spoken instruction and transitions are counted, not just the holds.`;
+    ? `A ${opts.poses.length}-pose practice runs about ${plannedMinutes} min because each pose is ${taught} before you hold it. Even at the shortest safe holds it is ${floorMinutes} min — ${Math.round(requestedSeconds / 60)} min is not enough time for this sequence.`
+    : `This runs about ${plannedMinutes} min, not ${Math.round(requestedSeconds / 60)} min — ${counted}.`;
 
   return {
     requestedSeconds,

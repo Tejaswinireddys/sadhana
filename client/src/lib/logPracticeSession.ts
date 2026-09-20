@@ -81,6 +81,8 @@ export type LogSessionResult = {
   error?: string;
   /** Journal row created for this session — Reflect should edit this id. */
   journalId?: number;
+  /** Session row created — a late mood or effort rating amends this id. */
+  sessionId?: number;
   milestone?: { title: string; message: string };
 };
 
@@ -106,8 +108,9 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
   const completed = posesCompleted ?? poseNames.length;
   const skipped = posesSkipped ?? 0;
 
+  let sessionId: number | undefined;
   try {
-    await apiRequest("POST", "/api/sessions", {
+    const sessionRes = await apiRequest("POST", "/api/sessions", {
       date: todayISO(),
       durationMinutes: Math.max(1, minutes),
       plannedMinutes: plannedMinutes ?? null,
@@ -121,6 +124,12 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
       postMood: postMood ?? null,
       rpe: rpe ?? null,
     });
+    try {
+      const created = (await sessionRes.json()) as { id?: number };
+      if (typeof created?.id === "number") sessionId = created.id;
+    } catch {
+      /* response body optional */
+    }
     queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
     queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
     broadcastPracticeDataChanged("session");
@@ -193,11 +202,69 @@ export async function logPracticeSession(input: LogSessionInput): Promise<LogSes
         await apiRequest("POST", "/api/milestones", { kind: h.kind }).catch(() => {});
       }
       queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
-      return { ok: true, journalId, milestone: { title: hit.title, message: hit.message } };
+      return {
+        ok: true,
+        journalId,
+        sessionId,
+        milestone: { title: hit.title, message: hit.message },
+      };
     }
   } catch {
     /* ignore milestone errors */
   }
 
-  return { ok: true, journalId };
+  return { ok: true, journalId, sessionId };
+}
+
+/**
+ * A mood or effort rating chosen *after* the practice was saved.
+ *
+ * The completion screen writes the session the moment the practice ends, so
+ * everything the practitioner adds on that screen afterwards has to amend what
+ * is already there. Logging again would count the practice twice; doing
+ * nothing — which is what used to happen — quietly threw the answer away.
+ */
+export async function amendLoggedSession(input: {
+  sessionId?: number | null;
+  journalId?: number | null;
+  postMood: Mood | null;
+  rpe?: number | null;
+  /** Rebuilds the journal body so the entry reads as one coherent note. */
+  journal: Parameters<typeof buildJournalEntry>[0];
+}): Promise<{ ok: boolean }> {
+  const { sessionId, journalId, postMood, rpe = null } = input;
+  let ok = true;
+
+  if (sessionId != null) {
+    try {
+      await apiRequest("PATCH", `/api/sessions/${sessionId}`, {
+        ...(postMood != null ? { postMood } : {}),
+        ...(rpe != null ? { rpe } : {}),
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
+      broadcastPracticeDataChanged("session");
+    } catch {
+      ok = false;
+    }
+  }
+
+  if (journalId != null) {
+    try {
+      const entry = buildJournalEntry(input.journal);
+      await apiRequest("PATCH", `/api/journal/${journalId}`, {
+        title: entry.title,
+        body: entry.body,
+        mood: postMood ?? input.journal.preMood ?? null,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
+      broadcastPracticeDataChanged("journal");
+    } catch {
+      ok = false;
+    }
+  }
+
+  const savedRpe = rpe != null && rpe >= 1 && rpe <= 10 ? (rpe as RpeScore) : null;
+  if (savedRpe != null) writeLastRpe(savedRpe);
+  return { ok };
 }

@@ -383,6 +383,26 @@ export default function StartQuiz() {
                 A {plan.timeLabel} practice focused on {plan.focus}
                 {plan.experience === "new" ? " — beginner-friendly shapes" : ""}.
               </p>
+              {/*
+                Said once, before anything starts, and with a length that can
+                actually hold the sequence — never a badge that claims the
+                requested time while the player runs longer.
+              */}
+              {!plan.fit.fits && plan.fit.explanation && (
+                <p
+                  className="mx-auto max-w-md rounded-2xl border border-primary/30 bg-primary/5 p-3 text-sm"
+                  data-testid="plan-fit-note"
+                >
+                  {plan.fit.explanation}
+                  {plan.offerMinutes != null && (
+                    <>
+                      {" "}
+                      Choose {plan.offerMinutes} minutes to practise this sequence in full, or go
+                      back and pick a shorter session.
+                    </>
+                  )}
+                </p>
+              )}
             </div>
 
             {/* Pose preview strip — proof the plan is real */}

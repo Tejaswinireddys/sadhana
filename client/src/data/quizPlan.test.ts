@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildQuizPlan, parseProgramRef, PROGRAM_SEEDS } from "./quizPlan.ts";
+import { buildQuizPlan, parseProgramRef, PROGRAM_SEEDS, QUIZ_TIME_OPTIONS } from "./quizPlan.ts";
 import { asanaBySlug } from "./content.ts";
 
 describe("quizPlan", () => {
@@ -52,5 +52,46 @@ describe("quizPlan", () => {
   it("parses program refs from the landing tiles", () => {
     assert.deepEqual(parseProgramRef("?ref=program-desk"), PROGRAM_SEEDS["program-desk"]);
     assert.equal(parseProgramRef("?ref=unknown"), null);
+  });
+});
+
+describe("the quiz plan is the length it was asked for", () => {
+  it("a 10-minute answer produces a 10-minute practice, not a 12-minute one", () => {
+    for (const goal of ["calm", "sleep", "mobility", "strength"]) {
+      for (const body of ["full", "neck", "hips", "breath"]) {
+        for (const time of ["10", "20", "30"]) {
+          const plan = buildQuizPlan({ goal, body, experience: "new", time });
+          assert.equal(
+            plan.fit.fits,
+            true,
+            `${time}min/${goal}/${body} planned ${plan.minutes}min: ${plan.fit.explanation}`,
+          );
+          assert.ok(plan.poses.length >= 3, "a practice needs more than a couple of shapes");
+        }
+      }
+    }
+  });
+
+  it("never lengthens a hold past twice the reviewed one", () => {
+    for (const time of ["10", "20", "30"]) {
+      const plan = buildQuizPlan({ goal: "strength", body: "full", experience: "regular", time });
+      for (const p of plan.poses) {
+        const catalogHold = asanaBySlug(p.slug)!.holdSeconds;
+        assert.ok(
+          p.holdSeconds <= catalogHold * 2,
+          `${p.slug} stretched to ${p.holdSeconds}s against a reviewed ${catalogHold}s`,
+        );
+      }
+    }
+  });
+
+  it("offers a real alternative length when a request cannot be met", () => {
+    const plan = buildQuizPlan({ goal: "calm", body: "full", experience: "new", time: "10" });
+    if (!plan.fit.fits) {
+      assert.ok(plan.offerMinutes != null, "no alternative offered for an unmeetable request");
+      assert.ok(QUIZ_TIME_OPTIONS.includes(plan.offerMinutes!));
+    } else {
+      assert.equal(plan.offerMinutes, null, "offered an alternative to a request that was met");
+    }
   });
 });

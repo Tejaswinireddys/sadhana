@@ -54,7 +54,18 @@ describe("mood-session duration on the confirm screen", () => {
     const preStart = src.slice(src.indexOf("// ---- pre-start"));
     assert.match(preStart, /preSessionSummary/);
     assert.match(preStart, /data-testid="pre-session-summary"/);
-    assert.match(preStart, /sessionTimeLabel\(todays\)/);
+    // Derived from the queue, and from the mode it will actually be taught in —
+    // a voice-off session is a third the length of the narrated one.
+    assert.match(preStart, /sessionTimeLabel\(todays, instructionMode\)/);
     assert.equal(/\{todays\.length\} poses · a continuous/.test(preStart), false);
+  });
+
+  it("shows the preflight — length, level, props — before Begin", () => {
+    const src = readFileSync(resolve("client/src/pages/GuidedSession.tsx"), "utf8");
+    const preStart = src.slice(src.indexOf("// ---- pre-start"));
+    assert.match(preStart, /<SessionPreflightCard/);
+    assert.match(preStart, /preflight=\{preflight\}/);
+    // The Begin button must still be on the same screen as the disclosure.
+    assert.match(preStart, /data-testid="button-begin-guided"/);
   });
 });

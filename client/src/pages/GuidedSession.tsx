@@ -47,7 +47,8 @@ import { todayISO, type Stats } from "@/lib/sadhana";
 import { usePractice } from "@/context/PracticeContext";
 import { useToast } from "@/hooks/use-toast";
 import { useWakeLock } from "@/hooks/use-wake-lock";
-import { buildJournalEntry, logPracticeSession } from "@/lib/logPracticeSession";
+import { amendLoggedSession, buildJournalEntry, logPracticeSession } from "@/lib/logPracticeSession";
+import { completionTiles } from "@/lib/completionSummary";
 import { estimateBreathCount } from "@/lib/sessionBreaths";
 import { captureProduct } from "@/lib/productAnalytics";
 import { sessionCredit, sessionExitCopy, sessionHeadline, type SessionCredit } from "@/lib/sessionCredit";
@@ -103,6 +104,8 @@ import {
 } from "@/lib/poseMediaApi";
 import { preloadPoseVideo, clearPreloadedPoseVideo } from "@/lib/videoPreload";
 import { StreamVideo } from "@/components/StreamVideo";
+import { SessionPreflightCard } from "@/components/SessionPreflightCard";
+import { buildSessionPreflight } from "@/lib/sessionPreflight";
 import {
   QUICK_SESSIONS,
   preSessionSummary,
@@ -119,6 +122,8 @@ import {
   instructionCountdown,
   remainingFooterLabel,
   remainingFromPhases,
+  BRIEF_INSTRUCTION_SECONDS,
+  type InstructionMode,
 } from "@/lib/guidedDuration";
 import { resolvePreMood, shouldAskPreMood } from "@/lib/moods";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -173,7 +178,11 @@ function scheduleChimeTones(ctx: AudioContext) {
 }
 
 /** Reading window used when narration is off or unavailable. */
-const SILENT_INSTRUCTION_SECONDS = 12;
+/**
+ * The silent walkthrough window. Shared with the duration authority so a
+ * voice-off session is advertised at the length it actually runs.
+ */
+const SILENT_INSTRUCTION_SECONDS = BRIEF_INSTRUCTION_SECONDS;
 /** Dual-layer pose swap duration — matches PoseHumanStage. */
 const CROSSFADE_MS = 700;
 /** Hide transport / chrome after this idle window on hold. */
@@ -300,6 +309,63 @@ export default function GuidedSession() {
   const [savePromptDismissed, setSavePromptDismissed] = useState(false);
   const voiceEnabled = prefs ? prefs.voiceEnabled !== 0 : true;
   const allowRobotVoice = prefs ? prefs.allowRobotVoice === 1 : false;
+  /**
+   * How this queue will actually be taught, and therefore how long it runs.
+   * Voice off means a 12-second on-screen walkthrough per pose instead of a
+   * 55–70s recording — roughly a third of the advertised length on a short
+   * session, which is why every duration on this screen reads this value.
+   */
+  const instructionMode: InstructionMode = voiceEnabled ? "guided" : "brief";
+
+  /**
+   * Everything the preparation screen promises, derived from this exact queue
+   * and this exact teaching mode — never from the label the session was
+   * launched with.
+   */
+  const preflight = useMemo(
+    () =>
+      buildSessionPreflight({
+        poses: todays.map((a) => ({ ...a, holdSeconds: a.holdSeconds, sides: a.sides })),
+        mode: instructionMode,
+        requestedMinutes: meta.plannedMinutes ?? null,
+      }),
+    [todays, instructionMode, meta.plannedMinutes],
+  );
+
+  /**
+   * Swap a prop-dependent pose for its reviewed prop-free pair, keeping the
+   * hold and the position in the arc. The queue is reloaded rather than
+   * mutated so the persisted practice and the preflight agree.
+   */
+  const swapForPropFreePose = useCallback(
+    (fromSlug: string, toSlug: string) => {
+      const replacement = asanaBySlug(toSlug);
+      if (!replacement) return;
+      const next = todays.map((a) =>
+        a.slug === fromSlug
+          ? {
+              asana: replacement,
+              holdSeconds: a.holdSeconds,
+              ...(a.sides ? { sides: a.sides } : {}),
+            }
+          : { asana: a, holdSeconds: a.holdSeconds, ...(a.sides ? { sides: a.sides } : {}) },
+      );
+      loadSession(next, {
+        label: meta.label,
+        pathwaySlug: meta.pathwaySlug,
+        breathSlug: meta.breathSlug ?? null,
+        plannedMinutes: meta.plannedMinutes ?? null,
+        preMood: meta.preMood ?? null,
+        introPoseSlug: meta.introPoseSlug ?? null,
+        careRegions: meta.careRegions ?? null,
+      });
+      toast({
+        title: "Swapped for a prop-free pose",
+        description: `${replacement.english} replaces the supported version.`,
+      });
+    },
+    [todays, meta, loadSession, toast],
+  );
 
   // ---- flow state -----------------------------------------------------------
   const [index, setIndex] = useState(0);
@@ -370,6 +436,7 @@ export default function GuidedSession() {
   const sessionLogged = useRef(false);
   /** Journal row id from auto-save — Reflect edits this instead of creating a duplicate. */
   const journalEntryId = useRef<number | null>(null);
+  const sessionRowId = useRef<number | null>(null);
   useWakeLock(started && !clockFrozen && !finished);
 
   /**
@@ -403,7 +470,18 @@ export default function GuidedSession() {
   // log only the *additional* time instead of double-counting the whole run.
   const loggedSeconds = useRef(0);
   // +30s pressed outside the hold phase: bank it and apply when the hold starts.
+  // Mirrored into state because the remaining-time footer has to count it —
+  // a ref alone bought the practitioner 30 seconds the estimate never showed.
   const pendingExtension = useRef(0);
+  const [pendingExtensionSec, setPendingExtensionSec] = useState(0);
+  const bankExtension = useCallback((seconds: number) => {
+    pendingExtension.current += seconds;
+    setPendingExtensionSec(pendingExtension.current);
+  }, []);
+  const clearBankedExtension = useCallback(() => {
+    pendingExtension.current = 0;
+    setPendingExtensionSec(0);
+  }, []);
 
   const announce = useCallback((text: string) => {
     const nextMsg = text.trim();
@@ -609,6 +687,10 @@ export default function GuidedSession() {
     })),
     index,
     phase,
+    mode: instructionMode,
+    pace,
+    pendingHoldExtension: pendingExtensionSec,
+    side,
     instructionLeft: instructionCountdown({
       usingMp3:
         voiceEnabled &&
@@ -866,6 +948,7 @@ export default function GuidedSession() {
 
       sessionLogged.current = true;
       journalEntryId.current = result.journalId ?? null;
+      sessionRowId.current = result.sessionId ?? null;
       setSaveFailed(false);
       saveProgress(null);
       if (result.milestone) {
@@ -876,6 +959,42 @@ export default function GuidedSession() {
       }
     },
     [todays, meta, preMood, rpe, toast, saving, saveProgress],
+  );
+
+  /**
+   * The completion screen's "add mood / rate effort" path.
+   *
+   * The practice is written the moment it ends, so an answer given afterwards
+   * must amend that row. Calling finalizeSession again is guarded against
+   * double-logging, which used to mean the answer was simply dropped.
+   */
+  const saveOrAmendReflection = useCallback(
+    async (resolvedPost: Mood | null, resolvedRpe: number | null) => {
+      lastPostMood.current = resolvedPost;
+      if (!sessionLogged.current) {
+        await finalizeSession(resolvedPost, resolvedRpe);
+        return;
+      }
+      if (!creditRef.current.counts) return;
+      await amendLoggedSession({
+        sessionId: sessionRowId.current,
+        journalId: journalEntryId.current,
+        postMood: resolvedPost,
+        rpe: resolvedRpe,
+        journal: {
+          label: meta.label ?? "Guided session",
+          minutes: finishedMinutes.current,
+          plannedMinutes: meta.plannedMinutes ?? null,
+          poseNames: todays.map((a) => a.english),
+          posesCompleted: posesCompleted.current,
+          posesSkipped: skippedIndices.current.size,
+          preMood,
+          postMood: resolvedPost,
+          breathCount: finishedBreaths.current,
+        },
+      });
+    },
+    [finalizeSession, meta, todays, preMood],
   );
 
   const creditNow = (): SessionCredit =>
@@ -1045,7 +1164,7 @@ export default function GuidedSession() {
       current?.holdSeconds ?? 30,
       pendingExtension.current,
     );
-    pendingExtension.current = 0;
+    clearBankedExtension();
     setPhaseRemaining(remaining);
     setHoldBudget(remaining);
     setStepIndex(Math.max(0, stepCount - 1));
@@ -1057,7 +1176,7 @@ export default function GuidedSession() {
     );
     setCueIndex(0);
     setPhase("hold");
-  }, [current, voiceDuration, voiceEnabled, stepCount]);
+  }, [current, voiceDuration, voiceEnabled, stepCount, clearBankedExtension]);
 
   // When narration audio ends → side switch (if "each" and on side 1) or hold.
   const onVoiceEnded = useCallback(() => {
@@ -1251,7 +1370,7 @@ export default function GuidedSession() {
     setPaused(false);
     sessionLogged.current = false;
     loggedSeconds.current = 0;
-    pendingExtension.current = 0;
+    clearBankedExtension();
     holdSecondsRef.current = 0;
     finishedBreaths.current = 0;
     setStageLayers([]);
@@ -1301,7 +1420,7 @@ export default function GuidedSession() {
     } else {
       // During narration the countdown is audio-driven; bank the extension so
       // the upcoming hold actually gets the extra time.
-      pendingExtension.current += 30;
+      bankExtension(30);
     }
     toast({ title: "+30 seconds", description: "Extended this hold." });
   };
@@ -1541,7 +1660,7 @@ export default function GuidedSession() {
                   variant="outline"
                   onClick={() => {
                     setShowRpe(false);
-                    if (!sessionLogged.current) void finalizeSession(postMood, null);
+                    void saveOrAmendReflection(postMood, null);
                   }}
                 >
                   Skip
@@ -1551,7 +1670,7 @@ export default function GuidedSession() {
                   disabled={rpe == null}
                   onClick={() => {
                     setShowRpe(false);
-                    if (!sessionLogged.current) void finalizeSession(postMood, rpe);
+                    void saveOrAmendReflection(postMood, rpe);
                   }}
                   data-testid="rpe-confirm"
                 >
@@ -1589,37 +1708,25 @@ export default function GuidedSession() {
             })}
           </h1>
           <div className="flex flex-wrap items-start justify-center gap-8 text-center">
-            <div>
-              <p className="font-serif text-3xl tabular-nums text-primary" data-testid="text-complete-minutes">
-                {finishedMinutes.current}
-              </p>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                {finishedMinutes.current === 1 ? "minute" : "minutes"}
-              </p>
-            </div>
-            <div>
-              <p className="font-serif text-3xl tabular-nums text-primary" data-testid="text-complete-poses">
-                {skippedIndices.current.size > 0
-                  ? `${posesCompleted.current}/${todays.length}`
-                  : posesCompleted.current}
-              </p>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                {skippedIndices.current.size > 0
-                  ? `poses · ${skippedIndices.current.size} skipped`
-                  : "poses"}
-              </p>
-            </div>
-            <div>
-              <p
-                className="font-serif text-3xl tabular-nums text-primary"
-                data-testid="text-complete-breaths"
-              >
-                {finishedBreaths.current}
-              </p>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                {finishedBreaths.current === 1 ? "breath" : "breaths"}
-              </p>
-            </div>
+            {completionTiles({
+              minutes: finishedMinutes.current,
+              posesCompleted: posesCompleted.current,
+              posesTotal: todays.length,
+              posesSkipped: skippedIndices.current.size,
+              breaths: finishedBreaths.current,
+            }).map((tile) => (
+              <div key={tile.id}>
+                <p
+                  className="font-serif text-3xl tabular-nums text-primary"
+                  data-testid={tile.testId}
+                >
+                  {tile.value}
+                </p>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground">
+                  {tile.label}
+                </p>
+              </div>
+            ))}
           </div>
           {credited ? (
             <p className="max-w-md text-sm text-muted-foreground" data-testid="text-summary-saved">
@@ -1719,6 +1826,7 @@ export default function GuidedSession() {
                   // "Do one more pose" — restart from the last pose for another round.
                   sessionLogged.current = false;
                   journalEntryId.current = null;
+                  sessionRowId.current = null;
                   setFinished(false);
                   setShowPostMood(false);
                   setConfetti(false);
@@ -1765,14 +1873,25 @@ export default function GuidedSession() {
         />
         <div className="animate-fade-in flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
           <MicVocal className="h-10 w-10 text-primary" />
-          <h1 className="font-serif text-3xl">Practice</h1>
-          <p className="max-w-md text-muted-foreground" data-testid="pre-session-summary">
+          <h1 className="font-serif text-3xl">Before you start</h1>
+          <p className="sr-only" data-testid="pre-session-summary">
             {preSessionSummary({
               label: meta.label,
               poseCount: todays.length,
-              timeLabel: sessionTimeLabel(todays),
+              timeLabel: sessionTimeLabel(todays, instructionMode),
             })}
           </p>
+          <SessionPreflightCard
+            title={meta.label}
+            preflight={preflight}
+            poses={todays.map((a) => ({
+              slug: a.slug,
+              english: a.english,
+              holdSeconds: a.holdSeconds,
+              sides: a.sides,
+            }))}
+            onSwapEquipment={swapForPropFreePose}
+          />
           {introVideo && (
             <StreamVideo
               media={introVideo}
@@ -1865,6 +1984,12 @@ export default function GuidedSession() {
   return (
     <FullScreenOverlay label="Practice session">
     <div
+      // Safe-area padding keeps the exit button out from under a notch and the
+      // transport out from under the home indicator.
+      style={{
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}
       className="fixed inset-0 z-50 flex flex-col bg-background"
       data-testid="guided-session"
       data-chrome={chromeVisible ? "visible" : "idle"}
@@ -1965,7 +2090,14 @@ export default function GuidedSession() {
       )}
 
       {/* ── MIDDLE (the star) ─────────────────────────────────────── */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-2 sm:px-4">
+      {/*
+        `min-h-0` is load-bearing. Without it this flex child refuses to shrink
+        below its content, and on a 390x844 phone the 58vh stage pushed the pose
+        name and its Sanskrit line down behind the timer panel — the heading was
+        sliced in half. Media now takes the space that is left over after the
+        name, the timer and the controls have theirs.
+      */}
+      <div className="relative flex min-h-0 flex-1 items-stretch justify-center overflow-hidden px-2 sm:px-4">
         {/* prev thumb */}
         {prev && (
           <div
@@ -2015,9 +2147,10 @@ export default function GuidedSession() {
           </div>
         )}
 
-        <div className="flex w-full max-w-xl flex-col items-center">
+        <div className="flex min-h-0 w-full max-w-xl flex-1 flex-col items-center justify-center gap-1 py-1">
           <div
-            className="relative flex h-[min(58vh,560px)] w-full items-center justify-center"
+            className="relative flex min-h-0 w-full flex-1 items-center justify-center"
+            style={{ maxHeight: "min(58vh, 560px)" }}
             data-testid="guided-stage-crossfade"
           >
             {layersForStage.map((layer, i) => {
@@ -2088,7 +2221,7 @@ export default function GuidedSession() {
 
           <h1
             className={cn(
-              "mt-3 font-serif text-3xl transition-opacity duration-500 motion-reduce:transition-none",
+              "shrink-0 text-balance px-2 text-center font-serif text-2xl leading-tight transition-opacity duration-500 motion-reduce:transition-none sm:text-3xl",
               chromeVisible ? "opacity-100" : "opacity-70",
             )}
             data-testid="text-current-pose"
@@ -2098,9 +2231,14 @@ export default function GuidedSession() {
               <span className="ml-2 text-base text-muted-foreground">· side {side}</span>
             )}
           </h1>
+          {/*
+            Sanskrit is the first thing to go when the viewport is short —
+            landscape phones and large-text settings both hit this. It is
+            decorative next to the pose name, the cue and the countdown.
+          */}
           <p
             className={cn(
-              "italic text-muted-foreground transition-opacity duration-500 motion-reduce:transition-none",
+              "hidden shrink-0 text-center italic text-muted-foreground transition-opacity duration-500 motion-reduce:transition-none [@media(min-height:700px)]:block",
               chromeVisible ? "opacity-100" : "opacity-0",
             )}
             data-testid="text-current-sanskrit"
@@ -2111,15 +2249,21 @@ export default function GuidedSession() {
       </div>
 
       {/* ── BOTTOM STRIP ──────────────────────────────────────────── */}
+      {/*
+        Short viewports (landscape phones, large-text settings) can make this
+        panel taller than the space left for it. Tighten the spacing first, and
+        allow it to scroll as a last resort so no control becomes unreachable.
+      */}
       <div
         className={cn(
-          "shrink-0 px-4 pb-5 pt-4 transition-[opacity,border-color] duration-500 motion-reduce:transition-none",
+          "max-h-[60vh] shrink-0 overflow-y-auto px-4 pb-5 pt-4 transition-[opacity,border-color] duration-500 motion-reduce:transition-none",
+          "[@media(max-height:700px)]:pb-2 [@media(max-height:700px)]:pt-2",
           chromeVisible ? "border-t border-border" : "border-t border-transparent",
         )}
       >
-        <div className="mx-auto flex max-w-lg flex-col items-center gap-3">
+        <div className="mx-auto flex max-w-lg flex-col items-center gap-3 [@media(max-height:700px)]:gap-1.5">
           <span
-            className="font-serif text-5xl tabular-nums"
+            className="font-serif text-4xl tabular-nums sm:text-5xl [@media(max-height:700px)]:text-3xl"
             data-testid="guided-countdown"
           >
             {mmss(bottomCountdown)}
@@ -2153,7 +2297,7 @@ export default function GuidedSession() {
           <p
             key={`${phase}-${stepIndex}-${cueIndex}`}
             className={cn(
-              "min-h-[3rem] animate-fade-in px-2 text-center transition-all motion-reduce:animate-none",
+              "min-h-[3rem] animate-fade-in px-2 text-center transition-all motion-reduce:animate-none [@media(max-height:700px)]:min-h-0",
               isHold
                 ? "text-base text-muted-foreground"
                 : "text-lg font-medium text-foreground",

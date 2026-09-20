@@ -10,3 +10,4 @@ rig-preview.png
 .fuse_hidden*
 test-results/
 playwright-report/
+.qa/
