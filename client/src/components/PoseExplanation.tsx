@@ -1,35 +1,48 @@
 /**
- * PoseExplanation — studio how-to training (detail page).
+ * PoseExplanation — pose lesson on the detail page.
  *
- * Pose demo + coaching voice, focus halo on the cued body region, and
- * Form · Breath · Align coaching. Start training is obvious and synced.
+ * One timeline (`buildPoseLesson`) is the single source for the demonstration,
+ * narration, caption, step number, highlight, side, phase and remaining time.
+ * Before this, the step index came from narration timing, the figure came from
+ * a video scrub, the highlight came from a regex over the cue, and the "Hold"
+ * label came from a catalog field none of them consulted — so they disagreed.
  *
- * Honors voiceEnabled: when OFF, silent step countdown still drives the guide.
+ * Honors voiceEnabled: with voice off the lesson clock still drives the guide.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { asanaBySlug } from "@/data/content";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
-import { PoseTrainerStage } from "@/components/PoseTrainerStage";
-import { momentumClass } from "@/lib/poseMomentum";
-import { resolveStepFocus } from "@/lib/poseMoments";
-import { useNarrationTiming } from "@/hooks/use-narration-timing";
-import { unlockAudio } from "@/lib/audioUnlock";
+import { PoseLessonStage, type LessonStageMediaState } from "@/components/PoseLessonStage";
+import {
+  buildPoseLesson,
+  formatLessonClock,
+  nextStepStart,
+  phaseLabelFor,
+  previousStepStart,
+  segmentAt,
+  segmentStartAt,
+} from "@/lib/poseLesson";
 import { manifestAudioUrl, usePoseMedia } from "@/lib/poseMediaApi";
+import { unlockAudio } from "@/lib/audioUnlock";
 import { cn } from "@/lib/utils";
 import type { Preferences } from "@shared/schema";
 import {
-  Play,
-  Pause,
-  Check,
-  Sparkles,
-  Wind,
-  Target,
   AlertTriangle,
-  Heart,
   AlignCenter,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  Pause,
+  Play,
+  RotateCcw,
+  Sparkles,
+  Target,
+  Wind,
+  X,
 } from "lucide-react";
 
 type TeachTab = "form" | "breath" | "align" | "watch" | "feel";
@@ -45,203 +58,174 @@ const TABS: { id: TeachTab; label: string; icon: typeof Target }[] = [
 export function PoseExplanation({
   slug,
   level = "intermediate",
+  onTrainingChange,
 }: {
   slug: string;
-  /** Difficulty path from AsanaDetail — updates steps and coaching panels. */
+  /** Difficulty path from AsanaDetail — updates steps, timing, props and copy. */
   level?: "beginner" | "intermediate" | "advanced";
+  /** Lets the page hide competing actions (sticky "Practice now") while teaching. */
+  onTrainingChange?: (active: boolean) => void;
 }) {
   const asana = asanaBySlug(slug);
-  const { toast } = useToast();
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
   const { data: poseMedia } = usePoseMedia(slug);
   const voiceEnabled = prefs ? prefs.voiceEnabled !== 0 : true;
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const lastTickRef = useRef<number | null>(null);
+  /** The focused teaching block: demonstration, live cue and controls. */
+  const stageRef = useRef<HTMLDivElement | null>(null);
 
-  const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const [current, setCurrent] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [stepIndex, setStepIndex] = useState(0);
-  // 0–1 through the spoken step. Rigged poses interpolate limbs across this, so
-  // the body is mid-transition while the sentence plays.
-  const [stepProgress, setStepProgress] = useState(1);
-  const [audioFailed, setAudioFailed] = useState(false);
+  const [timeSec, setTimeSec] = useState(0);
   const [restartToken, setRestartToken] = useState(0);
+  const [mediaState, setMediaState] = useState<LessonStageMediaState>("idle");
   const [tab, setTab] = useState<TeachTab>("form");
+  /** Bumped whenever the teaching block must be brought back into view. */
+  const [keepInView, setKeepInView] = useState(0);
+
+  /**
+   * Keep the demonstration on screen.
+   *
+   * "Start" sits below a long page, and tapping a control focuses it — both of
+   * which scroll the demonstration off the top, leaving only the cue and the
+   * buttons visible. The browser's focus-scroll happens during the click, so
+   * this runs after the commit and then again on the next two frames to land
+   * after it rather than racing it.
+   */
+  useEffect(() => {
+    if (keepInView === 0) return;
+    let frame = 0;
+    const settle = () => stageRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
+    settle();
+    frame = requestAnimationFrame(() => {
+      settle();
+      frame = requestAnimationFrame(settle);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [keepInView]);
+
+  const lesson = useMemo(() => buildPoseLesson({ slug, level }), [slug, level]);
 
   const difficulty =
     level === "beginner" ? "Beginner" : level === "advanced" ? "Advanced" : "Intermediate";
-  const variation = asana?.variations[level];
-  const steps =
-    variation?.steps && variation.steps.length > 0
-      ? variation.steps.map((s) => ({ text: s.text, pose: s.pose }))
-      : (asana?.steps ?? []);
-  const stepCount = steps.length || 1;
-  const SILENT_SECONDS_PER_STEP = 6;
-  const silentDuration = stepCount * SILENT_SECONDS_PER_STEP;
-  const useSilentGuide = !voiceEnabled || audioFailed;
-  const effectiveDuration = useSilentGuide ? silentDuration : duration;
   const expl = useMemo(
     () => (asana ? buildPoseExplanation(asana, difficulty) : null),
     [asana, difficulty],
   );
-  // Real per-step boundaries (generated file when present, syllable-weighted
-  // estimate otherwise) instead of dividing the audio into equal slices.
-  const stepTexts = useMemo(() => steps.map((s) => s.text), [steps]);
-  const { resolve: resolveStep } = useNarrationTiming(slug, stepTexts, effectiveDuration);
-  const activeStep = steps[stepIndex];
-  const activeMomentum = momentumClass(activeStep);
-  const activeStepPose = activeStep?.pose || asana?.pose;
-  const activeFocus = useMemo(
-    () =>
-      started && !completed
-        ? resolveStepFocus(activeStep, stepIndex, stepCount)
-        : null,
-    [started, completed, activeStep, stepIndex, stepCount],
-  );
-  // Idle shows the pose poster (clips start on a shared standing frame).
-  // Training follows play/pause so the journey clip can run.
-  const stagePlaying = started && playing && !completed;
+
+  const current = lesson ? segmentAt(lesson, timeSec) : null;
+
+  // Buffering must not let narration, captions or the clock run ahead of the
+  // picture. A still never buffers, so this only ever gates real clips.
+  const stalled = mediaState === "loading" || mediaState === "buffering";
 
   useEffect(() => {
+    onTrainingChange?.(started && !completed);
+  }, [started, completed, onTrainingChange]);
+
+  /** Stop this lesson's media. Runs on pose change, level change and unmount. */
+  const stopMedia = useCallback(() => {
     const a = audioRef.current;
     if (a) {
       a.pause();
       a.currentTime = 0;
     }
-    setPlaying(false);
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    lastTickRef.current = null;
+  }, []);
+
+  // Changing pose or variation ends the previous lesson outright — otherwise
+  // the old narration keeps playing over the new pose.
+  useEffect(() => {
+    stopMedia();
     setStarted(false);
+    setPlaying(false);
     setCompleted(false);
-    setCurrent(0);
-    setStepIndex(0);
-    setAudioFailed(false);
-    setRestartToken(0);
+    setTimeSec(0);
+    setMediaState("idle");
     setTab("form");
-  }, [slug, level]);
+  }, [slug, level, stopMedia]);
 
-  // Restart the step video whenever the spoken cue advances.
-  useEffect(() => {
-    if (!started || completed) return;
-    setRestartToken((n) => n + 1);
-  }, [stepIndex, started, completed]);
+  // Leaving the page must not leave audio running.
+  useEffect(() => stopMedia, [stopMedia]);
 
-  // If voice is turned off mid-explanation, drop into the silent walkthrough.
+  // The lesson clock. Narration follows it rather than driving it, so a
+  // missing or slow MP3 cannot desynchronise the steps from the timer.
   useEffect(() => {
-    if (!voiceEnabled && audioRef.current) {
-      audioRef.current.pause();
-      if (started && !completed && playing) {
-        setAudioFailed(true);
-      }
+    if (!started || !playing || completed || stalled || !lesson) {
+      lastTickRef.current = null;
+      return;
     }
-  }, [voiceEnabled, started, completed, playing]);
-
-  useEffect(() => {
-    if (!useSilentGuide || !started || !playing || completed) return;
-    const t = setInterval(() => {
-      setCurrent((c) => {
-        const nc = c + 0.5;
-        const { index, progress } = resolveStep(nc);
-        setStepIndex(index);
-        setStepProgress(progress);
-        if (nc >= silentDuration) {
+    const loop = (now: number) => {
+      if (lastTickRef.current == null) lastTickRef.current = now;
+      const delta = (now - lastTickRef.current) / 1000;
+      lastTickRef.current = now;
+      setTimeSec((t) => {
+        const next = t + delta;
+        if (next >= lesson.totalSec) {
           setPlaying(false);
           setCompleted(true);
-          setStepIndex(stepCount - 1);
-          setStepProgress(1);
-          return silentDuration;
+          return lesson.totalSec;
         }
-        return nc;
+        return next;
       });
-    }, 500);
-    return () => clearInterval(t);
-  }, [useSilentGuide, started, playing, completed, stepCount, silentDuration, resolveStep]);
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [started, playing, completed, stalled, lesson]);
 
-  // Auto-rotate teaching tabs while playing so the rail feels alive.
+  // Narration is slaved to the lesson clock: paused when paused, silent while
+  // the demonstration is buffering.
   useEffect(() => {
-    if (!playing || completed || !started) return;
-    const order: TeachTab[] = ["form", "breath", "align", "watch", "feel"];
-    const t = setInterval(() => {
-      setTab((prev) => {
-        const i = order.indexOf(prev);
-        return order[(i + 1) % order.length];
-      });
-    }, 7000);
-    return () => clearInterval(t);
-  }, [playing, completed, started]);
+    const a = audioRef.current;
+    if (!a || !voiceEnabled) return;
+    if (!started || !playing || completed || stalled) {
+      a.pause();
+      return;
+    }
+    void a.play().catch(() => undefined);
+  }, [started, playing, completed, stalled, voiceEnabled, current?.id]);
 
-  if (!asana || !expl) return null;
+  if (!asana || !expl || !lesson) return null;
 
   const src = manifestAudioUrl(asana.slug, poseMedia);
-  const progress =
-    effectiveDuration > 0 ? Math.min(100, (current / effectiveDuration) * 100) : 0;
+  const progress = lesson.totalSec > 0 ? Math.min(100, (timeSec / lesson.totalSec) * 100) : 0;
+  const remaining = Math.max(0, lesson.totalSec - timeSec);
+
+  const seek = (to: number) => {
+    const clamped = Math.max(0, Math.min(lesson.totalSec, to));
+    setTimeSec(clamped);
+    setCompleted(false);
+    setRestartToken((n) => n + 1);
+    const a = audioRef.current;
+    if (a) a.currentTime = 0;
+    setKeepInView((n) => n + 1);
+  };
 
   const start = () => {
     void unlockAudio();
     setStarted(true);
     setCompleted(false);
-    setCurrent(0);
-    setStepIndex(0);
-    setTab("form");
-    // Restart the muted demo clip with this pose's narration.
+    setTimeSec(0);
     setRestartToken((n) => n + 1);
-
-    if (!voiceEnabled || audioFailed) {
-      setPlaying(true);
-      return;
-    }
-    const a = audioRef.current;
-    if (!a) {
-      setAudioFailed(true);
-      setPlaying(true);
-      return;
-    }
-    a.currentTime = 0;
-    const p = a.play();
-    if (p && typeof p.then === "function") {
-      p.then(() => setPlaying(true)).catch(() => {
-        setAudioFailed(true);
-        setPlaying(true);
-      });
-    } else {
-      setPlaying(true);
-    }
+    setPlaying(true);
+    setKeepInView((n) => n + 1);
   };
 
-  const pause = () => {
-    audioRef.current?.pause();
-    setPlaying(false);
-  };
-
-  const resume = () => {
-    if (useSilentGuide) {
-      setPlaying(true);
-      return;
-    }
-    const a = audioRef.current;
-    if (!a) return;
-    const p = a.play();
-    if (p && typeof p.then === "function") {
-      p.then(() => setPlaying(true)).catch(() => {
-        setAudioFailed(true);
-        setPlaying(true);
-      });
-    } else {
-      setPlaying(true);
-    }
-  };
-
-  const closeDemo = () => {
-    const a = audioRef.current;
-    if (a) {
-      a.pause();
-      a.currentTime = 0;
-    }
-    setPlaying(false);
+  const exitTraining = () => {
+    stopMedia();
     setStarted(false);
+    setPlaying(false);
     setCompleted(false);
-    setCurrent(0);
-    setStepIndex(0);
+    setTimeSec(0);
   };
 
   const tabBody = (() => {
@@ -259,11 +243,65 @@ export function PoseExplanation({
     }
   })();
 
+  const training = started && !completed;
+  const activeStepNumber = current?.stepNumber ?? null;
+
+  const controls = (
+    <div className="flex flex-wrap items-center gap-2" data-testid="lesson-controls">
+      <Button
+        variant="outline"
+        className="min-h-12 min-w-12"
+        onClick={() => seek(previousStepStart(lesson, timeSec))}
+        aria-label="Previous step"
+        data-testid="lesson-prev"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </Button>
+      <Button
+        variant="outline"
+        className="min-h-12"
+        onClick={() => seek(segmentStartAt(lesson, timeSec))}
+        aria-label="Replay this step"
+        data-testid="lesson-replay"
+      >
+        <RotateCcw className="mr-1 h-4 w-4" /> Replay
+      </Button>
+      <Button
+        className="min-h-12 flex-1"
+        onClick={() => setPlaying((p) => !p)}
+        aria-label={playing ? "Pause lesson" : "Resume lesson"}
+        data-testid={`button-pause-demo-${asana.slug}`}
+      >
+        {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 fill-current" />}
+        <span className="ml-2">{playing ? "Pause" : "Resume"}</span>
+      </Button>
+      <Button
+        variant="outline"
+        className="min-h-12 min-w-12"
+        onClick={() => seek(nextStepStart(lesson, timeSec))}
+        aria-label="Next step"
+        data-testid="lesson-next"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </Button>
+      <Button
+        variant="ghost"
+        className="min-h-12"
+        onClick={exitTraining}
+        aria-label="Exit training"
+        data-testid="lesson-exit"
+      >
+        <X className="mr-1 h-4 w-4" /> Exit
+      </Button>
+    </div>
+  );
+
   return (
     <section
       className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft"
       data-testid={`demo-mode-${asana.slug}`}
-      aria-label={`Pose explanation for ${asana.english}`}
+      aria-label={`Pose lesson for ${asana.english}`}
+      data-training={training ? "active" : "idle"}
     >
       <div className="h-1.5 w-full bg-accent/40" aria-hidden>
         <div
@@ -273,105 +311,182 @@ export function PoseExplanation({
         />
       </div>
 
-      <div className="space-y-5 p-5 sm:p-6">
+      <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-1.5">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            Studio how-to · Voice coaching
+            Pose lesson
             {!voiceEnabled ? " · Voice off" : null}
           </span>
           <h2 className="font-serif text-2xl font-semibold tracking-tight">
             Learn {asana.english}
           </h2>
-          <p className="text-sm text-muted-foreground">
-            {asana.sanskrit}
-            {" · "}
-            <span className="capitalize">{level}</span> path
-            {" · "}
-            A pose demo follows each spoken cue so you see and hear the shape together. Generated demos are illustrative — not a filmed class.
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span>{asana.sanskrit}</span>
+            <Badge variant="outline" className="capitalize" data-testid="lesson-variation">
+              {level}
+            </Badge>
+            <Badge variant="outline" data-testid="lesson-duration-label">
+              {lesson.durationLabel}
+            </Badge>
+            {lesson.props.length ? (
+              <Badge variant="secondary" data-testid="lesson-props">
+                {lesson.props.join(", ")}
+              </Badge>
+            ) : null}
+          </div>
         </div>
 
-        <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)] lg:items-start">
-          <PoseTrainerStage
-            slug={asana.slug}
-            english={asana.english}
-            sanskrit={asana.sanskrit}
-            poseKey={asana.pose}
-            stepPoseKey={activeStepPose}
-            momentum={activeMomentum}
-            stepIndex={started ? stepIndex : 0}
-            stepProgress={started ? stepProgress : 1}
-            playing={stagePlaying}
-            restartToken={restartToken}
-            syncVideoToVoice
-            narrationTime={started ? current : 0}
-            narrationDuration={started ? effectiveDuration : 0}
-            guideActive={started && !completed}
-            focusZone={activeFocus}
-            caption={
-              started && !completed
-                ? `Step ${stepIndex + 1}/${stepCount}: ${activeStep?.text ?? ""}`
-                : null
-            }
-            variant="detail"
-            className="min-w-0 w-full"
-            data-testid={`demo-hero-${asana.slug}`}
-          />
+        {/*
+          Focused teaching view: demonstration, the one current instruction and
+          the controls stay together. Reference material sits below, and never
+          replaces the live cue.
+        */}
+        <div
+          className={cn(
+            "grid min-w-0 grid-cols-1 gap-4",
+            training ? "" : "lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)] lg:items-start",
+          )}
+        >
+          {/*
+            scroll-mt clears the sticky app header (3.5rem). Without it the
+            scroll-into-view above parks the top of the demonstration — and the
+            media-availability label sitting on it — behind the header.
+          */}
+          <div className="flex min-w-0 scroll-mt-20 flex-col gap-3" ref={stageRef}>
+            <PoseLessonStage
+              demo={lesson.demo}
+              english={asana.english}
+              playing={training && playing}
+              restartToken={restartToken}
+              focus={training ? current?.focus ?? null : null}
+              caption={
+                training && current
+                  ? `${phaseLabelFor(current.phase)}${
+                      current.side !== "both" ? ` · ${current.side} side` : ""
+                    }`
+                  : null
+              }
+              onMediaStateChange={setMediaState}
+              className={cn(
+                "aspect-[3/4] w-full sm:aspect-video",
+                // While teaching, the picture shares a short screen with the
+                // cue and the controls, so it yields height to them.
+                training
+                  ? "max-h-[min(38vh,18rem)] landscape:max-h-[min(46vh,14rem)]"
+                  : "max-h-[min(46vh,26rem)]",
+              )}
+              data-testid={`demo-hero-${asana.slug}`}
+            />
 
-          {/* Teaching rail */}
-          <div
-            className="flex min-h-[14rem] flex-col rounded-2xl border border-border/70 bg-accent/20 p-3 sm:p-4"
-            data-testid={`pose-teach-rail-${asana.slug}`}
-          >
-            <div
-              className="flex gap-1 overflow-x-auto pb-2"
-              role="tablist"
-              aria-label="Teaching topics"
-            >
-              {TABS.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === id}
-                  onClick={() => setTab(id)}
-                  className={cn(
-                    "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
-                    tab === id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background/70 text-muted-foreground hover:text-foreground",
-                  )}
-                  data-testid={`pose-teach-tab-${id}`}
-                >
-                  <Icon className="h-3.5 w-3.5" aria-hidden />
-                  {label}
-                </button>
-              ))}
-            </div>
+            {training && current ? (
+              <div className="space-y-2" data-testid="lesson-live-cue">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span data-testid="lesson-phase">
+                    {phaseLabelFor(current.phase)}
+                    {activeStepNumber ? ` · Step ${activeStepNumber} of ${lesson.steps.length}` : ""}
+                    {current.cycle
+                      ? ` · Round ${current.cycle.round} of ${current.cycle.totalRounds}`
+                      : ""}
+                    {current.side !== "both" ? ` · ${current.side} side` : ""}
+                  </span>
+                  <span className="tabular-nums" data-testid="lesson-remaining">
+                    {formatLessonClock(remaining)} left
+                  </span>
+                </div>
+                <p className="text-base font-medium leading-relaxed" data-testid="lesson-cue">
+                  {current.cue}
+                </p>
+                {current.breathCue ? (
+                  <p className="text-sm text-muted-foreground" data-testid="lesson-breath">
+                    {current.breathCue}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
-            <div
-              key={tab}
-              role="tabpanel"
-              className="animate-fade-in flex-1 space-y-2.5 pt-1"
-              data-testid={`pose-teach-panel-${tab}`}
-            >
-              <ul className="space-y-2.5">
-                {tabBody.map((line, i) => (
-                  <li
-                    key={`${tab}-${i}`}
-                    className="flex gap-2 text-sm leading-relaxed text-foreground/90"
-                  >
-                    <span
-                      className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
-                      aria-hidden
-                    />
-                    <span>{line}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {/*
+              Controls live inside the teaching column so the demonstration,
+              the live cue and the buttons scroll as one block and cannot end
+              up on opposite sides of the fold.
+            */}
+            {training ? controls : null}
+
+            {lesson.demo.kind !== "movement" ? (
+              <p
+                className="rounded-lg bg-muted/50 p-2.5 text-xs text-muted-foreground"
+                data-testid="lesson-media-disclosure"
+              >
+                No reviewed movement demonstration exists for {asana.english} yet, so this lesson
+                shows a still reference beside the written cues. It does not show the movement into
+                or out of the pose.
+              </p>
+            ) : null}
+
+            {lesson.variationVisualMismatch ? (
+              <p
+                className="rounded-lg bg-muted/50 p-2.5 text-xs text-muted-foreground"
+                data-testid="lesson-variation-mismatch"
+              >
+                {lesson.variationVisualMismatch}
+              </p>
+            ) : null}
           </div>
+
+          {!training ? (
+            <div
+              className="flex min-h-[14rem] flex-col rounded-2xl border border-border/70 bg-accent/20 p-3 sm:p-4"
+              data-testid={`pose-teach-rail-${asana.slug}`}
+            >
+              <div
+                className="flex gap-1 overflow-x-auto pb-2"
+                role="tablist"
+                aria-label="Teaching topics"
+              >
+                {TABS.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === id}
+                    onClick={() => setTab(id)}
+                    className={cn(
+                      "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
+                      tab === id
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background/70 text-muted-foreground hover:text-foreground",
+                    )}
+                    data-testid={`pose-teach-tab-${id}`}
+                  >
+                    <Icon className="h-3.5 w-3.5" aria-hidden />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                key={tab}
+                role="tabpanel"
+                className="flex-1 space-y-2.5 pt-1"
+                data-testid={`pose-teach-panel-${tab}`}
+              >
+                <ul className="space-y-2.5">
+                  {tabBody.map((line, i) => (
+                    <li
+                      key={`${tab}-${i}`}
+                      className="flex gap-2 text-sm leading-relaxed text-foreground/90"
+                    >
+                      <span
+                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
+                        aria-hidden
+                      />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {!started ? (
@@ -379,10 +494,10 @@ export function PoseExplanation({
             size="lg"
             onClick={start}
             data-testid={`button-watch-demo-${asana.slug}`}
-            aria-label={`Start pose training for ${asana.english}`}
-            className="min-h-12 w-full gap-2 rounded-full bg-primary py-6 text-base font-medium text-primary-foreground hover:bg-primary/90"
+            aria-label={`Start the ${asana.english} lesson`}
+            className="min-h-12 w-full gap-2 rounded-full py-6 text-base font-medium"
           >
-            <Play className="h-5 w-5 fill-current" /> Start pose training
+            <Play className="h-5 w-5 fill-current" /> Start pose lesson
           </Button>
         ) : completed ? (
           <div
@@ -391,54 +506,35 @@ export function PoseExplanation({
           >
             <p className="font-serif text-lg">You know the cues — try it in your body</p>
             <Button
-              onClick={closeDemo}
-              variant="default"
+              onClick={exitTraining}
               className="gap-2 rounded-full"
               data-testid={`button-demo-got-it-${asana.slug}`}
             >
               <Check className="h-4 w-4" /> Got it
             </Button>
           </div>
-        ) : (
-          <Button
-            size="lg"
-            variant="secondary"
-            onClick={playing ? pause : resume}
-            data-testid={`button-pause-demo-${asana.slug}`}
-            className="w-full gap-2 rounded-full py-6 text-base font-medium"
-          >
-            {playing ? (
-              <>
-                <Pause className="h-5 w-5" /> Pause training
-              </>
-            ) : (
-              <>
-                <Play className="h-5 w-5 fill-current" /> Resume training
-              </>
-            )}
-          </Button>
-        )}
+        ) : null}
 
-        {/* How-to always visible — Alo lists steps; we highlight the live cue */}
         <ol className="space-y-2" data-testid={`demo-steps-${asana.slug}`}>
-          {steps.map((step, i) => {
-            const isActive = started && !completed && i === stepIndex;
-            const isPast = started && (completed || i < stepIndex);
+          {lesson.steps.map((step) => {
+            const isActive = training && step.number === activeStepNumber;
+            const isPast =
+              started && (completed || (activeStepNumber != null && step.number < activeStepNumber));
             return (
               <li
-                key={i}
+                key={step.number}
                 className={cn(
                   "rounded-lg px-4 py-3 transition-all duration-500",
                   isActive
-                    ? "border-l-4 border-primary bg-accent/50 text-base font-medium text-foreground opacity-100"
+                    ? "border-l-4 border-primary bg-accent/50 text-base font-medium text-foreground"
                     : isPast
                       ? "border-l-4 border-transparent text-sm text-muted-foreground opacity-60"
                       : "border-l-4 border-transparent text-sm text-muted-foreground opacity-70",
                 )}
-                data-testid={`demo-step-${asana.slug}-${i}`}
+                data-testid={`demo-step-${asana.slug}-${step.number - 1}`}
                 aria-current={isActive ? "step" : undefined}
               >
-                <span className="mr-2 font-serif text-primary">{i + 1}.</span>
+                <span className="mr-2 font-serif text-primary">{step.number}.</span>
                 {step.text}
               </li>
             );
@@ -450,34 +546,6 @@ export function PoseExplanation({
           src={voiceEnabled ? src : undefined}
           preload={voiceEnabled ? "auto" : "none"}
           data-testid={`demo-audio-${asana.slug}`}
-          onLoadedMetadata={(e) => setDuration((e.target as HTMLAudioElement).duration)}
-          onTimeUpdate={(e) => {
-            if (useSilentGuide) return;
-            const a = e.target as HTMLAudioElement;
-            setCurrent(a.currentTime);
-            if (a.duration > 0) {
-              const { index, progress } = resolveStep(a.currentTime);
-              setStepIndex(index);
-              setStepProgress(progress);
-            }
-          }}
-          onEnded={() => {
-            setPlaying(false);
-            setCompleted(true);
-            setStepIndex(stepCount - 1);
-            setStepProgress(1);
-          }}
-          onError={() => {
-            // Missing / broken narration — keep video + silent step guide.
-            setAudioFailed(true);
-            if (started && !completed && voiceEnabled) {
-              setPlaying(true);
-              toast({
-                title: "Narration unavailable",
-                description: "Running the explanation silently — follow the highlighted steps.",
-              });
-            }
-          }}
         />
       </div>
     </section>

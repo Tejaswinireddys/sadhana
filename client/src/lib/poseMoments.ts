@@ -140,15 +140,21 @@ export function inferFocusZone(
   return fallbacks[Math.min(fallbacks.length - 1, Math.floor(t * fallbacks.length))];
 }
 
-/** Prefer authored focus; otherwise infer from the spoken cue. */
+/**
+ * Authored focus only.
+ *
+ * `inferFocusZone` returns fixed coordinates for a standing portrait figure —
+ * "arms" is always (0.5, 0.36). Applied to Warrior II that put the halo on the
+ * head during "extend the arms", and applied to a pose photographed on all
+ * fours (Cat–Cow) the vertical coordinates mean nothing at all.
+ *
+ * A halo over the wrong body part teaches the wrong thing, so when a pose has
+ * no hand-placed zone for a step we show no halo. Callers must handle null.
+ */
 export function resolveStepFocus(
   step: { text?: string; focusZone?: FocusZone | null } | null | undefined,
-  stepIndex = 0,
-  stepCount = 1,
 ): FocusZone | null {
-  if (step?.focusZone) return step.focusZone;
-  if (!step?.text) return null;
-  return inferFocusZone(step.text, stepIndex, stepCount);
+  return step?.focusZone ?? null;
 }
 
 export function buildPoseMoment(opts: {

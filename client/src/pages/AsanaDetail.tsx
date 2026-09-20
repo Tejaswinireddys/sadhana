@@ -153,6 +153,8 @@ export default function AsanaDetail() {
   const [level, setLevel] = useState<Level>(() =>
     poseLevelFromExperience(readString(KEYS.experienceLevel)),
   );
+  /** True while a lesson is running, so the page can stand down competing CTAs. */
+  const [training, setTraining] = useState(false);
   useDocumentTitle(asana ? `${asana.english} · Sadhana` : "Pose · Sadhana");
 
   if (!asana) {
@@ -268,7 +270,7 @@ export default function AsanaDetail() {
       </div>
 
       {/* Premium pose explanation — follows the selected difficulty path */}
-      <PoseExplanation slug={asana.slug} level={level} />
+      <PoseExplanation slug={asana.slug} level={level} onTrainingChange={setTraining} />
 
       <header className="space-y-4">
         <div className="space-y-3">
@@ -694,9 +696,16 @@ export default function AsanaDetail() {
       {/* Personal notes (v3.4) */}
       <PersonalNotes slug={asana.slug} />
 
-      {/* Mobile sticky practice actions — stays above bottom nav */}
+      {/*
+        Mobile sticky practice actions — stays above bottom nav, and stays out
+        of the way entirely during a lesson. A competing "Practice now" button
+        under an active lesson is a second primary action for the same intent.
+      */}
       <div
-        className="fixed inset-x-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden"
+        className={cn(
+          "fixed inset-x-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden",
+          training && "hidden",
+        )}
         style={{ bottom: "calc(3.5rem + env(safe-area-inset-bottom, 0px))" }}
         data-testid="sticky-practice-actions"
       >
