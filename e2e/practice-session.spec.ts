@@ -16,9 +16,13 @@ test.beforeEach(async ({ page }) => {
   }, LEGAL_VERSION);
 });
 
+/**
+ * Mood sessions live on the Practice hub, not on Today — Today leads with one
+ * recommended practice and the catalogue moved to /guided.
+ */
 async function openTiredPreflight(page: Page) {
-  await page.goto("/");
-  await page.getByTestId("button-begin-quick-tired").click();
+  await page.goto("/guided");
+  await page.getByTestId("button-hub-begin-tired").click();
   await expect(page.getByTestId("session-preflight")).toBeVisible();
 }
 
