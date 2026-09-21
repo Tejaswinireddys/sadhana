@@ -39,7 +39,10 @@ import { profileById } from "@/data/profiles";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
 import { homeProgressTiles } from "@shared/practiceStats";
 import { KEYS, readJson, readString, type ReminderPrefs } from "@/lib/localPrefs";
-import type { ExperienceLevel, PracticeIntent } from "@/lib/localPrefs";
+import {
+  readPracticePreferences,
+  writePracticePreferences,
+} from "@/lib/practicePreferences";
 import { readQuizPlan } from "@/data/quizPlan";
 import { readHabitPlan } from "@/lib/habitPlan";
 import type { UserProfile, Enrollment, Journal } from "@shared/schema";
@@ -141,9 +144,9 @@ export default function Home() {
 
   const [savePromptDismissed, setSavePromptDismissed] = useState(false);
   /** Overrides from the card's "Change time" / "Change focus" controls. */
-  const [adjust, setAdjust] = useState<{ minutes: number | null; need: string | null }>({
-    minutes: null,
-    need: null,
+  const [adjust, setAdjust] = useState<{ minutes: number | null; need: string | null }>(() => {
+    const saved = readPracticePreferences();
+    return { minutes: saved.minutes, need: saved.need };
   });
 
   const profile = profileById(activeProfileRow?.profileId) ?? null;
@@ -155,8 +158,10 @@ export default function Home() {
     hour: 18,
     notifications: false,
   });
-  const intent = (readString(KEYS.practiceIntent) as PracticeIntent | null) || null;
-  const experience = (readString(KEYS.experienceLevel) as ExperienceLevel | null) || null;
+  // Goal, ability, time and focus come from one store, so a length chosen in
+  // the Trainer is the length Today opens with, and vice versa.
+  const prefs = readPracticePreferences();
+  const { intent, experience } = prefs;
   const breath = breathOfTheDay();
 
   const hasPracticed = !!stats && stats.totalSessions > 0;
@@ -233,7 +238,7 @@ export default function Home() {
     intent,
     experience,
     hour: new Date().getHours(),
-    preferredMinutes: adjust.minutes,
+    preferredMinutes: adjust.minutes ?? prefs.minutes,
     hasPracticed,
     warmup: { title: WARMUP.title, poses: warmupPoses },
   };
@@ -287,11 +292,9 @@ export default function Home() {
     navigate("/guided");
   };
 
-  const practicedToday = (() => {
-    const today = todayISO();
-    const entry = stats?.heatmap?.find((h) => h.date === today);
-    return !!entry && entry.minutes > 0;
-  })();
+  const todayEntry = stats?.heatmap?.find((h) => h.date === todayISO());
+  const todayMinutes = todayEntry?.minutes ?? 0;
+  const practicedToday = todayMinutes > 0;
 
   const savePrompt = savePromptDismissed
     ? "none"
@@ -334,14 +337,62 @@ export default function Home() {
           </h2>
         </div>
 
+        {/*
+          A day that is already done gets an acknowledgement, a way to reflect
+          on it, and one next step — not a second identical Start button
+          pretending nothing happened.
+        */}
+        {!bootstrapping && practicedToday && (
+          <Card className="surface-banner-soft" data-testid="banner-practiced-today">
+            <CardContent className="flex flex-col gap-3 p-5">
+              <div>
+                <p className="font-serif text-lg leading-tight">You practised today</p>
+                <p className="text-sm text-muted-foreground">
+                  {todayMinutes > 0
+                    ? `${todayMinutes} ${todayMinutes === 1 ? "minute" : "minutes"} logged. Rest is part of the practice.`
+                    : "Rest is part of the practice."}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  asChild
+                  variant="outline"
+                  className="min-h-11 cursor-pointer"
+                  data-testid="button-practiced-reflect"
+                >
+                  <Link href="/journal">
+                    <NotebookPen className="mr-1.5 h-4 w-4" /> Write a reflection
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="min-h-11 cursor-pointer"
+                  data-testid="button-practiced-breath"
+                >
+                  <Link href={`/breathing?slug=${encodeURIComponent(breath.slug)}`}>
+                    <Wind className="mr-1.5 h-4 w-4" /> Or a few quiet breaths
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {bootstrapping ? (
           <TodayPracticeCardSkeleton />
         ) : recommendation ? (
           <TodayPracticeCard
             recommendation={recommendation}
             onStart={startRecommendation}
-            onChangeMinutes={(minutes) => setAdjust((a) => ({ ...a, minutes }))}
-            onChangeFocus={(need) => setAdjust((a) => ({ ...a, need }))}
+            onChangeMinutes={(minutes) => {
+              writePracticePreferences({ minutes });
+              setAdjust((a) => ({ ...a, minutes }));
+            }}
+            onChangeFocus={(need) => {
+              writePracticePreferences({ need });
+              setAdjust((a) => ({ ...a, need }));
+            }}
             currentMinutes={adjust.minutes}
             currentNeed={adjust.need}
           />

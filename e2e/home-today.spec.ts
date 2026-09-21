@@ -143,6 +143,30 @@ test.describe("Today handles its states deliberately", () => {
     await expect(page.getByTestId("progress-empty")).toContainText(/Nothing here yet/);
   });
 
+  test("a finished day is acknowledged, with a reflection and a next step", async ({ page }) => {
+    await seed(page);
+    // Synthetic stats: one practice logged today.
+    await page.route("**/api/sessions/stats/**", async (route) => {
+      const res = await route.fetch();
+      const body = await res.json();
+      const today = new Date().toISOString().slice(0, 10);
+      body.totalSessions = 3;
+      body.daysPracticed = 3;
+      body.currentStreak = 1;
+      body.longestStreak = 1;
+      body.heatmap = [...(body.heatmap ?? []).filter((h: { date: string }) => h.date !== today), { date: today, minutes: 12 }];
+      await route.fulfill({ response: res, json: body });
+    });
+    await page.goto("/");
+    const done = page.getByTestId("banner-practiced-today");
+    await expect(done).toContainText(/You practised today/);
+    await expect(done).toContainText(/12 minutes/);
+    await expect(page.getByTestId("button-practiced-reflect")).toBeVisible();
+    await expect(page.getByTestId("button-practiced-breath")).toBeVisible();
+    // And practising again is offered as a choice, not as if nothing happened.
+    await expect(page.getByRole("heading", { name: /Practise again/i })).toBeVisible();
+  });
+
   test("the storage card talks about storage, not safety", async ({ page }) => {
     await seed(page);
     await page.goto("/");
