@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { PROFILES } from "@/data/profiles";
 import { asanaBySlug } from "@/data/content";
+import { sessionMinutes, sessionTimeLabel } from "@/data/quickSessions";
 import { usePractice } from "@/context/PracticeContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { KEYS, writeString } from "@/lib/localPrefs";
@@ -42,6 +43,14 @@ const QUICK_START_POSES = [
   { slug: "viparita-karani", holdSeconds: 180 },
   { slug: "savasana", holdSeconds: 60 },
 ];
+
+/**
+ * Derived, like every other duration in the product. This queue was labelled
+ * "~5 min" and handed to the player as `plannedMinutes: 5`; the player runs it
+ * in about eleven, because it also speaks a minute of instruction per pose.
+ */
+const QUICK_START_LABEL = sessionTimeLabel(QUICK_START_POSES);
+const QUICK_START_MINUTES = sessionMinutes(QUICK_START_POSES);
 
 /** Primary paths first — less overwhelm than a long scroll. */
 const PRIMARY_PATH_IDS = [
@@ -106,7 +115,11 @@ export function Onboarding({
       (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
         x != null,
     );
-    loadSession(poses, { label: "Welcome practice", plannedMinutes: 5 });
+    loadSession(poses, {
+      label: "Welcome practice",
+      plannedMinutes: QUICK_START_MINUTES,
+      introPoseSlug: QUICK_START_POSES[0]?.slug ?? null,
+    });
     finish();
     navigate("/guided");
   };
@@ -272,7 +285,7 @@ export function Onboarding({
 
               <div className="overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-accent/50 to-muted/20 p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-                  Welcome flow · ~5 min
+                  Welcome flow · {QUICK_START_LABEL}
                 </p>
                 <p className="mt-2 font-serif text-lg text-foreground">
                   Child&apos;s Pose → Forward Fold → Legs-Up-the-Wall → Rest
