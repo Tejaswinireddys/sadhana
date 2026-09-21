@@ -14,6 +14,10 @@
  * Every `reason` here must be checkable against the inputs. "Selected because
  * your focus is better sleep" is only allowed to appear when the practitioner
  * actually chose better sleep.
+ *
+ * An unfinished session is *not* a recommendation and is not ranked here — it
+ * is something already in progress, and Home shows it in its own Continue
+ * section rather than dressing it up as a choice.
  */
 import { asanaBySlug, type Mood } from "@/data/content";
 import type { SavedQuizPlan } from "@/data/quizPlan";
@@ -29,7 +33,6 @@ export type RecommendedPose = {
 };
 
 export type RecommendationSource =
-  | "resume"
   | "program"
   | "quiz-plan"
   | "profile"
@@ -62,8 +65,6 @@ export type PracticeRecommendation = {
 };
 
 export type HomeContext = {
-  /** A session left mid-flight in this browser. */
-  resume: { poseCount: number; mode: "guided" | "practice" } | null;
   /** Today's day of an enrolled program, when there is one. */
   programDay: {
     pathwaySlug: string;

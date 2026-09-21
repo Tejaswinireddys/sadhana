@@ -189,16 +189,11 @@ function mergeOverlapping(choices: EquipmentChoice[]): EquipmentChoice[] {
  * looking for a bolster they do not need.
  */
 function dropCoveredChoices(choices: EquipmentChoice[]): EquipmentChoice[] {
-  return choices.filter(
-    (c, i) =>
-      !choices.some(
-        (other, j) =>
-          j !== i &&
-          other.options.length <= c.options.length &&
-          !(other.options.length === c.options.length && j > i) &&
-          other.options.every((id) => c.options.includes(id)),
-      ),
-  );
+  // Called after dedupeChoices, so no two choices have the same option set and
+  // "covered" means strictly narrower.
+  const isStrictSubset = (a: EquipmentChoice, b: EquipmentChoice) =>
+    a.options.length < b.options.length && a.options.every((id) => b.options.includes(id));
+  return choices.filter((c) => !choices.some((other) => isStrictSubset(other, c)));
 }
 
 export type SessionEquipment = {

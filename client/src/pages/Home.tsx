@@ -229,9 +229,6 @@ export default function Home() {
   );
 
   const context: HomeContext = {
-    resume: showResume
-      ? { poseCount: todays.length, mode: progress?.mode === "practice" ? "practice" : "guided" }
-      : null,
     programDay,
     quizPlan,
     profile,
@@ -250,12 +247,14 @@ export default function Home() {
     // changed nothing at all — the warm-up branch won either way.
     if (adjust.need || adjust.minutes) return adjustedPractice(context, adjust);
     return recommendPractice(context);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // `context` is rebuilt every render (it carries the clock), so the inputs
+    // that can actually change the answer are listed instead of the object.
   }, [bootstrapping, adjust.need, adjust.minutes, programDay, quizPlan?.title, profile?.id, intent, experience, hasPracticed]);
 
   const alternatives = useMemo(
     () => (bootstrapping ? [] : alternativePractices(context, recommendation)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Same reason as above: composing three sequences on every render would be
+    // wasteful, and only these inputs change what they are.
     [bootstrapping, recommendation?.id, adjust.minutes, intent],
   );
 
