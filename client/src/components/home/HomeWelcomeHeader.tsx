@@ -11,12 +11,18 @@ export function HomeWelcomeHeader({
   hasCompletedSessions,
   displayName,
   dateLabel,
+  practicedToday = false,
+  reminderHour = 18,
 }: {
   /** True once the practitioner has ≥1 completed session (a returning visitor). */
   hasCompletedSessions: boolean;
   /** The practitioner's display name, if we have a real one. */
   displayName?: string | null;
   dateLabel: string;
+  /** Whether a session was already finished today. */
+  practicedToday?: boolean;
+  /** The hour they asked to be reminded at, for an evening line that is true. */
+  reminderHour?: number;
 }) {
   const base = import.meta.env.BASE_URL;
   const title = welcomeHeaderTitle({ hasCompletedSessions, displayName });
@@ -37,8 +43,19 @@ export function HomeWelcomeHeader({
         <h1 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl" data-testid="text-welcome">
           {title}
         </h1>
-        <p className="max-w-xl text-muted-foreground">
-          One clear next step below — then more ways to practice if you want them.
+        {/*
+          This line used to read "One clear next step below" above nine
+          equally-weighted sections. Say something that is true of today
+          instead, or say nothing.
+        */}
+        <p className="max-w-xl text-muted-foreground" data-testid="text-home-subtitle">
+          {practicedToday
+            ? "You've already practised today. What follows is optional."
+            : hasCompletedSessions
+              ? new Date().getHours() >= reminderHour
+                ? "Evening — a shorter, quieter practice is below."
+                : "Your practice for today is below, with three other options."
+              : "Your first practice is below. Nothing is saved anywhere but this browser until you say so."}
         </p>
       </div>
 

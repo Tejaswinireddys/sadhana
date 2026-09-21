@@ -84,9 +84,17 @@ describe("pose self-check discoverability", () => {
     assert.ok(uses >= 2, `expected the doorways on both the hub and the pre-session screen, saw ${uses}`);
   });
 
-  it("lists Pose self-check in Home's Practice explore group", () => {
-    assert.match(home, /href: "\/pose-coach"/);
-    assert.match(home, /label: "Pose self-check"/);
+  it("lists Pose self-check in the Practice directory", () => {
+    // The directory moved off Today (which now ends in one decision) and onto
+    // the Practice hub, which is a catalogue on purpose.
+    const directory = readFileSync(
+      resolve("client/src/components/ExploreDirectory.tsx"),
+      "utf8",
+    );
+    assert.match(directory, /href: "\/pose-coach"/);
+    assert.match(directory, /label: "Pose self-check"/);
+    const guided = readFileSync(resolve("client/src/pages/GuidedSession.tsx"), "utf8");
+    assert.match(guided, /<ExploreDirectory/);
   });
 
   it("keeps the live /pose-coach page instead of redirecting to /guided", () => {

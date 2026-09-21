@@ -1,4 +1,24 @@
-import { useEffect, useState } from "react";
+/**
+ * Today — one decision, then the things that support it.
+ *
+ * What this page used to be: a directory. Mood sessions, curated sequences, the
+ * Trainer, the Adaptive Plan, a profile card, a splits banner, affirmations,
+ * breath of the day and a twenty-link shortcut grid, all weighted the same, all
+ * under a header that said "One clear next step below" while showing nine.
+ *
+ * The order here is deliberate and it is the whole design:
+ *
+ *   1. Today's practice     — one card, one Start, truthful about what it is
+ *   2. Quick adjustments    — time, gentler, focus (on that card)
+ *   3. Continue             — an unfinished session or the program you joined
+ *   4. This week            — four numbers, compact
+ *   5. Three alternatives   — genuinely different, not a shelf
+ *   6. One thing to learn   — a single pose or breath, not a reading list
+ *   7. Where your data is   — quiet, one card, no duplicate nags
+ *
+ * Comprehensive discovery moved to Practice (`ExploreDirectory`).
+ */
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,81 +26,55 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Heatmap } from "@/components/Heatmap";
-import { PoseSvg } from "@/components/PoseSvg";
 import { usePractice } from "@/context/PracticeContext";
 import {
-  ASANAS,
   asanaBySlug,
   breathBySlug,
-  dailyAffirmation,
   breathOfTheDay,
   pathwayBySlug,
-  PATHWAYS,
-  PROFILE_AFFIRMATION_TAG_MAP,
   WARMUP,
 } from "@/data/content";
 import type { Pathway } from "@/data/content";
 import { profileById } from "@/data/profiles";
-import { resolveIcon } from "@/lib/icons";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
 import { homeProgressTiles } from "@shared/practiceStats";
-import { KEYS, readJson, writeString, readString, type ReminderPrefs } from "@/lib/localPrefs";
+import { KEYS, readJson, readString, type ReminderPrefs } from "@/lib/localPrefs";
+import type { ExperienceLevel, PracticeIntent } from "@/lib/localPrefs";
 import { readQuizPlan } from "@/data/quizPlan";
-import { isHabitDay, readHabitPlan } from "@/lib/habitPlan";
-import type { UserProfile, Enrollment, FavoriteAsana, CustomFlow, Journal } from "@shared/schema";
+import { readHabitPlan } from "@/lib/habitPlan";
+import type { UserProfile, Enrollment, Journal } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
-import { QUICK_SESSIONS, quickSessionMeta, sessionTimeLabel } from "@/data/quickSessions";
+import { catalogSessionMinutes, warmupSessionMinutes } from "@/lib/pathwayTiming";
 import {
-  catalogSessionMinutes,
-  dailySessionLabel,
-  flowSessionLabel,
-  flowSessionMinutes,
-  queueCatalogPoses,
-  warmupSessionLabel,
-  warmupSessionMinutes,
-} from "@/lib/pathwayTiming";
-import { EmptyState } from "@/components/EmptyState";
-import { ScrollRow } from "@/components/ScrollRow";
-import { ResponsiveDetails } from "@/components/ResponsiveDetails";
+  adjustedPractice,
+  alternativePractices,
+  recommendPractice,
+  type HomeContext,
+  type PracticeRecommendation,
+} from "@/lib/homeRecommendation";
+import { buildSessionPreflight } from "@/lib/sessionPreflight";
 import { HomeWelcomeHeader } from "@/components/home/HomeWelcomeHeader";
+import {
+  TodayPracticeCard,
+  TodayPracticeCardSkeleton,
+} from "@/components/home/TodayPracticeCard";
 import { SavePracticeBanner } from "@/components/SavePracticePrompt";
 import { CancelAccessBanner } from "@/components/CancelAccessBanner";
 import { dismissBanner, savePromptLevel, shouldShowSaveBanner } from "@/lib/savePracticePrompt";
 import { Reveal } from "@/components/motion";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
-  Flame,
-  Trophy,
-  CalendarCheck,
-  Clock,
-  Play,
-  Volume2,
-  X,
-  Wind,
   ArrowRight,
-  Compass,
-  Sparkles,
-  Moon,
   CalendarDays,
-  Zap,
-  Heart,
+  CloudDownload,
   NotebookPen,
-  Smile,
-  PlusCircle,
-  LayoutGrid,
-  Route as RouteIcon,
+  Play,
+  Sparkles,
   UserRound,
-  Search as SearchIcon,
-  Settings as SettingsIcon,
-  LogIn,
-  BookMarked,
-  Timer,
-  Users,
-  ScanLine,
+  Wind,
 } from "lucide-react";
 
 const MS_PER_DAY = 86400000;
-const SPLITS_SLUG = "sixty-day-splits";
 
 /** Tap 1 of cancel — always one hop from Home to the confirmation screen. */
 function HomeCancelSubscriptionCta() {
@@ -118,322 +112,190 @@ function HomeCancelSubscriptionCta() {
   );
 }
 
-// Three quick flows featured on Home for users who haven't enrolled in a
-// program yet — a light, one-tap on-ramp mirroring the Quick Start row.
-const FEATURED_FLOW_SLUGS = [
-  "better-sleep-flow",
-  "feel-good-reset",
-  "morning-wake-up",
-  "desk-break",
-];
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  testId,
-}: {
-  icon: any;
-  label: string;
-  value: string | number;
-  testId: string;
-}) {
-  return (
-    <Card className="shadow-soft">
-      <CardContent className="flex items-center gap-3 p-4">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
-          <Icon className="h-5 w-5" />
-        </span>
-        <div>
-          <p className="font-serif text-2xl leading-none" data-testid={testId}>
-            {value}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function Home() {
   useDocumentTitle("Today · Sadhana");
   const [, navigate] = useLocation();
-  const { todays, remove, loadSession, progress } = usePractice();
-  const [reminderDismissed, setReminderDismissed] = useState(false);
-  const [splitsBannerDismissed, setSplitsBannerDismissed] = useState(false);
-  const showResume =
-    todays.length > 0 &&
-    !!progress?.started &&
-    (progress.mode === "guided" || progress.mode === "practice");
+  const { todays, loadSession, progress } = usePractice();
+  const { user, isSignedIn } = useAuth();
+
   const {
     data: stats,
-    isLoading,
+    isLoading: statsLoading,
     isError: statsError,
     refetch: refetchStats,
   } = useQuery<Stats>({ queryKey: ["/api/sessions/stats", todayISO()] });
-  const { data: activeProfileRow } = useQuery<UserProfile | null>({
+  const { data: activeProfileRow, isLoading: profileLoading } = useQuery<UserProfile | null>({
     queryKey: ["/api/profile/active"],
   });
-  const { data: enrollments = [] } = useQuery<Enrollment[]>({ queryKey: ["/api/enrollments"] });
-  const { data: favoriteAsanas = [] } = useQuery<FavoriteAsana[]>({
-    queryKey: ["/api/favorites/asanas"],
+  const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery<Enrollment[]>({
+    queryKey: ["/api/enrollments"],
   });
-  const { data: customFlows = [] } = useQuery<CustomFlow[]>({ queryKey: ["/api/custom-flows"] });
   const { data: journalEntries = [] } = useQuery<Journal[]>({ queryKey: ["/api/journal"] });
-  const { user, isSignedIn } = useAuth();
-  const breath = breathOfTheDay();
+
+  /**
+   * Everything the recommendation depends on has to be in hand before we can
+   * name a practice. Rendering a newcomer card for half a second and then
+   * replacing it with someone's program is worse than a skeleton.
+   */
+  const bootstrapping = statsLoading || profileLoading || enrollmentsLoading;
+
+  const [savePromptDismissed, setSavePromptDismissed] = useState(false);
+  /** Overrides from the card's "Change time" / "Change focus" controls. */
+  const [adjust, setAdjust] = useState<{ minutes: number | null; need: string | null }>({
+    minutes: null,
+    need: null,
+  });
+
+  const profile = profileById(activeProfileRow?.profileId) ?? null;
+  const practitionerName = readString(KEYS.practitionerName)?.trim() || null;
+  const quizPlan = readQuizPlan();
+  const habitPlan = readHabitPlan();
   const reminderPrefs = readJson<ReminderPrefs>(KEYS.reminder, {
     enabled: true,
     hour: 18,
     notifications: false,
   });
-  const habitPlan = readHabitPlan();
+  const intent = (readString(KEYS.practiceIntent) as PracticeIntent | null) || null;
+  const experience = (readString(KEYS.experienceLevel) as ExperienceLevel | null) || null;
+  const breath = breathOfTheDay();
 
-  const profile = profileById(activeProfileRow?.profileId);
-  const practitionerName = readString(KEYS.practitionerName)?.trim() || null;
-  const affirmation = dailyAffirmation(new Date(), profile?.recommendedAffirmationsTag);
-  const profileAffirmationTheme = profile?.recommendedAffirmationsTag
-    ? PROFILE_AFFIRMATION_TAG_MAP[profile.recommendedAffirmationsTag]
-    : undefined;
-  const recommendedAsanas = profile
-    ? profile.recommendedAsanas.map((s) => asanaBySlug(s)).filter(Boolean)
-    : [];
-  const recommendedBreath = profile
-    ? profile.recommendedBreathing.map((s) => breathBySlug(s)).filter(Boolean)
-    : [];
+  const hasPracticed = !!stats && stats.totalSessions > 0;
+  const showResume =
+    todays.length > 0 &&
+    !!progress?.started &&
+    (progress.mode === "guided" || progress.mode === "practice");
 
-  const readAloud = () => {
-    if ("speechSynthesis" in window) {
-      const u = new SpeechSynthesisUtterance(affirmation);
-      u.rate = 0.9;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(u);
-    }
-  };
+  const activeEnrollments = useMemo(
+    () =>
+      enrollments
+        .filter((e) => e.active)
+        .map((e) => ({ enrollment: e, pathway: pathwayBySlug(e.pathwaySlug) }))
+        .filter((x): x is { enrollment: Enrollment; pathway: Pathway } => !!x.pathway),
+    [enrollments],
+  );
 
-  // Load the active profile's recommended asanas into today's practice and go.
-  const startProfileSession = () => {
-    loadSession(
-      recommendedAsanas.filter(Boolean).map((a) => ({ asana: a! })),
-      { label: profile ? `${profile.name} session` : "Profile session" },
-    );
-    navigate("/guided");
-  };
-
-  // Launch a Quick Start mood-based session into the Practice timer.
-  const startQuickSession = (q: (typeof QUICK_SESSIONS)[number]) => {
-    const poses = q.poses
-      .map((p) => {
-        const asana = asanaBySlug(p.slug);
-        return asana ? { asana, holdSeconds: p.holdSeconds } : null;
-      })
-      .filter((x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } => x != null);
-    loadSession(poses, quickSessionMeta(q));
-    navigate("/guided");
-  };
-
-  const scrollToQuickStart = () => {
-    document.getElementById("quick-start")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  // One-tap gentle on-ramp for absolute newcomers — a short guided warm-up
-  // so the first thing they see is a single, obvious "start" rather than a
-  // wall of equally-weighted choices.
-  const startWarmup = () => {
-    const poses = WARMUP.steps
-      .map((s) => {
-        const asana = asanaBySlug(s.asanaSlug);
-        return asana ? { asana, holdSeconds: s.holdSeconds, sides: s.sides } : null;
-      })
-      .filter(
-        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
-          x != null,
+  /** Today's day of the first active day-by-day program, when there is one. */
+  const programDay = useMemo(() => {
+    for (const { enrollment, pathway } of activeEnrollments) {
+      if (!pathway.dailyPlan?.length) continue;
+      const started = new Date(enrollment.startDate.slice(0, 10) + "T00:00:00").getTime();
+      const dayNumber = Math.min(
+        pathway.dailyPlan.length,
+        Math.floor((Date.now() - started) / MS_PER_DAY) + 1,
       );
-    if (!poses.length) return;
-    loadSession(poses, {
-      label: WARMUP.title,
-      pathwaySlug: null,
-      plannedMinutes: warmupSessionMinutes(),
-    });
-    navigate("/guided");
+      const day = pathway.dailyPlan.find((d) => d.day === dayNumber);
+      if (!day) continue;
+      const poses = day.poses
+        .map((p) => {
+          const asana = asanaBySlug(p.asanaSlug);
+          return asana
+            ? {
+                slug: asana.slug,
+                holdSeconds: p.holdSeconds,
+                sides: (p.sides === "each" ? "each" : "once") as "each" | "once",
+              }
+            : null;
+        })
+        .filter((x): x is { slug: string; holdSeconds: number; sides: "each" | "once" } => !!x);
+      if (!poses.length) continue;
+      return {
+        pathwaySlug: pathway.slug,
+        pathwayName: pathway.name,
+        day: dayNumber,
+        theme: day.theme,
+        poses,
+        minutes: catalogSessionMinutes(day.poses),
+      };
+    }
+    return null;
+  }, [activeEnrollments]);
+
+  const warmupPoses = useMemo(
+    () =>
+      WARMUP.steps
+        .map((s) => {
+          const asana = asanaBySlug(s.asanaSlug);
+          return asana
+            ? { slug: asana.slug, holdSeconds: s.holdSeconds, sides: s.sides ?? "once" }
+            : null;
+        })
+        .filter((x): x is { slug: string; holdSeconds: number; sides: "once" | "each" } => !!x),
+    [],
+  );
+
+  const context: HomeContext = {
+    resume: showResume
+      ? { poseCount: todays.length, mode: progress?.mode === "practice" ? "practice" : "guided" }
+      : null,
+    programDay,
+    quizPlan,
+    profile,
+    intent,
+    experience,
+    hour: new Date().getHours(),
+    preferredMinutes: adjust.minutes,
+    hasPracticed,
+    warmup: { title: WARMUP.title, poses: warmupPoses },
   };
 
-  const startSavedQuizPlan = () => {
-    const saved = readQuizPlan();
-    if (!saved) return;
-    const poses = saved.poses
+  const recommendation: PracticeRecommendation | null = useMemo(() => {
+    if (bootstrapping) return null;
+    // An explicit adjustment replaces the recommendation with exactly what was
+    // asked for. Treating it as a hint meant tapping "30 min" on a first visit
+    // changed nothing at all — the warm-up branch won either way.
+    if (adjust.need || adjust.minutes) return adjustedPractice(context, adjust);
+    return recommendPractice(context);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bootstrapping, adjust.need, adjust.minutes, programDay, quizPlan?.title, profile?.id, intent, experience, hasPracticed]);
+
+  const alternatives = useMemo(
+    () => (bootstrapping ? [] : alternativePractices(context, recommendation)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bootstrapping, recommendation?.id, adjust.minutes, intent],
+  );
+
+  const startRecommendation = (rec: PracticeRecommendation) => {
+    const poses = rec.poses
       .map((p) => {
         const asana = asanaBySlug(p.slug);
         return asana
-          ? {
-              asana,
-              holdSeconds: p.holdSeconds,
-              ...(p.sides === "each" ? { sides: "each" as const } : {}),
-            }
+          ? { asana, holdSeconds: p.holdSeconds, ...(p.sides ? { sides: p.sides } : {}) }
           : null;
       })
       .filter(
-        (
-          x,
-        ): x is {
+        (x): x is {
           asana: NonNullable<ReturnType<typeof asanaBySlug>>;
           holdSeconds: number;
-          sides?: "each";
+          sides?: "once" | "each";
         } => x != null,
       );
     if (!poses.length) return;
+    const preflightPoses = poses.map((p) => ({
+      ...p.asana,
+      holdSeconds: p.holdSeconds,
+      sides: p.sides,
+    }));
     loadSession(poses, {
-      label: saved.title,
-      plannedMinutes: saved.minutes,
-      breathSlug: saved.breathSlug ?? null,
-      introPoseSlug: saved.introPoseSlug,
+      label: rec.meta.label,
+      pathwaySlug: rec.meta.pathwaySlug ?? null,
+      breathSlug: rec.meta.breathSlug ?? null,
+      introPoseSlug: rec.meta.introPoseSlug ?? null,
+      preMood: rec.meta.preMood ?? null,
+      // The length the player will run, not the length that was asked for.
+      plannedMinutes: buildSessionPreflight({ poses: preflightPoses }).minutes,
     });
     navigate("/guided");
   };
 
-  /** Run a sequence saved in the Builder without a detour through its page. */
-  const startCustomFlow = (flow: CustomFlow) => {
-    const parsed = JSON.parse(flow.poseSequence || "[]") as {
-      slug: string;
-      holdSeconds?: number;
-      sides?: "once" | "each";
-    }[];
-    const poses = parsed
-      .map((p) => {
-        const asana = asanaBySlug(p.slug);
-        return asana
-          ? { asana, holdSeconds: p.holdSeconds ?? asana.holdSeconds, sides: p.sides ?? "once" }
-          : null;
-      })
-      .filter(
-        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
-          x != null,
-      );
-    if (poses.length === 0) return;
-    loadSession(poses, { label: flow.name });
-    navigate("/guided");
-  };
-
-  const activeEnrollments = enrollments
-    .filter((e) => e.active)
-    .map((e) => ({ enrollment: e, pathway: pathwayBySlug(e.pathwaySlug) }))
-    .filter((x): x is { enrollment: Enrollment; pathway: Pathway } => !!x.pathway);
-  const recentJournal = journalEntries.slice(0, 2);
-
-  // ---- 60-Day Full Splits Program awareness (v3.5) ----
-  const splitsEnrollment = enrollments.find(
-    (e) => e.pathwaySlug === SPLITS_SLUG && e.active,
-  );
-  const splitsPathway = pathwayBySlug(SPLITS_SLUG);
-  const splitsCurrentDay = splitsEnrollment
-    ? Math.min(
-        60,
-        Math.floor(
-          (Date.now() -
-            new Date(splitsEnrollment.startDate.slice(0, 10) + "T00:00:00").getTime()) /
-            MS_PER_DAY,
-        ) + 1,
-      )
-    : 0;
-  const splitsToday =
-    splitsEnrollment && splitsPathway?.dailyPlan
-      ? splitsPathway.dailyPlan.find((d) => d.day === splitsCurrentDay)
-      : undefined;
-
-  const startSplitsDay = () => {
-    if (!splitsToday || !splitsPathway) return;
-    const poses = splitsToday.poses
-      .map((p) => {
-        const asana = asanaBySlug(p.asanaSlug);
-        return asana ? { asana, holdSeconds: p.holdSeconds, sides: p.sides } : null;
-      })
-      .filter(
-        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
-          x != null,
-      );
-    loadSession(poses, {
-      label: `${splitsPathway.name} — Day ${splitsToday.day}`,
-      pathwaySlug: splitsPathway.slug,
-      plannedMinutes: catalogSessionMinutes(splitsToday.poses),
-    });
-    navigate("/guided");
-  };
-
-  // Launch a quick flow straight into the guided session (no detail page).
-  // A "each side" note flags a bilateral hold so guided mode re-narrates side 2.
-  const startFlow = (p: Pathway) => {
-    const poses = queueCatalogPoses(p.weekPlan[0]?.poses ?? []);
-    if (!poses.length) return;
-    loadSession(poses, {
-      label: p.name,
-      pathwaySlug: p.slug,
-      plannedMinutes: flowSessionMinutes(p),
-    });
-    navigate("/guided");
-  };
-
-  // Show the Quick Flows on-ramp only when the user has no active enrollment.
-  const hasAnyEnrollment = enrollments.some((e) => e.active);
-  const featuredFlows = FEATURED_FLOW_SLUGS.map((s) => PATHWAYS.find((p) => p.slug === s)).filter(
-    (p): p is Pathway => !!p,
-  );
-
-  const hasPracticed = stats && stats.totalSessions > 0;
-  const quizPlan = readQuizPlan();
-  const quizDone =
-    readString(KEYS.onboardingDone) === "1" ||
-    !!readString(KEYS.experienceLevel) ||
-    !!quizPlan;
-  // A true first-timer: no quiz, nothing practiced, no path, nothing mid-session.
-  const isNewcomer = !isLoading && !hasPracticed && !profile && !showResume && !quizDone;
-  // Quiz plans stay available after a profile exists — unless the active profile
-  // already covers the same intent (e.g. Better Sleep), so Today shows one primary session.
-  const quizOverlapsProfile =
-    !!quizPlan &&
-    !!profile &&
-    (profile.id === "better-sleep" ||
-      (/sleep|evening|rest/i.test(quizPlan.title) && /sleep|evening|rest/i.test(profile.name)));
-  const showQuizPlanCta = !isLoading && !showResume && !!quizPlan && !quizOverlapsProfile;
-  const ProfileIcon = profile ? resolveIcon(profile.icon) : Compass;
-
-  // Daily reminder banner: show if not practiced today AND it's past 6 PM local.
   const practicedToday = (() => {
     const today = todayISO();
-    const todayEntry = stats?.heatmap?.find((h) => h.date === today);
-    return !!todayEntry && todayEntry.minutes > 0;
+    const entry = stats?.heatmap?.find((h) => h.date === today);
+    return !!entry && entry.minutes > 0;
   })();
-  const habitDayToday = isHabitDay(habitPlan);
-  const recoveryMode = habitPlan.compassionateRecovery && !practicedToday;
-  const pastReminderHour = new Date().getHours() >= (reminderPrefs.hour ?? 18);
-  const reminderDismissedToday = readString(KEYS.reminderDismissedDay) === todayISO();
-  const showReminder =
-    reminderPrefs.enabled &&
-    !reminderDismissed &&
-    !reminderDismissedToday &&
-    !practicedToday &&
-    pastReminderHour &&
-    !isLoading;
 
-  // Optional browser notification fallback when the tab is open (Web Push is primary).
-  useEffect(() => {
-    if (!showReminder || !reminderPrefs.notifications) return;
-    if (!("Notification" in window) || Notification.permission !== "granted") return;
-    try {
-      new Notification("Time for Sadhana", {
-        body: "A few mindful minutes — no streak guilt.",
-        tag: `sadhana-reminder-${todayISO()}`,
-      });
-    } catch {
-      /* ignore */
-    }
-  }, [showReminder, reminderPrefs.notifications]);
-
-  // Guest data lives under a device id that a browser can drop at any time.
-  const [savePromptDismissed, setSavePromptDismissed] = useState(false);
   const savePrompt = savePromptDismissed
     ? "none"
     : savePromptLevel({ isSignedIn, totalSessions: stats?.totalSessions ?? 0 });
-  // Only nudge to save once there's been repeated value: 2+ sessions on 2+ days.
   const showSaveBanner = shouldShowSaveBanner({
     level: savePrompt,
     totalSessions: stats?.totalSessions ?? 0,
@@ -444,333 +306,290 @@ export default function Home() {
     ? homeProgressTiles(stats, { compassionateRecovery: habitPlan.compassionateRecovery })
     : null;
 
+  const recentJournal = journalEntries.slice(0, 1);
+  const learnPose = useMemo(() => {
+    const slug = recommendation?.poses[Math.floor(recommendation.poses.length / 2)]?.slug;
+    return slug ? asanaBySlug(slug) : null;
+  }, [recommendation]);
+
   return (
     <div className="space-y-10">
       <HomeWelcomeHeader
         dateLabel={formatDate(todayISO())}
-        hasCompletedSessions={!!hasPracticed}
+        hasCompletedSessions={hasPracticed}
         displayName={practitionerName}
+        practicedToday={practicedToday}
+        reminderHour={reminderPrefs.hour ?? 18}
       />
 
       <CancelAccessBanner />
       <HomeCancelSubscriptionCta />
 
+      {/* ── 1 + 2. Today's practice, and the ways to adjust it ───────────── */}
       <Reveal className="space-y-4" aria-labelledby="primary-practice-heading">
         <div className="flex items-center gap-2">
           <Play className="h-5 w-5 text-primary" />
           <h2 id="primary-practice-heading" className="font-serif text-xl">
-            Practice now
+            {practicedToday ? "Practise again" : "Today's practice"}
           </h2>
         </div>
 
-      {/* Newcomer on-ramp — one obvious first action, no decision paralysis */}
-      {isNewcomer && (
-        <Card className="surface-banner border-primary/30" data-testid="card-new-here">
-          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                <Sparkles className="h-5 w-5" />
-              </span>
-              <div className="space-y-1">
-                <p className="font-serif text-xl leading-tight">New here? Get a personal plan</p>
-                <p className="text-sm text-muted-foreground">
-                  A two-minute quiz builds a gentle first session — or jump straight into a 5-minute
-                  warm-up.
-                </p>
-              </div>
-            </div>
-            <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-              <Button asChild className="min-h-11 w-full cursor-pointer sm:w-auto" data-testid="button-new-here-quiz">
+        {bootstrapping ? (
+          <TodayPracticeCardSkeleton />
+        ) : recommendation ? (
+          <TodayPracticeCard
+            recommendation={recommendation}
+            onStart={startRecommendation}
+            onChangeMinutes={(minutes) => setAdjust((a) => ({ ...a, minutes }))}
+            onChangeFocus={(need) => setAdjust((a) => ({ ...a, need }))}
+            currentMinutes={adjust.minutes}
+            currentNeed={adjust.need}
+          />
+        ) : (
+          <Card className="surface-banner border-primary/30" data-testid="today-practice-empty">
+            <CardContent className="space-y-3 p-5">
+              <p className="font-serif text-xl">Let's find you a practice</p>
+              <p className="text-sm text-muted-foreground">
+                A two-minute quiz builds a plan around your goal, your time and your body.
+              </p>
+              <Button asChild className="min-h-11" data-testid="button-new-here-quiz">
                 <Link href="/start">
                   <Sparkles className="mr-1.5 h-4 w-4" /> Get my plan
                 </Link>
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="min-h-11 cursor-pointer"
-                onClick={startWarmup}
-                data-testid="button-new-here-warmup"
-              >
-                <Play className="mr-1.5 h-4 w-4" /> Or start {warmupSessionLabel()} warm-up
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+          </Card>
+        )}
 
-      {showQuizPlanCta && (
-        <Card className="surface-banner border-primary/30" data-testid="card-quiz-plan">
-          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                <Sparkles className="h-5 w-5" />
-              </span>
-              <div className="space-y-1">
-                <p className="font-serif text-xl leading-tight">Start {quizPlan?.title}</p>
-                <p className="text-sm text-muted-foreground">
-                  {quizPlan?.poses.length} guided poses · {quizPlan?.timeLabel}
-                  {profile
-                    ? `. Prefer a different focus? Your ${profile.name} profile is under Change today's practice.`
-                    : ". Retake the quiz anytime if you want a different first session."}
-                </p>
-              </div>
-            </div>
-            <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-              <Button
-                className="min-h-11 w-full cursor-pointer sm:w-auto"
-                onClick={startSavedQuizPlan}
-                data-testid="button-start-quiz-plan"
-              >
-                <Play className="mr-1.5 h-4 w-4" /> Start my plan
-              </Button>
-              <Button variant="ghost" size="sm" className="min-h-11 cursor-pointer" asChild>
-                <Link href="/start" data-testid="button-retake-quiz">
-                  Retake quiz
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Resume an in-progress session after refresh / navigation away */}
-      {showResume && (
-        <Card className="surface-banner border-primary/30" data-testid="banner-resume">
-          <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
-            <div>
-              <p className="font-serif text-lg leading-tight">Continue your practice?</p>
-              <p className="text-sm text-muted-foreground">
-                {todays.length} pose{todays.length === 1 ? "" : "s"} queued
-                {progress?.mode === "guided" ? " (guided)" : ""} — pick up where you left off.
-              </p>
-            </div>
-            <Button
-              className="min-h-11 cursor-pointer"
-              onClick={() => navigate(progress?.mode === "practice" ? "/practice" : "/guided")}
-              data-testid="button-resume-session"
-            >
-              <Play className="mr-1.5 h-4 w-4" /> Resume session
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Daily reminder banner (v3.4) — evening nudge, dismissable for the session */}
-      {showReminder && (
-        <Card
-          className="surface-banner-soft"
-          data-testid="banner-reminder"
-        >
-          <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/25 text-secondary">
-                <Moon className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="font-serif text-lg leading-tight">
-                  {recoveryMode
-                    ? habitDayToday
-                      ? "Missed a beat? A five-minute reset still counts."
-                      : "Five minutes of practice before sleep?"
-                    : "Five minutes of practice before sleep?"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {recoveryMode
-                    ? "No streak punishment — Child's Pose is enough. Your chain is not broken."
-                    : "Even just Child's Pose counts. Your body will thank you."}
-                </p>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Button className="min-h-11 cursor-pointer" onClick={scrollToQuickStart} data-testid="button-reminder-begin">
-                Start a mood session
-              </Button>
-              <button
-                onClick={() => {
-                  setReminderDismissed(true);
-                  writeString(KEYS.reminderDismissedDay, todayISO());
-                }}
-                className="min-h-11 min-w-11 cursor-pointer text-muted-foreground hover:text-foreground"
-                aria-label="Dismiss reminder"
-                data-testid="button-dismiss-reminder"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* No-profile prompt */}
-      {!profile && (
-        <EmptyState
-          variant="profile"
-          title="Pick a path that fits your life"
-          description="Busy mom, better sleep, splits, desk relief, men, women, pregnancy — tailor practice in one tap."
-          testId="banner-pick-path"
-        >
-          <Button asChild className="min-h-11 cursor-pointer" data-testid="button-go-profiles">
-            <Link href="/profiles">
-              Choose a path <ArrowRight className="ml-1.5 h-4 w-4" />
+        {!bootstrapping && !quizPlan && !profile && !programDay && (
+          <p className="text-sm text-muted-foreground">
+            Want this tailored?{" "}
+            <Link href="/start" className="text-primary hover:underline" data-testid="link-take-quiz">
+              Take the two-minute quiz
+            </Link>{" "}
+            or{" "}
+            <Link href="/profiles" className="text-primary hover:underline" data-testid="link-pick-path">
+              pick a path
             </Link>
-          </Button>
-        </EmptyState>
-      )}
-
-      {/* Soft acknowledgment when today's practice is already done */}
-      {practicedToday && !showReminder && (
-        <Card className="surface-banner-soft" data-testid="banner-practiced-today">
-          <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
-            <div>
-              <p className="font-serif text-lg leading-tight">You've practiced today</p>
-              <p className="text-sm text-muted-foreground">
-                Rest is part of the practice — or take a few quiet breaths if you like.
-              </p>
-            </div>
-            <Button asChild variant="outline" className="min-h-11 cursor-pointer" data-testid="button-practiced-breath">
-              <Link href={`/breathing?slug=${encodeURIComponent(breath.slug)}`}>
-                <Wind className="mr-1.5 h-4 w-4" /> Breath of the day
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Today's guided session from profile or enrolled splits program */}
-      {splitsEnrollment && splitsToday ? (
-        <Card className="surface-banner border-primary/30" data-testid="card-splits-today">
-          <CardHeader className="pb-2">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <CardTitle className="flex items-center gap-2 font-serif text-lg">
-                <CalendarDays className="h-5 w-5 text-primary" /> Day {splitsCurrentDay} of 60 ·{" "}
-                {splitsToday.theme}
-              </CardTitle>
-              <div className="flex gap-1.5">
-                <Badge variant="outline" className="gap-1 tabular-nums">
-                  <Clock className="h-3 w-3" /> {dailySessionLabel(splitsToday)}
-                </Badge>
-                <Badge variant="outline">
-                  {splitsToday.restDay
-                    ? "Rest day"
-                    : splitsToday.focus === "both"
-                      ? "Splits + backbend"
-                      : "Front splits"}
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {splitsToday.restDay
-                ? "Rest day — let your body rebuild. An optional gentle recovery is available."
-                : `${splitsPathway?.name} · ${splitsToday.poses.length} poses queued for today.`}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                className="min-h-11 flex-1 cursor-pointer sm:flex-none"
-                onClick={startSplitsDay}
-                data-testid="button-start-splits-today"
-              >
-                <Play className="mr-1.5 h-4 w-4" />{" "}
-                {splitsToday.restDay ? "Start optional recovery" : "Start today's session"}
-              </Button>
-              <Button variant="outline" className="min-h-11 cursor-pointer" asChild data-testid="link-splits-pathway">
-                <Link href={`/pathways/${SPLITS_SLUG}`}>View journey</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : profile ? (
-        <Card className="surface-banner border-primary/25" data-testid="card-profile-session">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between gap-3">
-              <CardTitle className="flex items-center gap-2 font-serif text-lg">
-                <ProfileIcon className="h-5 w-5 text-primary" /> Your {profile.name} session today
-              </CardTitle>
-              <div className="flex gap-1.5">
-                <Badge variant="outline" className="tabular-nums">
-                  {profile.minutesPerSession} min
-                </Badge>
-                <Badge variant="outline">
-                  {profile.daysPerWeek === 7 ? "daily" : `${profile.daysPerWeek}x / wk`}
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">{profile.tagline}</p>
-            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="list-profile-asanas">
-              {recommendedAsanas.map(
-                (a) =>
-                  a && (
-                    <li key={a.slug}>
-                      <Link href={`/asanas/${a.slug}`}>
-                        <div
-                          className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background p-2 transition-shadow hover:shadow-soft hover-elevate"
-                          data-testid={`profile-asana-${a.slug}`}
-                        >
-                          <img width={48} height={96}
-                            src={`${import.meta.env.BASE_URL}poses/${a.slug}.png`}
-                            alt={a.imageAlt}
-                            loading="lazy"
-                            decoding="async"
-                            className="h-12 w-12 shrink-0 rounded-md object-contain"
-                            draggable={false}
-                          />
-                          <span className="text-xs leading-tight">{a.english}</span>
-                        </div>
-                      </Link>
-                    </li>
-                  ),
-              )}
-            </ul>
-            {recommendedBreath.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Breath
-                </span>
-                {recommendedBreath.map(
-                  (b) =>
-                    b && (
-                      <Link key={b.slug} href={`/breathing?slug=${encodeURIComponent(b.slug)}`}>
-                        <Badge variant="outline" className="cursor-pointer gap-1 hover-elevate">
-                          <Wind className="h-3 w-3 text-secondary" /> {b.name}
-                        </Badge>
-                      </Link>
-                    ),
-                )}
-              </div>
-            )}
-            <Button
-              className="min-h-11 w-full cursor-pointer"
-              onClick={startProfileSession}
-              disabled={recommendedAsanas.length === 0}
-              data-testid="button-start-today-session"
-            >
-              <Play className="mr-1.5 h-4 w-4" /> Start today's session
-            </Button>
-          </CardContent>
-        </Card>
-      ) : isNewcomer ? null : (
-        <Card className="surface-banner border-primary/25" data-testid="card-trainer-cta">
-          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <p className="font-serif text-xl">Build a session for right now</p>
-              <p className="text-sm text-muted-foreground">
-                Yoga Trainer asks how your body feels and composes a guided practice.
-              </p>
-            </div>
-            <Button asChild className="min-h-11 cursor-pointer" data-testid="button-home-trainer">
-              <Link href="/trainer">Open Yoga Trainer</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+            .
+          </p>
+        )}
       </Reveal>
 
-      {/* Guests with repeated practice on the line get one honest heads-up per day. */}
-      {showSaveBanner && (
+      {/* ── 3. Continue what's already going ─────────────────────────────── */}
+      {(showResume || (programDay && recommendation?.source !== "program")) && (
+        <section className="space-y-3" aria-labelledby="continue-heading">
+          <h2 id="continue-heading" className="font-serif text-xl">
+            Continue
+          </h2>
+          {showResume && (
+            <Card className="surface-banner border-primary/30" data-testid="banner-resume">
+              <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
+                <div>
+                  <p className="font-serif text-lg leading-tight">An unfinished session</p>
+                  <p className="text-sm text-muted-foreground">
+                    {todays.length} pose{todays.length === 1 ? "" : "s"} queued
+                    {progress?.mode === "guided" ? " (guided)" : ""} — pick up where you left off.
+                  </p>
+                </div>
+                <Button
+                  className="min-h-11 cursor-pointer"
+                  onClick={() => navigate(progress?.mode === "practice" ? "/practice" : "/guided")}
+                  data-testid="button-resume-session"
+                >
+                  <Play className="mr-1.5 h-4 w-4" /> Resume session
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+          {programDay && recommendation?.source !== "program" && (
+            <Link
+              href={`/pathways/${programDay.pathwaySlug}`}
+              className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              data-testid={`home-program-${programDay.pathwaySlug}`}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <CalendarDays className="h-5 w-5" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{programDay.pathwayName}</span>
+                <span className="block text-xs text-muted-foreground">
+                  Day {programDay.day} · {programDay.minutes} min
+                </span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            </Link>
+          )}
+        </section>
+      )}
+
+      {/* ── 4. This week, compactly ──────────────────────────────────────── */}
+      <section className="space-y-3" aria-labelledby="progress-heading" data-testid="section-progress">
+        <div className="flex items-center justify-between gap-2">
+          <h2 id="progress-heading" className="font-serif text-xl">
+            This week
+          </h2>
+          <Link
+            href="/journal"
+            className="text-sm text-primary hover:underline"
+            data-testid="link-all-progress"
+          >
+            See all progress
+          </Link>
+        </div>
+        {statsError ? (
+          <Card className="border-destructive/40 bg-destructive/5 shadow-soft" data-testid="banner-stats-error">
+            <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
+              <p className="text-sm text-muted-foreground">
+                Couldn't load your practice stats. Your practice is safe — this is only the summary.
+              </p>
+              <Button
+                variant="outline"
+                className="min-h-11 cursor-pointer"
+                onClick={() => refetchStats()}
+                data-testid="button-retry-stats"
+              >
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        ) : statsLoading || !progressTiles ? (
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        ) : !hasPracticed ? (
+          <Card className="shadow-soft" data-testid="progress-empty">
+            <CardContent className="p-5 text-sm text-muted-foreground">
+              Nothing here yet. Your first finished practice starts the count — skipping through
+              one deliberately doesn't, so the number stays honest.
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {[
+                progressTiles.daysPracticed,
+                progressTiles.longestStretch,
+                progressTiles.totalSessions,
+                progressTiles.minutesPracticed,
+              ].map((tile) => (
+                <Card key={tile.testId} className="shadow-soft">
+                  <CardContent className="p-4">
+                    <p className="font-serif text-2xl leading-none" data-testid={tile.testId}>
+                      {tile.value}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">{tile.label}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <Card className="shadow-soft">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Practice consistency — last 12 weeks
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Heatmap data={stats?.heatmap ?? []} />
+              </CardContent>
+            </Card>
+          </>
+        )}
+        {recentJournal.length > 0 && (
+          <Link
+            href="/journal"
+            className="flex min-h-14 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
+            data-testid={`home-journal-${recentJournal[0]!.id}`}
+          >
+            <NotebookPen className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs text-muted-foreground">
+                {formatDate(recentJournal[0]!.date.slice(0, 10))}
+                {recentJournal[0]!.mood ? ` · ${recentJournal[0]!.mood}` : ""}
+              </span>
+              <span className="block truncate text-sm">
+                {recentJournal[0]!.title || recentJournal[0]!.body || "Untitled entry"}
+              </span>
+            </span>
+            <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        )}
+      </section>
+
+      {/* ── 5. Three alternatives ────────────────────────────────────────── */}
+      {alternatives.length > 0 && (
+        <section className="space-y-3" aria-labelledby="alternatives-heading">
+          <div className="flex items-center justify-between gap-2">
+            <h2 id="alternatives-heading" className="font-serif text-xl">
+              Or something else
+            </h2>
+            <Link
+              href="/guided"
+              className="text-sm text-primary hover:underline"
+              data-testid="link-browse-practice"
+            >
+              Browse all
+            </Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {alternatives.map((alt) => (
+              <AlternativeCard key={alt.id} alt={alt} onStart={startRecommendation} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── 6. One thing to learn ────────────────────────────────────────── */}
+      {learnPose ? (
+        <section className="space-y-3" aria-labelledby="learn-heading">
+          <h2 id="learn-heading" className="font-serif text-xl">
+            One thing to learn
+          </h2>
+          <Link
+            href={`/asanas/${learnPose.slug}`}
+            className="flex min-h-14 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
+            data-testid="home-learn-item"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Sparkles className="h-5 w-5" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium">{learnPose.english}</span>
+              <span className="block truncate text-xs text-muted-foreground">
+                In today's practice · {learnPose.difficulty} · {learnPose.category}
+              </span>
+            </span>
+            <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        </section>
+      ) : (
+        <section className="space-y-3" aria-labelledby="learn-heading">
+          <h2 id="learn-heading" className="font-serif text-xl">
+            One thing to learn
+          </h2>
+          <Link
+            href={`/breathing?slug=${encodeURIComponent(breath.slug)}`}
+            className="flex min-h-14 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
+            data-testid="home-learn-item"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-secondary">
+              <Wind className="h-5 w-5" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium">{breath.name}</span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {breath.pattern} · {breath.tagline}
+              </span>
+            </span>
+            <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        </section>
+      )}
+
+      {/* ── 7. Where your practice is stored ─────────────────────────────── */}
+      {showSaveBanner ? (
         <SavePracticeBanner
           totalSessions={stats?.totalSessions ?? 0}
           currentStreak={stats?.currentStreak ?? 0}
@@ -779,652 +598,81 @@ export default function Home() {
             setSavePromptDismissed(true);
           }}
         />
-      )}
-
-
-
-      {/* Favorited poses — one-tap practice */}
-      {favoriteAsanas.length > 0 ? (
-        <section className="space-y-3" data-testid="section-favorite-poses">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Heart className="h-5 w-5 fill-primary text-primary" />
-              <h2 className="font-serif text-xl">Your poses</h2>
+      ) : (
+        <Card className="surface-inset" data-testid="home-account">
+          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                {isSignedIn ? <UserRound className="h-5 w-5" /> : <CloudDownload className="h-5 w-5" />}
+              </span>
+              <div className="min-w-0">
+                {/*
+                  This card is about where the data lives. "Keep your practice
+                  safe" read as a safety warning about the yoga.
+                */}
+                <p className="font-serif text-lg leading-tight">
+                  {isSignedIn
+                    ? `Signed in as ${user?.displayName || user?.email}`
+                    : "Your practice is saved on this device only"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {isSignedIn
+                    ? "Your history, journal and sequences sync to any browser you sign in from."
+                    : "Clearing this browser's data would erase your history. A free account backs it up and syncs it."}
+                </p>
+              </div>
             </div>
             <Button
-              size="sm"
-              className="min-h-11 cursor-pointer"
-              onClick={() => {
-                const poses = favoriteAsanas
-                  .map((f) => {
-                    const asana = asanaBySlug(f.slug);
-                    return asana ? { asana } : null;
-                  })
-                  .filter(
-                    (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>> } => x != null,
-                  );
-                if (!poses.length) return;
-                loadSession(poses, { label: "Favorite poses" });
-                navigate("/guided");
-              }}
-              data-testid="button-practice-favorites"
+              asChild
+              variant={isSignedIn ? "ghost" : "default"}
+              className="min-h-11 shrink-0 cursor-pointer"
+              data-testid="home-account-cta"
             >
-              <Play className="mr-1.5 h-4 w-4" /> Practice all favorites
-            </Button>
-          </div>
-          <ScrollRow label="Favorite poses" testId="scroll-favorite-poses">
-            {favoriteAsanas.slice(0, 12).map((f) => {
-              const a = asanaBySlug(f.slug);
-              if (!a) return null;
-              return (
-                <button
-                  key={f.slug}
-                  type="button"
-                  className="flex w-36 shrink-0 snap-start cursor-pointer flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-center shadow-soft hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() => {
-                    loadSession([{ asana: a }], { label: a.english });
-                    navigate("/guided");
-                  }}
-                  data-testid={`favorite-pose-${f.slug}`}
-                >
-                  <img width={80} height={160}
-                    src={`${import.meta.env.BASE_URL}poses/${f.slug}.png`}
-                    alt={a.imageAlt}
-                    decoding="async"
-                    className="h-20 w-20 rounded-md object-contain"
-                    loading="lazy"
-                  />
-                  <span className="text-xs font-medium leading-tight">{a.english}</span>
-                </button>
-              );
-            })}
-          </ScrollRow>
-        </section>
-      ) : (
-        !isLoading &&
-        !hasPracticed && (
-          <EmptyState
-            variant="firstSession"
-            title="Your first session is waiting"
-            description="Start with Yoga Trainer or a mood session — favorites will appear here after you heart a pose."
-            testId="empty-home-first-session"
-          >
-            <Button asChild className="min-h-11 cursor-pointer">
-              <Link href="/trainer">Open Yoga Trainer</Link>
-            </Button>
-            <Button asChild variant="outline" className="min-h-11 cursor-pointer">
-              <Link href="/asanas">Browse the library</Link>
-            </Button>
-          </EmptyState>
-        )
-      )}
-
-      <section className="space-y-6" aria-labelledby="more-ways-heading">
-        <div className="space-y-1">
-          <h2 id="more-ways-heading" className="font-serif text-xl">
-            More ways to practice
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Mood sessions are short and feeling-based. Sequences are curated flows you can open anytime.
-          </p>
-        </div>
-
-      {profile && (
-        <Card className="surface-inset" data-testid="card-trainer-secondary">
-          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <p className="font-serif text-lg">Need something different today?</p>
-              <p className="text-sm text-muted-foreground">
-                Skip your path session and build from how your body feels.
-              </p>
-            </div>
-            <Button asChild variant="outline" className="min-h-11 cursor-pointer" data-testid="button-home-trainer">
-              <Link href="/trainer">Open Yoga Trainer</Link>
+              <Link href="/account">{isSignedIn ? "Manage account" : "Back up my practice"}</Link>
             </Button>
           </CardContent>
         </Card>
       )}
-
-      {/* Quick Start — mood-based sessions (v3.4) */}
-      <section id="quick-start" className="space-y-3" data-testid="section-quick-start">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h3 className="font-serif text-lg">Mood sessions</h3>
-          <span className="text-sm text-muted-foreground">— how you feel right now</span>
-        </div>
-        <ScrollRow label="Mood sessions" testId="scroll-mood-sessions">
-          {QUICK_SESSIONS.map((q) => {
-            const QIcon = q.icon;
-            return (
-              <Card
-                key={q.id}
-                className="flex w-56 shrink-0 snap-start flex-col border-border shadow-soft"
-                data-testid={`quick-session-${q.id}`}
-              >
-                <CardContent className="flex flex-1 flex-col gap-3 p-4">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                    <QIcon className="h-5 w-5" />
-                  </span>
-                  <div className="space-y-0.5">
-                    <p className="font-serif text-lg leading-tight">{q.label}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {sessionTimeLabel(q.poses)} · {q.intent}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    className="mt-auto min-h-11 w-full cursor-pointer"
-                    onClick={() => startQuickSession(q)}
-                    data-testid={`button-begin-quick-${q.id}`}
-                    aria-label={`Start ${q.label} — ${sessionTimeLabel(q.poses)}`}
-                  >
-                    <Play className="mr-1.5 h-4 w-4" /> Start {q.label}
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </ScrollRow>
-      </section>
-
-      {/* Sequences saved in the Builder — the user's own flows, one tap to run */}
-      {customFlows.length > 0 && (
-        <section className="space-y-3" data-testid="section-your-sequences">
-          <div className="flex items-center gap-2">
-            <BookMarked className="h-5 w-5 text-primary" />
-            <h3 className="font-serif text-lg">Your sequences</h3>
-            <span className="text-sm text-muted-foreground">— saved in Builder</span>
-            <Link
-              href="/builder"
-              className="ml-auto cursor-pointer text-sm text-primary hover:underline"
-              data-testid="link-all-sequences"
-            >
-              Manage
-            </Link>
-          </div>
-          <ScrollRow label="Your sequences" testId="scroll-custom-flows">
-            {customFlows.slice(0, 8).map((flow) => {
-              const count = (JSON.parse(flow.poseSequence || "[]") as unknown[]).length;
-              return (
-                <Card
-                  key={flow.id}
-                  className="flex w-56 shrink-0 snap-start flex-col border-border shadow-soft"
-                  data-testid={`custom-flow-${flow.id}`}
-                >
-                  <CardContent className="flex flex-1 flex-col gap-3 p-4">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                      <BookMarked className="h-5 w-5" />
-                    </span>
-                    <div className="space-y-0.5">
-                      <p className="font-serif text-lg leading-tight">{flow.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {count} {count === 1 ? "pose" : "poses"}
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      className="mt-auto min-h-11 w-full cursor-pointer"
-                      onClick={() => startCustomFlow(flow)}
-                      data-testid={`button-start-custom-${flow.id}`}
-                    >
-                      <Play className="mr-1.5 h-4 w-4" /> Start sequence
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </ScrollRow>
-        </section>
-      )}
-
-      {/* Programs already joined — progress lives on the pathway page */}
-      {activeEnrollments.length > 0 && (
-        <section className="space-y-3" data-testid="section-your-programs">
-          <div className="flex items-center gap-2">
-            <RouteIcon className="h-5 w-5 text-primary" />
-            <h3 className="font-serif text-lg">Your programs</h3>
-            <span className="text-sm text-muted-foreground">— continue where you left off</span>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {activeEnrollments.map(({ enrollment, pathway }) => (
-              <Link
-                key={enrollment.id}
-                href={`/pathways/${pathway.slug}`}
-                className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                data-testid={`home-program-${pathway.slug}`}
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <CalendarDays className="h-5 w-5" aria-hidden />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{pathway.name}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    Started {formatDate(enrollment.startDate.slice(0, 10))}
-                  </span>
-                </span>
-                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Quick Flows on-ramp (v5) — only for users not enrolled in any program */}
-      {!hasAnyEnrollment && featuredFlows.length > 0 && (
-        <section id="quick-flows" className="space-y-3" data-testid="section-quick-flows">
-          <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
-            <h3 className="font-serif text-lg">Curated sequences</h3>
-            <span className="text-sm text-muted-foreground">— short flows</span>
-            <Link
-              href="/pathways"
-              className="ml-auto text-sm text-primary hover:underline"
-              data-testid="link-all-flows"
-            >
-              See all
-            </Link>
-          </div>
-          <ScrollRow label="Curated sequences" testId="scroll-quick-flows">
-            {featuredFlows.map((p) => (
-              <Card
-                key={p.slug}
-                className="flex w-56 shrink-0 snap-start flex-col border-border shadow-soft"
-                data-testid={`quick-flow-${p.slug}`}
-              >
-                <CardContent className="flex flex-1 flex-col gap-3 p-4">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                    <Zap className="h-5 w-5" />
-                  </span>
-                  <div className="space-y-0.5">
-                    <p className="font-serif text-lg leading-tight">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {flowSessionLabel(p)} · {p.weekPlan[0]?.poses.length ?? 0} poses
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-auto min-h-11 w-full cursor-pointer"
-                    onClick={() => startFlow(p)}
-                    data-testid={`button-start-flow-${p.slug}`}
-                  >
-                    <Play className="mr-1.5 h-4 w-4" /> Open sequence
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </ScrollRow>
-        </section>
-      )}
-      </section>
-
-      <ResponsiveDetails
-        title="Your progress"
-        description="Streaks, session totals, and consistency when you want them."
-        summaryId="progress-heading"
-        testId="section-progress"
-      >
-      {/* Stats — after the practice loop so zeros don't bury the start CTA */}
-      {statsError ? (
-        <Card className="border-destructive/40 bg-destructive/5 shadow-soft" data-testid="banner-stats-error">
-          <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
-            <p className="text-sm text-muted-foreground">
-              Couldn't load your practice stats. Check your connection and try again.
-            </p>
-            <Button variant="outline" className="min-h-11 cursor-pointer" onClick={() => refetchStats()} data-testid="button-retry-stats">
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
-      ) : isLoading || !progressTiles ? (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
-            icon={Flame}
-            label={progressTiles.daysPracticed.label}
-            value={progressTiles.daysPracticed.value}
-            testId={progressTiles.daysPracticed.testId}
-          />
-          <StatCard
-            icon={Trophy}
-            label={progressTiles.longestStretch.label}
-            value={progressTiles.longestStretch.value}
-            testId={progressTiles.longestStretch.testId}
-          />
-          <StatCard
-            icon={CalendarCheck}
-            label={progressTiles.totalSessions.label}
-            value={progressTiles.totalSessions.value}
-            testId={progressTiles.totalSessions.testId}
-          />
-          <StatCard
-            icon={Clock}
-            label={progressTiles.minutesPracticed.label}
-            value={progressTiles.minutesPracticed.value}
-            testId={progressTiles.minutesPracticed.testId}
-          />
-        </div>
-      )}
-      <Card className="shadow-soft">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Practice consistency — last 12 weeks
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Heatmap data={stats?.heatmap ?? []} />
-          {!hasPracticed && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Complete a session to start filling in your practice map.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-      </ResponsiveDetails>
-
-      {/* 60-Day Splits discovery banner (v3.5) — shown when NOT enrolled */}
-      {!splitsEnrollment && !splitsBannerDismissed && (
-        <Card
-          className="surface-banner border-primary/30"
-          data-testid="banner-splits-discover"
-        >
-          <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-                <CalendarDays className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="font-serif text-lg leading-tight">
-                  Discover the 60-Day Splits Program
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  A gentle, day-by-day journey to your front splits — one short session at a time.
-                </p>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Button asChild className="min-h-11 cursor-pointer" data-testid="button-splits-start-journey">
-                <Link href={`/pathways/${SPLITS_SLUG}`}>
-                  Explore program <ArrowRight className="ml-1.5 h-4 w-4" />
-                </Link>
-              </Button>
-              <button
-                onClick={() => setSplitsBannerDismissed(true)}
-                className="min-h-11 min-w-11 cursor-pointer text-muted-foreground hover:text-foreground"
-                aria-label="Dismiss"
-                data-testid="button-dismiss-splits-banner"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <ResponsiveDetails
-        title="Nourish"
-        description="Affirmation, custom practice queue, and breath of the day."
-        summaryId="nourish-heading"
-        testId="section-nourish"
-      >
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Daily affirmation */}
-        <Card className="shadow-soft">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Today's affirmation</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="font-serif text-xl leading-snug" data-testid="text-daily-affirmation">
-              "{affirmation}"
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="min-h-11 cursor-pointer" onClick={readAloud} data-testid="button-read-affirmation">
-                <Volume2 className="mr-1.5 h-4 w-4" /> Read aloud
-              </Button>
-              <Button variant="ghost" size="sm" className="min-h-11 cursor-pointer" asChild data-testid="link-more-affirmations">
-                <Link
-                  href={
-                    profileAffirmationTheme
-                      ? `/affirmations?theme=${profileAffirmationTheme}`
-                      : "/affirmations"
-                  }
-                >
-                  More affirmations
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Today's hand-picked practice (manual additions) */}
-        <Card className="shadow-soft">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Your custom practice</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {todays.length === 0 ? (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  Build your own session — add any poses from the library to practice them in any order.
-                </p>
-                <Button asChild variant="outline" className="min-h-11 w-full cursor-pointer" data-testid="button-add-custom-poses">
-                  <Link href="/asanas">
-                    Add poses from library <ArrowRight className="ml-1.5 h-4 w-4" />
-                  </Link>
-                </Button>
-              </>
-            ) : (
-              <>
-                <ul className="space-y-2" data-testid="list-todays-practice">
-                  {todays.map((a) => (
-                    <li
-                      key={a.slug}
-                      className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm"
-                      data-testid={`todays-item-${a.slug}`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className="text-primary">
-                          <PoseSvg pose={a.pose} size={28} />
-                        </span>
-                        {a.english}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => remove(a.slug)}
-                        className="min-h-11 min-w-11 cursor-pointer text-muted-foreground hover:text-destructive"
-                        data-testid={`button-remove-${a.slug}`}
-                        aria-label={`Remove ${a.english}`}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="min-h-11 w-full cursor-pointer"
-                  onClick={() => navigate("/guided")}
-                  data-testid="button-start-practice"
-                >
-                  <Play className="mr-1.5 h-4 w-4" /> Start custom practice
-                </Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Breath of the day */}
-      <Card className="shadow-soft" data-testid="card-breath-of-the-day">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Breath of the day</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Link
-            href={`/breathing?slug=${encodeURIComponent(breath.slug)}`}
-            aria-label={`Breath of the day: ${breath.name}`}
-          >
-            <div className="flex cursor-pointer items-center justify-between gap-4 rounded-lg bg-accent/40 p-4 transition-shadow hover:shadow-soft hover-elevate">
-              <div className="flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-secondary">
-                  <Wind className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="font-serif text-lg leading-tight" data-testid="text-breath-of-the-day">
-                    {breath.name}
-                    <span className="ml-2 align-middle text-xs font-normal text-muted-foreground">
-                      {breath.pattern}
-                    </span>
-                  </p>
-                  <p className="text-sm text-muted-foreground">{breath.tagline}</p>
-                </div>
-              </div>
-              <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
-            </div>
-          </Link>
-        </CardContent>
-      </Card>
-      </ResponsiveDetails>
-
-      {recentJournal.length > 0 && (
-        <section className="space-y-3" data-testid="section-recent-journal">
-          <div className="flex items-center gap-2">
-            <NotebookPen className="h-5 w-5 text-primary" />
-            <h3 className="font-serif text-lg">Recent reflections</h3>
-            <Link
-              href="/journal"
-              className="ml-auto cursor-pointer text-sm text-primary hover:underline"
-              data-testid="link-all-journal"
-            >
-              Open journal
-            </Link>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {recentJournal.map((entry) => (
-              <Link
-                key={entry.id}
-                href="/journal"
-                className="cursor-pointer rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                data-testid={`home-journal-${entry.id}`}
-              >
-                <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {formatDate(entry.date.slice(0, 10))}
-                  {entry.mood && <Badge variant="secondary">{entry.mood}</Badge>}
-                </p>
-                <p className="mt-1 line-clamp-2 text-sm">
-                  {entry.title || entry.body || "Untitled entry"}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <Card className="surface-inset" data-testid="home-account">
-        <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-              {isSignedIn ? <UserRound className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
-            </span>
-            <div className="min-w-0">
-              <p className="font-serif text-lg leading-tight">
-                {isSignedIn ? `Signed in as ${user?.displayName || user?.email}` : "Keep your practice safe"}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {isSignedIn
-                  ? "Your streak, journal, and sequences sync to any browser you sign in from."
-                  : "Practising as a guest — create a free account to sync across devices."}
-              </p>
-            </div>
-          </div>
-          <Button
-            asChild
-            variant={isSignedIn ? "ghost" : "default"}
-            className="min-h-11 shrink-0 cursor-pointer"
-            data-testid="home-account-cta"
-          >
-            <Link href="/account">{isSignedIn ? "Manage account" : "Sign in or sign up"}</Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      <section className="space-y-3" aria-labelledby="explore-more-heading" data-testid="home-explore-more">
-        <h2 id="explore-more-heading" className="font-serif text-xl font-semibold tracking-tight">
-          More from Practice, Progress, and You
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Shortcuts to trainer, pathways, journal, and account.
-        </p>
-        {[
-          {
-            heading: "Practice",
-            items: [
-              { href: "/guided", label: "Practice", hint: "Start a guided session", icon: Timer },
-              { href: "/trainer", label: "Yoga Trainer", hint: "A practice for today", icon: UserRound },
-              { href: "/adaptive", label: "Adaptive plan", hint: "Safe practice for how you feel", icon: Sparkles },
-              { href: "/instructor", label: "Virtual instructor", hint: "Learn or Flow · 5-pose pilot", icon: ScanLine },
-              { href: "/pose-coach", label: "Pose self-check", hint: "Cue checklist and private camera mirror", icon: ScanLine },
-              { href: "/pathways", label: "Pathways", hint: "Quick flows and programs", icon: RouteIcon },
-              { href: "/builder", label: "Builder", hint: "Craft your own sequence", icon: PlusCircle },
-              { href: "/breathing", label: "Breathing", hint: "Guided pranayama", icon: Wind },
-              { href: "/kids", label: "Kids", hint: "Stories and breath games", icon: Smile },
-              { href: "/affirmations", label: "Affirmations", hint: "65 daily intentions", icon: Sparkles },
-            ],
-          },
-          {
-            heading: "Poses",
-            items: [
-              { href: "/asanas", label: "Poses", hint: `${ASANAS.length} illustrated poses`, icon: LayoutGrid },
-              { href: "/search", label: "Search", hint: "Find any pose or flow", icon: SearchIcon },
-            ],
-          },
-          {
-            heading: "Progress",
-            items: [
-              { href: "/journal", label: "Journal", hint: "Reflect after practice", icon: NotebookPen },
-              { href: "/profiles", label: "My path", hint: "Switch your focus", icon: Compass },
-              { href: "/challenges", label: "Challenges", hint: "Private check-ins, no leaderboards", icon: Sparkles },
-            ],
-          },
-          {
-            heading: "You",
-            items: [
-              { href: "/settings", label: "Settings", hint: "Reminders, backup, data", icon: SettingsIcon },
-              { href: "/account", label: "Account", hint: "Sync across devices", icon: UserRound },
-              { href: "/household", label: "Household", hint: "Shared device, separate roles", icon: Users },
-            ],
-          },
-        ].map((group) => (
-          <div key={group.heading} className="space-y-2">
-            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {group.heading}
-            </h3>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {group.items.map(({ href, label, hint, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  data-testid={`home-explore-${label.toLowerCase().replace(/[^a-z]+/g, "-")}`}
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Icon className="h-5 w-5" aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-medium">{label}</span>
-                    <span className="block text-xs text-muted-foreground">{hint}</span>
-                  </span>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
-      </section>
     </div>
+  );
+}
+
+/** One of the three alternatives: enough to choose by, nothing more. */
+function AlternativeCard({
+  alt,
+  onStart,
+}: {
+  alt: PracticeRecommendation;
+  onStart: (rec: PracticeRecommendation) => void;
+}) {
+  const poses = alt.poses
+    .map((p) => {
+      const a = asanaBySlug(p.slug);
+      return a ? { ...a, holdSeconds: p.holdSeconds, sides: p.sides } : null;
+    })
+    .filter((x): x is NonNullable<typeof x> => x != null);
+  const preflight = buildSessionPreflight({ poses });
+  return (
+    <Card className="flex flex-col border-border shadow-soft" data-testid={`home-alt-${alt.id}`}>
+      <CardContent className="flex flex-1 flex-col gap-2 p-4">
+        <p className="font-serif text-lg leading-tight">{alt.title}</p>
+        <p className="text-xs text-muted-foreground">
+          {preflight.timeLabel} · {preflight.difficulty.level} · {preflight.intensity.level}
+        </p>
+        <p className="text-sm text-muted-foreground">{alt.reason}</p>
+        {preflight.equipmentSentence && (
+          <p className="text-xs text-muted-foreground">Needs {preflight.equipmentSentence}.</p>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-auto min-h-11 w-full cursor-pointer"
+          onClick={() => onStart(alt)}
+          data-testid={`button-start-alt-${alt.id}`}
+        >
+          <Play className="mr-1.5 h-4 w-4" /> Start {preflight.timeLabel}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

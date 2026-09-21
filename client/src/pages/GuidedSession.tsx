@@ -105,6 +105,7 @@ import {
 import { preloadPoseVideo, clearPreloadedPoseVideo } from "@/lib/videoPreload";
 import { StreamVideo } from "@/components/StreamVideo";
 import { SessionPreflightCard } from "@/components/SessionPreflightCard";
+import { ExploreDirectory } from "@/components/ExploreDirectory";
 import { buildSessionPreflight } from "@/lib/sessionPreflight";
 import {
   QUICK_SESSIONS,
@@ -1586,6 +1587,11 @@ export default function GuidedSession() {
           </Card>
         </section>
         <MoreWaysToPractice />
+        {/*
+          Comprehensive discovery lives here, on the catalogue page, rather than
+          at the bottom of Today — which is supposed to end in one decision.
+        */}
+        <ExploreDirectory headingId="practice-explore-heading" />
       </div>
     );
   }

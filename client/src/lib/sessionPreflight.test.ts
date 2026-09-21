@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { asanaBySlug } from "../data/content.ts";
 import { QUICK_SESSIONS } from "../data/quickSessions.ts";
+import { WARMUP } from "../data/content.ts";
 import {
   equipmentSentence,
   poseEquipment,
@@ -130,5 +131,35 @@ describe("preflight facts come from the queue", () => {
     assert.ok(p.fit);
     assert.equal(p.fit!.fits, false);
     assert.ok(p.fit!.explanation);
+  });
+});
+
+describe("intensity is effort, weighted by time spent", () => {
+  const warmup = () =>
+    WARMUP.steps.map((s) => {
+      const a = asana(s.asanaSlug);
+      return { ...a, holdSeconds: s.holdSeconds, sides: s.sides };
+    });
+
+  it("does not call the warm-up a strong practice", () => {
+    // Half its poses are Standing, which a headcount read as "Strong" — for a
+    // minute of Cat/Cow, twenty seconds of Bird Dog and a Low Lunge.
+    assert.notEqual(sessionIntensity(warmup()).level, "Strong");
+  });
+
+  it("a long final rest does not erase the class that preceded it", () => {
+    const withoutRest = queue(["virabhadrasana-ii", "utkatasana", "adho-mukha-svanasana"]);
+    const withRest = [...withoutRest, { ...asana("savasana"), holdSeconds: 300 }];
+    assert.equal(sessionIntensity(withRest).level, sessionIntensity(withoutRest).level);
+  });
+
+  it("holding a demanding shape longer makes a practice stronger", () => {
+    const brief = [{ ...asana("virabhadrasana-ii"), holdSeconds: 15 }, { ...asana("savasana"), holdSeconds: 90 }];
+    const long = [{ ...asana("virabhadrasana-ii"), holdSeconds: 90 }, { ...asana("savasana"), holdSeconds: 90 }];
+    const order = { Gentle: 0, Moderate: 1, Strong: 2 } as const;
+    assert.ok(
+      order[sessionIntensity(long).level] >= order[sessionIntensity(brief).level],
+      "a longer hold in the same pose should never read as gentler",
+    );
   });
 });

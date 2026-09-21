@@ -53,13 +53,24 @@ describe("Premium quiz-first UX contract", () => {
 
   it("treats quiz completion as Home onboarding, not a second newcomer quiz", () => {
     const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
+    const rec = readFileSync(resolve("client/src/lib/homeRecommendation.ts"), "utf8");
     assert.match(home, /readQuizPlan/);
-    assert.match(home, /data-testid="card-quiz-plan"/);
-    assert.match(home, /Retake quiz/);
-    assert.match(home, /!quizDone/);
-    assert.match(home, /showQuizPlanCta = !isLoading && !showResume && !!quizPlan && !quizOverlapsProfile/);
-    assert.match(home, /quizOverlapsProfile/);
-    assert.match(home, /Change today's practice/);
+    // The saved plan IS today's practice now — one card, not a second banner
+    // competing with a profile card and a trainer CTA for the same tap.
+    const card = readFileSync(
+      resolve("client/src/components/home/TodayPracticeCard.tsx"),
+      "utf8",
+    );
+    assert.match(home, /<TodayPracticeCard/);
+    assert.match(card, /data-testid="today-practice"/);
+    assert.match(rec, /source: "quiz-plan"/);
+    // And it outranks the profile, so the two can never both claim the lead.
+    assert.ok(
+      rec.indexOf('source: "quiz-plan"') < rec.indexOf('source: "profile"'),
+      "the profile must not outrank a plan the practitioner built",
+    );
+    // A newcomer quiz prompt only appears when there is nothing to lead with.
+    assert.match(home, /!quizPlan && !profile && !programDay/);
     assert.equal(/Secondary destinations live here/.test(home), false);
   });
 

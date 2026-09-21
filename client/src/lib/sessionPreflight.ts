@@ -83,14 +83,33 @@ export type SessionPreflight = {
 
 const LEVEL_ORDER = { Beginner: 0, Intermediate: 1, Advanced: 2 } as const;
 
-/** Categories that ask the body for effort rather than support it. */
-const EFFORTFUL: ReadonlySet<string> = new Set([
-  "Standing",
-  "Core",
-  "Inversions",
-  "Backbends",
-]);
-const RESTFUL: ReadonlySet<string> = new Set(["Restorative", "Supine/Prone"]);
+/**
+ * How much effort a family of shapes asks for, before difficulty and hold.
+ *
+ * A first pass counted "half the poses are Standing" as Strong, which called
+ * the warm-up — a minute of Cat/Cow, twenty seconds of Bird Dog and a Low
+ * Lunge — a strong practice. Effort is not a headcount: a thirty-second
+ * standing shape at Beginner is not a two-minute Advanced inversion.
+ */
+const CATEGORY_EFFORT: Record<string, number> = {
+  Restorative: 0,
+  "Supine/Prone": 0.4,
+  Seated: 0.6,
+  "Forward Bends": 0.9,
+  "Hip Openers": 1,
+  Standing: 1.4,
+  Backbends: 1.5,
+  Core: 2,
+  // Down Dog and Legs-on-a-Chair share this family. It is not a handstand
+  // scale — the catalog has no arm-balance category of its own.
+  Inversions: 1.8,
+};
+
+const DIFFICULTY_EFFORT: Record<string, number> = {
+  Beginner: 0,
+  Intermediate: 0.4,
+  Advanced: 0.9,
+};
 
 export function sessionDifficulty(poses: Asana[]): SessionDifficulty {
   let level: SessionDifficulty["level"] = "Beginner";
@@ -108,34 +127,57 @@ export function sessionDifficulty(poses: Asana[]): SessionDifficulty {
  * Intensity is about effort, not skill: a session of Beginner standing poses
  * asks more of the body than a session of Beginner restorative shapes, and the
  * difficulty badge alone cannot say so.
+ *
+ * Each pose scores for its family plus its difficulty, and the scores are
+ * weighted by how long you actually spend there — a two-minute Warrior II
+ * counts for more than a twenty-second one, which is the difference between a
+ * warm-up and a class.
  */
-export function sessionIntensity(poses: Asana[]): SessionIntensity {
+export function sessionIntensity(poses: PreflightPose[] | Asana[]): SessionIntensity {
   if (poses.length === 0) {
     return { level: "Gentle", reason: "Nothing queued yet." };
   }
-  const effortful = poses.filter((p) => EFFORTFUL.has(p.category)).length;
-  const restful = poses.filter((p) => RESTFUL.has(p.category)).length;
-  const strongStretch = poses.filter((p) =>
-    p.stretchZones.some((z) => z.intensity === "strong"),
-  ).length;
-  const effortShare = effortful / poses.length;
-  const restShare = restful / poses.length;
-
-  if (effortShare >= 0.5 || strongStretch >= Math.ceil(poses.length / 2)) {
-    return {
-      level: "Strong",
-      reason: `${effortful} of ${poses.length} poses are standing, core, backbend or inversion work.`,
-    };
+  let activeWeighted = 0;
+  let activeWeight = 0;
+  let restWeight = 0;
+  let activeCount = 0;
+  let restfulCount = 0;
+  for (const p of poses) {
+    // Capped so a five-minute Savasana does not outvote everything before it.
+    const hold = Math.min(90, Math.max(10, "holdSeconds" in p ? p.holdSeconds : 30));
+    const effort =
+      (CATEGORY_EFFORT[p.category] ?? 1) +
+      (DIFFICULTY_EFFORT[p.difficulty] ?? 0) +
+      (p.stretchZones.some((z) => z.intensity === "strong") ? 0.2 : 0);
+    if (effort <= 0.5) {
+      restWeight += hold;
+      restfulCount += 1;
+      continue;
+    }
+    activeWeighted += effort * hold;
+    activeWeight += hold;
+    activeCount += 1;
   }
-  if (effortShare <= 0.2 && restShare >= 0.5) {
+  // How hard the *working* part is. Rest is not a counter-argument to a hard
+  // class; it decides whether the practice is a rest in the first place.
+  const activeScore = activeWeight > 0 ? activeWeighted / activeWeight : 0;
+  const restShare = restWeight / Math.max(1, restWeight + activeWeight);
+
+  if (activeWeight === 0 || (restShare >= 0.55 && activeScore < 1.6)) {
     return {
       level: "Gentle",
-      reason: `${restful} of ${poses.length} poses are restorative or lying down.`,
+      reason: `${restfulCount} of ${poses.length} poses are restorative or lying down.`,
+    };
+  }
+  if (activeScore >= 1.55) {
+    return {
+      level: "Strong",
+      reason: `${activeCount} of ${poses.length} poses are demanding shapes held for real time.`,
     };
   }
   return {
     level: "Moderate",
-    reason: `A mix of ${effortful} active and ${restful} restful shapes.`,
+    reason: `A mix of ${activeCount} active and ${restfulCount} restful shapes.`,
   };
 }
 
