@@ -6,6 +6,7 @@ import {
   guidedTimeLabel,
   SIDE_SWITCH_SECONDS,
   TRANSITION_SECONDS,
+  type InstructionMode,
 } from "@/lib/guidedDuration";
 
 export { SIDE_SWITCH_SECONDS, TRANSITION_SECONDS };
@@ -54,19 +55,19 @@ function withCatalogTiming(poses: TimedPose[]): Parameters<typeof guidedSessionS
   }));
 }
 
-/** Total wall-clock seconds: get-ready, recorded instruction, hold, transitions. */
-export function sessionSeconds(poses: TimedPose[]): number {
-  return guidedSessionSeconds(withCatalogTiming(poses));
+/** Total wall-clock seconds: get-ready, instruction for `mode`, hold, transitions. */
+export function sessionSeconds(poses: TimedPose[], mode: InstructionMode = "guided"): number {
+  return guidedSessionSeconds(withCatalogTiming(poses), mode);
 }
 
 /** Rounded minutes for display, e.g. 9 . Never returns 0. */
-export function sessionMinutes(poses: TimedPose[]): number {
-  return Math.max(1, Math.round(sessionSeconds(poses) / 60));
+export function sessionMinutes(poses: TimedPose[], mode: InstructionMode = "guided"): number {
+  return Math.max(1, Math.round(sessionSeconds(poses, mode) / 60));
 }
 
 /** Display label for a session's length — same rounding as the guided player. */
-export function sessionTimeLabel(poses: TimedPose[]): string {
-  return guidedTimeLabel(sessionSeconds(poses));
+export function sessionTimeLabel(poses: TimedPose[], mode: InstructionMode = "guided"): string {
+  return guidedTimeLabel(sessionSeconds(poses, mode));
 }
 
 /**

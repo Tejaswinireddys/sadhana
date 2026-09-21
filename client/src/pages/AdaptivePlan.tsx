@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { FadeIn } from "@/components/motion";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { generateAdaptiveSession, pickEasierSwap, swapPose } from "@/lib/adaptiveGenerator";
+import { readPracticePreferences, writePracticePreferences } from "@/lib/practicePreferences";
 import { nearestOfferedMinutes } from "@/lib/sessionFit";
 import { adviseNextSession, readOutcomes } from "@/lib/adaptiveRecovery";
 import { usePractice } from "@/context/PracticeContext";
@@ -36,7 +37,9 @@ export default function AdaptivePlan() {
   const sessionIds = (sessions ?? []).map((s) => s.id).join(",");
   const journalIds = (journal ?? []).map((j) => j.id).join(",");
 
-  const [minutes, setMinutes] = useState(20);
+  // The length the practitioner last asked any screen for, not a hard-coded 20.
+  const prefs = useMemo(readPracticePreferences, []);
+  const [minutes, setMinutes] = useState(prefs.minutes ?? 20);
   const [variant, setVariant] = useState(0);
   const [locked, setLocked] = useState<string[]>([]);
   const [result, setResult] = useState<ReturnType<typeof generateAdaptiveSession> | null>(null);
@@ -61,6 +64,7 @@ export default function AdaptivePlan() {
 
   const pickMinutes = (m: number) => {
     pickedMinutesRef.current = m;
+    writePracticePreferences({ minutes: m });
     setMinutes(m);
     setVariant(0);
     setResult(build(m, 0));

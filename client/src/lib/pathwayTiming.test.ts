@@ -118,8 +118,11 @@ describe("shared catalog timing", () => {
     assert.match(pathways, /pathwaySessionRangeLabel/);
     assert.equal(/p\.minutesPerSession \?\? p\.timePerSession/.test(pathways), false);
 
+    // Today no longer carries a flow shelf; its program row derives its minutes
+    // from the same catalog math, and everything else is on Pathways.
     const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
-    assert.match(home, /flowSessionLabel/);
+    assert.match(home, /catalogSessionMinutes/);
+    assert.equal(/timePerSession|minutesPerSession/.test(home), false);
 
     const detail = readFileSync(resolve("client/src/pages/PathwayDetail.tsx"), "utf8");
     assert.match(detail, /weekSessionLabel/);

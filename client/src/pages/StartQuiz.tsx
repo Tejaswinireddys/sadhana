@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { usePractice } from "@/context/PracticeContext";
 import { asanaBySlug } from "@/data/content";
 import { buildQuizPlan, parseProgramRef, saveQuizPlan, type QuizAnswers } from "@/data/quizPlan";
+import { INTENT_TO_NEED, writePracticePreferences } from "@/lib/practicePreferences";
 import { parseAttribution, attributionProps } from "../../../funnel/attribution";
 import { resolveFlowId } from "../../../funnel/flows";
 import { ArrowLeft, ArrowRight, Check, ChevronRight, Sparkles } from "lucide-react";
@@ -74,9 +75,25 @@ const QUESTIONS: Question[] = [
 
 type Phase = "quiz" | "building" | "plan";
 
-function persistQuizPrefs(intent: PracticeIntent, experience: ExperienceLevel) {
+/**
+ * The quiz's answers are the practitioner's preferences, not quiz-local state.
+ * Writing the requested length and focus here too means Today opens on what
+ * they asked for, and the Trainer's wizard starts from the same answers instead
+ * of asking a third time.
+ */
+function persistQuizPrefs(
+  intent: PracticeIntent,
+  experience: ExperienceLevel,
+  requestedMinutes?: number,
+) {
   writeString(KEYS.practiceIntent, intent);
   writeString(KEYS.experienceLevel, experience);
+  writePracticePreferences({
+    intent,
+    experience,
+    ...(requestedMinutes ? { minutes: requestedMinutes } : {}),
+    need: INTENT_TO_NEED[intent],
+  });
 }
 
 export default function StartQuiz() {
@@ -214,7 +231,7 @@ export default function StartQuiz() {
         const duration = Math.max(0, Date.now() - quizStartedAt.current);
         void captureProduct("quiz_completed", { flow_id: flowId, duration_ms: duration });
         const built = buildQuizPlan(nextAnswers);
-        persistQuizPrefs(built.intent, built.experience);
+        persistQuizPrefs(built.intent, built.experience, built.requestedMinutes);
         saveQuizPlan(built);
         setPhase("building");
       }
@@ -229,7 +246,7 @@ export default function StartQuiz() {
 
   const startPractice = () => {
     writeString(KEYS.onboardingDone, "1");
-    persistQuizPrefs(plan.intent, plan.experience);
+    persistQuizPrefs(plan.intent, plan.experience, plan.requestedMinutes);
     saveQuizPlan(plan);
     const poses = plan.poses
       .map((p) => {
@@ -383,6 +400,26 @@ export default function StartQuiz() {
                 A {plan.timeLabel} practice focused on {plan.focus}
                 {plan.experience === "new" ? " — beginner-friendly shapes" : ""}.
               </p>
+              {/*
+                Said once, before anything starts, and with a length that can
+                actually hold the sequence — never a badge that claims the
+                requested time while the player runs longer.
+              */}
+              {!plan.fit.fits && plan.fit.explanation && (
+                <p
+                  className="mx-auto max-w-md rounded-2xl border border-primary/30 bg-primary/5 p-3 text-sm"
+                  data-testid="plan-fit-note"
+                >
+                  {plan.fit.explanation}
+                  {plan.offerMinutes != null && (
+                    <>
+                      {" "}
+                      Choose {plan.offerMinutes} minutes to practise this sequence in full, or go
+                      back and pick a shorter session.
+                    </>
+                  )}
+                </p>
+              )}
             </div>
 
             {/* Pose preview strip — proof the plan is real */}
@@ -442,7 +479,7 @@ export default function StartQuiz() {
                   href="/"
                   onClick={() => {
                     writeString(KEYS.onboardingDone, "1");
-                    persistQuizPrefs(plan.intent, plan.experience);
+                    persistQuizPrefs(plan.intent, plan.experience, plan.requestedMinutes);
                     saveQuizPlan(plan);
                   }}
                 >

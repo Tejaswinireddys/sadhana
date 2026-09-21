@@ -324,8 +324,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
 
     await storage.updateUserPassword(user.id, await hashPassword(parsed.data.password));
-    // Resetting via email also proves inbox access.
-    await storage.markEmailVerified(user.id);
+    // An emailed reset token proves inbox access, so it may verify the address.
+    // A recovery code proves only that the practitioner kept the code they were
+    // shown at signup — nothing reached that inbox, so nothing is verified.
+    // Marking it verified here would make `emailVerified` lie about every
+    // account created on a deployment with no mail transport.
+    if (!usedRecoveryCode) await storage.markEmailVerified(user.id);
     await storage.deletePasswordResetToken(tokenRow.tokenHash);
     await storage.deleteEmailVerificationTokensForUser(user.id);
     await storage.deleteAuthSessionsForUser(user.id);
@@ -347,7 +351,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     await storage.createAuthSession(user.id, token, sessionExpiry());
     res.setHeader("Set-Cookie", authCookie(token, isSecure(req)));
     res.json({
-      user: publicUser({ ...user, emailVerified: true }),
+      user: publicUser({ ...user, emailVerified: usedRecoveryCode ? user.emailVerified : true }),
       ...(nextRecoveryCode ? { recoveryCode: nextRecoveryCode } : {}),
     });
   });
@@ -378,6 +382,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const data = insertSessionSchema.parse(req.body);
       res.status(201).json(await storage.createSession(req.ownerId, data));
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+  /**
+   * Amend a session that was already saved. The completion screen writes the
+   * row as soon as the practice ends — a mood or effort rating added a moment
+   * later has to edit that row, not open a second one.
+   */
+  app.patch("/api/sessions/:id", async (req, res) => {
+    try {
+      const data = insertSessionSchema.partial().parse(req.body);
+      const updated = await storage.updateSession(req.ownerId, Number(req.params.id), data);
+      if (!updated) return res.status(404).json({ error: "Not found" });
+      res.json(updated);
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });
     }

@@ -596,18 +596,18 @@ export default function Settings() {
 
       <Card className="shadow-soft">
         <CardHeader>
-          <CardTitle className="font-serif text-xl">Offline practice pack</CardTitle>
+          <CardTitle className="font-serif text-xl">Offline image cache</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Limited offline help for flaky networks: the app shell and a few foundation pose images
-            only. Guided sequences, timings, narration, and your journal still need a connection.
-            Downloadable offline sessions are not included in this pack yet.
+            This caches the app shell and a handful of pose illustrations for a flaky network. It
+            is not a downloadable practice: guided sequences, timings, narration and your journal
+            all still need a connection. Calling it a "practice pack" oversold what it does.
           </p>
           <p className="text-xs text-muted-foreground" data-testid="offline-status">
             {offlineStatus.present
-              ? `${offlineStatus.entries} assets cached`
-              : "No offline pack downloaded yet"}
+              ? `${offlineStatus.entries} images cached`
+              : "Nothing cached yet"}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -619,7 +619,7 @@ export default function Settings() {
                   .then(async (r) => {
                     setOfflineStatus(await offlinePackStatus());
                     toast({
-                      title: "Offline pack ready",
+                      title: "Images cached",
                       description: `Cached ${r.cached} assets${r.failed ? ` (${r.failed} failed)` : ""}.`,
                     });
                   })
@@ -634,7 +634,7 @@ export default function Settings() {
               }}
               data-testid="settings-offline-download"
             >
-              Download offline pack
+              Cache these images
             </Button>
             <Button
               variant="outline"

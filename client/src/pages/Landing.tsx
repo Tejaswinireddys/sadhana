@@ -2,14 +2,30 @@
  * Quiz-first marketing landing — conversion clarity of modern wellness funnels,
  * with Sadhana’s sage/teal brand, privacy ethics, and a real practice payoff.
  */
-import { Link } from "wouter";
-import { lazy, Suspense, useEffect } from "react";
+import { Link, useLocation } from "wouter";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { LotusMark } from "@/components/Logo";
 import { KEYS, writeString } from "@/lib/localPrefs";
 import { FadeIn, Reveal } from "@/components/motion";
-import { ArrowDown, ArrowRight, Check, Shield, Sparkles } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowRight,
+  Captions,
+  Check,
+  Image as ImageIcon,
+  Play,
+  Shield,
+  Sparkles,
+  Timer,
+  Volume2,
+} from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { ASANAS, asanaBySlug } from "@/data/content";
+import { QUICK_SESSIONS } from "@/data/quickSessions";
+import { REPRESENTATIVE_SESSIONS, SAMPLE_PRACTICE } from "@/data/samplePractice";
+import { buildSessionPreflight, type PreflightPose } from "@/lib/sessionPreflight";
+import { usePractice } from "@/context/PracticeContext";
 
 const ProductDemoVideo = lazy(() =>
   import("@/components/ProductDemoVideo").then((m) => ({ default: m.ProductDemoVideo })),
@@ -48,39 +64,147 @@ const PROGRAMS = [
   },
 ];
 
+/**
+ * Numbers, not adjectives — and each one checkable. The pose count is read from
+ * the catalog rather than rounded up in copy, because "200+" was a claim
+ * nothing verified.
+ */
 const PROOF = [
-  { label: "Illustrated poses", value: "200+" },
+  { label: "Illustrated poses", value: String(ASANAS.length) },
+  { label: "Filmed teachers", value: "None yet" },
   { label: "Account required", value: "Never" },
-  { label: "Streak shame", value: "Zero" },
 ];
 
 const FAQ = [
   {
-    q: "How is Sadhana different from other wellness apps?",
-    a: "You still get a quiz-first personal plan — but practice starts free, without signup walls, fake reviews, or streak guilt. Privacy-first and open source.",
+    q: "What will I actually see and hear during a practice?",
+    a: "An illustration of the pose you are in, a recorded voice talking you into it, the same words as captions on screen, and a countdown for the hold. There is no video of a teacher moving — see \u201cWhat a practice looks like\u201d above.",
   },
   {
-    q: "Do I need an account?",
-    a: "No. Start as a guest. Optional accounts are only for sync across devices, with email verification when you choose one.",
+    q: "Do I need any equipment?",
+    a: "Most sessions need nothing. Some restorative ones ask for a chair, a bolster or a couple of pillows \u2014 every session lists what it needs on the screen before you start, and offers a prop-free alternative where one has been reviewed.",
+  },
+  {
+    q: "Can I practise offline?",
+    a: "Partly, and only after a first visit. The app shell and pose illustrations are cached by the browser, so a session you have opened before can usually be repeated without a connection. Narration audio is streamed and is not downloaded for offline use \u2014 without a connection you would practise with captions instead of voice.",
+  },
+  {
+    q: "Where is my progress stored?",
+    a: "On your device, under an id this browser holds, until you create an account. Clearing the browser's data erases it. An optional free account backs it up and syncs it between browsers; you can export or delete everything at any time.",
+  },
+  {
+    q: "What if I have never done yoga?",
+    a: "Say so in the quiz and the sequences stay on beginner shapes \u2014 advanced poses are filtered out rather than shortened. Every pose carries its own modifications and the things to avoid, and those are shown before you start, not mid-pose.",
   },
   {
     q: "How long is the quiz?",
-    a: "About two minutes — five short questions, then a real guided session matched to your answers.",
+    a: "About two minutes \u2014 five short questions, then a real guided session matched to your answers. You can also skip it and start the sample practice.",
   },
   {
-    q: "Is Sadhana free?",
-    a: "Core practice and the safety library stay free. Optional Plus/Coach is clearly priced with cancel in two taps.",
+    q: "Is Sadhana free, and what is not built yet?",
+    a: "Everything described on this page is free and working today. Paid plans are on a waitlist and nothing can be charged. Filmed movement demonstrations, a virtual instructor beyond a five-pose pilot, and human teachers are not available \u2014 we say so in the app rather than in a roadmap.",
+  },
+  {
+    q: "Do I need an account?",
+    a: "No. Start as a guest. Accounts exist only to back up and sync your practice.",
   },
 ];
 
+/** How the app teaches, stated plainly. Each line is checkable in the product. */
+const FORMAT = [
+  {
+    icon: ImageIcon,
+    title: "Watercolour illustrations",
+    body: `Every one of the ${ASANAS.length} poses is drawn, with the body shape described in text for screen readers. Nothing is stock photography.`,
+  },
+  {
+    icon: Volume2,
+    title: "Recorded voice guidance",
+    body: "A voice talks you into each pose before the hold begins. You can mute it, slow it down, or replay a cue.",
+  },
+  {
+    icon: Timer,
+    title: "Timed holds",
+    body: "Each pose has a countdown, both sides where the pose has sides, and a chime between poses. You can add time or skip ahead.",
+  },
+  {
+    icon: Captions,
+    title: "Captions, always",
+    body: "The spoken words appear on screen as they are said, so a muted practice teaches exactly the same thing.",
+  },
+];
+
+/** Resolve a landing tile into the queue it will actually start. */
+function tilePoses(tile: (typeof REPRESENTATIVE_SESSIONS)[number]) {
+  const raw =
+    tile.poses ??
+    QUICK_SESSIONS.find((q) => q.id === tile.quickSessionId)?.poses ??
+    [];
+  return raw
+    .map((p) => {
+      const asana = asanaBySlug(p.slug);
+      return asana ? ({ ...asana, holdSeconds: p.holdSeconds } as PreflightPose) : null;
+    })
+    .filter((x): x is PreflightPose => x != null);
+}
+
 export default function Landing() {
   useDocumentTitle("Welcome · Sadhana");
+  const [, navigate] = useLocation();
+  const { loadSession } = usePractice();
 
   useEffect(() => {
     document.title = "Sadhana — Personalized yoga practice in minutes";
   }, []);
 
   const enterApp = () => writeString(KEYS.welcomeSeen, "1");
+
+  /** Duration, level, intensity and props, derived from each real queue. */
+  const sessions = useMemo(
+    () =>
+      REPRESENTATIVE_SESSIONS.map((tile) => {
+        const poses = tilePoses(tile);
+        return { tile, poses, preflight: buildSessionPreflight({ poses }) };
+      }).filter((s) => s.poses.length > 0),
+    [],
+  );
+
+  const samplePoses = useMemo(
+    () =>
+      SAMPLE_PRACTICE.poses
+        .map((p) => {
+          const asana = asanaBySlug(p.slug);
+          return asana ? { asana, holdSeconds: p.holdSeconds } : null;
+        })
+        .filter(
+          (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
+            x != null,
+        ),
+    [],
+  );
+  const samplePreflight = useMemo(
+    () =>
+      buildSessionPreflight({
+        poses: samplePoses.map((p) => ({ ...p.asana, holdSeconds: p.holdSeconds })),
+      }),
+    [samplePoses],
+  );
+
+  /**
+   * Start the sample without the quiz. "Get my plan" is the right first step
+   * for someone who wants a plan; for someone deciding whether the teaching
+   * suits them, a five-question form is a toll gate in front of the answer.
+   */
+  const startSample = () => {
+    if (!samplePoses.length) return;
+    enterApp();
+    loadSession(samplePoses, {
+      label: SAMPLE_PRACTICE.title,
+      introPoseSlug: samplePoses[0]!.asana.slug,
+      plannedMinutes: samplePreflight.minutes,
+    });
+    navigate("/guided");
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -159,8 +283,20 @@ export default function Landing() {
                     Get my plan <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Link>
                 </Button>
-                <p className="text-sm text-primary-foreground/75 sm:pl-1">~2 min · Free to start</p>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="min-h-14 cursor-pointer border-primary-foreground/50 bg-transparent px-7 text-base font-semibold text-primary-foreground hover:bg-primary-foreground/10"
+                  onClick={startSample}
+                  data-testid="landing-cta-sample"
+                >
+                  <Play className="mr-1.5 h-4 w-4" />
+                  Try a {samplePreflight.timeLabel} practice
+                </Button>
               </div>
+              <p className="text-sm text-primary-foreground/75">
+                The quiz takes about two minutes. The sample starts now, no questions, no account.
+              </p>
             </FadeIn>
 
             <a
@@ -183,6 +319,102 @@ export default function Landing() {
                 </p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* What the teaching actually is — before any path is chosen. */}
+        <section id="format" className="border-b border-border/40 bg-background">
+          <div className="mx-auto max-w-6xl px-4 py-16 md:px-8 md:py-20">
+            <Reveal className="mb-8 max-w-2xl space-y-3">
+              <h2 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">
+                What a practice looks like
+              </h2>
+              <p className="text-base text-muted-foreground md:text-lg">
+                Worth knowing before you start, because it is not what every yoga app means by
+                "guided".
+              </p>
+            </Reveal>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {FORMAT.map((f, i) => (
+                <Reveal
+                  key={f.title}
+                  delay={i * 0.04}
+                  className="flex gap-3 rounded-2xl border border-border/60 bg-card/70 p-4"
+                  data-testid={`landing-format-${i}`}
+                >
+                  <f.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+                  <div className="space-y-1">
+                    <h3 className="font-medium">{f.title}</h3>
+                    <p className="text-sm leading-relaxed text-muted-foreground">{f.body}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+            {/*
+              The thing a prospective practitioner most needs to know and is
+              least likely to be told. Stated in the same type as everything
+              else, not buried in a footnote.
+            */}
+            <Reveal
+              delay={0.1}
+              className="mt-6 rounded-2xl border border-border/60 bg-muted/40 p-4 text-sm leading-relaxed"
+              data-testid="landing-no-filmed-instruction"
+            >
+              <strong className="font-semibold">There is no filmed instruction.</strong> Nobody
+              demonstrates the movement on video. You get an accurate still of the pose you are in,
+              labelled as a static reference, plus the voice and the captions. Filmed demonstrations
+              are not shot yet, and the app says so wherever a still stands in for one.
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Real sessions, with their real numbers. */}
+        <section id="sessions" className="border-b border-border/40 bg-card/50">
+          <div className="mx-auto max-w-6xl px-4 py-16 md:px-8 md:py-20">
+            <Reveal className="mb-8 max-w-2xl space-y-3">
+              <h2 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">
+                Three sessions that exist right now
+              </h2>
+              <p className="text-base text-muted-foreground md:text-lg">
+                Every figure below is computed from the session itself — the length counts the
+                spoken instruction and the transitions, not just the holds.
+              </p>
+            </Reveal>
+            <div className="grid gap-3 md:grid-cols-3">
+              {sessions.map(({ tile, preflight }, i) => (
+                <Reveal
+                  key={tile.id}
+                  delay={i * 0.05}
+                  className="flex flex-col gap-2 rounded-2xl border border-border/60 bg-background p-5"
+                  data-testid={`landing-session-${tile.id}`}
+                >
+                  <h3 className="font-serif text-xl font-semibold tracking-tight">{tile.title}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {preflight.timeLabel} · {preflight.difficulty.level} ·{" "}
+                    {preflight.intensity.level} · {preflight.poseCount} poses
+                  </p>
+                  <p className="text-sm leading-relaxed">{tile.blurb}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {preflight.equipmentSentence
+                      ? `Needs ${preflight.equipmentSentence}.`
+                      : "No props needed."}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {preflight.modeLabel} · illustrations and captions
+                  </p>
+                </Reveal>
+              ))}
+            </div>
+            <Reveal delay={0.12} className="mt-6">
+              <Button
+                variant="outline"
+                className="min-h-11 cursor-pointer"
+                onClick={startSample}
+                data-testid="landing-sessions-sample"
+              >
+                <Play className="mr-1.5 h-4 w-4" /> Start the {samplePreflight.timeLabel} sample
+              </Button>
+            </Reveal>
           </div>
         </section>
 
@@ -283,7 +515,7 @@ export default function Landing() {
             </Reveal>
             <div className="grid gap-3 md:grid-cols-2">
               {[
-                "Personal session without a signup wall",
+                "A personal session without a signup wall",
                 "Illustrated poses with contraindications",
                 "Compassionate recovery — no public body boards",
                 "Cancel any upgrade in two taps",
@@ -310,21 +542,77 @@ export default function Landing() {
 
         <section id="demo" className="border-y border-border/40 bg-card/50">
           <div className="mx-auto max-w-6xl px-4 py-16 md:px-8">
-            <Reveal className="mb-8 max-w-xl space-y-2">
+            <Reveal className="mb-8 max-w-2xl space-y-2">
               <h2 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">
-                See a real session
+                A recording of the app itself
               </h2>
               <p className="text-muted-foreground">
-                Quiz → guided practice → pose library — no stock montage.
+                A screen recording of the quiz, a guided practice and the pose library — the real
+                interface, captioned, with sound off by default. It is not a class, and there are no
+                people in it.
               </p>
             </Reveal>
             <Reveal delay={0.06}>
               <Suspense
                 fallback={<div className="aspect-video animate-pulse rounded-2xl bg-muted/40" aria-hidden />}
               >
-                <ProductDemoVideo title="A real walkthrough of the Sadhana app" />
+                <ProductDemoVideo title="Screen recording of the Sadhana app" />
               </Suspense>
             </Reveal>
+          </div>
+        </section>
+
+        <section id="whats-free" className="border-y border-border/40 bg-background">
+          <div className="mx-auto max-w-6xl px-4 py-16 md:px-8">
+            <Reveal className="mb-8 max-w-2xl space-y-3">
+              <h2 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">
+                What's free, and what isn't built
+              </h2>
+              <p className="text-base text-muted-foreground md:text-lg">
+                Split out rather than implied, so nothing on this page reads as a promise.
+              </p>
+            </Reveal>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div
+                className="space-y-3 rounded-2xl border border-border/60 bg-card/70 p-5"
+                data-testid="landing-free-list"
+              >
+                <h3 className="font-medium">Free and working today</h3>
+                <ul className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+                  {[
+                    `All ${ASANAS.length} illustrated poses, with modifications and what to avoid`,
+                    "Guided sessions with recorded voice, captions and timed holds",
+                    "The quiz, mood sessions, programs, breathing and the sequence builder",
+                    "Practice history, journal and export — as a guest or with an account",
+                  ].map((line) => (
+                    <li key={line} className="flex gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div
+                className="space-y-3 rounded-2xl border border-border/60 bg-muted/40 p-5"
+                data-testid="landing-not-built-list"
+              >
+                <h3 className="font-medium">Not available yet</h3>
+                <ul className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+                  {[
+                    "Filmed movement demonstrations — the app shows a labelled still instead",
+                    "The virtual instructor beyond a five-pose pilot",
+                    "Human teachers — there is a waitlist, and no teacher is bookable",
+                    "Paid plans — priced on the Plus page, but on a waitlist and not chargeable",
+                    "Fully offline practice — narration needs a connection",
+                  ].map((line) => (
+                    <li key={line} className="flex gap-2">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-muted-foreground" aria-hidden />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
         </section>
 

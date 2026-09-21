@@ -350,8 +350,16 @@ test("pose illustrations read stored imageAlt; decorative images stay empty", ()
   assert.match(header, /aria-hidden/);
   assert.match(header, /alt=""/);
 
+  // Home no longer hand-rolls pose <img> tags: every pose thumbnail on Today
+  // goes through PoseImage / TodayPracticeCard, which read the stored alt above.
   const home = readFileSync(path.join(ROOT, "client/src/pages/Home.tsx"), "utf8");
-  assert.match(home, /alt=\{a\.imageAlt\}/);
+  assert.equal(/<img\b/.test(home), false, "Home hand-rolled an <img> without a reviewed alt");
+  const card = readFileSync(
+    path.join(ROOT, "client/src/components/home/TodayPracticeCard.tsx"),
+    "utf8",
+  );
+  assert.match(card, /<PoseImage/);
+  assert.equal(/<img\b/.test(card), false);
 });
 
 test("Thunderbolt watch-outs do not repeat the same knee caution", () => {

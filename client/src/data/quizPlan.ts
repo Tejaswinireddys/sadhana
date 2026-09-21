@@ -4,6 +4,16 @@
  */
 import { asanaBySlug } from "./content";
 import { sessionMinutes, sessionSeconds, sessionTimeLabel } from "./quickSessions";
+import { TRANSITION_SECONDS } from "@/lib/guidedDuration";
+import { MAX_HOLD_SECONDS as SCHEMA_MAX_HOLD_SECONDS } from "@shared/schema";
+import {
+  evaluateSessionFit,
+  holdBudgetSeconds,
+  maxPosesForBudget,
+  nearestOfferedMinutes,
+  sessionOverheadSeconds,
+  type SessionFit,
+} from "@/lib/sessionFit";
 import {
   KEYS,
   readJson,
@@ -38,6 +48,12 @@ export type BuiltQuizPlan = {
   breathSlug?: string;
   introPoseSlug: string;
   poseNames: string[];
+  /** The length asked for in the quiz, in minutes. */
+  requestedMinutes: number;
+  /** Whether the plan honours that request, and what to say when it cannot. */
+  fit: SessionFit;
+  /** A length that can hold this sequence, when the request cannot be met. */
+  offerMinutes: number | null;
 };
 
 /** Program tile seeds from /welcome?ref=program-* */
@@ -175,28 +191,93 @@ function timeFor(raw?: string): "10" | "20" | "30" {
   return "10";
 }
 
-/** Trim or scale a pose list so wall-clock length matches the chosen budget. */
+/** The shortest hold we will compose down to before dropping a pose instead. */
+const MIN_HOLD_SECONDS = 20;
+
+/**
+ * Longest hold we will stretch a pose to while chasing a budget.
+ *
+ * The catalog's own `holdSeconds` is the reviewed hold for that shape. Doubling
+ * it is a generous ceiling for a longer session; filling a 28-minute slot by
+ * parking someone in Warrior II for five minutes is not "fitting the request",
+ * it is an injury with a stopwatch. When the budget cannot be filled inside
+ * this ceiling the plan stays short and `fit` says so.
+ */
+function safeMaxHold(slug: string): number {
+  const catalogHold = asanaBySlug(slug)?.holdSeconds ?? 60;
+  return Math.min(SCHEMA_MAX_HOLD_SECONDS, Math.max(MIN_HOLD_SECONDS, catalogHold * 2));
+}
+
+/**
+ * Make the plan the length the practitioner asked for.
+ *
+ * The old version trimmed to no fewer than four poses and then stopped as soon
+ * as it was "within two minutes", which is how a 10-minute answer produced a
+ * 12-minute plan. Narration is 55–70s per pose and cannot be shortened, so the
+ * count of poses — not the length of the holds — is what a short budget really
+ * buys. Drop poses from the middle of the arc first (openers and the closing
+ * rest are the practice), then scale the remaining holds onto the target.
+ */
 function fitToBudget(poses: QuizPose[], budget: "10" | "20" | "30"): QuizPose[] {
   const target = budget === "10" ? 10 : budget === "20" ? 20 : 28;
+  const targetSeconds = target * 60;
   let list = [...poses];
-  // Drop middle poses (keep openers + closer) while too long.
-  while (sessionMinutes(list) > target + 2 && list.length > 4) {
+
+  // How many poses can this budget carry with a real hold on each one?
+  const perPoseOverhead =
+    list.length > 0
+      ? sessionOverheadSeconds(timedFor(list)) / list.length
+      : TRANSITION_SECONDS + 60;
+  const cap = maxPosesForBudget({
+    targetSeconds,
+    perPoseOverheadSeconds: perPoseOverhead,
+    minHoldSeconds: MIN_HOLD_SECONDS,
+    floor: 3,
+    cap: list.length,
+  });
+  while (list.length > cap && list.length > 3) {
     const mid = Math.floor(list.length / 2) - 1;
-    if (mid <= 0 || mid >= list.length - 2) break;
+    if (mid <= 0 || mid >= list.length - 1) break;
     list.splice(mid, 1);
   }
-  for (let i = 0; i < 8; i++) {
-    const mins = sessionMinutes(list);
-    if (Math.abs(mins - target) <= 2) break;
+
+  for (let i = 0; i < 10; i++) {
     const secs = sessionSeconds(list);
     if (secs <= 0) break;
-    const scale = Math.min(2.6, Math.max(0.65, (target * 60) / secs));
-    list = list.map((p) => ({
+    if (Math.abs(secs - targetSeconds) <= 45) break;
+    const holdSecs = list.reduce(
+      (sum, p) => sum + p.holdSeconds * (p.sides === "each" ? 2 : 1),
+      0,
+    );
+    const holdBudget = holdBudgetSeconds(targetSeconds, timedFor(list));
+    if (holdSecs <= 0 || holdBudget <= 0) break;
+    const scale = Math.min(2.6, Math.max(0.4, holdBudget / holdSecs));
+    const next = list.map((p) => ({
       ...p,
-      holdSeconds: Math.max(20, Math.round(p.holdSeconds * scale)),
+      holdSeconds: Math.min(
+        safeMaxHold(p.slug),
+        Math.max(MIN_HOLD_SECONDS, Math.round(p.holdSeconds * scale)),
+      ),
     }));
+    // At the hold floor there is nothing left to trim; drop a pose instead.
+    const stalled = sessionSeconds(next) >= secs && sessionSeconds(next) > targetSeconds;
+    list = next;
+    if (stalled && list.length > 3) {
+      const mid = Math.floor(list.length / 2) - 1;
+      if (mid > 0 && mid < list.length - 1) list.splice(mid, 1);
+      else break;
+    }
   }
   return list;
+}
+
+function timedFor(poses: QuizPose[]) {
+  return poses.map((p) => ({
+    holdSeconds: p.holdSeconds,
+    sides: p.sides,
+    slug: p.slug,
+    stepCount: asanaBySlug(p.slug)?.steps.length ?? 0,
+  }));
 }
 
 export type SavedQuizPlan = Pick<
@@ -261,6 +342,13 @@ export function buildQuizPlan(answers: QuizAnswers): BuiltQuizPlan {
     .filter((n): n is string => !!n)
     .slice(0, 5);
 
+  const requestedMinutes = Number(timeBudget);
+  const fit = evaluateSessionFit({
+    requestedMinutes,
+    poses: timedFor(poses),
+    minHoldSeconds: poses.map(() => MIN_HOLD_SECONDS),
+  });
+
   return {
     title: titleFor(goal),
     focus: focusFor(body),
@@ -272,8 +360,14 @@ export function buildQuizPlan(answers: QuizAnswers): BuiltQuizPlan {
     breathSlug,
     introPoseSlug: poses[0]?.slug || "tadasana",
     poseNames,
+    requestedMinutes,
+    fit,
+    offerMinutes: fit.fits ? null : nearestOfferedMinutes(fit.plannedMinutes, QUIZ_TIME_OPTIONS),
   };
 }
+
+/** The lengths the quiz offers, so an alternative is a real answer to re-pick. */
+export const QUIZ_TIME_OPTIONS = [10, 20, 30];
 
 export function parseProgramRef(search: string): Partial<QuizAnswers> | null {
   const ref = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search).get("ref");

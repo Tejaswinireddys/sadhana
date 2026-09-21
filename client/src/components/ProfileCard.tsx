@@ -117,8 +117,13 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
         <p className="text-sm text-muted-foreground">{profile.description}</p>
 
         <div className="flex flex-wrap gap-2">
+          {/*
+            A path's target length, not the length of any particular session —
+            a session's real duration is derived from its own queue. Labelled
+            so the badge is not read as a promise about what opens.
+          */}
           <Badge variant="outline" className="gap-1 tabular-nums">
-            <Clock className="h-3 w-3" /> {profile.minutesPerSession} min
+            <Clock className="h-3 w-3" /> ~{profile.minutesPerSession} min target
           </Badge>
           <Badge variant="outline" className="gap-1">
             <CalendarDays className="h-3 w-3" /> {days}

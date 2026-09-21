@@ -13,6 +13,7 @@ import { StepMotion } from "@/components/StepMotion";
 import { VoicePlayer } from "@/components/VoicePlayer";
 import { PoseExplanation } from "@/components/PoseExplanation";
 import { asanaBySlug, type Difficulty, type Severity } from "@/data/content";
+import { BENEFIT_REVIEW_NOTE, poseHasUnreviewedClaims } from "@/lib/benefitClaims";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
 import { difficultyBadgeClass } from "@/lib/difficultyBadge";
 import { CONTENT_REVIEW } from "@/data/contentProvenance";
@@ -638,6 +639,17 @@ export default function AsanaDetail() {
               <li key={i}>{b}</li>
             ))}
           </ul>
+          {/*
+            Some of these name a condition ("eases mild anxiety and insomnia")
+            and assert an effect on it. Until a qualified reviewer has been
+            through them, say what they are rather than letting them read as
+            findings. See client/src/lib/benefitClaims.ts.
+          */}
+          {poseHasUnreviewedClaims(asana) && (
+            <p className="text-xs text-muted-foreground" data-testid="benefit-review-note">
+              {BENEFIT_REVIEW_NOTE}
+            </p>
+          )}
         </CardContent>
       </Card>
 

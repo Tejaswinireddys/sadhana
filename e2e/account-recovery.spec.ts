@@ -49,6 +49,14 @@ test("a new account can be created, used, and recovered without email", async ({
   expect(afterReset.recoveryCode).toMatch(/^[A-Z0-9]{5}(-[A-Z0-9]{5}){3}$/);
   expect(afterReset.recoveryCode).not.toBe(created.recoveryCode);
 
+  // 3b. A recovery code proves possession of a code, not access to an inbox.
+  //     Marking the address verified here would make `emailVerified` lie about
+  //     every account on a deployment with no mail transport.
+  expect(
+    afterReset.user.emailVerified,
+    "a recovery-code reset must not verify an address nothing was sent to",
+  ).toBeFalsy();
+
   // 4. The new password works.
   const login = await request.post("/api/auth/login", {
     data: { email, password: NEXT_PASSWORD },

@@ -10,6 +10,7 @@ import {
   SIDE_SWITCH_SECONDS,
   TRANSITION_SECONDS,
   type GuidedTimedPose,
+  type InstructionMode,
 } from "@/lib/guidedDuration";
 
 export type CatalogPose = {
@@ -39,27 +40,31 @@ export function catalogPosesToTimed(poses: CatalogPose[]): GuidedTimedPose[] {
   });
 }
 
-/** Full guided wall-clock: get-ready, narration (both sides), holds, switches. */
-export function catalogSessionSeconds(poses: CatalogPose[]): number {
-  return guidedSessionSeconds(catalogPosesToTimed(poses));
+/** Full wall-clock for `mode`: get-ready, instruction (both sides), holds, switches. */
+export function catalogSessionSeconds(
+  poses: CatalogPose[],
+  mode: InstructionMode = "guided",
+): number {
+  return guidedSessionSeconds(catalogPosesToTimed(poses), mode);
 }
 
-export function catalogSessionMinutes(poses: CatalogPose[]): number {
-  return Math.max(1, Math.round(catalogSessionSeconds(poses) / 60));
+export function catalogSessionMinutes(
+  poses: CatalogPose[],
+  mode: InstructionMode = "guided",
+): number {
+  return Math.max(1, Math.round(catalogSessionSeconds(poses, mode) / 60));
 }
 
-export function catalogSessionLabel(poses: CatalogPose[]): string {
-  return guidedTimeLabel(catalogSessionSeconds(poses));
+export function catalogSessionLabel(
+  poses: CatalogPose[],
+  mode: InstructionMode = "guided",
+): string {
+  return guidedTimeLabel(catalogSessionSeconds(poses, mode));
 }
 
 /** Timer-only: preparation + holds + side switch — no spoken instruction. */
 export function timerOnlySessionSeconds(poses: CatalogPose[]): number {
-  return poses.reduce((sum, p) => {
-    const hold = Math.max(0, p.holdSeconds);
-    const each = poseSides(p) === "each";
-    const sides = each ? 2 : 1;
-    return sum + TRANSITION_SECONDS + hold * sides + (each ? SIDE_SWITCH_SECONDS : 0);
-  }, 0);
+  return catalogSessionSeconds(poses, "timer");
 }
 
 export function timerOnlySessionLabel(poses: CatalogPose[]): string {

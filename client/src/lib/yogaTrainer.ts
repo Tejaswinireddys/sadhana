@@ -1121,6 +1121,10 @@ export function composeTrainerSession(
     if (isContraindicated(pose, c.soreParts, injured, audience)) return false;
     // Low energy caps intensity but must not change the focus.
     if (lowEnergy && pose.difficulty === "Advanced" && !GENTLE.has(s)) return false;
+    // Experience capped hold *length* but not difficulty, so Home could offer
+    // a first-time practitioner an Advanced shape at a beginner's hold. The
+    // shortened hold was never the safety problem; the shape was.
+    if (experience === "new" && pose.difficulty === "Advanced" && !GENTLE.has(s)) return false;
     return true;
   };
 

@@ -25,6 +25,7 @@ import {
 } from "@/lib/yogaTrainer";
 import { trainerLocationSatisfied, saveCareRegions } from "@/lib/restrictionAdaptations";
 import { nearestOfferedMinutes } from "@/lib/sessionFit";
+import { readPracticePreferences, writePracticePreferences } from "@/lib/practicePreferences";
 import { cn } from "@/lib/utils";
 import { formatHold } from "@/lib/formatDuration";
 import { ChevronRight, Play, RefreshCw, ShieldAlert, Sparkles, UserRound } from "lucide-react";
@@ -134,12 +135,18 @@ export default function Trainer() {
   const activeProfile = profileById(activeProfileRow?.profileId);
 
   const saved = useMemo(loadTrainerState, []);
+  // Length and focus are practitioner preferences, not wizard-local state: the
+  // answer given here is the answer Home and the Adaptive Plan start from, and
+  // the answer given there is what this wizard opens on.
+  const prefs = useMemo(readPracticePreferences, []);
   const [step, setStep] = useState(saved?.step ?? 0);
   const [body, setBody] = useState<string[]>(saved?.body ?? []);
   const [soreParts, setSoreParts] = useState<string[]>(saved?.soreParts ?? []);
   const [energy, setEnergy] = useState(saved?.energy ?? "");
-  const [timeMinutes, setTimeMinutes] = useState<number | null>(saved?.timeMinutes ?? null);
-  const [need, setNeed] = useState(saved?.need ?? "");
+  const [timeMinutes, setTimeMinutes] = useState<number | null>(
+    saved?.timeMinutes ?? prefs.minutes,
+  );
+  const [need, setNeed] = useState(saved?.need ?? prefs.need ?? "");
   const [phase, setPhase] = useState<"wizard" | "composing" | "result">(
     saved?.phase === "result" && saved.result ? "result" : "wizard",
   );
@@ -185,6 +192,10 @@ export default function Trainer() {
         experience: (readString(KEYS.experienceLevel) as TrainerExperience | null) ?? undefined,
       },
     );
+    writePracticePreferences({
+      minutes: overrideMinutes ?? timeMinutes ?? undefined,
+      need: need || undefined,
+    });
     const elapsed = Date.now() - started;
     if (elapsed < 900) await new Promise((r) => setTimeout(r, 900 - elapsed));
     setResult(session);
