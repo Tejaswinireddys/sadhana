@@ -1,4 +1,5 @@
 import { Link, useParams, useLocation } from "wouter";
+import { posesQueued } from "@/lib/plural";
 import { useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -133,7 +134,7 @@ export default function PathwayDetail() {
     });
     toast({
       title: `Week ${week.weekNumber} loaded`,
-      description: `${week.theme} — ${week.poses.length} poses queued.`,
+      description: `${week.theme} — ${posesQueued(week.poses.length)}.`,
     });
     navigate("/guided");
   };

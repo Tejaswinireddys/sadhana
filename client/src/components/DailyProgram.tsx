@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { countOf, posesQueued } from "@/lib/plural";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -126,7 +127,7 @@ export function DailyProgram({
       pathwaySlug: pathway.slug,
       plannedMinutes: catalogSessionMinutes(d.poses),
     });
-    toast({ title: `Day ${d.day} loaded`, description: `${d.theme} — ${d.poses.length} poses queued.` });
+    toast({ title: `Day ${d.day} loaded`, description: `${d.theme} — ${posesQueued(d.poses.length)}.` });
     navigate("/guided");
   };
 
@@ -337,7 +338,7 @@ export function DailyProgram({
                   <DialogDescription>
                     {d.restDay
                       ? "A gentle rest day — let your body rebuild."
-                      : `${dailySessionLabel(d)} · ${d.poses.length} poses`}
+                      : `${dailySessionLabel(d)} · ${countOf(d.poses.length, "pose")}`}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-2">

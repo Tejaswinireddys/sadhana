@@ -23,6 +23,31 @@ export type PracticeStats = {
   heatmap: { date: string; minutes: number }[];
 };
 
+/**
+ * What actually happened in the current week.
+ *
+ * Home showed lifetime totals — 8 days practiced, 17 sessions, a 12-week map —
+ * under a heading that said "This week". Every one of those numbers was true
+ * and none of them answered the question the heading asked.
+ *
+ * Dates here are local calendar dates (`YYYY-MM-DD`) already resolved by the
+ * caller, because the week a session belongs to is decided by the clock on the
+ * practitioner's wall, not by UTC. A session at 23:30 on Sunday belongs to the
+ * week that is ending; the same instant is Monday in UTC and would otherwise
+ * jump into the week that has not started.
+ */
+export type WeeklyProgress = {
+  /** Inclusive local date of the first day of the week. */
+  weekStart: string;
+  /** Inclusive local date of the last day. */
+  weekEnd: string;
+  /** Distinct local dates with at least one minute practised. */
+  daysPracticed: number;
+  /** Sessions finished within the week. */
+  sessions: number;
+  minutes: number;
+};
+
 export type HomeProgressTiles = {
   daysPracticed: { label: string; value: number; testId: string };
   longestStretch: { label: string; value: number; testId: string };
@@ -44,6 +69,53 @@ export function assertDaysPracticedInvariant(
 
 function dayKey(iso: string): string {
   return iso.slice(0, 10);
+}
+
+/** 0 = Sunday … 6 = Saturday, for a local `YYYY-MM-DD`. */
+function weekdayOf(isoDate: string): number {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(Date.UTC(y!, (m ?? 1) - 1, d ?? 1)).getUTCDay();
+}
+
+/**
+ * The first day of `today`'s week, as a local date string.
+ * `weekStartsOn` is 0 for Sunday, 1 for Monday (the default).
+ */
+export function startOfWeek(today: string, weekStartsOn: 0 | 1 = 1): string {
+  const back = (weekdayOf(today) - weekStartsOn + 7) % 7;
+  return addDays(dayKey(today), -back);
+}
+
+/**
+ * Practice inside the current week only.
+ *
+ * Counts days from distinct dates, so three sessions on one Tuesday are one
+ * day and three sessions.
+ */
+export function weeklyProgress(
+  sessions: PracticeSessionInput[],
+  today: string,
+  weekStartsOn: 0 | 1 = 1,
+): WeeklyProgress {
+  const weekStart = startOfWeek(today, weekStartsOn);
+  const weekEnd = addDays(weekStart, 6);
+  const inWeek = sessions.filter((s) => {
+    const k = dayKey(s.date);
+    return k >= weekStart && k <= weekEnd;
+  });
+  const days = new Set<string>();
+  let minutes = 0;
+  for (const s of inWeek) {
+    minutes += s.durationMinutes;
+    if (s.durationMinutes > 0) days.add(dayKey(s.date));
+  }
+  return {
+    weekStart,
+    weekEnd,
+    daysPracticed: days.size,
+    sessions: inWeek.length,
+    minutes,
+  };
 }
 
 function addDays(iso: string, n: number): string {

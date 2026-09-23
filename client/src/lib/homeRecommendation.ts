@@ -81,6 +81,8 @@ export type HomeContext = {
   hour: number;
   /** Minutes the practitioner last asked for, when they have asked. */
   preferredMinutes: number | null;
+  /** The focus they last chose, if any — a NEED_OPTIONS id. */
+  preferredNeed?: string | null;
   /** True once at least one session has been completed on this device/account. */
   hasPracticed: boolean;
   /** A short, gentle on-ramp for someone who has told us nothing yet. */
@@ -306,14 +308,18 @@ export function adjustedPractice(
     minutes: asked,
     experience: ctx.experience ?? "new",
     reason: (mins) => {
-      const focus = adjust.need
-        ? `You asked for ${NEED_LABEL[need]?.toLowerCase() ?? "this focus"}`
-        : "Your focus, at the length you asked for";
-      const length =
-        mins === asked
-          ? `${mins} minutes`
-          : `${mins} minutes — the closest a narrated ${NEED_LABEL[need]?.toLowerCase() ?? ""} sequence gets to ${asked}`.trim();
-      return `${focus}, in ${length}.`;
+      const focusLabel = NEED_LABEL[need]?.toLowerCase() ?? "this focus";
+      // Only claim the requested length when it was actually met. Saying "at
+      // the length you asked for" above an eight-minute answer to a five-minute
+      // request is the thing this whole module exists to avoid.
+      if (mins === asked) {
+        return adjust.need
+          ? `You asked for ${focusLabel}, in ${mins} minutes.`
+          : `Your focus, at the length you asked for: ${mins} minutes.`;
+      }
+      return `${
+        adjust.need ? `You asked for ${focusLabel}` : "Your focus"
+      }, in ${mins} minutes — the closest a narrated ${focusLabel} sequence gets to ${asked}.`;
     },
   });
 }
@@ -334,48 +340,105 @@ export function alternativePractices(
   const base = ctx.preferredMinutes ?? primary?.requestedMinutes ?? 10;
   const shorter = snapToOfferedMinutes(Math.max(5, Math.round(base / 2)));
   const evening = ctx.hour >= 20 || ctx.hour < 4;
-  const primaryNeed = ctx.intent ? INTENT_NEED[ctx.intent] : evening ? "sleep" : "movement";
+  /**
+   * The focus actually on offer, including one chosen from "Change focus".
+   * Reading only `intent` is why "Wake up instead — rather than settling"
+   * appeared beside a "Just move" practice, which settles nothing.
+   */
+  const primaryNeed = ctx.preferredNeed ?? defaultNeedFor(ctx);
+  const primaryLabel = needLabel(primaryNeed);
 
-  const candidates: PracticeRecommendation[] = [
+  /** A focus that genuinely asks less of the body than `primaryNeed`. */
+  const gentlerNeed = GENTLER_THAN[primaryNeed] ?? null;
+  /** A focus that genuinely contrasts with it. */
+  const contrastNeed = CONTRAST_WITH[primaryNeed] ?? (evening ? "flexibility" : "energy");
+
+  const candidates: (PracticeRecommendation | null)[] = [
     generatePractice({
       need: primaryNeed,
       minutes: shorter,
       experience,
-      reason: (mins) => `The same focus in ${mins} minutes, for a day with less room in it.`,
+      // Only claims "the same focus" because it composes the same one.
+      reason: (mins) => `The same ${primaryLabel} focus in ${mins} minutes, for a day with less room in it.`,
       title: "A shorter version",
     }),
+    gentlerNeed
+      ? generatePractice({
+          need: gentlerNeed,
+          minutes: snapToOfferedMinutes(base),
+          experience,
+          reason: `${capitalize(needLabel(gentlerNeed))} instead of ${primaryLabel} — slower shapes and longer rests.`,
+          title: "Something gentler",
+        })
+      : null,
     generatePractice({
-      need: "calm",
+      need: contrastNeed,
       minutes: snapToOfferedMinutes(base),
       experience,
-      reason: "Slower shapes and longer rests, if today asks for less effort.",
-      title: "Something gentler",
+      reason: `${capitalize(needLabel(contrastNeed))} instead of ${primaryLabel} — a different thing to ask of today.`,
+      title: `${capitalize(needLabel(contrastNeed))} instead`,
     }),
     generatePractice({
-      need: evening ? "flexibility" : "energy",
+      need: evening ? "sleep" : "flexibility",
       minutes: snapToOfferedMinutes(base),
       experience,
       reason: evening
-        ? "A different focus — opening rather than settling."
-        : "A different focus — waking the body up rather than settling it.",
-      title: evening ? "Open the hips instead" : "Wake up instead",
-    }),
-    generatePractice({
-      need: "sleep",
-      minutes: snapToOfferedMinutes(base),
-      experience,
-      reason: "A wind-down to come back to tonight.",
-      title: "Before bed",
+        ? "A wind-down to come back to tonight."
+        : "Longer holds in the hips and hamstrings.",
+      title: evening ? "Before bed" : "Open the hips",
     }),
   ];
 
   const seen = new Set([primary?.id]);
+  /** Same poses in the same order is the same practice, whatever it is called. */
+  const signature = (r: PracticeRecommendation) => r.poses.map((p) => p.slug).join(">");
+  const signatures = new Set(primary ? [signature(primary)] : []);
   const out: PracticeRecommendation[] = [];
   for (const c of candidates) {
-    if (seen.has(c.id)) continue;
+    if (!c || seen.has(c.id)) continue;
+    const sig = signature(c);
+    // Offering the practice they are already looking at, under a different
+    // heading, is not an alternative.
+    if (signatures.has(sig)) continue;
     seen.add(c.id);
+    signatures.add(sig);
     out.push(c);
     if (out.length === count) break;
   }
   return out;
 }
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function needLabel(need: string): string {
+  return (NEED_LABEL[need] ?? need).toLowerCase();
+}
+
+/**
+ * Which focus is honestly gentler than which. Null where there is nothing
+ * gentler to offer — a calm practice has no calmer sibling, and saying
+ * "something gentler" above an identical session is the claim this table
+ * exists to prevent.
+ */
+const GENTLER_THAN: Record<string, string | null> = {
+  strength: "movement",
+  energy: "movement",
+  movement: "flexibility",
+  focus: "calm",
+  flexibility: "calm",
+  calm: null,
+  sleep: null,
+};
+
+/** A focus that asks something genuinely different of the day. */
+const CONTRAST_WITH: Record<string, string> = {
+  calm: "energy",
+  sleep: "energy",
+  movement: "calm",
+  flexibility: "strength",
+  strength: "flexibility",
+  energy: "calm",
+  focus: "movement",
+};

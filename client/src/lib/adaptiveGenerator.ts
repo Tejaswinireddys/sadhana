@@ -6,6 +6,7 @@ import { asanaBySlug, type Asana } from "@/data/content";
 import {
   composeTrainerSession,
   estimatedSessionSeconds,
+  fitQueueToMinutes,
   isStandingBuild,
   orderPosesByArc,
   poseArcRank,
@@ -125,6 +126,11 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
 
   poses = orderPosesByArc(poses);
   poses = restoreRequestedMinutes(poses, minutes);
+  // Easing, locks, swaps and the top-up above all reshape the queue after it
+  // was composed to length, so the last word on duration has to come after
+  // them. Without this the plan advertised the number the user picked and ran
+  // several minutes longer.
+  poses = fitQueueToMinutes(poses, minutes);
 
   // Recomputed from the FINAL queue. Easing, swaps and top-ups all reshape
   // `poses` after composition, so `raw`'s numbers are stale by this point —
@@ -133,9 +139,13 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
   const totalMinutes = Math.max(1, Math.round(totalSeconds / 60));
   const fit = trainerSessionFit(poses, minutes);
 
+  // `raw.adjustments` carries the fit sentence `composeTrainerSession` wrote
+  // for ITS queue — which this function has since re-shaped. Keeping it
+  // produced two contradictory sentences in one list ("…it is 14 min" directly
+  // above "…it is 15 min"). Duration is explained once, from the final queue.
   const explanations = [
     ...advice.reasons,
-    ...raw.adjustments,
+    ...raw.adjustments.filter((a) => !isDurationFitSentence(a)),
   ];
   if (
     input.intentMinutes > advice.maxMinutes &&
@@ -161,9 +171,13 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
 
   explanations.push(
     `Hold times scaled ×${advice.holdScale.toFixed(2)} for ${advice.intensity} intensity.`,
-    `Target about ${minutes} minutes (this practice runs ~${totalMinutes} min including spoken instruction).`,
   );
-  if (fit.explanation) explanations.push(fit.explanation);
+  // Either it fits and we say so plainly, or it does not and `fit.explanation`
+  // says why — never both, and never a third phrasing of the same fact.
+  explanations.push(
+    fit.explanation ??
+      `You asked for about ${minutes} minutes; this practice runs ${totalMinutes} min including the spoken instruction.`,
+  );
 
   return {
     advice,
@@ -204,6 +218,13 @@ function standingExclusionCopy(
 }
 
 const REST_SLUG = /savasana|viparita-karani|balasana|constructive-rest/;
+
+/** Sentences produced by `evaluateSessionFit`, wherever they were written. */
+function isDurationFitSentence(text: string): boolean {
+  return /talked through before you hold it|spoken instruction and transitions are counted|on-screen instruction and transitions are counted|transitions between poses are counted/.test(
+    text,
+  );
+}
 
 /** Hold-scale eases effort; leftover seconds go to rest so the minute chip still holds. */
 /**

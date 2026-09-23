@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { generateAdaptiveSession, pickEasierSwap, swapPose } from "@/lib/adaptiveGenerator";
 import { readPracticePreferences, writePracticePreferences } from "@/lib/practicePreferences";
+import { briefModeFit } from "@/lib/sessionFit";
+import { DurationFitNotice } from "@/components/DurationFitNotice";
 import { nearestOfferedMinutes } from "@/lib/sessionFit";
 import { adviseNextSession, readOutcomes } from "@/lib/adaptiveRecovery";
 import { usePractice } from "@/context/PracticeContext";
@@ -108,7 +110,22 @@ export default function AdaptivePlan() {
     track("practice_start", { source: "adaptive_regenerate" });
   };
 
-  const start = () => {
+  /** Captions-only, offered on the fit notice when it would meet the request. */
+  const briefOffer = useMemo(() => {
+    if (!result || result.session.fit.fits) return null;
+    const brief = briefModeFit({
+      requestedMinutes: minutes,
+      poses: result.session.poses.map((p) => ({
+        holdSeconds: p.holdSeconds,
+        sides: p.sides,
+        slug: p.slug,
+        stepCount: asanaBySlug(p.slug)?.steps.length ?? 0,
+      })),
+    });
+    return brief.fits ? { minutes: brief.minutes, savedMinutes: brief.savedMinutes } : null;
+  }, [result, minutes]);
+
+  const start = (instructionMode?: "guided" | "brief" | "timer") => {
     if (!result) return;
     const poses = result.session.poses
       .map((p) => {
@@ -124,6 +141,9 @@ export default function AdaptivePlan() {
     loadSession(poses, {
       label: result.advice.headline,
       pathwaySlug: null,
+      // The length the player will run, derived from the final queue.
+      plannedMinutes: result.session.totalMinutes,
+      ...(instructionMode ? { instructionMode } : {}),
     });
     navigate("/guided");
   };
@@ -198,31 +218,20 @@ export default function AdaptivePlan() {
           Regenerate
         </Button>
       </div>
-      {result.session.fit.explanation ? (
-        <Card className="border-primary/40 bg-primary/5" data-testid="adaptive-duration-fit">
-          <CardContent className="space-y-3 p-4">
-            <p className="text-sm">{result.session.fit.explanation}</p>
-            {(() => {
-              const offer = nearestOfferedMinutes(
-                result.session.fit.plannedMinutes,
-                ADAPTIVE_MINUTES,
-              );
-              if (offer == null || offer === minutes) return null;
-              return (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="min-h-11"
-                  data-testid="adaptive-use-fitting-duration"
-                  onClick={() => pickMinutes(offer)}
-                >
-                  Build a {offer}-minute plan instead
-                </Button>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      ) : null}
+      <DurationFitNotice
+        fit={result.session.fit}
+        offerMinutes={(() => {
+          const offer = nearestOfferedMinutes(
+            result.session.fit.plannedMinutes,
+            ADAPTIVE_MINUTES,
+          );
+          return offer != null && offer !== minutes ? offer : null;
+        })()}
+        onUseOfferedMinutes={pickMinutes}
+        briefOffer={briefOffer}
+        onUseBriefMode={() => start("brief")}
+        testIdPrefix="adaptive-duration-fit"
+      />
 
       {(result.advice.intensity === "easy" || result.advice.intensity === "recover") &&
         minutes <= result.advice.maxMinutes &&
@@ -328,7 +337,7 @@ export default function AdaptivePlan() {
         })}
       </ul>
 
-      <Button className="min-h-11 w-full" onClick={start} data-testid="adaptive-start">
+      <Button className="min-h-11 w-full" onClick={() => start()} data-testid="adaptive-start">
         Begin this practice
       </Button>
       <p className="text-center text-xs text-muted-foreground">

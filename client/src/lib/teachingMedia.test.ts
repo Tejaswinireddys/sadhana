@@ -61,7 +61,9 @@ describe("the teaching stage enforces that", () => {
   });
 
   it("labels the still it falls back to", () => {
-    assert.match(src, /referenceNote=\{isTeaching && !demoIsReviewedMovement/);
+    assert.match(src, /referenceNote=\{/);
+    assert.match(src, /poseImageCaveat\(slug\)/);
+    assert.match(src, /STATIC_REFERENCE_LABEL/);
     assert.equal(
       STATIC_REFERENCE_LABEL,
       "Static reference — movement demonstration unavailable",

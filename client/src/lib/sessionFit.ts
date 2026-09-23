@@ -154,6 +154,30 @@ export function evaluateSessionFit(opts: {
  * "offer a shorter option" is a chip the user can tap rather than a number
  * they have to translate. Prefers the first option that can hold the practice.
  */
+/**
+ * Would this queue fit the request if it were taught with captions instead of
+ * a voice?
+ *
+ * Recorded narration is 55–70s a pose and cannot be shortened; on-screen steps
+ * take twelve. That difference is often the whole overrun, so it is worth
+ * offering — but as an explicit choice, never as a silent substitution. The
+ * practitioner asked for a guided practice; swapping the guidance for captions
+ * without telling them is not honouring the request, it is redefining it.
+ */
+export function briefModeFit(opts: {
+  requestedMinutes: number;
+  poses: GuidedTimedPose[];
+  minHoldSeconds?: number[];
+}): { fits: boolean; minutes: number; savedMinutes: number } {
+  const guided = evaluateSessionFit({ ...opts, mode: "guided" });
+  const brief = evaluateSessionFit({ ...opts, mode: "brief" });
+  return {
+    fits: brief.fits,
+    minutes: brief.plannedMinutes,
+    savedMinutes: Math.max(0, guided.plannedMinutes - brief.plannedMinutes),
+  };
+}
+
 export function nearestOfferedMinutes(minutes: number, options: number[]): number | null {
   const sorted = [...options].sort((a, b) => a - b);
   return sorted.find((o) => o >= minutes) ?? sorted[sorted.length - 1] ?? null;

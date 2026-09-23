@@ -62,9 +62,23 @@ export const EQUIPMENT_BY_ID: Record<EquipmentId, EquipmentItem> = Object.fromEn
 
 const EQUIPMENT_ORDER: EquipmentId[] = VOCABULARY.map((v) => v.id);
 
-/** Phrases that mark a prop as an offer wherever they appear in the sentence. */
+/**
+ * Phrases that mark a prop as an offer wherever they appear in the sentence.
+ *
+ * "if" in any conditional form counts: "onto a block if the hips do not reach
+ * the floor" is a contingency, not a shopping list.
+ */
 const OPTIONAL_MARKERS =
-  /\b(if needed|if you like|if that helps|if available|if you have|optional(ly)?|as needed|can use)\b/i;
+  /\b(if\s|optional(ly)?|as needed|can use|when you need|where needed)\b/i;
+
+/**
+ * A prop named as a simile or a shape, not as an object to fetch.
+ *
+ * Chair Pose is "sitting back as if into a chair" and Eagle Pose sinks "into a
+ * soft chair position" — neither needs furniture, and the preflight told people
+ * to go and find some.
+ */
+const FIGURATIVE = /\b(as if|like a|as though)\b[^.;]*$|^[^.;]*\b(position|shape|pose)\b/i;
 
 /** A named pose ("Chair Pose", "Wall Splits") is not a prop request. */
 function isPoseName(sentence: string, at: number, matched: string): boolean {
@@ -82,7 +96,7 @@ function hitsIn(sentence: string): Hit[] {
     entry.pattern.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = entry.pattern.exec(sentence))) {
-      if (!isPoseName(sentence, m.index, m[0])) {
+      if (!isPoseName(sentence, m.index, m[0]) && !isFigurative(sentence, m.index)) {
         hits.push({ id: entry.id, at: m.index, matched: m[0] });
       }
     }
@@ -106,8 +120,25 @@ export type PoseEquipment = {
  */
 function isOfferedAlternative(sentence: string, at: number): boolean {
   if (OPTIONAL_MARKERS.test(sentence)) return true;
+  // The floor is always available, so a sentence that offers it as one of the
+  // options is offering all of them: "hand to shin, block, or floor".
+  if (offersFloorInstead(sentence)) return true;
   const before = sentence.slice(0, at);
-  return /\bor\b[^.;]*$/i.test(before);
+  if (/\bor\b[^.;]*$/i.test(before)) return true;
+  // A comma-list that ends in "or <something>" makes every item in it a choice,
+  // even the ones that come before the "or".
+  const after = sentence.slice(at);
+  return /^[^.;]*,[^.;]*\bor\b/i.test(after) && /,/.test(before);
+}
+
+/** A step sentence that names the floor as an alternative is an offer, not a rule. */
+function offersFloorInstead(sentence: string): boolean {
+  return /\bfloor\b/i.test(sentence) && /\bor\b/i.test(sentence);
+}
+
+/** Is this mention a simile rather than a request for an object? */
+function isFigurative(sentence: string, at: number): boolean {
+  return FIGURATIVE.test(sentence.slice(0, at + 1));
 }
 
 function sentencesOf(text: string): string[] {

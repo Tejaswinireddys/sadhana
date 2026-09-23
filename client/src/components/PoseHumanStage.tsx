@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { humanStepSlug } from "@/data/poseKeyImages";
 import { poseImageAlt } from "@/data/poseImageAlts";
+import { accurateImageAlt } from "@/data/poseImageAccuracy";
 import type { FocusZone } from "@/lib/poseMoments";
 
 export type PoseHumanStageProps = {
@@ -34,6 +35,8 @@ export type PoseHumanStageProps = {
    * is never mistaken for a demonstration of the movement.
    */
   referenceNote?: string | null;
+  /** Full text behind a short badge, for pointer and assistive access. */
+  referenceNoteTitle?: string | null;
   variant?: "detail" | "practice";
   className?: string;
   "data-testid"?: string;
@@ -54,6 +57,7 @@ export function PoseHumanStage({
   focusZone = null,
   caption = null,
   referenceNote = null,
+  referenceNoteTitle = null,
   variant = "detail",
   className,
   "data-testid": testId,
@@ -103,7 +107,10 @@ export function PoseHumanStage({
             <img loading="lazy" width={600} height={1200}
               key={layer.id}
               src={imgUrl(layer.slug)}
-              alt={isTop ? poseImageAlt(layer.slug) || english : ""}
+              // Describe what is drawn. For a pose whose illustration does not
+              // match its instructions, the stored alt describes the pose as
+              // written — which a screen-reader user cannot see is untrue.
+              alt={isTop ? accurateImageAlt(layer.slug, poseImageAlt(layer.slug) || english) : ""}
               aria-hidden={isTop ? undefined : true}
               draggable={false}
               onError={(e) => {
@@ -179,6 +186,7 @@ export function PoseHumanStage({
             : "font-medium uppercase tracking-wide",
         )}
         data-testid={`pose-human-note-${slug}`}
+        {...(referenceNoteTitle ? { title: referenceNoteTitle } : {})}
       >
         {referenceNote ?? "How to hold it"}
       </span>

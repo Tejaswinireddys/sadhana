@@ -23,6 +23,7 @@ import { asanaBySlug } from "@/data/content";
 import { hasRigSequence } from "@/data/poseKeyframes";
 import { humanStepSlug, poseHasShapeJourney } from "@/data/poseKeyImages";
 import { poseDemoAvailability, STATIC_REFERENCE_LABEL } from "@/data/poseDemoAvailability";
+import { poseImageCaveat, poseImageShortCaveat } from "@/data/poseImageAccuracy";
 import { poseMediaFor } from "@/data/poseMedia";
 import { manifestToVideoSources, usePoseMedia } from "@/lib/poseMediaApi";
 import type { FocusZone } from "@/lib/poseMoments";
@@ -206,7 +207,15 @@ export function PoseTrainerStage({
       side={side}
       focusZone={guideActive ? focusZone : null}
       caption={guideActive ? caption : null}
-      referenceNote={isTeaching && !demoIsReviewedMovement ? STATIC_REFERENCE_LABEL : null}
+      // A reviewed mismatch is more specific and more useful than the generic
+      // "no movement demo" line, so it wins the one slot available.
+      referenceNote={
+        isTeaching
+          ? (poseImageShortCaveat(slug) ??
+            (demoIsReviewedMovement ? null : STATIC_REFERENCE_LABEL))
+          : null
+      }
+      referenceNoteTitle={isTeaching ? poseImageCaveat(slug) : null}
       variant={variant}
       className={className}
       data-testid={testId}
