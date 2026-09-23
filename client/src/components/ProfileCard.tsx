@@ -5,6 +5,7 @@
 //   - "Currently active" badge when selected
 //   - "Why this profile?" expandable section
 import { useState } from "react";
+import { countOf } from "@/lib/plural";
 import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -129,7 +130,7 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
             <CalendarDays className="h-3 w-3" /> {days}
           </Badge>
           <Badge variant="outline" className="tabular-nums">
-            {profile.recommendedAsanas.length} poses
+            {countOf(profile.recommendedAsanas.length, "pose")}
           </Badge>
           {profile.recommendedBreathing.length > 0 && (
             <Badge variant="outline" className="tabular-nums">

@@ -37,7 +37,7 @@ import {
 import type { Pathway } from "@/data/content";
 import { profileById } from "@/data/profiles";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
-import { homeProgressTiles } from "@shared/practiceStats";
+import { homeProgressTiles, weeklyProgress } from "@shared/practiceStats";
 import { KEYS, readJson, readString, type ReminderPrefs } from "@/lib/localPrefs";
 import {
   readPracticePreferences,
@@ -45,7 +45,7 @@ import {
 } from "@/lib/practicePreferences";
 import { readQuizPlan } from "@/data/quizPlan";
 import { readHabitPlan } from "@/lib/habitPlan";
-import type { UserProfile, Enrollment, Journal } from "@shared/schema";
+import type { UserProfile, Enrollment, Journal, Session } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { catalogSessionMinutes, warmupSessionMinutes } from "@/lib/pathwayTiming";
 import {
@@ -134,13 +134,22 @@ export default function Home() {
     queryKey: ["/api/enrollments"],
   });
   const { data: journalEntries = [] } = useQuery<Journal[]>({ queryKey: ["/api/journal"] });
+  // "This week" needs the sessions themselves: the stats endpoint returns
+  // lifetime totals and an 84-day heatmap, neither of which is a week.
+  const {
+    data: sessionRows = [],
+    isLoading: sessionsLoading,
+    isError: sessionsError,
+    refetch: refetchSessions,
+  } = useQuery<Session[]>({ queryKey: ["/api/sessions"] });
 
   /**
    * Everything the recommendation depends on has to be in hand before we can
    * name a practice. Rendering a newcomer card for half a second and then
    * replacing it with someone's program is worse than a skeleton.
    */
-  const bootstrapping = statsLoading || profileLoading || enrollmentsLoading;
+  const bootstrapping =
+    statsLoading || profileLoading || enrollmentsLoading || sessionsLoading;
 
   const [savePromptDismissed, setSavePromptDismissed] = useState(false);
   /** Overrides from the card's "Change time" / "Change focus" controls. */
@@ -236,6 +245,7 @@ export default function Home() {
     experience,
     hour: new Date().getHours(),
     preferredMinutes: adjust.minutes ?? prefs.minutes,
+    preferredNeed: adjust.need ?? prefs.need,
     hasPracticed,
     warmup: { title: WARMUP.title, poses: warmupPoses },
   };
@@ -255,10 +265,13 @@ export default function Home() {
     () => (bootstrapping ? [] : alternativePractices(context, recommendation)),
     // Same reason as above: composing three sequences on every render would be
     // wasteful, and only these inputs change what they are.
-    [bootstrapping, recommendation?.id, adjust.minutes, intent],
+    [bootstrapping, recommendation?.id, adjust.minutes, adjust.need, intent],
   );
 
-  const startRecommendation = (rec: PracticeRecommendation) => {
+  const startRecommendation = (
+    rec: PracticeRecommendation,
+    instructionMode?: "guided" | "brief" | "timer",
+  ) => {
     const poses = rec.poses
       .map((p) => {
         const asana = asanaBySlug(p.slug);
@@ -286,7 +299,11 @@ export default function Home() {
       introPoseSlug: rec.meta.introPoseSlug ?? null,
       preMood: rec.meta.preMood ?? null,
       // The length the player will run, not the length that was asked for.
-      plannedMinutes: buildSessionPreflight({ poses: preflightPoses }).minutes,
+      plannedMinutes: buildSessionPreflight({
+        poses: preflightPoses,
+        mode: instructionMode ?? "guided",
+      }).minutes,
+      ...(instructionMode ? { instructionMode } : {}),
     });
     navigate("/guided");
   };
@@ -308,6 +325,24 @@ export default function Home() {
     ? homeProgressTiles(stats, { compassionateRecovery: habitPlan.compassionateRecovery })
     : null;
 
+  /**
+   * The current week, in this browser's timezone. `todayISO()` is already the
+   * local calendar date, and session rows carry local dates, so the comparison
+   * never crosses a UTC boundary.
+   */
+  const thisWeek = useMemo(
+    () =>
+      weeklyProgress(
+        sessionRows.map((row) => ({
+          date: row.date,
+          durationMinutes: row.durationMinutes,
+          kind: (row.kind as "asana" | "breathing" | undefined) ?? "asana",
+        })),
+        todayISO(),
+      ),
+    [sessionRows],
+  );
+
   const recentJournal = journalEntries.slice(0, 1);
   const learnPose = useMemo(() => {
     const slug = recommendation?.poses[Math.floor(recommendation.poses.length / 2)]?.slug;
@@ -322,6 +357,7 @@ export default function Home() {
         displayName={practitionerName}
         practicedToday={practicedToday}
         reminderHour={reminderPrefs.hour ?? 18}
+        loading={bootstrapping}
       />
 
       <CancelAccessBanner />
@@ -487,25 +523,29 @@ export default function Home() {
             See all progress
           </Link>
         </div>
-        {statsError ? (
+        {statsError || sessionsError ? (
           <Card className="border-destructive/40 bg-destructive/5 shadow-soft" data-testid="banner-stats-error">
             <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
               <p className="text-sm text-muted-foreground">
-                Couldn't load your practice stats. Your practice is safe — this is only the summary.
+                Couldn't load your practice summary. Your practice itself is safe — this is only the
+                count.
               </p>
               <Button
                 variant="outline"
                 className="min-h-11 cursor-pointer"
-                onClick={() => refetchStats()}
+                onClick={() => {
+                  void refetchStats();
+                  void refetchSessions();
+                }}
                 data-testid="button-retry-stats"
               >
                 Retry
               </Button>
             </CardContent>
           </Card>
-        ) : statsLoading || !progressTiles ? (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
+        ) : statsLoading || sessionsLoading || !progressTiles ? (
+          <div className="grid grid-cols-3 gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-16 w-full" />
             ))}
           </div>
@@ -518,12 +558,28 @@ export default function Home() {
           </Card>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {/*
+              Three numbers about THIS week, from sessions dated inside it.
+              These tiles used to show lifetime totals under this heading: 8
+              days practised and 17 sessions, in a week that has seven days.
+            */}
+            <div className="grid grid-cols-3 gap-3" data-testid="week-tiles">
               {[
-                progressTiles.daysPracticed,
-                progressTiles.longestStretch,
-                progressTiles.totalSessions,
-                progressTiles.minutesPracticed,
+                {
+                  testId: "stat-week-days",
+                  value: thisWeek.daysPracticed,
+                  label: thisWeek.daysPracticed === 1 ? "day this week" : "days this week",
+                },
+                {
+                  testId: "stat-week-sessions",
+                  value: thisWeek.sessions,
+                  label: thisWeek.sessions === 1 ? "session" : "sessions",
+                },
+                {
+                  testId: "stat-week-minutes",
+                  value: thisWeek.minutes,
+                  label: thisWeek.minutes === 1 ? "minute" : "minutes",
+                },
               ].map((tile) => (
                 <Card key={tile.testId} className="shadow-soft">
                   <CardContent className="p-4">
@@ -535,16 +591,52 @@ export default function Home() {
                 </Card>
               ))}
             </div>
-            <Card className="shadow-soft">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Practice consistency — last 12 weeks
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Heatmap data={stats?.heatmap ?? []} />
-              </CardContent>
-            </Card>
+            {thisWeek.sessions === 0 && (
+              <p className="text-sm text-muted-foreground" data-testid="week-empty">
+                Nothing yet this week — the week started {formatDate(thisWeek.weekStart)}.
+              </p>
+            )}
+
+            {/*
+              Lifetime figures and the 84-day map are worth keeping, but they
+              are a different question and now say so.
+            */}
+            <details className="group pt-1" data-testid="all-time-progress">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                <span>All time</span>
+                <span className="text-xs text-primary group-open:hidden">Show</span>
+                <span className="hidden text-xs text-primary group-open:inline">Hide</span>
+              </summary>
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  {[
+                    progressTiles.daysPracticed,
+                    progressTiles.longestStretch,
+                    progressTiles.totalSessions,
+                    progressTiles.minutesPracticed,
+                  ].map((tile) => (
+                    <Card key={tile.testId} className="shadow-soft">
+                      <CardContent className="p-4">
+                        <p className="font-serif text-2xl leading-none" data-testid={tile.testId}>
+                          {tile.value}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">{tile.label}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                <Card className="shadow-soft">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Practice consistency — last 12 weeks
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Heatmap data={stats?.heatmap ?? []} />
+                  </CardContent>
+                </Card>
+              </div>
+            </details>
           </>
         )}
         {recentJournal.length > 0 && (

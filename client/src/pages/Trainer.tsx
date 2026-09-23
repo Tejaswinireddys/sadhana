@@ -24,7 +24,8 @@ import {
   type TrainerSession,
 } from "@/lib/yogaTrainer";
 import { trainerLocationSatisfied, saveCareRegions } from "@/lib/restrictionAdaptations";
-import { nearestOfferedMinutes } from "@/lib/sessionFit";
+import { briefModeFit, nearestOfferedMinutes } from "@/lib/sessionFit";
+import { DurationFitNotice } from "@/components/DurationFitNotice";
 import { readPracticePreferences, writePracticePreferences } from "@/lib/practicePreferences";
 import { cn } from "@/lib/utils";
 import { formatHold } from "@/lib/formatDuration";
@@ -202,7 +203,25 @@ export default function Trainer() {
     setPhase("result");
   };
 
-  const startGuided = () => {
+  /**
+   * Would captions-only fit the length they actually asked for? Offered as a
+   * choice on the fit notice; never applied on its own.
+   */
+  const briefOffer = useMemo(() => {
+    if (!result || result.fit.fits || timeMinutes == null) return null;
+    const brief = briefModeFit({
+      requestedMinutes: timeMinutes,
+      poses: result.poses.map((p) => ({
+        holdSeconds: p.holdSeconds,
+        sides: p.sides,
+        slug: p.slug,
+        stepCount: asanaBySlug(p.slug)?.steps.length ?? 0,
+      })),
+    });
+    return brief.fits ? { minutes: brief.minutes, savedMinutes: brief.savedMinutes } : null;
+  }, [result, timeMinutes]);
+
+  const startGuided = (instructionMode?: "guided" | "brief" | "timer") => {
     if (!result) return;
     const poses = result.poses.flatMap((p) => {
       const asana = asanaBySlug(p.slug);
@@ -219,6 +238,7 @@ export default function Trainer() {
       // We already asked about body and energy; don't ask a third time.
       preMood: moodFromEnergy(energy),
       careRegions: care,
+      ...(instructionMode ? { instructionMode } : {}),
     });
     navigate("/guided");
   };
@@ -296,7 +316,12 @@ export default function Trainer() {
               <Badge variant="outline" className="tabular-nums" data-testid="badge-total-minutes">
                 ~{result.totalMinutes} min
               </Badge>
-              {result.trimNote ? (
+              {/*
+                "Shortened to fit" is only true when it fits. It was showing
+                above a nine-minute answer to a five-minute request, next to a
+                card explaining that the request could not be met.
+              */}
+              {result.trimNote && result.fit.fits ? (
                 <Badge variant="secondary" data-testid="badge-trimmed">
                   Shortened to fit
                 </Badge>
@@ -309,30 +334,17 @@ export default function Trainer() {
           </CardContent>
         </Card>
 
-        {result.fit.explanation && (
-          <Card className="border-primary/40 bg-primary/5" data-testid="card-duration-fit">
-            <CardContent className="space-y-3 p-4">
-              <p className="text-sm" data-testid="text-duration-fit">
-                {result.fit.explanation}
-              </p>
-              {(() => {
-                const offer = nearestOfferedMinutes(result.fit.plannedMinutes, TIME_OPTIONS);
-                if (offer == null || offer === timeMinutes) return null;
-                return (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="min-h-11"
-                    data-testid="button-use-fitting-duration"
-                    onClick={() => void doCompose(offer)}
-                  >
-                    Build a {offer}-minute practice instead
-                  </Button>
-                );
-              })()}
-            </CardContent>
-          </Card>
-        )}
+        <DurationFitNotice
+          fit={result.fit}
+          offerMinutes={(() => {
+            const offer = nearestOfferedMinutes(result.fit.plannedMinutes, TIME_OPTIONS);
+            return offer != null && offer !== timeMinutes ? offer : null;
+          })()}
+          onUseOfferedMinutes={(m) => void doCompose(m)}
+          briefOffer={briefOffer}
+          onUseBriefMode={() => startGuided("brief")}
+          testIdPrefix="duration-fit"
+        />
 
         {result.adjustments.length > 0 && (
           <Card className="border-amber-500/40 bg-amber-500/5" data-testid="card-adjustments">
@@ -357,7 +369,7 @@ export default function Trainer() {
           <Button
             size="lg"
             className="flex-1 bg-primary text-primary-foreground"
-            onClick={startGuided}
+            onClick={() => startGuided()}
             data-testid="button-start-guided"
           >
             <Play className="mr-2 h-4 w-4" /> Start guided session
@@ -436,7 +448,7 @@ export default function Trainer() {
           <Button
             size="lg"
             className="flex-1 bg-primary text-primary-foreground"
-            onClick={startGuided}
+            onClick={() => startGuided()}
             data-testid="button-start-guided-bottom"
           >
             <Play className="mr-2 h-4 w-4" /> Start guided session

@@ -2,6 +2,7 @@
 // from today's check-in without needing an LLM or network.
 
 import { ASANAS, asanaBySlug, type Asana, type Mood } from "@/data/content";
+import { countOf } from "@/lib/plural";
 import {
   ARC_SLOT,
   CHILD_SLUGS,
@@ -16,9 +17,15 @@ import {
 import {
   guidedSessionSeconds,
   resolveInstructionSeconds,
+  TRANSITION_SECONDS,
   type GuidedTimedPose,
 } from "@/lib/guidedDuration";
-import { evaluateSessionFit, poseOverheadSeconds, type SessionFit } from "@/lib/sessionFit";
+import {
+  evaluateSessionFit,
+  maxPosesForBudget,
+  poseOverheadSeconds,
+  type SessionFit,
+} from "@/lib/sessionFit";
 
 /** Which audience the active profile targets — gates audience-specific poses/copy. */
 export type TrainerAudience = "All" | "Men" | "Women" | "Pregnancy";
@@ -516,7 +523,7 @@ const EXPERIENCE_SCALE: Record<TrainerExperience, number> = {
   regular: 1,
 };
 
-function holdLimitsFor(slug: string, pose: Asana, experience: TrainerExperience) {
+export function holdLimitsFor(slug: string, pose: Asana, experience: TrainerExperience) {
   // Only a genuine closing shape gets the long band. Keying this off
   // `category === "Restorative"` handed Cat-Cow — a flowing spinal warm-up the
   // catalog files as Restorative — a five-minute static hold.
@@ -619,7 +626,24 @@ function sessionSecondsFor(slugs: string[], holds: number[]): number {
  * Trim the shape the arc can spare — never the opening, the close, or the
  * standing work a session promised to include.
  */
-function trimIndexFor(slugs: string[], standingWanted: number): number | null {
+function trimIndexFor(
+  slugs: string[],
+  standingWanted: number,
+  /**
+   * A short practice is allowed a shorter arc.
+   *
+   * The full shape — centering, warm-up, build, peak, cool-down, rest — needs
+   * five or six poses, and five narrated poses cost about eight minutes before
+   * a single second of hold. Refusing to go below it meant a five-minute
+   * request could only ever be answered with eight minutes and an apology.
+   *
+   * When this is set, the *peak* becomes optional: a short practice drops the
+   * hardest shape and keeps the preparation and the rest. That is the safe
+   * direction to give way in. Warm-up and rest stay protected either way, so
+   * this never buys time by skipping preparation.
+   */
+  allowShortArc = false,
+): number | null {
   const standingCount = slugs.filter(isStandingBuild).length;
   const slots = slugs.map((s) => poseArcRank(s));
   const peakCount = slots.filter((s) => s === ARC_SLOT.peak).length;
@@ -633,9 +657,13 @@ function trimIndexFor(slugs: string[], standingWanted: number): number | null {
     if (isStandingBuild(slugs[i]) && standingCount <= standingWanted) continue;
     // Cool-down is the only role a practice can do without. Warm-up, build and
     // peak each have to keep at least one pose, or the arc stops being a
-    // practice and becomes a list.
+    // practice and becomes a list — unless the request is short enough that
+    // the peak has to go.
     const slotCount = slots.filter((s) => s === slot).length;
-    if (slot !== ARC_SLOT.cooldown && slotCount === 1) continue;
+    const droppable =
+      slot === ARC_SLOT.cooldown ||
+      (allowShortArc && (slot === ARC_SLOT.peak || slot === ARC_SLOT.build));
+    if (!droppable && slotCount === 1) continue;
     eligible.push(i);
   }
   if (eligible.length === 0) return null;
@@ -684,15 +712,85 @@ function trimIndexFor(slugs: string[], standingWanted: number): number | null {
  * from seven poses to five has to cross six), so the caller keeps the last
  * shape that satisfied this and discards anything that never got back to one.
  */
-function arcShapeOk(slugs: string[]): boolean {
+function arcShapeOk(slugs: string[], allowShortArc = false): boolean {
   const slots = slugs.map((s) => poseArcRank(s));
+  const ascending = slots.every((s, i) => i === 0 || s >= slots[i - 1]);
+
+  if (allowShortArc) {
+    // A short practice still has to prepare the body and close it: something
+    // before the working shape, something to rest in after. It does not have
+    // to climb to a peak at 55% of the way through.
+    if (!ascending) return false;
+    const hasPrep = slots.some((s) => s <= ARC_SLOT.warmup);
+    const hasClose = slots.some((s) => s >= ARC_SLOT.cooldown);
+    return hasPrep && hasClose && slugs.length >= 3;
+  }
+
   const warmupAt = slots.indexOf(ARC_SLOT.warmup);
   if (warmupAt !== 1 && warmupAt !== 2) return false;
   const peakAt = slots.indexOf(ARC_SLOT.peak);
   if (peakAt < 0) return false;
+  // "A little past halfway" is quantised by the number of poses: a six-pose
+  // practice can only put its peak at 0.50 or 0.67, so a fixed ±0.10 band is
+  // unsatisfiable below eight poses. Widen the band to one pose either side.
   const frac = (peakAt + 1) / slugs.length;
-  if (frac < 0.45 || frac > 0.65) return false;
-  return slots.every((s, i) => i === 0 || s >= slots[i - 1]);
+  if (Math.abs(frac - PEAK_FRACTION) > peakTolerance(slugs.length)) return false;
+  return ascending;
+}
+
+/** Where a practice should crest: a little past halfway. */
+export const PEAK_FRACTION = 0.55;
+
+/** Half the acceptable band around `PEAK_FRACTION`, never finer than one pose. */
+export function peakTolerance(poseCount: number): number {
+  return Math.max(0.1, 1 / Math.max(1, poseCount));
+}
+
+/**
+ * Put a peak where the shape needs one.
+ *
+ * Only reached when no trim along the way produced a practice that builds and
+ * closes properly. Moves the existing peak into place if it can, and injects a
+ * safe one if the queue has none.
+ */
+function repairArcShape(
+  slugs: string[],
+  safe: (slug: string) => boolean,
+  allowShortArc: boolean,
+  need = "movement",
+): string[] {
+  if (arcShapeOk(slugs, allowShortArc)) return slugs;
+  let next = arcOrder(slugs);
+  if (arcShapeOk(next, allowShortArc)) return next;
+
+  const hasPeak = next.some((s) => poseArcRank(s) === ARC_SLOT.peak);
+  if (!hasPeak) {
+    const peakCandidates = [...(PEAK_POOL[need] ?? []), ...(PEAK_POOL.movement ?? [])];
+    const peak = peakCandidates.find((s) => safe(s) && !next.includes(s));
+    if (peak) next = arcOrder([...next, peak]);
+    if (arcShapeOk(next, allowShortArc)) return next;
+  }
+
+  // The peak can be misplaced in either direction, and the fix differs.
+  for (let guard = 0; guard < 8; guard += 1) {
+    if (arcShapeOk(next, allowShortArc)) return next;
+    const peakAt = next.findIndex((s) => poseArcRank(s) === ARC_SLOT.peak);
+    if (peakAt < 0) break;
+    const frac = (peakAt + 1) / next.length;
+    if (frac > PEAK_FRACTION) {
+      // Cresting too late. Give the practice something to come down through.
+      const cooldown = COOLDOWN_POOL.find((s) => safe(s) && !next.includes(s));
+      if (!cooldown) break;
+      next = arcOrder([...next, cooldown]);
+    } else {
+      // Cresting too early: drop a cool-down, the one role a practice can do
+      // without, so the peak sits later in a shorter queue.
+      const cooldown = next.findIndex((s) => poseArcRank(s) === ARC_SLOT.cooldown);
+      if (cooldown < 0) break;
+      next = next.filter((_, i) => i !== cooldown);
+    }
+  }
+  return next;
 }
 
 /** Pools used to inject a missing arc role so regenerate cannot starve a slot. */
@@ -784,6 +882,21 @@ export function isStandingBuild(slug: string): boolean {
 }
 
 /** 10 min → 1, 15 min → 2, 20+ min → 3. Below 10 is too short for a standing block. */
+/**
+ * Requests shorter than this get a shortened arc instead of an apology.
+ * See `arcShapeOk` for what "shortened" is allowed to mean.
+ */
+export const SHORT_ARC_MINUTES = 8;
+
+/**
+ * The shortest hold worth composing around.
+ *
+ * Not a safety floor — `HOLD_LIMITS` owns that. This is the hold length the
+ * pose-count budget assumes, so a session is planned with holds someone can
+ * actually settle into rather than planned long and then clamped short.
+ */
+export const MEANINGFUL_HOLD_SECONDS = 30;
+
 export function standingFloorFor(minutes: number): number {
   if (minutes < 10) return 0;
   if (minutes < 15) return 1;
@@ -1172,21 +1285,21 @@ export function composeTrainerSession(
 
   if (substituted.length > 0 && c.soreParts.length > 0) {
     adjustments.push(
-      `Adapted ${substituted.length} pose${substituted.length === 1 ? "" : "s"} for your ${c.soreParts.join(" and ").toLowerCase()} (for example, forearm plank instead of full Plank).`,
+      `Adapted ${countOf(substituted.length, "pose")} for your ${c.soreParts.join(" and ").toLowerCase()} (for example, forearm plank instead of full Plank).`,
     );
   }
   if (droppedCount > 0) {
     if (injured && c.soreParts.length > 0) {
       adjustments.push(
-        `Left out ${droppedCount} pose${droppedCount === 1 ? "" : "s"} that load your ${c.soreParts.join(" and ").toLowerCase()}.`,
+        `Left out ${countOf(droppedCount, "pose")} that load your ${c.soreParts.join(" and ").toLowerCase()}.`,
       );
     } else if (injured) {
       adjustments.push(
-        `Kept the intensity low and left out ${droppedCount} pose${droppedCount === 1 ? "" : "s"} — you didn't say where the injury is, so I stayed conservative.`,
+        `Kept the intensity low and left out ${countOf(droppedCount, "pose")} — you didn't say where the injury is, so I stayed conservative.`,
       );
     } else if (c.soreParts.length > 0) {
       adjustments.push(
-        `Swapped out ${droppedCount} pose${droppedCount === 1 ? "" : "s"} to protect your ${c.soreParts.join(" and ").toLowerCase()}.`,
+        `Swapped out ${countOf(droppedCount, "pose")} to protect your ${c.soreParts.join(" and ").toLowerCase()}.`,
       );
     }
   }
@@ -1202,10 +1315,41 @@ export function composeTrainerSession(
   // A six-pose floor is right for a real class and wrong for a short one: six
   // narrated poses cost ~6 minutes before a single hold, so a 5-minute request
   // could never be honored. Short requests get a shorter arc instead.
-  const poseFloor = c.timeMinutes < 8 ? 3 : c.timeMinutes < 13 ? 5 : 6;
+  const poseFloor = c.timeMinutes < SHORT_ARC_MINUTES ? 3 : c.timeMinutes < 13 ? 5 : 6;
+
+  /**
+   * How many poses this session needs.
+   *
+   * Budgeted against what a pose actually costs — its narration and transition,
+   * measured from the candidate slugs, plus a hold long enough to be worth
+   * entering. A flat "one pose per 90 seconds" over-counted: it asked for seven
+   * poses in ten minutes, which left 20 seconds of hold each, so `allocateHolds`
+   * clamped every shape to its floor and the session ran 14 minutes anyway. A
+   * ten-second Warrior II is not a shorter practice, it is a worse one.
+   */
+  const meanOverhead =
+    slugs.length > 0
+      ? slugs.reduce(
+          (sum, slug) =>
+            sum +
+            poseOverheadSeconds({
+              holdSeconds: 0,
+              sides: EACH_SIDE.has(slug) ? "each" : "once",
+              slug,
+              stepCount: asanaBySlug(slug)?.steps.length ?? 0,
+            }),
+          0,
+        ) / slugs.length
+      : TRANSITION_SECONDS + 60;
   const targetPoseCount = Math.max(
     poseFloor,
-    Math.min(16, Math.round((Math.max(5, c.timeMinutes) * 60) / 90)),
+    maxPosesForBudget({
+      targetSeconds: Math.max(5, c.timeMinutes) * 60,
+      perPoseOverheadSeconds: meanOverhead,
+      minHoldSeconds: MEANINGFUL_HOLD_SECONDS,
+      floor: poseFloor,
+      cap: 16,
+    }),
   );
 
   const variant = opts?.variant ?? 0;
@@ -1300,35 +1444,54 @@ export function composeTrainerSession(
   // narration is fixed cost. When that happens the honest move is to teach
   // fewer poses properly, not to keep the list and lie about the length.
   const fitTolerance = Math.max(45, Math.round(targetSeconds * 0.15));
+  /**
+   * Below this, the full six-role arc costs more in narration than the whole
+   * request, so the arc is allowed to shorten rather than the answer being
+   * "no". Five narrated poses are about eight minutes before any hold.
+   */
+  const allowShortArc = c.timeMinutes < SHORT_ARC_MINUTES;
   let holds = allocateHolds(slugs, targetSeconds, experience);
   // Keep the shortest queue that still reads as a practice. Intermediate cuts
   // may pass through a misshapen arc; those are never what we hand back.
-  let keptSlugs = slugs;
-  let keptHolds = holds;
+  //
+  // The starting queue is only a valid answer if it is itself well shaped —
+  // seeding it unconditionally meant a composition that never found a good
+  // trim returned its badly-shaped original, peak stranded at 4/5.
+  let keptSlugs = arcShapeOk(slugs, allowShortArc) ? slugs : null;
+  let keptHolds: number[] | null = keptSlugs ? holds : null;
   let trimmed = 0;
   let cuts = 0;
   while (
     slugs.length > poseFloor &&
     sessionSecondsFor(slugs, holds) > targetSeconds + fitTolerance
   ) {
-    const victim = trimIndexFor(slugs, standingOn ? standingWanted : 0);
+    const victim = trimIndexFor(slugs, standingOn ? standingWanted : 0, allowShortArc);
     if (victim == null) break;
     slugs = slugs.filter((_, i) => i !== victim);
     holds = allocateHolds(slugs, targetSeconds, experience);
     cuts += 1;
-    if (arcShapeOk(slugs)) {
+    if (arcShapeOk(slugs, allowShortArc)) {
       keptSlugs = slugs;
       keptHolds = holds;
       trimmed = cuts;
     }
   }
-  slugs = keptSlugs;
-  holds = keptHolds;
+  if (keptSlugs && keptHolds) {
+    slugs = keptSlugs;
+    holds = keptHolds;
+  } else {
+    // Nothing along the way was well shaped. Repair the shape rather than
+    // shipping the queue that failed it.
+    slugs = repairArcShape(slugs, safe, allowShortArc, deliveredNeed);
+    holds = allocateHolds(slugs, targetSeconds, experience);
+  }
   // Deliberately not an `adjustment`: trimming to honor the requested length is
   // normal composition, not a safety substitution the UI should flag in amber.
+  // Only a note about composition. The duration itself is stated once, by the
+  // reasoning sentence and the badge, both derived from the final queue.
   const trimNote =
     trimmed > 0
-      ? `Kept to ${slugs.length} poses so this really is about ${Math.max(1, Math.round(sessionSecondsFor(slugs, holds) / 60))} minutes — each pose is talked through before you hold it, and that time counts.`
+      ? `Kept to ${countOf(slugs.length, "pose")} — each one is talked through before you hold it, and that time counts.`
       : null;
 
   const poses: TrainerPose[] = slugs.map((s, i) => ({
@@ -1359,9 +1522,12 @@ export function composeTrainerSession(
   // branch used to leave it starting mid-clause and lowercase:
   // "with 30 minutes for strength, I've shaped…"
   const deliveredLabel = (NEED_LABEL[deliveredNeed] ?? deliveredNeed).toLowerCase();
+  // The length in this sentence is the one the player will run. Naming the
+  // requested minutes here is how "Here are 5 minutes" ended up printed above
+  // a nine-minute practice.
   const reasoning = c.soreParts.length
-    ? `Because your ${c.soreParts.join(" and ").toLowerCase()} ${careAgreement(c.soreParts)} asking for care, I've shaped ${c.timeMinutes} minutes of ${deliveredLabel} that meets you where you are and closes in rest.`
-    : `Here are ${c.timeMinutes} minutes of ${deliveredLabel}, shaped for how you're feeling today and closing in rest.`;
+    ? `Because your ${c.soreParts.join(" and ").toLowerCase()} ${careAgreement(c.soreParts)} asking for care, I've shaped ${actualMinutes} minutes of ${deliveredLabel} that meets you where you are and closes in rest.`
+    : `Here are ${actualMinutes} minutes of ${deliveredLabel}, shaped for how you're feeling today and closing in rest.`;
 
   let standingExclusion: string | null = null;
   const standingCount = poses.filter((p) => isStandingBuild(p.slug)).length;
@@ -1390,6 +1556,76 @@ export function composeTrainerSession(
     adjustments,
     standingExclusion,
   };
+}
+
+/**
+ * Bring an already-composed queue back inside its requested length.
+ *
+ * The Adaptive Plan composes, then eases holds, then swaps poses, then tops the
+ * time back up — and each of those steps can push the practice past what was
+ * asked for. Re-fitting after the reshaping is the only way the number the user
+ * picked and the number the player runs can agree.
+ *
+ * Shortens holds toward their own safe floor first, and only then drops a pose.
+ * Never touches the closing rest, and never takes a hold below the floor the
+ * band allows for that shape and that practitioner.
+ */
+export function fitQueueToMinutes<
+  T extends { slug: string; holdSeconds: number; sides: "once" | "each"; arcSlot?: number },
+>(poses: T[], requestedMinutes: number, experience: TrainerExperience = "new"): T[] {
+  const targetSeconds = Math.max(5, requestedMinutes) * 60;
+  const tolerance = Math.max(45, Math.round(targetSeconds * 0.15));
+  let next = poses.map((p) => ({ ...p }));
+  if (estimatedSessionSeconds(next) <= targetSeconds + tolerance) return next;
+
+  // 1. Shorten holds toward their floors, longest overshoot first.
+  const floors = new Map<string, number>();
+  for (const p of next) {
+    const asana = asanaBySlug(p.slug);
+    floors.set(p.slug, asana ? holdLimitsFor(p.slug, asana, experience).min : 20);
+  }
+  for (let guard = 0; guard < 40; guard += 1) {
+    const over = estimatedSessionSeconds(next) - targetSeconds;
+    if (over <= tolerance) break;
+    const trimmable = next
+      .map((p, i) => ({ i, room: p.holdSeconds - (floors.get(p.slug) ?? 20) }))
+      .filter((x) => x.room > 0)
+      .sort((a, b) => b.room - a.room);
+    if (trimmable.length === 0) break;
+    const target = trimmable[0]!;
+    const sides = next[target.i]!.sides === "each" ? 2 : 1;
+    const cut = Math.min(target.room, Math.max(5, Math.ceil(over / sides)));
+    next[target.i]!.holdSeconds -= cut;
+  }
+
+  // 2. Still over: drop poses, keeping the opening and the closing rest — and
+  // only keep a cut that leaves a practice still shaped like one. Trimming
+  // purely for time stranded the peak at the second-to-last pose.
+  const shortArc = requestedMinutes < SHORT_ARC_MINUTES;
+  let bestShaped = arcShapeOk(
+    next.map((p) => p.slug),
+    shortArc,
+  )
+    ? next
+    : null;
+  while (next.length > 3 && estimatedSessionSeconds(next) > targetSeconds + tolerance) {
+    const victim = trimIndexFor(
+      next.map((p) => p.slug),
+      0,
+      shortArc,
+    );
+    if (victim == null) break;
+    next = next.filter((_, i) => i !== victim);
+    if (
+      arcShapeOk(
+        next.map((p) => p.slug),
+        shortArc,
+      )
+    ) {
+      bestShaped = next;
+    }
+  }
+  return bestShaped ?? next;
 }
 
 /**

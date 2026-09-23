@@ -19,10 +19,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { asanaBySlug } from "@/data/content";
 import { formatDuration } from "@/lib/formatDuration";
 import type { PracticeRecommendation } from "@/lib/homeRecommendation";
-import { buildSessionPreflight } from "@/lib/sessionPreflight";
+import { buildSessionPreflight, toTimedPoses } from "@/lib/sessionPreflight";
+import { briefModeFit, nearestOfferedMinutes } from "@/lib/sessionFit";
+import { DurationFitNotice } from "@/components/DurationFitNotice";
 import { TIME_OPTIONS, NEED_OPTIONS } from "@/lib/yogaTrainer";
 import type { InstructionMode } from "@/lib/guidedDuration";
-import { AlertTriangle, ChevronDown, Package, Play } from "lucide-react";
+import { ChevronDown, Package, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function TodayPracticeCardSkeleton() {
@@ -49,7 +51,7 @@ export function TodayPracticeCard({
 }: {
   recommendation: PracticeRecommendation;
   mode?: InstructionMode;
-  onStart: (rec: PracticeRecommendation) => void;
+  onStart: (rec: PracticeRecommendation, instructionMode?: "guided" | "brief" | "timer") => void;
   /** Re-generate at a different length. Absent when this practice is fixed. */
   onChangeMinutes?: (minutes: number) => void;
   /** Re-generate for a different focus. Absent when this practice is fixed. */
@@ -72,6 +74,23 @@ export function TodayPracticeCard({
     requestedMinutes: recommendation.requestedMinutes,
   });
   const fit = recommendation.fit ?? preflight.fit;
+  /**
+   * Captions instead of voice, when that is what makes the requested length
+   * possible. An explicit button — the practitioner asked to be talked through
+   * a practice, so swapping that for captions is their call, not ours.
+   */
+  const briefOffer =
+    fit && !fit.fits && recommendation.requestedMinutes != null
+      ? (() => {
+          const brief = briefModeFit({
+            requestedMinutes: recommendation.requestedMinutes,
+            poses: toTimedPoses(poses),
+          });
+          return brief.fits
+            ? { minutes: brief.minutes, savedMinutes: brief.savedMinutes }
+            : null;
+        })()
+      : null;
   const toggle = (next: typeof panel) => setPanel((p) => (p === next ? "none" : next));
 
   return (
@@ -103,13 +122,21 @@ export function TodayPracticeCard({
         </p>
 
         {fit && !fit.fits && fit.explanation && (
-          <p
-            className="flex items-start gap-2 rounded-2xl border border-primary/30 bg-primary/5 p-3 text-sm"
-            data-testid="today-practice-fit"
-          >
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-            <span>{fit.explanation}</span>
-          </p>
+          <DurationFitNotice
+            fit={fit}
+            offerMinutes={
+              recommendation.adjustable && onChangeMinutes
+                ? (() => {
+                    const offer = nearestOfferedMinutes(fit.plannedMinutes, TIME_OPTIONS);
+                    return offer != null && offer !== currentMinutes ? offer : null;
+                  })()
+                : null
+            }
+            onUseOfferedMinutes={onChangeMinutes}
+            briefOffer={briefOffer}
+            onUseBriefMode={() => onStart(recommendation, "brief")}
+            testIdPrefix="today-practice-fit"
+          />
         )}
 
         <Button

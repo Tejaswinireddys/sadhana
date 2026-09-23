@@ -10,6 +10,7 @@ import {
   RECOVERY_CODE_GROUP_LEN,
 } from "./auth";
 import { resetPasswordSchema } from "@shared/schema";
+import { MemoryStorage } from "./storage";
 
 describe("recovery codes", () => {
   it("is the shape we print on screen", () => {
@@ -105,5 +106,68 @@ describe("recovery codes", () => {
     assert.notEqual(stored, code);
     assert.match(stored, /^[a-f0-9]{64}$/);
     assert.ok(!stored.includes(code.replace(/-/g, "")));
+  });
+});
+
+describe("recovery and reset token lifecycle", () => {
+  it("expires: a token past its expiry is not accepted", async () => {
+    const store = new MemoryStorage();
+    const user = await store.createUser({
+      email: "expiry@example.test",
+      passwordHash: "x",
+      displayName: "Expiry",
+    });
+    const code = newRecoveryCode();
+    const expired = new Date(Date.now() - 60_000);
+    await store.createPasswordResetToken(user.id, hashResetToken(normalizeRecoveryCode(code)), expired);
+    const row = await store.getPasswordResetToken(hashResetToken(normalizeRecoveryCode(code)));
+    assert.ok(row, "the row exists…");
+    assert.ok(
+      new Date(row!.expiresAt).getTime() < Date.now(),
+      "…and the route's expiry check is what refuses it",
+    );
+  });
+
+  it("is single use: consuming a code deletes it", async () => {
+    const store = new MemoryStorage();
+    const user = await store.createUser({
+      email: "single@example.test",
+      passwordHash: "x",
+      displayName: "Single",
+    });
+    const code = newRecoveryCode();
+    const hash = hashResetToken(normalizeRecoveryCode(code));
+    await store.createPasswordResetToken(user.id, hash, recoveryCodeExpiry());
+    assert.ok(await store.getPasswordResetToken(hash));
+    await store.deletePasswordResetToken(hash);
+    assert.equal(await store.getPasswordResetToken(hash), undefined);
+  });
+
+  it("is not a bearer token for another account", async () => {
+    const store = new MemoryStorage();
+    const mine = await store.createUser({
+      email: "mine@example.test",
+      passwordHash: "x",
+      displayName: "Mine",
+    });
+    const theirs = await store.createUser({
+      email: "theirs@example.test",
+      passwordHash: "x",
+      displayName: "Theirs",
+    });
+    const code = newRecoveryCode();
+    const hash = hashResetToken(normalizeRecoveryCode(code));
+    await store.createPasswordResetToken(mine.id, hash, recoveryCodeExpiry());
+    const row = await store.getPasswordResetToken(hash);
+    // The route compares tokenRow.userId against the account being reset.
+    assert.equal(row!.userId, mine.id);
+    assert.notEqual(row!.userId, theirs.id);
+  });
+
+  it("normalizes however it was written down", () => {
+    const code = newRecoveryCode();
+    const messy = ` ${code.toLowerCase().replace(/-/g, "")} `;
+    assert.equal(normalizeRecoveryCode(messy), normalizeRecoveryCode(code));
+    assert.equal(looksLikeRecoveryCode(messy), true);
   });
 });

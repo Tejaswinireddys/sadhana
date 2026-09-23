@@ -2,7 +2,13 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { adviseNextSession, scaleHoldSeconds, type SessionOutcome } from "./adaptiveRecovery";
 import { generateAdaptiveSession, pickEasierSwap, swapPose } from "./adaptiveGenerator";
-import { poseArcRank, isStandingBuild, standingFloorFor } from "./yogaTrainer";
+import {
+  poseArcRank,
+  isStandingBuild,
+  standingFloorFor,
+  PEAK_FRACTION,
+  peakTolerance,
+} from "./yogaTrainer";
 import { parseVoiceCommand } from "./voiceControl";
 import {
   PILOT_POSES,
@@ -197,9 +203,12 @@ describe("adaptive generator", () => {
           );
           const peakAt = slots.findIndex((s) => s === 3);
           assert.ok(peakAt >= 0, `${minutes}min ${need} v${variant} has no peak`);
+          // The peak lands a little past halfway, within one pose. A fixed
+          // ±0.10 band cannot be met by a six-pose plan, whose only options
+          // are 0.50 and 0.67.
           const frac = (peakAt + 1) / poses.length;
           assert.ok(
-            frac >= 0.45 && frac <= 0.65,
+            Math.abs(frac - PEAK_FRACTION) <= peakTolerance(poses.length),
             `${minutes}min ${need} v${variant} peak at ${peakAt + 1}/${poses.length} (${frac.toFixed(2)})`,
           );
         }
@@ -219,11 +228,20 @@ describe("adaptive generator", () => {
         headline: "An easier practice to rebuild momentum",
       },
     });
+    // The length the practitioner picked is the one named, and the eased cap is
+    // never substituted for it. (The wording moved; the promise did not.)
     assert.ok(
-      result.explanations.some((e) => /Target about 20 minutes/.test(e)),
+      result.explanations.some((e) => /about 20 minutes/.test(e)),
       result.explanations.join(" | "),
     );
-    assert.ok(!result.explanations.some((e) => /Target about 15 minutes/.test(e)));
+    assert.ok(!result.explanations.some((e) => /about 15 minutes/.test(e)));
+    // And it is said exactly once — two duration sentences in this list used to
+    // contradict each other.
+    assert.equal(
+      result.explanations.filter((e) => /\bminutes?\b.*\bmin\b|about \d+ minutes/.test(e)).length,
+      1,
+      result.explanations.join(" | "),
+    );
     assert.ok(
       result.session.totalMinutes >= 17,
       `easing capped a 20-minute request to ${result.session.totalMinutes}`,
@@ -243,7 +261,7 @@ describe("adaptive generator", () => {
       },
     });
     assert.ok(
-      recover.explanations.some((e) => /Target about 20 minutes/.test(e)),
+      recover.explanations.some((e) => /about 20 minutes/.test(e)),
       recover.explanations.join(" | "),
     );
     assert.ok(
@@ -265,11 +283,11 @@ describe("adaptive generator", () => {
     for (const mins of [10, 15, 20, 25]) {
       const result = generateAdaptiveSession({ intentMinutes: mins, adviceOverride: easy });
       assert.ok(
-        result.explanations.some((e) => new RegExp(`Target about ${mins} minutes`).test(e)),
+        result.explanations.some((e) => new RegExp(`about ${mins} minutes`).test(e)),
         `${mins} min chip: ${result.explanations.join(" | ")}`,
       );
       assert.ok(
-        !result.explanations.some((e) => /Target about 15 minutes/.test(e)) || mins === 15,
+        !result.explanations.some((e) => /about 15 minutes/.test(e)) || mins === 15,
         `${mins} min chip still advertised 15: ${result.explanations.join(" | ")}`,
       );
       assert.ok(

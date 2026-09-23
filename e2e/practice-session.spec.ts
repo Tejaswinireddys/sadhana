@@ -90,10 +90,13 @@ test.describe("the player fits a phone", () => {
       const countdown = await box("guided-countdown");
       const transport = await box("guided-transport");
 
-      // Nothing essential may sit on top of anything else essential.
-      expect(name_.y + name_.height, "pose name runs under the timer").toBeLessThanOrEqual(
-        countdown.y + 1,
-      );
+      // Nothing essential may sit on top of anything else essential. Compared
+      // as rectangles, not by vertical order: in landscape the demonstration
+      // and the controls are deliberately side by side, so "name above timer"
+      // is not the contract — "name not on top of timer" is.
+      const overlaps = (a: typeof name_, b: typeof name_) =>
+        a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+      expect(overlaps(name_, countdown), "pose name overlaps the timer").toBe(false);
       // Everything essential is inside the viewport.
       for (const [label, b] of [
         ["pose name", name_],
@@ -120,8 +123,11 @@ test.describe("the player fits a phone", () => {
     await expect(page.getByTestId("text-current-pose")).toContainText("Supported Child's Pose");
     // No generated clip may stand in for a demonstration.
     await expect(page.locator('[data-testid="guided-hero"] video')).toHaveCount(0);
+    // The still is labelled honestly. For this pose the label is the more
+    // specific one — its illustration disagrees with its own instructions —
+    // which supersedes the generic "no movement demo" line.
     await expect(page.getByTestId("pose-human-note-salamba-balasana")).toContainText(
-      /static reference/i,
+      /static reference|illustration shows less support/i,
     );
   });
 });

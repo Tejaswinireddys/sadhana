@@ -25,10 +25,19 @@ export function isDisplayableName(name: string | null | undefined): name is stri
 export function welcomeHeaderTitle({
   hasCompletedSessions,
   displayName,
+  loading = false,
 }: {
   hasCompletedSessions: boolean;
   displayName?: string | null;
+  /**
+   * True while saved practice is still being read. "Start your practice" is a
+   * statement about someone with no history; showing it to a returning
+   * practitioner for half a second, before their name appears, tells them the
+   * app has lost their practice.
+   */
+  loading?: boolean;
 }): string {
+  if (loading) return "Today";
   if (!hasCompletedSessions) return "Start your practice";
   if (isDisplayableName(displayName)) return `Welcome back, ${displayName.trim()}`;
   return "Welcome back";

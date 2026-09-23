@@ -106,6 +106,7 @@ import { preloadPoseVideo, clearPreloadedPoseVideo } from "@/lib/videoPreload";
 import { StreamVideo } from "@/components/StreamVideo";
 import { SessionPreflightCard } from "@/components/SessionPreflightCard";
 import { ExploreDirectory } from "@/components/ExploreDirectory";
+import { accurateImageAlt } from "@/data/poseImageAccuracy";
 import { buildSessionPreflight } from "@/lib/sessionPreflight";
 import {
   QUICK_SESSIONS,
@@ -316,7 +317,8 @@ export default function GuidedSession() {
    * 55–70s recording — roughly a third of the advertised length on a short
    * session, which is why every duration on this screen reads this value.
    */
-  const instructionMode: InstructionMode = voiceEnabled ? "guided" : "brief";
+  const instructionMode: InstructionMode =
+    meta.instructionMode ?? (voiceEnabled ? "guided" : "brief");
 
   /**
    * Everything the preparation screen promises, derived from this exact queue
@@ -653,7 +655,7 @@ export default function GuidedSession() {
     }),
   );
   const cueDuration =
-    voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
+    instructionMode === "guided" && voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
       ? voiceDuration
       : SILENT_INSTRUCTION_SECONDS;
   const cueTimings = useMemo(
@@ -1088,7 +1090,7 @@ export default function GuidedSession() {
       speechPlayerRef.current = null;
 
       const mode =
-        !voiceEnabled
+        !voiceEnabled || instructionMode !== "guided"
           ? "silent"
           : src && !audioBrokenRef.current
             ? "mp3"
@@ -1153,7 +1155,7 @@ export default function GuidedSession() {
         speechPlayerRef.current.tick(0);
       }
     },
-    [voiceEnabled, pace, src, allowRobotVoice, activeCues, muted],
+    [voiceEnabled, instructionMode, pace, src, allowRobotVoice, activeCues, muted],
   );
 
   const enterHold = useCallback(() => {
@@ -1171,13 +1173,13 @@ export default function GuidedSession() {
     setStepIndex(Math.max(0, stepCount - 1));
     setStepProgress(1);
     setNarrationTime(
-      voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
+      instructionMode === "guided" && voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
         ? voiceDuration
         : SILENT_INSTRUCTION_SECONDS,
     );
     setCueIndex(0);
     setPhase("hold");
-  }, [current, voiceDuration, voiceEnabled, stepCount, clearBankedExtension]);
+  }, [current, voiceDuration, voiceEnabled, instructionMode, stepCount, clearBankedExtension]);
 
   // When narration audio ends → side switch (if "each" and on side 1) or hold.
   const onVoiceEnded = useCallback(() => {
@@ -1863,15 +1865,21 @@ export default function GuidedSession() {
           description="Optional — a quick check-in before your guided flow."
           confirmLabel="Skip"
           testIdPrefix="premood"
+          /*
+            Answering the mood question used to call beginSession() straight
+            away, so a practice launched from Today went question → player and
+            the preparation screen underneath was never seen. Sessions that
+            carry a mood already (the mood decks) skipped the modal and got the
+            preflight, which is why only some entry points appeared to have one.
+            Every answer now closes the modal and reveals the same screen.
+          */
           onPick={(m) => {
             setPreMood(m);
             setShowPreMood(false);
-            beginSession();
           }}
           onSkip={() => {
             setPreMood(null);
             setShowPreMood(false);
-            beginSession();
           }}
           onDismiss={() => {
             setShowPreMood(false);
@@ -1996,7 +2004,13 @@ export default function GuidedSession() {
         paddingTop: "env(safe-area-inset-top, 0px)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}
-      className="fixed inset-0 z-50 flex flex-col bg-background"
+      className={cn(
+        "fixed inset-0 z-50 flex flex-col bg-background",
+        // Short and wide (landscape phones): the demonstration and the controls
+        // sit side by side. Stacked, a 390px-tall viewport left 23 pixels of
+        // pose illustration, which teaches nothing.
+        "[@media(max-height:500px)_and_(orientation:landscape)]:flex-row",
+      )}
       data-testid="guided-session"
       data-chrome={chromeVisible ? "visible" : "idle"}
       data-clock-frozen={clockFrozen ? "true" : "false"}
@@ -2103,7 +2117,7 @@ export default function GuidedSession() {
         sliced in half. Media now takes the space that is left over after the
         name, the timer and the controls have theirs.
       */}
-      <div className="relative flex min-h-0 flex-1 items-stretch justify-center overflow-hidden px-2 sm:px-4">
+      <div className="relative flex min-h-0 flex-1 items-stretch justify-center overflow-y-auto px-2 sm:px-4 [@media(max-height:500px)_and_(orientation:landscape)]:w-[44%] [@media(max-height:500px)_and_(orientation:landscape)]:flex-none">
         {/* prev thumb */}
         {prev && (
           <div
@@ -2114,7 +2128,7 @@ export default function GuidedSession() {
           >
             <img width={80} height={160}
               src={`${import.meta.env.BASE_URL}poses/${prev.slug}.png`}
-              alt={prev.imageAlt}
+              alt={accurateImageAlt(prev.slug, prev.imageAlt)}
               className="h-20 w-20 rounded-xl object-contain"
               loading="lazy"
               decoding="async"
@@ -2138,7 +2152,7 @@ export default function GuidedSession() {
           >
             <img width={80} height={160}
               src={`${import.meta.env.BASE_URL}poses/${next.slug}.png`}
-              alt={next.imageAlt}
+              alt={accurateImageAlt(next.slug, next.imageAlt)}
               className="h-20 w-20 rounded-xl object-contain"
               loading="lazy"
               decoding="async"
@@ -2154,9 +2168,16 @@ export default function GuidedSession() {
         )}
 
         <div className="flex min-h-0 w-full max-w-xl flex-1 flex-col items-center justify-center gap-1 py-1">
+          {/*
+            `min-h` is the other half of the `min-h-0` fix. Letting the stage
+            shrink stopped the heading being pushed under the timer; without a
+            floor it kept shrinking, to a 124px sliver at 320x568 and 23px in
+            landscape. Below this size the illustration stops being a
+            demonstration, so the panel below scrolls instead.
+          */}
           <div
-            className="relative flex min-h-0 w-full flex-1 items-center justify-center"
-            style={{ maxHeight: "min(58vh, 560px)" }}
+            className="relative flex w-full flex-1 items-center justify-center"
+            style={{ minHeight: "11rem", maxHeight: "min(58vh, 560px)" }}
             data-testid="guided-stage-crossfade"
           >
             {layersForStage.map((layer, i) => {
@@ -2203,7 +2224,10 @@ export default function GuidedSession() {
                     narrationTime={live ? narrationTime : 0}
                     narrationDuration={
                       live
-                        ? voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
+                        ? instructionMode === "guided" &&
+                          voiceEnabled &&
+                          !audioBrokenRef.current &&
+                          voiceDuration > 0
                           ? voiceDuration
                           : SILENT_INSTRUCTION
                         : 0
@@ -2262,8 +2286,18 @@ export default function GuidedSession() {
       */}
       <div
         className={cn(
-          "max-h-[60vh] shrink-0 overflow-y-auto px-4 pb-5 pt-4 transition-[opacity,border-color] duration-500 motion-reduce:transition-none",
+          "shrink-0 overflow-y-auto px-4 pb-5 pt-4 transition-[opacity,border-color] duration-500 motion-reduce:transition-none",
+          // The controls took 317 of 568 pixels at 320x568, leaving the
+          // demonstration a sliver. Cap the panel so the media keeps the larger
+          // share; the panel scrolls rather than squeezing the figure.
+          "max-h-[60vh] [@media(max-height:700px)]:max-h-[45vh]",
           "[@media(max-height:700px)]:pb-2 [@media(max-height:700px)]:pt-2",
+          // Landscape: the panel is a column beside the demonstration.
+          "[@media(max-height:500px)_and_(orientation:landscape)]:h-full",
+          "[@media(max-height:500px)_and_(orientation:landscape)]:max-h-none",
+          "[@media(max-height:500px)_and_(orientation:landscape)]:w-[56%]",
+          "[@media(max-height:500px)_and_(orientation:landscape)]:border-l",
+          "[@media(max-height:500px)_and_(orientation:landscape)]:border-t-0",
           chromeVisible ? "border-t border-border" : "border-t border-transparent",
         )}
       >
@@ -2303,7 +2337,8 @@ export default function GuidedSession() {
           <p
             key={`${phase}-${stepIndex}-${cueIndex}`}
             className={cn(
-              "min-h-[3rem] animate-fade-in px-2 text-center transition-all motion-reduce:animate-none [@media(max-height:700px)]:min-h-0",
+              "min-h-[3rem] animate-fade-in px-2 text-center transition-all motion-reduce:animate-none",
+              "[@media(max-height:700px)]:line-clamp-2 [@media(max-height:700px)]:min-h-0",
               isHold
                 ? "text-base text-muted-foreground"
                 : "text-lg font-medium text-foreground",
@@ -2314,9 +2349,16 @@ export default function GuidedSession() {
             {activeCaption}
           </p>
 
+          {/*
+            Pause and Skip are the controls someone reaches for mid-pose, often
+            lying down. Capping the panel to give the demonstration more room
+            pushed this row below the fold at 320x568 — reachable by scrolling,
+            which is not the same as reachable. It sticks to the bottom of the
+            panel instead, and the caption above it scrolls.
+          */}
           <div
             className={cn(
-              "flex flex-wrap items-center justify-center gap-2 transition-opacity duration-500 motion-reduce:transition-none",
+              "sticky bottom-0 z-10 flex flex-wrap items-center justify-center gap-2 bg-background/95 py-1 backdrop-blur-sm transition-opacity duration-500 motion-reduce:transition-none",
               chromeVisible ? "opacity-100" : "pointer-events-none opacity-0",
             )}
             data-testid="guided-transport"
@@ -2427,7 +2469,8 @@ export default function GuidedSession() {
             data-testid="guided-pace-label"
           >
             <TimerIcon className="h-3.5 w-3.5" />
-            {remainingFooterLabel(remainingEstimate)} ·{" "}
+            {/* Addressable on its own so the estimate can be asserted directly. */}
+            <span data-testid="guided-remaining">{remainingFooterLabel(remainingEstimate)}</span> ·{" "}
             {pace === 0.75 ? "slow" : pace === 1.25 ? "fast" : "normal"}
             {side === 2 ? " · side 2" : isEach ? " · side 1" : ""}
             {playback?.kind === "speech" ? " · robot voice" : ""}

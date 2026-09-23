@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import type { Asana, Mood } from "@/data/content";
+import type { InstructionMode } from "@/lib/guidedDuration";
 import { asanaBySlug } from "@/data/content";
 import {
   loadPersistedPractice,
@@ -44,6 +45,14 @@ export type SessionMeta = {
   introPoseSlug?: string | null;
   /** Body regions asking for care — used to revalidate replacements mid-session. */
   careRegions?: string[] | null;
+  /**
+   * A teaching mode chosen for THIS practice, overriding the voice preference.
+   *
+   * Set only when the practitioner explicitly picked it — for example, taking
+   * a "practise this in 5 minutes with captions instead of voice" offer when
+   * narration is what pushed the session over the length they asked for.
+   */
+  instructionMode?: InstructionMode | null;
 };
 
 type PracticeContextType = {
@@ -75,6 +84,7 @@ const DEFAULT_META: SessionMeta = {
   preMood: null,
   introPoseSlug: null,
   careRegions: null,
+  instructionMode: null,
 };
 
 function hydrateFromStorage(): {

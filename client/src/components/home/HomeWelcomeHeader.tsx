@@ -13,6 +13,7 @@ export function HomeWelcomeHeader({
   dateLabel,
   practicedToday = false,
   reminderHour = 18,
+  loading = false,
 }: {
   /** True once the practitioner has ≥1 completed session (a returning visitor). */
   hasCompletedSessions: boolean;
@@ -23,9 +24,11 @@ export function HomeWelcomeHeader({
   practicedToday?: boolean;
   /** The hour they asked to be reminded at, for an evening line that is true. */
   reminderHour?: number;
+  /** Saved practice has not arrived yet: say nothing about their history. */
+  loading?: boolean;
 }) {
   const base = import.meta.env.BASE_URL;
-  const title = welcomeHeaderTitle({ hasCompletedSessions, displayName });
+  const title = welcomeHeaderTitle({ hasCompletedSessions, displayName, loading });
   // Pale watercolour figures on a white card render as a blank white rectangle
   // for the whole load. Hold a visible placeholder until the front pose lands.
   const [heroReady, setHeroReady] = useState(false);
@@ -49,13 +52,15 @@ export function HomeWelcomeHeader({
           instead, or say nothing.
         */}
         <p className="max-w-xl text-muted-foreground" data-testid="text-home-subtitle">
-          {practicedToday
+          {loading
+            ? "Reading your saved practice…"
+            : practicedToday
             ? "You've already practised today. What follows is optional."
             : hasCompletedSessions
               ? new Date().getHours() >= reminderHour
                 ? "Evening — a shorter, quieter practice is below."
                 : "Your practice for today is below, with three other options."
-              : "Your first practice is below. Nothing is saved anywhere but this browser until you say so."}
+                : "Your first practice is below. Nothing is saved anywhere but this browser until you say so."}
         </p>
       </div>
 

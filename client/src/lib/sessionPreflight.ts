@@ -28,6 +28,7 @@ import {
   type SessionEquipment,
 } from "@/lib/sessionEquipment";
 import { poseDemoAvailability } from "@/data/poseDemoAvailability";
+import { poseImageCaveat } from "@/data/poseImageAccuracy";
 
 export type PreflightPose = Asana & { sides?: "once" | "each"; holdSeconds: number };
 
@@ -77,6 +78,12 @@ export type SessionPreflight = {
   modifications: SessionModification[];
   /** True when at least one pose has no reviewed movement demonstration. */
   usesStaticReference: boolean;
+  /**
+   * Poses whose illustration does not match their own instructions, with the
+   * difference spelled out. Surfaced before the practice so nobody copies a
+   * picture that disagrees with the words.
+   */
+  imageCaveats: Array<{ slug: string; english: string; caveat: string }>;
   /** Present only when a requested length could not be honoured. */
   fit: SessionFit | null;
 };
@@ -245,6 +252,10 @@ export function buildSessionPreflight(opts: {
     usesStaticReference: poses.some(
       (p) => poseDemoAvailability(p.slug).kind !== "movement",
     ),
+    imageCaveats: poses.flatMap((p) => {
+      const caveat = poseImageCaveat(p.slug);
+      return caveat ? [{ slug: p.slug, english: p.english, caveat }] : [];
+    }),
     fit:
       opts.requestedMinutes != null
         ? evaluateSessionFit({

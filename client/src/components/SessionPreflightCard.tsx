@@ -8,6 +8,7 @@
  * does not deliver.
  */
 import { Fragment } from "react";
+import { countOf } from "@/lib/plural";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PoseImage } from "@/components/PoseImage";
@@ -110,10 +111,24 @@ export function SessionPreflightCard({
         </span>
       </p>
 
+      {/* Illustrations that disagree with their own instructions, named. */}
+      {preflight.imageCaveats.length > 0 && (
+        <ul className="space-y-2" data-testid="preflight-image-caveats">
+          {preflight.imageCaveats.map((c) => (
+            <li
+              key={c.slug}
+              className="rounded-2xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground"
+            >
+              <span className="font-medium text-foreground">{c.english}:</span> {c.caveat}
+            </li>
+          ))}
+        </ul>
+      )}
+
       {/* Pose preview — collapsed on small screens so Begin stays reachable. */}
       <details className="group" data-testid="preflight-poses">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-          <span>Preview the {preflight.poseCount} poses</span>
+          <span>Preview the {countOf(preflight.poseCount, "pose")}</span>
           <span className="text-xs text-primary group-open:hidden">Show</span>
           <span className="hidden text-xs text-primary group-open:inline">Hide</span>
         </summary>

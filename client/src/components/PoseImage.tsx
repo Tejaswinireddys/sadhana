@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PoseSvg } from "@/components/PoseSvg";
 import { asanaBySlug } from "@/data/content";
 import { resolvePoseImageSources } from "@/lib/poseImageSources";
+import { accurateImageAlt } from "@/data/poseImageAccuracy";
 import { cn } from "@/lib/utils";
 
 export function PoseImage({
@@ -60,7 +61,10 @@ export function PoseImage({
   const [useFullSize, setUseFullSize] = useState(false);
   const asana = asanaBySlug(slug);
   const poseKey = asana?.pose ?? "mountain";
-  const resolvedAlt = asana?.imageAlt || alt || "";
+  // Describe what is drawn. For a pose whose illustration does not match its
+  // instructions, the stored alt describes the pose as written — which tells a
+  // screen-reader user something the picture does not contain.
+  const resolvedAlt = accurateImageAlt(slug, asana?.imageAlt || alt || "");
   // Only reach for a thumb the generator actually produced. The onError
   // fallback below still covers a file that disappears after generation.
   const resolved = resolvePoseImageSources(slug, {

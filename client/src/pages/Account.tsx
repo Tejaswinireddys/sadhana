@@ -690,9 +690,18 @@ export default function Account() {
                       className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
                       data-testid="reset-delivery-copy"
                     >
-                      Email delivery is not configured on this server, so a reset
-                      code cannot be sent to your inbox. Use the recovery code you
-                      saved when you created the account.{" "}
+                      {/*
+                        Lead with the path that works. The previous wording
+                        opened on "email delivery is not configured", which read
+                        as a dead end even though a working recovery form sits
+                        directly beneath it.
+                      */}
+                      <strong className="font-medium text-foreground">
+                        Reset your password with the recovery code
+                      </strong>{" "}
+                      you saved when you created the account — it is below, and it
+                      works right now. This server cannot send email, so there is
+                      no code to wait for in your inbox.{" "}
                       <Link
                         className="underline underline-offset-2"
                         href="/help"

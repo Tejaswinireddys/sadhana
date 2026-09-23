@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef } from "react";
+import { posesQueued } from "@/lib/plural";
 import {
   clampHoldSeconds,
   MAX_HOLD_SECONDS,
@@ -563,7 +564,7 @@ export default function Builder() {
       label: flow.name,
       plannedMinutes: Math.max(1, Math.round(totalSeconds(seq) / 60)),
     });
-    toast({ title: `${flow.name} loaded`, description: `${poses.length} poses queued.` });
+    toast({ title: `${flow.name} loaded`, description: `${posesQueued(poses.length)}.` });
     navigate("/guided");
   };
 
