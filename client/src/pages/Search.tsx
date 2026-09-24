@@ -5,15 +5,13 @@
 //   - Groups results by type with section headers and per-group counts.
 //   - Each result links to its detail page; affirmations link to /affirmations.
 import { useEffect, useState, useMemo } from "react";
-import { rankedPoses, squash } from "@/lib/poseSearch";
+import { searchCatalog } from "@/lib/globalSearch";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/EmptyState";
 import { PoseCardVideo } from "@/components/PoseCardVideo";
-import { PATHWAYS, BREATHING, AFFIRMATIONS } from "@/data/content";
-import { KIDS_POSES, KIDS_BREATH } from "@/data/kids";
 import { Wind, Route as RouteIcon, Sparkles, LayoutGrid, Smile, Search as SearchIcon } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { difficultyBadgeClass } from "@/lib/difficultyBadge";
@@ -82,45 +80,7 @@ export default function Search() {
   }, [draft, query, navigate]);
 
   const q = query.trim().toLowerCase();
-  // A more forgiving, "squashed" form of the query with spaces and hyphens
-  // removed, so "downdog" matches "Downward-Facing Dog" / "Adho Mukha Svanasana".
-  const qSquashed = squash(q);
-
-  const results = useMemo(() => {
-    if (!q) return { poses: [], breathing: [], pathways: [], affirmations: [], kids: [] };
-
-    const poses = rankedPoses(q);
-
-    const pathways = PATHWAYS.filter((p) => {
-      const hay = [p.name, p.summary, p.target].join(" ").toLowerCase();
-      return hay.includes(q);
-    });
-
-    const breathing = BREATHING.filter((b) => {
-      const hay = [b.name, b.tagline, b.description].join(" ").toLowerCase();
-      return hay.includes(q);
-    });
-
-    const affirmations = AFFIRMATIONS.filter((t) => t.toLowerCase().includes(q));
-
-    const kidsPoses = KIDS_POSES.filter((k) => {
-      const hay = [k.title, k.poseName, k.sanskrit ?? "", k.intro, k.story.join(" ")].join(" ").toLowerCase();
-      return hay.includes(q) || (qSquashed.length >= 3 && squash(k.poseName).includes(qSquashed));
-    }).map((k) => ({ kind: "pose" as const, ...k }));
-
-    const kidsBreath = KIDS_BREATH.filter((k) => {
-      const hay = [k.techniqueName, k.description, k.why].join(" ").toLowerCase();
-      return hay.includes(q);
-    }).map((k) => ({ kind: "breath" as const, ...k }));
-
-    return {
-      poses,
-      breathing,
-      pathways,
-      affirmations,
-      kids: [...kidsPoses, ...kidsBreath],
-    };
-  }, [q, qSquashed]);
+  const results = useMemo(() => searchCatalog(query.trim()), [query]);
 
   const total =
     results.poses.length +
@@ -170,6 +130,34 @@ export default function Search() {
         />
       ) : (
         <div className="space-y-8">
+          {/* Breathing */}
+          {results.breathing.length > 0 && (
+            <section className="space-y-3" data-testid="search-group-breathing">
+              <h2 className="flex items-center gap-2 font-serif text-xl">
+                <Wind className="h-5 w-5 text-secondary" /> Breathing
+                <span className="text-sm font-normal text-muted-foreground">
+                  · {results.breathing.length} technique
+                  {results.breathing.length === 1 ? "" : "s"}
+                </span>
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {results.breathing.map((b) => (
+                  <Link key={b.slug} href={`/breathing?slug=${encodeURIComponent(b.slug)}`}>
+                    <Card
+                      className="cursor-pointer shadow-soft transition-colors hover:bg-accent/40"
+                      data-testid={`search-result-breathing-${b.slug}`}
+                    >
+                      <CardContent className="space-y-1 p-4">
+                        <p className="font-serif text-base">{b.name}</p>
+                        <p className="text-sm text-muted-foreground">{b.tagline}</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Poses */}
           {results.poses.length > 0 && (
             <section className="space-y-3" data-testid="search-group-poses">
@@ -215,34 +203,6 @@ export default function Search() {
                             <p className="truncate text-xs text-primary/90">Best for · {a.bestFor[0]}</p>
                           )}
                         </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Breathing */}
-          {results.breathing.length > 0 && (
-            <section className="space-y-3" data-testid="search-group-breathing">
-              <h2 className="flex items-center gap-2 font-serif text-xl">
-                <Wind className="h-5 w-5 text-secondary" /> Breathing
-                <span className="text-sm font-normal text-muted-foreground">
-                  · {results.breathing.length} technique
-                  {results.breathing.length === 1 ? "" : "s"}
-                </span>
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {results.breathing.map((b) => (
-                  <Link key={b.slug} href={`/breathing?slug=${encodeURIComponent(b.slug)}`}>
-                    <Card
-                      className="cursor-pointer shadow-soft transition-colors hover:bg-accent/40"
-                      data-testid={`search-result-breathing-${b.slug}`}
-                    >
-                      <CardContent className="space-y-1 p-4">
-                        <p className="font-serif text-base">{b.name}</p>
-                        <p className="text-sm text-muted-foreground">{b.tagline}</p>
                       </CardContent>
                     </Card>
                   </Link>
