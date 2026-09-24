@@ -4,6 +4,8 @@
  * Glo’s /onboarding is essentially “sign in to start.” Sadhana leads with brand,
  * a clear life-path, and a free guided practice — no email required.
  */
+import { WithheldPoseImage } from "@/components/WithheldPoseImage";
+import { poseImageWithheld } from "@/data/poseImageAccuracy";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -299,11 +301,15 @@ export function Onboarding({
                       key={p.slug}
                       className="h-14 w-10 shrink-0 overflow-hidden rounded-lg border border-border/50 bg-card"
                     >
-                      <img loading="lazy" width={600} height={1200}
+                      {poseImageWithheld(p.slug) ? (
+                        <WithheldPoseImage slug={p.slug} compact />
+                      ) : (
+                        <img loading="lazy" width={600} height={1200}
                         src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
                         alt=""
                         className="h-full w-full object-cover object-top"
                       />
+                      )}
                     </li>
                   ))}
                 </ul>

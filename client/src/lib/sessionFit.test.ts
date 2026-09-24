@@ -137,7 +137,7 @@ describe("evaluateSessionFit", () => {
       minHoldSeconds: many.map(() => 10),
     });
     assert.equal(impossible.fits, false);
-    assert.match(impossible.explanation ?? "", /talked through/);
+    assert.match(impossible.explanation ?? "", /including guidance — \d+ min is too short/);
     assert.equal(impossible.suggestedMinutes, impossible.floorMinutes);
   });
 

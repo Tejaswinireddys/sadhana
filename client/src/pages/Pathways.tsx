@@ -1,10 +1,12 @@
 import { Link, useLocation } from "wouter";
+import { WithheldPoseImage } from "@/components/WithheldPoseImage";
+import { poseImageWithheld } from "@/data/poseImageAccuracy";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PoseImage } from "@/components/PoseImage";
-import { WarmupCard } from "@/components/WarmupCard";
+import { SessionSpec } from "@/components/SessionSpec";
 import { PATHWAYS } from "@/data/content";
 import type { Pathway } from "@/data/content";
 import { poseImageAlt } from "@/data/poseImageAlts";
@@ -13,8 +15,10 @@ import { usePractice } from "@/context/PracticeContext";
 import { CalendarDays, Repeat, Clock, Sparkles, Play, Zap, Flower2, Trophy } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
+  catalogPreflight,
   catalogDurationCopy,
   flowPoses,
+  sessionPreparation,
   flowSessionLabel,
   flowSessionMinutes,
   pathwaySessionRangeLabel,
@@ -52,7 +56,9 @@ function representativeSlugs(p: Pathway): string[] {
 // Compact card for a quick flow — illustration, name, duration, and a Start
 // button that launches the guided session directly (no detail page).
 function FlowCard({ p, onStart }: { p: Pathway; onStart: (p: Pathway) => void }) {
-  const poseCount = p.weekPlan[0]?.poses.length ?? 0;
+  // One source of truth: the same preflight the player shows before Begin.
+  const preflight = catalogPreflight(flowPoses(p));
+  const prep = sessionPreparation(flowPoses(p));
   return (
     <Card
       className="group flex h-full flex-col overflow-hidden shadow-soft transition-shadow hover:shadow-soft-lg"
@@ -71,17 +77,11 @@ function FlowCard({ p, onStart }: { p: Pathway; onStart: (p: Pathway) => void })
           {p.tagline && (
             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.tagline}</p>
           )}
-          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" /> {flowSessionLabel(p)}
-              {(() => {
-                const d = catalogDurationCopy(flowPoses(p));
-                return d.showTimerOnly ? ` · ${d.timerLabel} timer-only` : "";
-              })()}
-            </span>
-            <span>· {poseCount} poses</span>
-            <span>· All levels</span>
-            <span>· No props required</span>
+          <SessionSpec preflight={preflight} className="mt-2" testId={`spec-flow-${p.slug}`} />
+          <p className="mt-1 text-xs text-muted-foreground" data-testid={`prep-flow-${p.slug}`}>
+            {prep
+              ? `Opens with ${prep.label} of preparation (${prep.names.join(", ")}).`
+              : "Gentle throughout — no separate warm-up needed."}
           </p>
         </div>
         <Button
@@ -140,13 +140,17 @@ function PathwayCard({ p, enrolled }: { p: Pathway; enrolled: boolean }) {
                   key={slug}
                   className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md border border-border bg-background"
                 >
-                  <img width={600} height={1200}
+                  {poseImageWithheld(slug) ? (
+                    <WithheldPoseImage slug={slug} compact />
+                  ) : (
+                    <img width={600} height={1200}
                     src={`${import.meta.env.BASE_URL}poses/${slug}.png`}
                     alt={poseImageAlt(slug)}
                     decoding="async"
                     className="h-full w-full object-contain"
                     loading="lazy"
                   />
+                  )}
                 </span>
               ))}
               <span className="text-xs text-muted-foreground">Goal: {p.target}</span>
@@ -218,9 +222,6 @@ export default function Pathways() {
         </p>
       </header>
 
-      <div className="surface-inset p-4">
-        <WarmupCard />
-      </div>
 
       {/* ---- 1. Quick Flows ---- */}
       {quickFlows.length > 0 && (

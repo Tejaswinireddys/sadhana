@@ -13,11 +13,12 @@
  * `poseImageAccuracy.test.ts` pins the list so a swapped asset cannot quietly
  * change the answer.
  *
- * While a pose is listed, the product must not present its image as an accurate
- * depiction of the supported variation. It still shows the image — a close
- * relative of the shape is more use to someone on the floor than an empty
- * frame — but it says what the difference is, and the alt text describes what
- * is actually drawn.
+ * While a pose is listed, its image is **withheld** everywhere — thumbnails,
+ * cards, the pose page and the player. An earlier version kept the picture
+ * with a "follow the steps, not the picture" badge; a practitioner copying a
+ * shape mid-practice copies the picture. In its place `WithheldPoseImage`
+ * shows a written description of the shape *as instructed* (`instructed`),
+ * which is accurate, until a reviewed illustration replaces the asset.
  */
 
 export type PoseImageMismatch = {
@@ -56,8 +57,8 @@ export const POSE_IMAGE_MISMATCHES: Record<string, PoseImageMismatch> = {
     instructed:
       "A bolster or stack of pillows lengthwise between the knees, the whole torso and one cheek resting on the support",
     caveat:
-      "This illustration shows Child's Pose over a small cushion, not the full-length bolster support these instructions describe. Follow the steps, not the picture.",
-    shortCaveat: "Illustration shows less support than the steps describe",
+      "No illustration yet: the one we had showed Child's Pose over a small cushion, not the full-length bolster these steps describe, so it is hidden until an accurate one is drawn.",
+    shortCaveat: "Illustration withheld — it showed less support than the steps",
     neededAsset: "pose-illustration/salamba-balasana/bolster-lengthwise",
   },
   "chair-viparita-karani": {
@@ -67,8 +68,8 @@ export const POSE_IMAGE_MISMATCHES: Record<string, PoseImageMismatch> = {
     instructed:
       "Calves resting along the chair seat with the knees bent roughly above the hips and the thighs vertical",
     caveat:
-      "This illustration shows the legs straight up rather than the calves resting on the chair seat. The instructions describe the supported version — bend the knees and let the chair take the weight.",
-    shortCaveat: "Illustration shows legs up, not calves on the seat",
+      "No illustration yet: the one we had showed the legs straight up, not the calves resting on the chair seat these steps describe, so it is hidden until an accurate one is drawn.",
+    shortCaveat: "Illustration withheld — it showed legs up, not calves on the seat",
     neededAsset: "pose-illustration/chair-viparita-karani/calves-on-seat",
   },
 };
@@ -79,6 +80,17 @@ export function poseImageMismatch(slug: string): PoseImageMismatch | null {
 
 export function poseImageIsAccurate(slug: string): boolean {
   return !POSE_IMAGE_MISMATCHES[slug];
+}
+
+/** True while the illustration is hidden because it contradicts the steps. */
+export function poseImageWithheld(slug: string): boolean {
+  return !!POSE_IMAGE_MISMATCHES[slug];
+}
+
+/** Accessible label for the placeholder shown instead of a withheld image. */
+export function withheldImageLabel(slug: string, english: string): string {
+  const m = POSE_IMAGE_MISMATCHES[slug];
+  return m ? `${english} — no illustration yet. The shape: ${m.instructed}.` : english;
 }
 
 /**

@@ -10,7 +10,7 @@ import { COACH_CATALOG } from "./coach-catalog";
 const PATHWAY_INDEX = [
   { slug: "foundations-beginner", name: "Foundations for Beginners", kind: "daily", minutes: 12 },
   { slug: "stress-release-week", name: "Stress Release Week", kind: "daily", minutes: 12 },
-  { slug: "chair-limited-mobility", name: "Chair & Limited Mobility", kind: "daily", minutes: 11 },
+  { slug: "chair-limited-mobility", name: "Chair & Limited Mobility", kind: "daily", minutes: 8 },
   { slug: "better-sleep-flow", name: "Better Sleep Flow", kind: "flow", minutes: 12 },
   { slug: "morning-wake-up", name: "Morning Wake-Up", kind: "flow", minutes: 10 },
   { slug: "desk-break", name: "Desk Break", kind: "flow", minutes: 7 },

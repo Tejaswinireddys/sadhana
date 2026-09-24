@@ -1,4 +1,6 @@
 import { useMemo, useState, useRef } from "react";
+import { WithheldPoseImage } from "@/components/WithheldPoseImage";
+import { poseImageWithheld } from "@/data/poseImageAccuracy";
 import { posesQueued } from "@/lib/plural";
 import {
   clampHoldSeconds,
@@ -109,12 +111,16 @@ function FlowCard({
               key={`${p.slug}-${i}`}
               className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-accent/30"
             >
-              <img width={600} height={1200}
+              {poseImageWithheld(p.slug) ? (
+                <WithheldPoseImage slug={p.slug} compact />
+              ) : (
+                <img width={600} height={1200}
                 src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
                 alt={asanaBySlug(p.slug)?.imageAlt ?? p.slug}
                 className="h-full w-full object-contain"
                 loading="lazy"
               />
+              )}
             </span>
           ))}
           {poses.length > 5 && (
@@ -355,12 +361,16 @@ function BuilderView({
                 data-testid={`library-pose-${a.slug}`}
               >
                 <span className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-accent/30">
-                  <img width={600} height={1200}
+                  {poseImageWithheld(a.slug) ? (
+                    <WithheldPoseImage slug={a.slug} compact />
+                  ) : (
+                    <img width={600} height={1200}
                     src={`${import.meta.env.BASE_URL}poses/${a.slug}.png`}
                     alt={a.imageAlt}
                     className="h-full w-full object-contain"
                     loading="lazy"
                   />
+                  )}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{a.english}</p>
@@ -437,12 +447,16 @@ function BuilderView({
                       </Button>
                     </span>
                     <span className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-accent/30">
-                      <img width={600} height={1200}
+                      {poseImageWithheld(p.slug) ? (
+                        <WithheldPoseImage slug={p.slug} compact />
+                      ) : (
+                        <img width={600} height={1200}
                         src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
                         alt={asana?.imageAlt ?? p.slug}
                         className="h-full w-full object-contain"
                         loading="lazy"
                       />
+                      )}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{asana?.english ?? p.slug}</p>

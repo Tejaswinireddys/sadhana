@@ -10,6 +10,8 @@ import {
   missingIllustrationManifest,
   poseImageCaveat,
   poseImageIsAccurate,
+  poseImageWithheld,
+  withheldImageLabel,
 } from "./poseImageAccuracy.ts";
 
 /**
@@ -56,8 +58,39 @@ describe("illustrations that disagree with their instructions", () => {
   it("gives the practitioner the difference, not a shrug", () => {
     const caveat = poseImageCaveat("salamba-balasana")!;
     assert.match(caveat, /not the full-length bolster/i);
-    assert.match(caveat, /Follow the steps/i);
+    // "Follow the steps, not the picture" asked people to ignore what was
+    // on screen. The picture is withheld instead.
+    assert.doesNotMatch(caveat, /not the picture/i);
+    assert.match(caveat, /hidden until an accurate one/i);
     assert.equal(poseImageCaveat("savasana"), null);
+  });
+
+  it("withholds the image everywhere it would render", () => {
+    assert.equal(poseImageWithheld("salamba-balasana"), true);
+    assert.equal(poseImageWithheld("savasana"), false);
+    assert.match(withheldImageLabel("chair-viparita-karani", "Legs on a Chair"), /Calves resting along the chair seat/);
+    // Every raw pose <img> in the app is gated, and the shared components too.
+    const files = [
+      "components/PoseImage.tsx",
+      "components/PoseHumanStage.tsx",
+      "components/AppLayout.tsx",
+      "components/Onboarding.tsx",
+      "components/DailyProgram.tsx",
+      "pages/StartQuiz.tsx",
+      "pages/Pathways.tsx",
+      "pages/Builder.tsx",
+      "pages/PathwayDetail.tsx",
+      "pages/GuidedSession.tsx",
+    ];
+    for (const f of files) {
+      const src = readFileSync(resolve("client/src", f), "utf8");
+      const imgs = (src.match(/poses\/\$\{[\w.]+\}\.png/g) ?? []).length;
+      const gates = (src.match(/poseImageWithheld\(/g) ?? []).length;
+      assert.ok(gates >= Math.min(1, imgs), `${f}: ${imgs} pose <img> but ${gates} withheld gates`);
+      if (f.startsWith("pages/") || f.includes("AppLayout") || f.includes("Onboarding") || f.includes("DailyProgram")) {
+        assert.ok(gates >= imgs, `${f}: every pose <img> is gated`);
+      }
+    }
   });
 
   it("treats every other pose as reviewed and accurate", () => {

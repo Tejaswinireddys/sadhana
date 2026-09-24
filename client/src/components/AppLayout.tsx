@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { WithheldPoseImage } from "@/components/WithheldPoseImage";
+import { poseImageWithheld } from "@/data/poseImageAccuracy";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -261,7 +263,10 @@ function SidebarSearch() {
                     data-testid={`search-suggestion-${s.pose.slug}`}
                   >
                     <span className="h-8 w-8 shrink-0 overflow-hidden rounded bg-accent/30">
-                      <img
+                      {poseImageWithheld(s.pose.slug) ? (
+                        <WithheldPoseImage slug={s.pose.slug} compact />
+                      ) : (
+                        <img
                         src={`${import.meta.env.BASE_URL}poses/${s.pose.slug}.png`}
                         alt={s.pose.imageAlt}
                         width={96}
@@ -270,6 +275,7 @@ function SidebarSearch() {
                         loading="lazy"
                         decoding="async"
                       />
+                      )}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate">{s.pose.english}</span>

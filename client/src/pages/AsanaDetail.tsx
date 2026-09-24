@@ -425,20 +425,7 @@ export default function AsanaDetail() {
                     </li>
                   );
                 }
-                return (
-                  <li key={`warmup-${i}`}>
-                    <Button
-                      variant="outline"
-                      className="h-auto w-full justify-start gap-2 whitespace-normal py-3 text-left"
-                      asChild
-                    >
-                      <Link href="/pathways" data-testid="usage-warmup">
-                        <span className="font-medium">{u.label}</span>
-                        <span className="text-muted-foreground">· before any pathway</span>
-                      </Link>
-                    </Button>
-                  </li>
-                );
+                return null;
               })}
             </ul>
           </CardContent>

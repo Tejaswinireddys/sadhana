@@ -61,7 +61,10 @@ describe("one duration per teaching mode", () => {
   });
 
   it("fit is judged against the mode the practitioner will get", () => {
-    const poses = Array.from({ length: 5 }, () => pose("balasana", 30));
+    // Five *different* poses: Learn re-teaches nothing, so a repeat is cheap.
+    const poses = ["tadasana", "uttanasana", "balasana", "bhujangasana", "savasana"].map((s) =>
+      pose(s, 30),
+    );
     const guided = evaluateSessionFit({ requestedMinutes: 6, poses, mode: "guided" });
     const brief = evaluateSessionFit({ requestedMinutes: 6, poses, mode: "brief" });
     assert.equal(guided.fits, false, "five narrated poses do not fit six minutes");
@@ -104,8 +107,8 @@ describe("remaining time survives the controls", () => {
       phaseRemaining: 30,
       side: 1,
     });
-    const instruction = resolveInstructionSeconds(bilateral[0]!);
-    assert.equal(onSideOne - onSideTwo, SIDE_SWITCH_SECONDS + instruction + 30);
+    // Learn teaches the far side with the short Flow cue, not the full setup.
+    assert.equal(onSideOne - onSideTwo, SIDE_SWITCH_SECONDS + BRIEF_INSTRUCTION_SECONDS + 30);
   });
 
   it("counts time banked by +30s before the hold starts", () => {

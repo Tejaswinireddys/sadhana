@@ -3,7 +3,8 @@
  * guided setup, and the live player. Holds-only sums used to advertise
  * "4 min" while the same queue opened as an 8–25 minute narrated session.
  */
-import { asanaBySlug, WARMUP, type DailyPlan, type Pathway, type PathwayWeek } from "@/data/content";
+import { asanaBySlug, type DailyPlan, type Pathway, type PathwayWeek } from "@/data/content";
+import { buildSessionPreflight, type SessionPreflight } from "@/lib/sessionPreflight";
 import {
   guidedSessionSeconds,
   guidedTimeLabel,
@@ -91,16 +92,49 @@ export function dailySessionLabel(day: DailyPlan): string {
   return catalogSessionLabel(day.poses);
 }
 
-export function warmupPoses(): CatalogPose[] {
-  return WARMUP.steps;
+/**
+ * The one set of facts every card, preview and the player show for a catalog
+ * queue — length for `mode`, level, intensity, props, pose count. Cards used
+ * to hardcode "All levels · No props required" beside a Sleep Wind-Down that
+ * asks for a bolster and a chair.
+ */
+export function catalogPreflight(
+  poses: CatalogPose[],
+  mode: InstructionMode = "guided",
+): SessionPreflight {
+  return buildSessionPreflight({
+    poses: queueCatalogPoses(poses).map((p) => ({
+      ...p.asana,
+      holdSeconds: p.holdSeconds,
+      sides: p.sides,
+    })),
+    mode,
+  });
 }
 
-export function warmupSessionLabel(): string {
-  return catalogSessionLabel(WARMUP.steps);
-}
-
-export function warmupSessionMinutes(): number {
-  return catalogSessionMinutes(WARMUP.steps);
+/**
+ * The part of a session that prepares the body — the leading centering and
+ * warm-up shapes (arc slots 0–1). Programs and flows carry their own, so there
+ * is no universal warm-up to bolt on top; this names it and its share of the
+ * total so the card can say "includes 2 min of preparation".
+ */
+export function sessionPreparation(
+  poses: CatalogPose[],
+  mode: InstructionMode = "guided",
+): { poses: CatalogPose[]; names: string[]; seconds: number; label: string } | null {
+  const lead: CatalogPose[] = [];
+  for (const p of poses) {
+    const slug = p.asanaSlug ?? p.slug;
+    const asana = slug ? asanaBySlug(slug) : undefined;
+    if (!asana || asana.arcSlot > 1) break;
+    lead.push(p);
+  }
+  if (!lead.length) return null;
+  const seconds = catalogSessionSeconds(lead, mode);
+  const names = lead
+    .map((p) => asanaBySlug((p.asanaSlug ?? p.slug)!)?.english)
+    .filter((n): n is string => !!n);
+  return { poses: lead, names: Array.from(new Set(names)), seconds, label: guidedTimeLabel(seconds) };
 }
 
 /** Program-card range from the same week/day math as setup and the player. */

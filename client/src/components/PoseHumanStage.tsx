@@ -9,7 +9,8 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { humanStepSlug } from "@/data/poseKeyImages";
 import { poseImageAlt } from "@/data/poseImageAlts";
-import { accurateImageAlt } from "@/data/poseImageAccuracy";
+import { accurateImageAlt, poseImageWithheld } from "@/data/poseImageAccuracy";
+import { WithheldPoseImage } from "@/components/WithheldPoseImage";
 import type { FocusZone } from "@/lib/poseMoments";
 
 export type PoseHumanStageProps = {
@@ -101,7 +102,8 @@ export function PoseHumanStage({
           moveFigure && momentum,
         )}
       >
-        {layers.map((layer, i) => {
+        {poseImageWithheld(slug) && <WithheldPoseImage slug={slug} className="rounded-2xl" />}
+        {!poseImageWithheld(slug) && layers.map((layer, i) => {
           const isTop = i === layers.length - 1;
           return (
             <img loading="lazy" width={600} height={1200}

@@ -28,16 +28,20 @@ export const BRIEF_INSTRUCTION_SECONDS = 12;
 /**
  * How a queue will be taught.
  *
- * - `guided` — recorded narration per pose (Learn). The default everywhere.
- * - `brief`  — on-screen steps in a short window, no recorded voice (Flow /
- *              voice turned off in settings).
- * - `timer`  — holds and transitions only, no instruction phase at all.
+ * - `guided` — **Learn.** Full recorded setup the first time a pose appears,
+ *              with captions. The far side of a bilateral pose and any later
+ *              repeat of the same pose get the short Flow cue instead — a
+ *              Sun Salutation that replayed a minute of setup for every
+ *              Downward Dog advertised 28 minutes for a 4-minute sequence.
+ * - `brief`  — **Flow.** A short on-screen transition and breath cue per pose,
+ *              no recorded setup (also what voice-off gets).
+ * - `timer`  — **Timer only.** Holds and transitions, no instruction phase.
  */
 export type InstructionMode = "guided" | "brief" | "timer";
 
 export const INSTRUCTION_MODE_LABEL: Record<InstructionMode, string> = {
-  guided: "Voice-guided",
-  brief: "Captions only",
+  guided: "Learn",
+  brief: "Flow",
   timer: "Timer only",
 };
 
@@ -45,11 +49,23 @@ export const INSTRUCTION_MODE_LABEL: Record<InstructionMode, string> = {
 export function instructionModeDescription(mode: InstructionMode): string {
   switch (mode) {
     case "guided":
-      return "Recorded voice talks you into each pose, with captions on screen.";
+      return "Full voice setup the first time each pose appears, with captions. Repeats and second sides get a short cue.";
     case "brief":
-      return "No voice — each pose's steps appear on screen for a few seconds before the hold.";
+      return "Short on-screen transition and breath cues — no full setup. For poses you already know.";
     case "timer":
-      return "No instruction — just the hold timer and a chime between poses.";
+      return "Minimal guidance — the pose name, the hold timer and a chime between poses.";
+  }
+}
+
+/** The mode in a few words, for cards. */
+export function instructionModeShort(mode: InstructionMode): string {
+  switch (mode) {
+    case "guided":
+      return "Learn — voice guidance with captions";
+    case "brief":
+      return "Flow — short on-screen cues";
+    case "timer":
+      return "Timer only — minimal guidance";
   }
 }
 
@@ -89,29 +105,86 @@ export function resolveInstructionSeconds(
   return estimateInstructionSeconds(pose.stepCount ?? 0, narrationSecondsFor(pose.slug));
 }
 
+/**
+ * Whether this occurrence gets the full Learn setup. Only the first side of
+ * the first appearance of a pose does; everything after it is a short cue.
+ * `brief` and `timer` never teach fully.
+ */
+export function teachesFully(
+  mode: InstructionMode,
+  opts: { repeat: boolean; side: 1 | 2 },
+): boolean {
+  return mode === "guided" && !opts.repeat && opts.side === 1;
+}
+
+/** Instruction seconds for one side of one occurrence of a pose. */
+export function occurrenceInstructionSeconds(
+  pose: GuidedTimedPose,
+  mode: InstructionMode,
+  opts: { repeat: boolean; side: 1 | 2 },
+): number {
+  if (mode === "guided" && !teachesFully(mode, opts)) return BRIEF_INSTRUCTION_SECONDS;
+  return resolveInstructionSeconds(pose, mode);
+}
+
+/** `true` at index i when the same pose already appeared earlier in the queue. */
+export function repeatFlags(poses: Array<{ slug?: string }>): boolean[] {
+  const seen = new Set<string>();
+  return poses.map((p) => {
+    if (!p.slug) return false;
+    const repeat = seen.has(p.slug);
+    seen.add(p.slug);
+    return repeat;
+  });
+}
+
 export function guidedPoseSeconds(opts: {
   holdSeconds: number;
   sides?: "each" | "once" | "single";
   instructionSeconds: number;
+  /** Instruction on the far side; defaults to the first side's. */
+  secondSideInstructionSeconds?: number;
 }): number {
   const instruction = Math.max(0, opts.instructionSeconds);
+  const second = Math.max(0, opts.secondSideInstructionSeconds ?? instruction);
   const hold = Math.max(0, opts.holdSeconds);
   const oneSide = TRANSITION_SECONDS + instruction + hold;
-  if (opts.sides === "each") return oneSide + SIDE_SWITCH_SECONDS + instruction + hold;
+  if (opts.sides === "each") return oneSide + SIDE_SWITCH_SECONDS + second + hold;
   return oneSide;
+}
+
+function occurrenceSeconds(pose: GuidedTimedPose, mode: InstructionMode, repeat: boolean): number {
+  return guidedPoseSeconds({
+    holdSeconds: pose.holdSeconds,
+    sides: pose.sides,
+    instructionSeconds: occurrenceInstructionSeconds(pose, mode, { repeat, side: 1 }),
+    secondSideInstructionSeconds: occurrenceInstructionSeconds(pose, mode, { repeat, side: 2 }),
+  });
+}
+
+/**
+ * Seconds for poses[from..] — repeats are judged against the whole queue, so
+ * the tail of a Sun Salutation is not re-taught just because the count
+ * started mid-way.
+ */
+export function guidedSessionSecondsFrom(
+  poses: GuidedTimedPose[],
+  from: number,
+  mode: InstructionMode = "guided",
+): number {
+  const repeats = repeatFlags(poses);
+  let sum = 0;
+  for (let i = Math.max(0, from); i < poses.length; i++) {
+    sum += occurrenceSeconds(poses[i]!, mode, repeats[i]!);
+  }
+  return sum;
 }
 
 export function guidedSessionSeconds(
   poses: GuidedTimedPose[],
   mode: InstructionMode = "guided",
 ): number {
-  return poses.reduce((sum, p) => {
-    return sum + guidedPoseSeconds({
-      holdSeconds: p.holdSeconds,
-      sides: p.sides,
-      instructionSeconds: resolveInstructionSeconds(p, mode),
-    });
-  }, 0);
+  return guidedSessionSecondsFrom(poses, 0, mode);
 }
 
 /** Hold is independent of narration — never shrink a chosen hold to hide leftover voice. */
@@ -199,12 +272,17 @@ export function remainingFromPhases(opts: {
   const current = opts.poses[opts.index];
   if (!current) return 0;
   const hold = Math.max(0, current.holdSeconds);
-  const instruction = resolveInstructionSeconds(current, mode);
+  const repeat = repeatFlags(opts.poses)[opts.index] ?? false;
   const bilateral = current.sides === "each";
   const onFirstSide = bilateral && (opts.side ?? 1) === 1;
+  const instruction = occurrenceInstructionSeconds(current, mode, {
+    repeat,
+    side: onFirstSide || !bilateral ? 1 : 2,
+  });
+  const farInstruction = occurrenceInstructionSeconds(current, mode, { repeat, side: 2 });
   const extension = Math.max(0, opts.pendingHoldExtension ?? 0);
   /** Narration + switch + hold still owed for the far side of a bilateral pose. */
-  const secondSide = onFirstSide ? SIDE_SWITCH_SECONDS + instruction + hold : 0;
+  const secondSide = onFirstSide ? SIDE_SWITCH_SECONDS + farInstruction + hold : 0;
 
   let currentLeft = 0;
   switch (opts.phase) {
@@ -217,7 +295,7 @@ export function remainingFromPhases(opts: {
       break;
     case "sideSwitch":
       // The switch countdown is running; side two's narration and hold follow.
-      currentLeft = Math.max(0, opts.phaseRemaining) + instruction + hold + extension;
+      currentLeft = Math.max(0, opts.phaseRemaining) + farInstruction + hold + extension;
       break;
     case "hold":
       currentLeft = Math.max(0, opts.phaseRemaining) + secondSide;
@@ -225,7 +303,7 @@ export function remainingFromPhases(opts: {
     default:
       currentLeft = 0;
   }
-  const later = guidedSessionSeconds(opts.poses.slice(opts.index + 1), mode);
+  const later = guidedSessionSecondsFrom(opts.poses, opts.index + 1, mode);
   const pace = opts.pace && opts.pace > 0 ? opts.pace : 1;
   return Math.max(0, Math.round((currentLeft + later) / pace));
 }

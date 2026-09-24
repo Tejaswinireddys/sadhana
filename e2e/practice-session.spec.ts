@@ -46,7 +46,7 @@ test.describe("preflight discloses what the practice needs", () => {
   test("names the instruction mode and previews the poses", async ({ page }) => {
     await openTiredPreflight(page);
     await expect(page.getByTestId("preflight-mode")).toContainText(
-      /Voice-guided|Captions only|Timer only/,
+      /Learn|Flow|Timer only/,
     );
     await page.getByTestId("preflight-poses").getByText(/Preview the \d+ poses/).click();
     await expect(
@@ -127,7 +127,7 @@ test.describe("the player fits a phone", () => {
     // specific one — its illustration disagrees with its own instructions —
     // which supersedes the generic "no movement demo" line.
     await expect(page.getByTestId("pose-human-note-salamba-balasana")).toContainText(
-      /static reference|illustration shows less support/i,
+      /static reference|Illustration withheld/i,
     );
   });
 });

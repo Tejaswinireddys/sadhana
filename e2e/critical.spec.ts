@@ -154,8 +154,8 @@ test.describe("critical journeys", () => {
     await page.goto("/pathways/front-splits");
     await expect(page.getByRole("heading", { name: "Front Splits" })).toBeVisible();
     await expect(page.getByText("15 min, 4x/week")).toHaveCount(0);
-    await expect(page.getByText(/10–18 min, 4x\/week/).first()).toBeVisible();
-    await expect(page.getByText(/10 min guided/).first()).toBeVisible();
+    await expect(page.getByText(/9–18 min, 4x\/week/).first()).toBeVisible();
+    await expect(page.getByText(/\d+ min, including guidance/).first()).toBeVisible();
   });
 
   test("Supported Fish lists real body regions", async ({ page }) => {

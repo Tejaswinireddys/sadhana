@@ -22,6 +22,9 @@
 // change, the last 10 seconds of a hold once, and session start / pause /
 // resume / complete. The on-screen caption is visual only (it includes a
 // breath label that ticks every second).
+import { SessionSpec } from "@/components/SessionSpec";
+import { WithheldPoseImage } from "@/components/WithheldPoseImage";
+import { poseImageWithheld } from "@/data/poseImageAccuracy";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
@@ -90,7 +93,8 @@ import {
   Subtitles,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { WARMUP, asanaBySlug } from "@/data/content";
+import { asanaBySlug } from "@/data/content";
+import { SAMPLE_PRACTICE } from "@/data/samplePractice";
 import { PoseTrainerStage } from "@/components/PoseTrainerStage";
 import { momentumClass } from "@/lib/poseMomentum";
 import { PoseImage } from "@/components/PoseImage";
@@ -116,7 +120,7 @@ import {
   TRANSITION_SECONDS,
   SIDE_SWITCH_SECONDS,
 } from "@/data/quickSessions";
-import { catalogSessionMinutes, warmupSessionLabel, warmupSessionMinutes } from "@/lib/pathwayTiming";
+import { catalogPreflight, catalogSessionMinutes } from "@/lib/pathwayTiming";
 import {
   estimateInstructionSeconds,
   guidedPhaseLabel,
@@ -124,6 +128,8 @@ import {
   instructionCountdown,
   remainingFooterLabel,
   remainingFromPhases,
+  teachesFully,
+  instructionModeDescription,
   BRIEF_INSTRUCTION_SECONDS,
   type InstructionMode,
 } from "@/lib/guidedDuration";
@@ -261,6 +267,7 @@ export default function GuidedSession() {
   const {
     todays,
     meta,
+    setMeta,
     clear,
     loadSession,
     saveProgress,
@@ -284,22 +291,26 @@ export default function GuidedSession() {
     loadSession(poses, quickSessionMeta(q));
   };
 
-  const startWarmup = () => {
-    const poses = WARMUP.steps
+  /** The short first practice from /welcome — gentle, no props, beginner. */
+  const firstPractice = useMemo(
+    () => catalogPreflight(SAMPLE_PRACTICE.poses.map((p) => ({ slug: p.slug, holdSeconds: p.holdSeconds }))),
+    [],
+  );
+  const startFirstPractice = () => {
+    const poses = SAMPLE_PRACTICE.poses
       .map((s) => {
-        const asana = asanaBySlug(s.asanaSlug);
-        if (!asana) return null;
-        return { asana, holdSeconds: s.holdSeconds, sides: s.sides };
+        const asana = asanaBySlug(s.slug);
+        return asana ? { asana, holdSeconds: s.holdSeconds } : null;
       })
       .filter(
-        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
+        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number } =>
           x != null,
       );
     if (!poses.length) return;
     loadSession(poses, {
-      label: WARMUP.title,
+      label: SAMPLE_PRACTICE.title,
       pathwaySlug: null,
-      plannedMinutes: warmupSessionMinutes(),
+      plannedMinutes: firstPractice.minutes,
     });
   };
 
@@ -642,6 +653,17 @@ export default function GuidedSession() {
   const steps = current?.steps ?? [];
   const stepCount = steps.length || 1;
   const isEach = current?.sides === "each";
+  /**
+   * Learn teaches a pose in full once: the far side and any later repeat get
+   * the short Flow cue. `teachingFull` is what this instruction phase is
+   * actually doing — Replay sets it back to full on request.
+   */
+  const isRepeatPose = useMemo(
+    () => todays.slice(0, index).some((p) => p.slug === current?.slug),
+    [todays, index, current?.slug],
+  );
+  const [teachingFull, setTeachingFull] = useState(true);
+  const voiceTeaching = teachingFull && instructionMode === "guided";
 
   const src = playback?.kind === "human" || playback?.kind === "neural" ? playback.url : "";
   const activeCues: NarrationCue[] = playback?.cues ?? [];
@@ -655,7 +677,7 @@ export default function GuidedSession() {
     }),
   );
   const cueDuration =
-    instructionMode === "guided" && voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
+    voiceTeaching && voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
       ? voiceDuration
       : SILENT_INSTRUCTION_SECONDS;
   const cueTimings = useMemo(
@@ -684,7 +706,7 @@ export default function GuidedSession() {
       slug: a.slug,
       stepCount: a.steps?.length ?? 0,
       instructionSeconds:
-        i === index && voiceDuration > 0
+        i === index && voiceDuration > 0 && voiceTeaching
           ? estimateInstructionSeconds(a.steps?.length ?? 0, voiceDuration)
           : undefined,
     })),
@@ -1077,7 +1099,10 @@ export default function GuidedSession() {
   const SILENT_INSTRUCTION = SILENT_INSTRUCTION_SECONDS;
 
   const startInstruction = useCallback(
-    (whichSide: 1 | 2) => {
+    (whichSide: 1 | 2, opts?: { full?: boolean }) => {
+      const full =
+        opts?.full ?? teachesFully(instructionMode, { repeat: isRepeatPose, side: whichSide });
+      setTeachingFull(full);
       setPhase("instruction");
       setSide(whichSide);
       setStepIndex(0);
@@ -1090,7 +1115,7 @@ export default function GuidedSession() {
       speechPlayerRef.current = null;
 
       const mode =
-        !voiceEnabled || instructionMode !== "guided"
+        !voiceEnabled || instructionMode !== "guided" || !full
           ? "silent"
           : src && !audioBrokenRef.current
             ? "mp3"
@@ -1155,7 +1180,7 @@ export default function GuidedSession() {
         speechPlayerRef.current.tick(0);
       }
     },
-    [voiceEnabled, instructionMode, pace, src, allowRobotVoice, activeCues, muted],
+    [voiceEnabled, instructionMode, isRepeatPose, pace, src, allowRobotVoice, activeCues, muted],
   );
 
   const enterHold = useCallback(() => {
@@ -1173,13 +1198,13 @@ export default function GuidedSession() {
     setStepIndex(Math.max(0, stepCount - 1));
     setStepProgress(1);
     setNarrationTime(
-      instructionMode === "guided" && voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
+      voiceTeaching && voiceEnabled && !audioBrokenRef.current && voiceDuration > 0
         ? voiceDuration
         : SILENT_INSTRUCTION_SECONDS,
     );
     setCueIndex(0);
     setPhase("hold");
-  }, [current, voiceDuration, voiceEnabled, instructionMode, stepCount, clearBankedExtension]);
+  }, [current, voiceDuration, voiceEnabled, voiceTeaching, stepCount, clearBankedExtension]);
 
   // When narration audio ends → side switch (if "each" and on side 1) or hold.
   const onVoiceEnded = useCallback(() => {
@@ -1401,8 +1426,9 @@ export default function GuidedSession() {
   };
   const handleRepeatCue = () => {
     if (phase === "instruction") {
-      startInstruction(side);
-      toast({ title: "Repeating guidance", description: "Playing this pose’s cues again." });
+      // Replay always gives the full setup, even on a repeat or second side.
+      startInstruction(side, { full: true });
+      toast({ title: "Repeating guidance", description: "Playing this pose’s full setup again." });
       return;
     }
     if (phase === "hold") {
@@ -1497,27 +1523,13 @@ export default function GuidedSession() {
       <div className="animate-fade-in space-y-8" data-testid="practice-hub">
         <header className="space-y-1">
           <h1 className="font-serif text-3xl font-semibold tracking-tight">Practice</h1>
-          <p className="text-muted-foreground">
-            Ask the Yoga Trainer, choose how you feel, warm up, or open a pathway — then begin a guided voice session.
-          </p>
+          <p className="text-muted-foreground">Practice now, follow a program, or learn a pose.</p>
         </header>
 
-        <Card className="border-primary/30 bg-accent/40 shadow-soft" data-testid="hub-trainer">
-          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <p className="font-serif text-xl">Yoga Trainer</p>
-              <p className="text-sm text-muted-foreground">
-                Four quick questions → a practice shaped for your body today.
-              </p>
-            </div>
-            <Button asChild data-testid="button-hub-trainer">
-              <Link href="/trainer">Meet your trainer</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <section className="space-y-3">
-          <h2 className="font-serif text-xl">How do you feel?</h2>
+        {/* ── Practice now ─────────────────────────────────────────────── */}
+        <section className="space-y-3" aria-labelledby="hub-now-heading" data-testid="hub-practice-now">
+          <h2 id="hub-now-heading" className="font-serif text-2xl">Practice now</h2>
+          <h3 className="text-sm font-medium text-muted-foreground">How do you feel?</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             {QUICK_SESSIONS.map((q) => {
               const Icon = q.icon;
@@ -1531,8 +1543,13 @@ export default function GuidedSession() {
                       <div>
                         <p className="font-serif text-lg leading-tight">{q.label}</p>
                         <p className="text-sm text-muted-foreground">
-                          {sessionTimeLabel(q.poses)} · {q.intent}
+                          {q.intent}
                         </p>
+                        <SessionSpec
+                          preflight={catalogPreflight(q.poses.map((p) => ({ slug: p.slug, holdSeconds: p.holdSeconds })))}
+                          showFormat={false}
+                          className="mt-1"
+                        />
                       </div>
                     </div>
                     <Button size="sm" onClick={() => startQuickSession(q)} data-testid={`button-hub-begin-${q.id}`}>
@@ -1543,57 +1560,107 @@ export default function GuidedSession() {
               );
             })}
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Card className="border-primary/30 bg-accent/40 shadow-soft" data-testid="hub-first-practice">
+              <CardContent className="flex flex-col gap-3 p-4">
+                <div className="flex items-center gap-2">
+                  <Flame className="h-4 w-4 text-primary" aria-hidden />
+                  <p className="font-serif text-lg">{firstPractice.minutes}-minute first practice</p>
+                </div>
+                <SessionSpec preflight={firstPractice} showFormat={false} />
+                <Button onClick={startFirstPractice} data-testid="button-hub-first-practice">
+                  <Play className="mr-1.5 h-4 w-4" /> Start
+                </Button>
+              </CardContent>
+            </Card>
+            <Card className="shadow-soft" data-testid="hub-trainer">
+              <CardContent className="flex flex-col gap-3 p-4">
+                <p className="font-serif text-lg">Build today&apos;s practice</p>
+                <p className="text-sm text-muted-foreground">
+                  Four questions — body, energy, time, focus — then a practice shaped to your answers.
+                  Recovering or low on energy?{" "}
+                  <Link href="/adaptive" className="text-primary hover:underline" data-testid="link-hub-adaptive">
+                    Use the adaptive plan
+                  </Link>
+                  .
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild data-testid="button-hub-trainer">
+                    <Link href="/trainer">Answer 4 questions</Link>
+                  </Button>
+                  <Button asChild variant="ghost" data-testid="button-hub-builder">
+                    <Link href="/builder">Your sequences</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-3">
-          <Card className="border-primary/30 bg-accent/40 shadow-soft">
-            <CardContent className="flex flex-col gap-3 p-4">
-              <div className="flex items-center gap-2">
-                <Flame className="h-4 w-4 text-primary" />
-                <p className="font-serif text-lg">{warmupSessionLabel()} warm-up</p>
-              </div>
-              <p className="text-sm text-muted-foreground">Wake the spine before a longer flow.</p>
-              <Button onClick={startWarmup} data-testid="button-hub-warmup">
-                <Play className="mr-1.5 h-4 w-4" /> Start warm-up
-              </Button>
-            </CardContent>
-          </Card>
+        {/* ── Follow a program ─────────────────────────────────────────── */}
+        <section className="space-y-3" aria-labelledby="hub-program-heading" data-testid="hub-follow-program">
+          <h2 id="hub-program-heading" className="font-serif text-2xl">Follow a program</h2>
           <Card className="shadow-soft">
-            <CardContent className="flex flex-col gap-3 p-4">
-              <div className="flex items-center gap-2">
-                <RouteIcon className="h-4 w-4 text-secondary" />
-                <p className="font-serif text-lg">Pathways</p>
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <RouteIcon className="mt-1 h-5 w-5 shrink-0 text-secondary" aria-hidden />
+                <p className="text-sm text-muted-foreground">
+                  7-day programs and multi-week pathways, one session a day, each with its own
+                  preparation. Private challenges sit alongside them.
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground">Quick flows, challenges, and programs.</p>
-              <Button asChild variant="outline" data-testid="button-hub-pathways">
-                <Link href="/pathways">Browse pathways</Link>
-              </Button>
-            </CardContent>
-          </Card>
-          <Card className="shadow-soft">
-            <CardContent className="flex flex-col gap-3 p-4">
-              <div className="flex items-center gap-2">
-                <LayoutGrid className="h-4 w-4 text-secondary" />
-                <p className="font-serif text-lg">Build your own</p>
-              </div>
-              <p className="text-sm text-muted-foreground">Pick poses from the library or Builder.</p>
               <div className="flex flex-wrap gap-2">
-                <Button asChild variant="outline" size="sm" data-testid="button-go-library">
-                  <Link href="/asanas">Poses</Link>
+                <Button asChild variant="outline" data-testid="button-hub-pathways">
+                  <Link href="/pathways">Browse programs</Link>
                 </Button>
-                <Button asChild variant="ghost" size="sm" data-testid="button-hub-builder">
-                  <Link href="/builder">Builder</Link>
+                <Button asChild variant="ghost" data-testid="button-hub-challenges-inline">
+                  <Link href="/challenges">Challenges</Link>
                 </Button>
               </div>
             </CardContent>
           </Card>
         </section>
+
+        {/* ── Learn a pose ─────────────────────────────────────────────── */}
+        <section className="space-y-3" aria-labelledby="hub-learn-heading" data-testid="hub-learn-pose">
+          <h2 id="hub-learn-heading" className="font-serif text-2xl">Learn a pose</h2>
+          <Card className="shadow-soft">
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <LayoutGrid className="mt-1 h-5 w-5 shrink-0 text-secondary" aria-hidden />
+                <p className="text-sm text-muted-foreground">
+                  Every pose with its steps, modifications and what to avoid. The virtual instructor
+                  teaches five poses step by step (pilot).
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline" data-testid="button-go-library">
+                  <Link href="/asanas">Browse poses</Link>
+                </Button>
+                <Button asChild variant="ghost" data-testid="button-hub-instructor">
+                  <Link href="/instructor">Virtual instructor</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
         <MoreWaysToPractice />
         {/*
           Comprehensive discovery lives here, on the catalogue page, rather than
-          at the bottom of Today — which is supposed to end in one decision.
+          at the bottom of Today — collapsed so it does not compete with the
+          three ways in above.
         */}
-        <ExploreDirectory headingId="practice-explore-heading" />
+        <details className="group" data-testid="hub-all-destinations">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <span>All destinations</span>
+            <span className="text-xs text-primary group-open:hidden">Show</span>
+            <span className="hidden text-xs text-primary group-open:inline">Hide</span>
+          </summary>
+          <div className="mt-3">
+            <ExploreDirectory headingId="practice-explore-heading" />
+          </div>
+        </details>
       </div>
     );
   }
@@ -1893,6 +1960,7 @@ export default function GuidedSession() {
               label: meta.label,
               poseCount: todays.length,
               timeLabel: sessionTimeLabel(todays, instructionMode),
+              mode: instructionMode,
             })}
           </p>
           <SessionPreflightCard
@@ -1914,26 +1982,56 @@ export default function GuidedSession() {
               testId="mood-intro-video"
             />
           )}
-          {/* Guided is primary; timer-only is the secondary mode */}
-          <div className="inline-flex rounded-full border border-border bg-card p-0.5 text-sm" data-testid="mode-toggle">
-            <button
-              className="min-h-11 rounded-full bg-primary px-3 py-2 font-medium text-primary-foreground"
-              data-testid="toggle-guided"
-              aria-pressed="true"
-            >
-              Guided
-            </button>
-            <button
-              onClick={() => navigate("/practice")}
-              className="min-h-11 rounded-full px-3 py-2 text-muted-foreground hover:text-foreground"
-              data-testid="toggle-simple"
-            >
-              Timer only
-            </button>
+          {/*
+            Learn / Flow / Timer only. Each shows the length it will actually
+            run, and the preflight above recalculates for the one chosen.
+          */}
+          <div
+            role="radiogroup"
+            aria-label="How to teach this practice"
+            className="grid w-full max-w-lg grid-cols-3 gap-1 rounded-2xl border border-border bg-card p-1 text-sm"
+            data-testid="mode-toggle"
+          >
+            {(
+              [
+                { id: "guided", label: "Learn", testId: "toggle-guided" },
+                { id: "brief", label: "Flow", testId: "toggle-flow" },
+                { id: "timer", label: "Timer only", testId: "toggle-simple" },
+              ] as const
+            ).map((m) => {
+              const selected = m.id === instructionMode;
+              const disabled = m.id === "guided" && !voiceEnabled;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={disabled}
+                  onClick={() => {
+                    // Timer only has its own, simpler screen.
+                    if (m.id === "timer") navigate("/practice");
+                    else setMeta({ instructionMode: m.id });
+                  }}
+                  className={cn(
+                    "flex min-h-14 flex-col items-center justify-center rounded-xl px-2 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+                    selected ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                  data-testid={m.testId}
+                >
+                  <span className="font-medium">{m.label}</span>
+                  <span className="text-xs opacity-90">{sessionTimeLabel(todays, m.id)}</span>
+                </button>
+              );
+            })}
           </div>
+          <p className="max-w-lg text-xs text-muted-foreground" data-testid="mode-description">
+            {instructionModeDescription(instructionMode)}
+          </p>
           {!voiceEnabled && (
             <p className="text-xs text-muted-foreground">
-              Voice is off in your settings — this flow will run with chimes + captions only.
+              Voice is off in your settings, so Learn is unavailable — Flow shows each pose's cues as
+              captions.
             </p>
           )}
           <Button size="lg" onClick={beginSession} data-testid="button-begin-guided">
@@ -2126,7 +2224,10 @@ export default function GuidedSession() {
               chromeVisible ? "opacity-40" : "pointer-events-none opacity-0",
             )}
           >
-            <img width={80} height={160}
+            {poseImageWithheld(prev.slug) ? (
+              <WithheldPoseImage slug={prev.slug} compact />
+            ) : (
+              <img width={80} height={160}
               src={`${import.meta.env.BASE_URL}poses/${prev.slug}.png`}
               alt={accurateImageAlt(prev.slug, prev.imageAlt)}
               className="h-20 w-20 rounded-xl object-contain"
@@ -2137,6 +2238,7 @@ export default function GuidedSession() {
               }}
               data-testid="thumb-prev"
             />
+            )}
             <span className="max-w-[6rem] truncate text-center text-xs text-muted-foreground">
               {prev.english}
             </span>
@@ -2150,7 +2252,10 @@ export default function GuidedSession() {
               chromeVisible ? "opacity-40" : "pointer-events-none opacity-0",
             )}
           >
-            <img width={80} height={160}
+            {poseImageWithheld(next.slug) ? (
+              <WithheldPoseImage slug={next.slug} compact />
+            ) : (
+              <img width={80} height={160}
               src={`${import.meta.env.BASE_URL}poses/${next.slug}.png`}
               alt={accurateImageAlt(next.slug, next.imageAlt)}
               className="h-20 w-20 rounded-xl object-contain"
@@ -2161,6 +2266,7 @@ export default function GuidedSession() {
               }}
               data-testid="thumb-next"
             />
+            )}
             <span className="max-w-[6rem] truncate text-center text-xs text-muted-foreground">
               {next.english}
             </span>
@@ -2224,7 +2330,7 @@ export default function GuidedSession() {
                     narrationTime={live ? narrationTime : 0}
                     narrationDuration={
                       live
-                        ? instructionMode === "guided" &&
+                        ? voiceTeaching &&
                           voiceEnabled &&
                           !audioBrokenRef.current &&
                           voiceDuration > 0

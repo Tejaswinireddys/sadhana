@@ -1,4 +1,6 @@
 import { Link, useParams, useLocation } from "wouter";
+import { WithheldPoseImage } from "@/components/WithheldPoseImage";
+import { poseImageWithheld } from "@/data/poseImageAccuracy";
 import { posesQueued } from "@/lib/plural";
 import { useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -7,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { PoseImage } from "@/components/PoseImage";
-import { WarmupCard } from "@/components/WarmupCard";
 import { EmptyState } from "@/components/EmptyState";
 import { DailyProgram } from "@/components/DailyProgram";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +22,7 @@ import { ArrowLeft, CalendarDays, Repeat, Clock, Play, X } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   catalogDurationCopy,
+  sessionPreparation,
   catalogSessionMinutes,
   pathwaySessionRangeLabel,
   poseSides,
@@ -199,7 +201,6 @@ export default function PathwayDetail() {
           </div>
         </header>
 
-        <WarmupCard />
 
         <DailyProgram
           pathway={pathway}
@@ -276,7 +277,6 @@ export default function PathwayDetail() {
         </div>
       </header>
 
-      <WarmupCard />
 
       <section className="space-y-4">
         <h2 className="font-serif text-xl">Week-by-week plan</h2>
@@ -323,12 +323,16 @@ export default function PathwayDetail() {
                             className="flex flex-col items-center gap-1.5 rounded-md border border-border bg-background p-2 text-center"
                           >
                             <span className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md bg-accent/30">
-                              <img width={600} height={1200}
+                              {poseImageWithheld(p.asanaSlug) ? (
+                                <WithheldPoseImage slug={p.asanaSlug} compact />
+                              ) : (
+                                <img width={600} height={1200}
                                 src={`${import.meta.env.BASE_URL}poses/${p.asanaSlug}.png`}
                                 alt={asana?.imageAlt ?? p.asanaSlug}
                                 className="h-full w-full object-cover"
                                 loading="lazy"
                               />
+                              )}
                             </span>
                             <p className="text-xs font-medium leading-tight">{asana?.english ?? p.asanaSlug}</p>
                             <p className="text-[11px] text-muted-foreground">
@@ -343,8 +347,16 @@ export default function PathwayDetail() {
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
                       <div className="space-y-0.5 text-xs text-muted-foreground">
                         <p className="flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5" /> {weekSessionLabel(week)} guided
-                          {duration.showTimerOnly ? ` · ${duration.timerLabel} timer-only` : ""}
+                          <Clock className="h-3.5 w-3.5" /> {weekSessionLabel(week)}, including guidance
+                          {duration.showTimerOnly ? ` · ${duration.timerLabel} timer only` : ""}
+                        </p>
+                        <p data-testid={`prep-week-${week.weekNumber}`}>
+                          {(() => {
+                            const prep = sessionPreparation(week.poses);
+                            return prep
+                              ? `Includes ${prep.label} of preparation`
+                              : "Gentle throughout — no separate warm-up";
+                          })()}
                         </p>
                         <p className="flex items-center gap-1.5">
                           <Repeat className="h-3.5 w-3.5" /> {sessionsPerWeek}x this week

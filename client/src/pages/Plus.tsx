@@ -53,9 +53,15 @@ export default function Plus() {
 
   const paywallTracked = useRef(false);
   const flowId = readRememberedFlowId() || "plus_page";
-  const { data: entitlement } = useQuery<Entitlement>({
+  const { data: entitlement } = useQuery<Entitlement & { status?: string }>({
     queryKey: ["/api/billing/entitlement"],
   });
+  /** Same rule as Home's cancel shortcut: a live or ending paid plan. */
+  const hasPaidPlan =
+    !!entitlement &&
+    entitlement.plan !== "free" &&
+    entitlement.status !== "refunded" &&
+    (entitlement.status === "active" || entitlement.status === "trialing" || !!entitlement.cancelAtPeriodEnd);
 
   useEffect(() => {
     void fetch("/api/billing/config")
@@ -200,9 +206,10 @@ export default function Plus() {
       <div ref={paywallRef} data-testid="paywall-root">
         <header className="space-y-2">
           <h1 className="font-serif text-3xl font-semibold tracking-tight">Plans</h1>
-          <p className="text-muted-foreground">
-            Transparent tiers. Cancel in two taps from Home. Renewal reminder 3 days before every
-            charge. First-charge refund within 14 days, auto-approved. Safety library stays free.
+          <p className="text-muted-foreground" data-testid="plans-intro">
+            {billing.enabled
+              ? "Cancel in two taps from Home. Renewal reminder 3 days before every charge. First-charge refund within 14 days, auto-approved. The safety library stays free."
+              : "Everything in the app is free today. The paid plans below are planned, not on sale — join the waitlist to hear when they are. Nothing can be charged."}
           </p>
           <p className="text-xs text-muted-foreground" data-testid="billing-status">
             {billing.note ||
@@ -250,7 +257,17 @@ export default function Plus() {
               data-testid={`plan-card-${p.id}`}
             >
               <CardHeader className="pb-2">
-                <CardTitle className="font-serif text-xl">{p.name}</CardTitle>
+                <CardTitle className="flex flex-wrap items-center gap-2 font-serif text-xl">
+                  {p.name}
+                  {p.status === "planned" && !billing.enabled && (
+                    <span
+                      className="rounded-full border border-border px-2 py-0.5 font-sans text-xs font-medium text-muted-foreground"
+                      data-testid={`plan-planned-${p.id}`}
+                    >
+                      Planned · waitlist
+                    </span>
+                  )}
+                </CardTitle>
                 <p className="text-sm text-muted-foreground">
                   {p.monthlyUsd === 0
                     ? "Free"
@@ -290,15 +307,24 @@ export default function Plus() {
           ))}
         </div>
 
-        <p className="mt-4 text-xs text-muted-foreground" data-testid="paywall-terms">
-          {TERMS_DISPLAYED}
-        </p>
+        {billing.enabled && (
+          <p className="mt-4 text-xs text-muted-foreground" data-testid="paywall-terms">
+            {TERMS_DISPLAYED}
+          </p>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button asChild variant="default" className="min-h-11" data-testid="plus-cancel-cta">
-          <Link href="/cancel/confirm">Cancel subscription</Link>
-        </Button>
+        {/* Only someone with a subscription is offered "Cancel subscription". */}
+        {hasPaidPlan ? (
+          <Button asChild variant="default" className="min-h-11" data-testid="plus-cancel-cta">
+            <Link href="/cancel/confirm">Cancel subscription</Link>
+          </Button>
+        ) : (
+          <p className="text-sm text-muted-foreground" data-testid="plus-no-subscription">
+            You don&apos;t have a subscription.
+          </p>
+        )}
         {billing.enabled && billing.portalAvailable && (
           <Button
             variant="outline"
@@ -322,10 +348,12 @@ export default function Plus() {
           </Button>
         )}
       </div>
-      <p className="text-sm text-muted-foreground">
-        Cancel is two taps from Home. Payment-method updates use Stripe&apos;s portal — cancellation
-        never requires it.
-      </p>
+      {billing.enabled && (
+        <p className="text-sm text-muted-foreground">
+          Cancel is two taps from Home. Payment-method updates use Stripe&apos;s portal — cancellation
+          never requires it.
+        </p>
+      )}
 
       <p className="text-xs text-muted-foreground">
         See{" "}

@@ -19,6 +19,8 @@
  * is something already in progress, and Home shows it in its own Continue
  * section rather than dressing it up as a choice.
  */
+import { equipmentFreeSwapFor, sessionEquipment } from "@/lib/sessionEquipment";
+import { isFloorFree, swapPreservesConstraints } from "@/data/floorAccess";
 import { asanaBySlug, type Mood } from "@/data/content";
 import type { SavedQuizPlan } from "@/data/quizPlan";
 import type { Profile } from "@/data/profiles";
@@ -85,7 +87,7 @@ export type HomeContext = {
   preferredNeed?: string | null;
   /** True once at least one session has been completed on this device/account. */
   hasPracticed: boolean;
-  /** A short, gentle on-ramp for someone who has told us nothing yet. */
+  /** The short, gentle first practice for someone who has told us nothing yet. */
   warmup: { title: string; poses: RecommendedPose[] } | null;
 };
 
@@ -132,12 +134,14 @@ export function generatePractice(opts: {
   experience: ExperienceLevel;
   reason: string | ((achievedMinutes: number) => string);
   title?: string;
+  /** An ENERGY_OPTIONS value. "Low" keeps Advanced shapes out. */
+  energy?: string;
 }): PracticeRecommendation {
   const session = composeTrainerSession(
     {
       body: ["Great"],
       soreParts: [],
-      energy: "Balanced",
+      energy: opts.energy ?? "Balanced",
       timeMinutes: opts.minutes,
       need: opts.need,
     },
@@ -145,7 +149,7 @@ export function generatePractice(opts: {
   );
   const label = opts.title ?? `${NEED_LABEL[opts.need] ?? "Your"} practice`;
   return {
-    id: `generated:${opts.need}:${opts.minutes}`,
+    id: `generated:${opts.need}:${opts.minutes}${opts.energy && opts.energy !== "Balanced" ? `:${opts.energy}` : ""}`,
     source: "generated",
     title: label,
     reason:
@@ -171,17 +175,17 @@ export function generatePractice(opts: {
  * reason is something we can say back to them.
  */
 export function recommendPractice(ctx: HomeContext): PracticeRecommendation | null {
-  // Someone who has told us nothing and practised nothing gets the reviewed
-  // warm-up, not a composed "Strong / Intermediate" session generated from
-  // defaults they never chose.
+  // Someone who has told us nothing and practised nothing gets the short,
+  // gentle first practice, not a composed "Strong / Intermediate" session
+  // generated from defaults they never chose.
   const knowsNothing =
     !ctx.programDay && !ctx.quizPlan && !ctx.profile && !ctx.intent && !ctx.hasPracticed;
   if (knowsNothing && ctx.warmup && ctx.warmup.poses.length > 0) {
     return {
-      id: "warmup",
+      id: "first-practice",
       source: "generated",
       title: ctx.warmup.title,
-      reason: "A gentle first practice — take the two-minute quiz any time for a plan of your own.",
+      reason: "A short, gentle first practice with no props — take the two-minute quiz any time for a plan of your own.",
       poses: ctx.warmup.poses,
       meta: {
         label: ctx.warmup.title,
@@ -296,18 +300,37 @@ export function defaultNeedFor(ctx: HomeContext): string {
  * outright, including for a first-time visitor who would otherwise be handed
  * the warm-up no matter which chip they tapped.
  */
-export function adjustedPractice(
-  ctx: HomeContext,
-  adjust: { minutes: number | null; need: string | null },
-): PracticeRecommendation {
+export type HomeAdjust = {
+  minutes: number | null;
+  need: string | null;
+  /** "Low" | "Balanced" | "Energized", or null when not chosen. */
+  energy?: string | null;
+  /** Practise with no props — swap or drop anything that needs one. */
+  noProps?: boolean;
+};
+
+/** True when an adjustment asks for a different composed practice. */
+export function adjustRegenerates(adjust: HomeAdjust): boolean {
+  return !!(adjust.need || adjust.minutes || (adjust.energy && adjust.energy !== "Balanced"));
+}
+
+export function adjustedPractice(ctx: HomeContext, adjust: HomeAdjust): PracticeRecommendation {
   const need = adjust.need ?? defaultNeedFor(ctx);
   const requested = adjust.minutes ?? ctx.preferredMinutes ?? 10;
   const asked = snapToOfferedMinutes(requested);
-  return generatePractice({
+  const energy = adjust.energy ?? "Balanced";
+  const energyNote =
+    energy === "Low" ? " Kept gentle because you said your energy is low." : energy === "Energized" ? " A little more active, as you asked." : "";
+  const rec = generatePractice({
     need,
     minutes: asked,
+    energy,
     experience: ctx.experience ?? "new",
-    reason: (mins) => {
+    reason: (mins) => `${adjustedReason(mins)}${energyNote}`,
+  });
+  return rec;
+
+  function adjustedReason(mins: number): string {
       const focusLabel = NEED_LABEL[need]?.toLowerCase() ?? "this focus";
       // Only claim the requested length when it was actually met. Saying "at
       // the length you asked for" above an eight-minute answer to a five-minute
@@ -320,8 +343,54 @@ export function adjustedPractice(
       return `${
         adjust.need ? `You asked for ${focusLabel}` : "Your focus"
       }, in ${mins} minutes — the closest a narrated ${focusLabel} sequence gets to ${asked}.`;
-    },
-  });
+  }
+}
+
+/**
+ * The same practice with nothing that needs a prop.
+ *
+ * Each prop-dependent pose is swapped for its reviewed prop-free pair only
+ * when that pair keeps the level and (in a floor-free practice) keeps the
+ * practitioner off the floor; otherwise the pose is dropped. Never silently —
+ * the reason line lists what changed.
+ */
+export function withoutProps(rec: PracticeRecommendation): PracticeRecommendation {
+  const asanas = rec.poses.map((p) => asanaBySlug(p.slug)).filter((a): a is NonNullable<typeof a> => !!a);
+  const needing = new Set(sessionEquipment(asanas).requiredBy.map((r) => r.slug));
+  if (needing.size === 0) return rec;
+  const keepOffFloor = isFloorFree(rec.poses.map((p) => p.slug));
+  const swapped: string[] = [];
+  const dropped: string[] = [];
+  const poses: RecommendedPose[] = [];
+  for (const p of rec.poses) {
+    if (!needing.has(p.slug)) {
+      poses.push(p);
+      continue;
+    }
+    const english = asanaBySlug(p.slug)?.english ?? p.slug;
+    const swap = equipmentFreeSwapFor(p.slug);
+    if (
+      swap &&
+      swapPreservesConstraints(p.slug, swap.slug, { keepOffFloor }) &&
+      !rec.poses.some((q) => q.slug === swap.slug)
+    ) {
+      poses.push({ ...p, slug: swap.slug });
+      swapped.push(`${english} → ${asanaBySlug(swap.slug)?.english ?? swap.slug}`);
+    } else {
+      dropped.push(english);
+    }
+  }
+  const parts = [
+    swapped.length ? `Swapped for no props: ${swapped.join(", ")}.` : "",
+    dropped.length ? `Left out (needs a prop, no equal swap): ${dropped.join(", ")}.` : "",
+  ].filter(Boolean);
+  return {
+    ...rec,
+    id: `${rec.id}:no-props`,
+    poses,
+    reason: `${rec.reason} ${parts.join(" ")}`.trim(),
+    meta: { ...rec.meta, introPoseSlug: poses[0]?.slug ?? null },
+  };
 }
 
 /**
@@ -358,8 +427,11 @@ export function alternativePractices(
       need: primaryNeed,
       minutes: shorter,
       experience,
-      // Only claims "the same focus" because it composes the same one.
-      reason: (mins) => `The same ${primaryLabel} focus in ${mins} minutes, for a day with less room in it.`,
+      // Only claims "the same focus" when the primary was composed for it.
+      reason: (mins) =>
+        primary?.id.startsWith(`generated:${primaryNeed}:`)
+          ? `The same ${primaryLabel} focus in ${mins} minutes, for a day with less room in it.`
+          : `A ${mins}-minute ${primaryLabel} practice, for a day with less room in it.`,
       title: "A shorter version",
     }),
     gentlerNeed

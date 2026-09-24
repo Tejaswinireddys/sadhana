@@ -33,8 +33,8 @@ import {
   breathBySlug,
   breathOfTheDay,
   pathwayBySlug,
-  WARMUP,
 } from "@/data/content";
+import { SAMPLE_PRACTICE } from "@/data/samplePractice";
 import type { Pathway } from "@/data/content";
 import { profileById } from "@/data/profiles";
 import { formatDate, todayISO, type Stats } from "@/lib/sadhana";
@@ -46,13 +46,16 @@ import {
 } from "@/lib/practicePreferences";
 import { readQuizPlan } from "@/data/quizPlan";
 import { readHabitPlan } from "@/lib/habitPlan";
-import type { UserProfile, Enrollment, Journal, Session } from "@shared/schema";
+import type { UserProfile, Enrollment, Journal, Session, CustomFlow } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
-import { catalogSessionMinutes, warmupSessionMinutes } from "@/lib/pathwayTiming";
+import { catalogSessionMinutes } from "@/lib/pathwayTiming";
 import {
   adjustedPractice,
+  adjustRegenerates,
   alternativePractices,
   recommendPractice,
+  withoutProps,
+  type HomeAdjust,
   type HomeContext,
   type PracticeRecommendation,
 } from "@/lib/homeRecommendation";
@@ -69,7 +72,10 @@ import { Reveal } from "@/components/motion";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   ArrowRight,
+  BookOpen,
+  Bookmark,
   CalendarDays,
+  History,
   CloudDownload,
   NotebookPen,
   Play,
@@ -156,11 +162,12 @@ export default function Home() {
     statsLoading || profileLoading || enrollmentsLoading || sessionsLoading;
 
   const [savePromptDismissed, setSavePromptDismissed] = useState(false);
-  /** Overrides from the card's "Change time" / "Change focus" controls. */
-  const [adjust, setAdjust] = useState<{ minutes: number | null; need: string | null }>(() => {
+  /** Overrides from the card's time / focus / energy / equipment controls. */
+  const [adjust, setAdjust] = useState<HomeAdjust>(() => {
     const saved = readPracticePreferences();
-    return { minutes: saved.minutes, need: saved.need };
+    return { minutes: saved.minutes, need: saved.need, energy: null, noProps: false };
   });
+  const { data: savedFlows = [] } = useQuery<CustomFlow[]>({ queryKey: ["/api/custom-flows"] });
 
   const profile = profileById(activeProfileRow?.profileId) ?? null;
   const practitionerName = readString(KEYS.practitionerName)?.trim() || null;
@@ -228,16 +235,11 @@ export default function Home() {
     return null;
   }, [activeEnrollments]);
 
-  const warmupPoses = useMemo(
+  const firstPracticePoses = useMemo(
     () =>
-      WARMUP.steps
-        .map((s) => {
-          const asana = asanaBySlug(s.asanaSlug);
-          return asana
-            ? { slug: asana.slug, holdSeconds: s.holdSeconds, sides: s.sides ?? "once" }
-            : null;
-        })
-        .filter((x): x is { slug: string; holdSeconds: number; sides: "once" | "each" } => !!x),
+      SAMPLE_PRACTICE.poses
+        .filter((p) => !!asanaBySlug(p.slug))
+        .map((p) => ({ slug: p.slug, holdSeconds: p.holdSeconds })),
     [],
   );
 
@@ -251,7 +253,7 @@ export default function Home() {
     preferredMinutes: adjust.minutes ?? prefs.minutes,
     preferredNeed: adjust.need ?? prefs.need,
     hasPracticed,
-    warmup: { title: WARMUP.title, poses: warmupPoses },
+    warmup: { title: SAMPLE_PRACTICE.title, poses: firstPracticePoses },
   };
 
   const recommendation: PracticeRecommendation | null = useMemo(() => {
@@ -259,11 +261,14 @@ export default function Home() {
     // An explicit adjustment replaces the recommendation with exactly what was
     // asked for. Treating it as a hint meant tapping "30 min" on a first visit
     // changed nothing at all — the warm-up branch won either way.
-    if (adjust.need || adjust.minutes) return adjustedPractice(context, adjust);
-    return recommendPractice(context);
+    const base = adjustRegenerates(adjust)
+      ? adjustedPractice(context, adjust)
+      : recommendPractice(context);
+    // "No props" applies to whatever is on offer, program days included.
+    return base && adjust.noProps ? withoutProps(base) : base;
     // `context` is rebuilt every render (it carries the clock), so the inputs
     // that can actually change the answer are listed instead of the object.
-  }, [bootstrapping, adjust.need, adjust.minutes, programDay, quizPlan?.title, profile?.id, intent, experience, hasPracticed]);
+  }, [bootstrapping, adjust.need, adjust.minutes, adjust.energy, adjust.noProps, programDay, quizPlan?.title, profile?.id, intent, experience, hasPracticed]);
 
   const alternatives = useMemo(
     () => (bootstrapping ? [] : alternativePractices(context, recommendation)),
@@ -353,8 +358,48 @@ export default function Home() {
     return slug ? asanaBySlug(slug) : null;
   }, [recommendation]);
 
+  const recentSessions = useMemo(
+    () =>
+      sessionRows
+        .filter((r) => (r.kind ?? "asana") === "asana")
+        .slice()
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id))
+        .slice(0, 2),
+    [sessionRows],
+  );
+
+  const startSavedFlow = (flow: CustomFlow) => {
+    let seq: Array<{ slug: string; holdSeconds: number; sides?: "once" | "each" }> = [];
+    try {
+      const parsed = JSON.parse(flow.poseSequence) as unknown;
+      if (Array.isArray(parsed)) seq = parsed as typeof seq;
+    } catch {
+      seq = [];
+    }
+    const poses = seq
+      .map((p) => {
+        const asana = asanaBySlug(p.slug);
+        return asana ? { asana, holdSeconds: p.holdSeconds, sides: p.sides ?? "once" } : null;
+      })
+      .filter(
+        (x): x is { asana: NonNullable<ReturnType<typeof asanaBySlug>>; holdSeconds: number; sides: "once" | "each" } =>
+          x != null,
+      );
+    if (!poses.length) {
+      navigate("/builder");
+      return;
+    }
+    loadSession(poses, {
+      label: flow.name,
+      plannedMinutes: buildSessionPreflight({
+        poses: poses.map((p) => ({ ...p.asana, holdSeconds: p.holdSeconds, sides: p.sides })),
+      }).minutes,
+    });
+    navigate("/guided");
+  };
+
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <HomeWelcomeHeader
         dateLabel={formatDate(todayISO())}
         hasCompletedSessions={hasPracticed}
@@ -367,55 +412,61 @@ export default function Home() {
       <CancelAccessBanner />
       <HomeCancelSubscriptionCta />
 
-      {/* ── 1 + 2. Today's practice, and the ways to adjust it ───────────── */}
-      <Reveal className="space-y-4" aria-labelledby="primary-practice-heading">
+      {/* ── 1. Today's practice — the main action, first on every screen size ── */}
+      <Reveal className="space-y-3" aria-labelledby="primary-practice-heading">
         <div className="flex items-center gap-2">
-          <Play className="h-5 w-5 text-primary" />
+          <Play className="h-5 w-5 text-primary" aria-hidden />
           <h2 id="primary-practice-heading" className="font-serif text-xl">
             {practicedToday ? "Practise again" : "Today's practice"}
           </h2>
         </div>
 
         {/*
-          A day that is already done gets an acknowledgement, a way to reflect
-          on it, and one next step — not a second identical Start button
-          pretending nothing happened.
+          Done for today: one line that says so kindly and offers a reflection
+          — not a card that pushes the next practice below the fold.
         */}
         {!bootstrapping && practicedToday && (
-          <Card className="surface-banner-soft" data-testid="banner-practiced-today">
-            <CardContent className="flex flex-col gap-3 p-5">
-              <div>
-                <p className="font-serif text-lg leading-tight">You practised today</p>
-                <p className="text-sm text-muted-foreground">
-                  {todayMinutes > 0
-                    ? `${todayMinutes} ${todayMinutes === 1 ? "minute" : "minutes"} logged. Rest is part of the practice.`
-                    : "Rest is part of the practice."}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  asChild
-                  variant="outline"
-                  className="min-h-11 cursor-pointer"
-                  data-testid="button-practiced-reflect"
-                >
-                  <Link href="/journal">
-                    <NotebookPen className="mr-1.5 h-4 w-4" /> Write a reflection
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="ghost"
-                  className="min-h-11 cursor-pointer"
-                  data-testid="button-practiced-breath"
-                >
-                  <Link href={`/breathing?slug=${encodeURIComponent(breath.slug)}`}>
-                    <Wind className="mr-1.5 h-4 w-4" /> Or a few quiet breaths
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <p
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm"
+            data-testid="banner-practiced-today"
+          >
+            <span>
+              <span className="font-medium">You practised today</span>
+              <span className="text-muted-foreground">
+                {` · ${todayMinutes} ${todayMinutes === 1 ? "minute" : "minutes"}. Rest counts too.`}
+              </span>
+            </span>
+            <Link
+              href="/journal"
+              className="inline-flex min-h-11 items-center gap-1 text-primary hover:underline"
+              data-testid="button-practiced-reflect"
+            >
+              <NotebookPen className="h-4 w-4" aria-hidden /> Reflect
+            </Link>
+          </p>
+        )}
+
+        {showResume && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-primary/30 bg-card px-4 py-2.5"
+            data-testid="banner-resume"
+          >
+            <p className="text-sm">
+              <span className="font-medium">Unfinished session</span>
+              <span className="text-muted-foreground">
+                {" · "}
+                {todays.length} {todays.length === 1 ? "pose" : "poses"} queued
+              </span>
+            </p>
+            <Button
+              size="sm"
+              className="min-h-11 cursor-pointer"
+              onClick={() => navigate(progress?.mode === "practice" ? "/practice" : "/guided")}
+              data-testid="button-resume-session"
+            >
+              <Play className="mr-1.5 h-4 w-4" /> Resume
+            </Button>
+          </div>
         )}
 
         {bootstrapping ? (
@@ -432,8 +483,12 @@ export default function Home() {
               writePracticePreferences({ need });
               setAdjust((a) => ({ ...a, need }));
             }}
+            onChangeEnergy={(energy) => setAdjust((a) => ({ ...a, energy }))}
+            onToggleNoProps={(noProps) => setAdjust((a) => ({ ...a, noProps }))}
             currentMinutes={adjust.minutes}
             currentNeed={adjust.need}
+            currentEnergy={adjust.energy ?? null}
+            noProps={!!adjust.noProps}
           />
         ) : (
           <Card className="surface-banner border-primary/30" data-testid="today-practice-empty">
@@ -444,7 +499,7 @@ export default function Home() {
               </p>
               <Button asChild className="min-h-11" data-testid="button-new-here-quiz">
                 <Link href="/start">
-                  <Sparkles className="mr-1.5 h-4 w-4" /> Get my plan
+                  <Sparkles className="mr-1.5 h-4 w-4" /> Find my practice
                 </Link>
               </Button>
             </CardContent>
@@ -458,121 +513,96 @@ export default function Home() {
               Take the two-minute quiz
             </Link>{" "}
             or{" "}
-            <Link href="/profiles" className="text-primary hover:underline" data-testid="link-pick-path">
-              pick a path
+            <Link href="/pathways" className="text-primary hover:underline" data-testid="link-pick-path">
+              follow a program
             </Link>
             .
           </p>
         )}
       </Reveal>
 
+      {/* ── 2. The program you're following, when today's card is something else ── */}
+      {programDay && recommendation?.source !== "program" && (
+        <Link
+          href={`/pathways/${programDay.pathwaySlug}`}
+          className="flex min-h-14 min-w-0 cursor-pointer items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-testid={`home-program-${programDay.pathwaySlug}`}
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <CalendarDays className="h-5 w-5" aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-medium">Continue Day {programDay.day}</span>
+            <span className="block text-xs text-muted-foreground">
+              {programDay.pathwayName} · {programDay.minutes} min, including guidance
+            </span>
+          </span>
+          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        </Link>
+      )}
 
-      {/* ── 3. Also try — one-tap doors that used to hide behind Practice ── */}
-      <section className="space-y-3" aria-labelledby="home-discover-heading" data-testid="home-discover">
-        <h2 id="home-discover-heading" className="font-serif text-xl">
-          Also try
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Breathing, kids practice, pathways, and challenges — one tap from Today.
-        </p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {[
-            {
-              href: "/breathing",
-              label: "Breathing",
-              blurb: "Box, 4-7-8, Ujjayi, and more",
-              testId: "home-discover-breathing",
-              Icon: Wind,
-            },
-            {
-              href: "/kids",
-              label: "Kids",
-              blurb: "Story poses and breath games",
-              testId: "home-discover-kids",
-              Icon: Smile,
-            },
-            {
-              href: "/pathways",
-              label: "Pathways",
-              blurb: "Quick flows and multi-week programs",
-              testId: "home-discover-pathways",
-              Icon: RouteIcon,
-            },
-            {
-              href: "/challenges",
-              label: "Challenges",
-              blurb: "Short streaks with a buddy option",
-              testId: "home-discover-challenges",
-              Icon: Trophy,
-            },
-          ].map(({ href, label, blurb, testId, Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex min-h-14 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
-              data-testid={testId}
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Icon className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium">{label}</span>
-                <span className="block truncate text-xs text-muted-foreground">{blurb}</span>
-              </span>
-              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ── 4. Continue what's already going ─────────────────────────────── */}
-      {(showResume || (programDay && recommendation?.source !== "program")) && (
-        <section className="space-y-3" aria-labelledby="continue-heading">
-          <h2 id="continue-heading" className="font-serif text-xl">
-            Continue
+      {/* ── 3. Saved and recent ─────────────────────────────────────────── */}
+      {(savedFlows.length > 0 || recentSessions.length > 0) && (
+        <section className="space-y-3" aria-labelledby="recent-heading" data-testid="home-recent-saved">
+          <h2 id="recent-heading" className="font-serif text-xl">
+            Saved and recent
           </h2>
-          {showResume && (
-            <Card className="surface-banner border-primary/30" data-testid="banner-resume">
-              <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
-                <div>
-                  <p className="font-serif text-lg leading-tight">An unfinished session</p>
-                  <p className="text-sm text-muted-foreground">
-                    {todays.length} pose{todays.length === 1 ? "" : "s"} queued
-                    {progress?.mode === "guided" ? " (guided)" : ""} — pick up where you left off.
-                  </p>
-                </div>
-                <Button
-                  className="min-h-11 cursor-pointer"
-                  onClick={() => navigate(progress?.mode === "practice" ? "/practice" : "/guided")}
-                  data-testid="button-resume-session"
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {savedFlows.slice(0, 2).map((flow) => (
+              <li key={`flow-${flow.id}`}>
+                <button
+                  type="button"
+                  onClick={() => startSavedFlow(flow)}
+                  className="flex min-h-14 w-full min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 text-left transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  data-testid={`home-saved-${flow.id}`}
                 >
-                  <Play className="mr-1.5 h-4 w-4" /> Resume session
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-          {programDay && recommendation?.source !== "program" && (
-            <Link
-              href={`/pathways/${programDay.pathwaySlug}`}
-              className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              data-testid={`home-program-${programDay.pathwaySlug}`}
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <CalendarDays className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{programDay.pathwayName}</span>
-                <span className="block text-xs text-muted-foreground">
-                  Day {programDay.day} · {programDay.minutes} min
-                </span>
-              </span>
-              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-            </Link>
-          )}
+                  <Bookmark className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{flow.name}</span>
+                    <span className="block text-xs text-muted-foreground">Saved sequence · Start</span>
+                  </span>
+                  <Play className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                </button>
+              </li>
+            ))}
+            {recentSessions.map((row) => {
+              let names: string[] = [];
+              try {
+                const parsed = JSON.parse(row.asanas) as unknown;
+                if (Array.isArray(parsed)) {
+                  names = parsed
+                    .map((x) => (typeof x === "string" ? asanaBySlug(x)?.english ?? x : null))
+                    .filter((x): x is string => !!x);
+                }
+              } catch {
+                names = [];
+              }
+              return (
+                <li key={`session-${row.id}`}>
+                  <Link
+                    href="/journal"
+                    className="flex min-h-14 min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
+                    data-testid={`home-recent-${row.id}`}
+                  >
+                    <History className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs text-muted-foreground">
+                        {formatDate(row.date.slice(0, 10))} · {row.durationMinutes} min
+                      </span>
+                      <span className="block truncate text-sm">
+                        {names.length ? names.slice(0, 3).join(", ") : "Practice"}
+                      </span>
+                    </span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </section>
       )}
 
-      {/* ── 4. This week, compactly ──────────────────────────────────────── */}
+      {/* ── 4. This week, compactly — no streak pressure ──────────────────────────────────────── */}
       <section className="space-y-3" aria-labelledby="progress-heading" data-testid="section-progress">
         <div className="flex items-center justify-between gap-2">
           <h2 id="progress-heading" className="font-serif text-xl">
@@ -615,8 +645,7 @@ export default function Home() {
         ) : !hasPracticed ? (
           <Card className="shadow-soft" data-testid="progress-empty">
             <CardContent className="p-5 text-sm text-muted-foreground">
-              Nothing here yet. Your first finished practice starts the count — skipping through
-              one deliberately doesn't, so the number stays honest.
+              Nothing here yet. Finish a practice and it will show up here.
             </CardContent>
           </Card>
         ) : (
@@ -705,7 +734,7 @@ export default function Home() {
         {recentJournal.length > 0 && (
           <Link
             href="/journal"
-            className="flex min-h-14 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
+            className="flex min-h-14 min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
             data-testid={`home-journal-${recentJournal[0]!.id}`}
           >
             <NotebookPen className="h-5 w-5 shrink-0 text-primary" aria-hidden />
@@ -722,6 +751,7 @@ export default function Home() {
           </Link>
         )}
       </section>
+
 
       {/* ── 5. Three alternatives ────────────────────────────────────────── */}
       {alternatives.length > 0 && (
@@ -746,7 +776,76 @@ export default function Home() {
         </section>
       )}
 
-      {/* ── 6. One thing to learn ────────────────────────────────────────── */}
+      {/* ── 6. The three ways in, plus breathing ─────────────────────────── */}
+      <section className="space-y-3" aria-labelledby="home-discover-heading" data-testid="home-discover">
+        <h2 id="home-discover-heading" className="font-serif text-xl">
+          Explore
+        </h2>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {[
+            {
+              href: "/guided",
+              label: "Practice now",
+              blurb: "Mood sessions, quick flows and your own sequences",
+              testId: "home-discover-practice",
+              Icon: Play,
+            },
+            {
+              href: "/pathways",
+              label: "Follow a program",
+              blurb: "7-day and multi-week programs",
+              testId: "home-discover-pathways",
+              Icon: RouteIcon,
+            },
+            {
+              href: "/asanas",
+              label: "Learn a pose",
+              blurb: "Steps, modifications and what to avoid",
+              testId: "home-discover-learn",
+              Icon: BookOpen,
+            },
+            {
+              href: "/breathing",
+              label: "Breathing",
+              blurb: "Box, 4-7-8, Ujjayi, and more",
+              testId: "home-discover-breathing",
+              Icon: Wind,
+            },
+          ].map(({ href, label, blurb, testId, Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex min-h-14 min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
+              data-testid={testId}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Icon className="h-5 w-5" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">{label}</span>
+                <span className="block truncate text-xs text-muted-foreground">{blurb}</span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            </Link>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Also:{" "}
+          <Link href="/kids" className="text-primary hover:underline" data-testid="home-discover-kids">
+            Kids
+          </Link>{" "}
+          ·{" "}
+          <Link href="/challenges" className="text-primary hover:underline" data-testid="home-discover-challenges">
+            Challenges
+          </Link>{" "}
+          ·{" "}
+          <Link href="/builder" className="text-primary hover:underline" data-testid="home-discover-builder">
+            Build a sequence
+          </Link>
+        </p>
+      </section>
+
+      {/* ── 7. One thing to learn ────────────────────────────────────────── */}
       {learnPose ? (
         <section className="space-y-3" aria-labelledby="learn-heading">
           <h2 id="learn-heading" className="font-serif text-xl">
@@ -754,7 +853,7 @@ export default function Home() {
           </h2>
           <Link
             href={`/asanas/${learnPose.slug}`}
-            className="flex min-h-14 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
+            className="flex min-h-14 min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
             data-testid="home-learn-item"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -776,7 +875,7 @@ export default function Home() {
           </h2>
           <Link
             href={`/breathing?slug=${encodeURIComponent(breath.slug)}`}
-            className="flex min-h-14 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
+            className="flex min-h-14 min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
             data-testid="home-learn-item"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary/20 text-secondary">
@@ -793,51 +892,26 @@ export default function Home() {
         </section>
       )}
 
-      {/* ── 7. Where your practice is stored ─────────────────────────────── */}
-      {showSaveBanner ? (
-        <SavePracticeBanner
-          totalSessions={stats?.totalSessions ?? 0}
-          currentStreak={stats?.currentStreak ?? 0}
-          onDismiss={() => {
-            dismissBanner();
-            setSavePromptDismissed(true);
-          }}
-        />
-      ) : (
-        <Card className="surface-inset" data-testid="home-account">
-          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                {isSignedIn ? <UserRound className="h-5 w-5" /> : <CloudDownload className="h-5 w-5" />}
-              </span>
-              <div className="min-w-0">
-                {/*
-                  This card is about where the data lives. "Keep your practice
-                  safe" read as a safety warning about the yoga.
-                */}
-                <p className="font-serif text-lg leading-tight">
-                  {isSignedIn
-                    ? `Signed in as ${user?.displayName || user?.email}`
-                    : "Your practice is saved on this device only"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {isSignedIn
-                    ? "Your history, journal and sequences sync to any browser you sign in from."
-                    : "Clearing this browser's data would erase your history. A free account backs it up and syncs it."}
-                </p>
-              </div>
-            </div>
-            <Button
-              asChild
-              variant={isSignedIn ? "ghost" : "default"}
-              className="min-h-11 shrink-0 cursor-pointer"
-              data-testid="home-account-cta"
-            >
-              <Link href="/account">{isSignedIn ? "Manage account" : "Back up my practice"}</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+
+      {/* ── 8. Where your practice is stored — one line, not a sign-up pitch ── */}
+      <p
+        className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground"
+        data-testid="home-account"
+      >
+        {isSignedIn ? (
+          <UserRound className="h-4 w-4 shrink-0" aria-hidden />
+        ) : (
+          <CloudDownload className="h-4 w-4 shrink-0" aria-hidden />
+        )}
+        <span data-testid="home-sync-status">
+          {isSignedIn
+            ? `Synced to your account${user?.email ? ` (${user.email})` : ""}.`
+            : "Saved on this device only."}
+        </span>
+        <Link href="/account" className="inline-flex min-h-11 items-center text-primary hover:underline" data-testid="home-account-cta">
+          {isSignedIn ? "Manage" : "Back up with a free account"}
+        </Link>
+      </p>
     </div>
   );
 }

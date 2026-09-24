@@ -29,6 +29,7 @@ import {
 } from "@/lib/sessionEquipment";
 import { poseDemoAvailability } from "@/data/poseDemoAvailability";
 import { poseImageCaveat } from "@/data/poseImageAccuracy";
+import { isFloorFree, swapPreservesConstraints } from "@/data/floorAccess";
 
 export type PreflightPose = Asana & { sides?: "once" | "each"; holdSeconds: number };
 
@@ -223,9 +224,13 @@ export function buildSessionPreflight(opts: {
   const equipment = sessionEquipment(poses);
 
   const equipmentAlternatives: EquipmentAlternative[] = [];
+  // A floor-free practice stays floor-free: no swap may put someone on the
+  // floor, stand them up from a chair, or raise the difficulty.
+  const keepOffFloor = isFloorFree(poses.map((p) => p.slug));
   for (const row of equipment.requiredBy) {
     const swap = equipmentFreeSwapFor(row.slug);
     if (!swap) continue;
+    if (!swapPreservesConstraints(row.slug, swap.slug, { keepOffFloor })) continue;
     equipmentAlternatives.push({
       slug: row.slug,
       english: row.english,
@@ -265,6 +270,19 @@ export function buildSessionPreflight(opts: {
           })
         : null,
   };
+}
+
+/**
+ * "11 min, including guidance" — the length in the words a card uses. Only
+ * Learn and Flow have guidance to include; Timer only is just the length.
+ */
+export function durationPhrase(p: Pick<SessionPreflight, "timeLabel" | "mode">): string {
+  return p.mode === "timer" ? p.timeLabel : `${p.timeLabel}, including guidance`;
+}
+
+/** "No props" or "Needs a chair and a bolster (or a pillow)". */
+export function propsPhrase(p: Pick<SessionPreflight, "equipmentSentence">): string {
+  return p.equipmentSentence ? `Needs ${p.equipmentSentence}` : "No props";
 }
 
 /** "10 min · Beginner · Gentle" — the one-line spec used on cards. */

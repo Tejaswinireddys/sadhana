@@ -8,15 +8,22 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("Premium quiz-first UX contract", () => {
-  it("routes Get started CTAs to /start on the landing page", () => {
+  it("leads with a real practice and keeps the quiz one tap away", () => {
     const landing = readFileSync(resolve("client/src/pages/Landing.tsx"), "utf8");
+    assert.match(landing, /A daily yoga practice that fits your day\./);
+    // Primary: start the real first practice. Its length is derived, never typed.
     assert.match(landing, /data-testid="landing-cta-primary"/);
+    assert.match(landing, /Try a \$\{samplePreflight\.minutes\}-minute practice/);
+    // Secondary: the quiz.
+    assert.match(landing, /data-testid="landing-cta-secondary"/);
     assert.match(landing, /href="\/start"/);
-    assert.match(landing, /Get my plan/);
+    assert.match(landing, /Find my practice/);
     assert.match(landing, /data-testid="landing-cta-sticky"/);
-    assert.match(landing, /PROGRAMS/);
+    assert.match(landing, /data-testid="landing-player-preview"/);
     assert.match(landing, /landing-brand-rise/);
     assert.match(landing, /landing-cta-glow/);
+    // Hero copy is not laid over artwork any more.
+    assert.equal(/absolute inset-0 h-full w-full object-cover/.test(landing), false);
     assert.equal(/hard paywall|forced trial|countdown discount/i.test(landing), false);
     assert.equal(/kind funnel|Conversion without dark patterns/i.test(landing), false);
   });

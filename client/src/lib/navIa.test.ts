@@ -77,7 +77,15 @@ describe("pose self-check discoverability", () => {
     const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
     assert.match(home, /data-testid="home-discover"/);
     assert.match(home, /testId: "home-discover-breathing"/);
-    assert.match(home, /testId: "home-discover-kids"/);
+    // Kids and Challenges moved to the secondary "Also" line — still one tap.
+    assert.match(home, /(testId: |data-testid=)"home-discover-kids"/);
+  });
+
+  it("organises Home's ways in as Practice now · Follow a program · Learn a pose", () => {
+    const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
+    for (const label of ["Practice now", "Follow a program", "Learn a pose"]) {
+      assert.match(home, new RegExp(`label: "${label}"`));
+    }
   });
 
   it("keeps Breathing, Kids and Challenges two taps away even with a queue loaded", () => {

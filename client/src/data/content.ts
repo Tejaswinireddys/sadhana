@@ -1,4 +1,5 @@
 // Static content for Sadhana. Asanas, pathways, and affirmations live here (not in DB).
+import { withSessionPreparation } from "./sessionPreparation";
 import { EXTRAS } from "./variations";
 import { FOCUS_ZONES, STRETCH_ZONES, DEFAULT_FOCUS_ZONE } from "./zones";
 import { bestForFor } from "./bestFor";
@@ -4828,57 +4829,6 @@ export const ASANAS: Asana[] = RAW_ASANAS.map((raw) => {
   };
 });
 
-// ---- Warm-up routine (shown above pathways) ----
-/** Short runnable warm-up — Start loads these into guided practice. */
-export const WARMUP = {
-  title: "Always warm up first",
-  description: "A short sequence to wake up the spine and joints before any pathway.",
-  steps: [
-    {
-      name: "Cat / Cow",
-      asanaSlug: "marjaryasana-bitilasana",
-      holdSeconds: 60,
-      sides: "once" as const,
-      detail: "8–10 rounds, syncing spine movement with breath",
-    },
-    {
-      name: "Bird Dog",
-      asanaSlug: "chakravakasana",
-      holdSeconds: 20,
-      sides: "each" as const,
-      detail: "Wake the core with opposite arm and leg",
-    },
-    {
-      name: "Downward-Facing Dog",
-      asanaSlug: "adho-mukha-svanasana",
-      holdSeconds: 45,
-      sides: "once" as const,
-      detail: "Pedal the feet and lengthen the spine to build gentle heat",
-    },
-    {
-      name: "Low Lunge",
-      asanaSlug: "anjaneyasana",
-      holdSeconds: 30,
-      sides: "each" as const,
-      detail: "30 sec each side to open the hip flexors",
-    },
-    {
-      name: "Upward Salute",
-      asanaSlug: "urdhva-hastasana",
-      holdSeconds: 20,
-      sides: "once" as const,
-      detail: "Reach up and lift the mood before you flow",
-    },
-    {
-      name: "Forward Fold",
-      asanaSlug: "uttanasana",
-      holdSeconds: 45,
-      sides: "once" as const,
-      detail: "Soft knees if needed — lengthen the hamstrings",
-    },
-  ],
-};
-
 // Legacy week shape — kept for the existing (collapsed) schedule field so any
 // older references keep compiling. The v3.3 timeline uses PathwayWeek below.
 export type PathwayWeekLegacy = {
@@ -4893,7 +4843,7 @@ export type PathwayWeekLegacy = {
 export type PathwayWeek = {
   weekNumber: number;
   theme: string;
-  poses: Array<{ asanaSlug: string; holdSeconds: number; note?: string }>;
+  poses: Array<{ asanaSlug: string; holdSeconds: number; sides?: "each" | "once"; note?: string; preparation?: boolean }>;
   sessionsPerWeek?: number; // optional per-week override
 };
 
@@ -4901,7 +4851,7 @@ export type PathwayWeek = {
 export type DailyPlan = {
   day: number; // 1-60
   theme: string; // "Foundation: wake the hips"
-  poses: Array<{ asanaSlug: string; holdSeconds: number; sides?: "each" | "once"; note?: string }>;
+  poses: Array<{ asanaSlug: string; holdSeconds: number; sides?: "each" | "once"; note?: string; preparation?: boolean }>;
   totalMinutes: number; // pre-computed
   restDay?: boolean; // true = full rest, show gentle recovery cue
   // v5.1 — widened to cover the new 7-day challenge themes.
@@ -4933,7 +4883,7 @@ export type Pathway = {
   section?: "quick-flow" | "salutation-goddess" | "seven-day" | "program";
 };
 
-export const PATHWAYS: Pathway[] = [
+const RAW_PATHWAYS: Pathway[] = [
   {
     slug: "front-splits",
     name: "Front Splits",
@@ -7385,7 +7335,7 @@ export const PATHWAYS: Pathway[] = [
   {
     slug: "chair-limited-mobility",
     name: "Chair & Limited Mobility",
-    tagline: "A 7-day seated and supported path — no floor required.",
+    tagline: "Seven short sessions in a chair and at a wall — you never get down to the floor.",
     target: "Chair Forward Fold",
     targetPose: "seated",
     targetImgSlug: "chair-forward-fold",
@@ -7394,75 +7344,79 @@ export const PATHWAYS: Pathway[] = [
     section: "seven-day",
     weeks: 1,
     sessionsPerWeek: 7,
-    timePerSession: "10–12 min",
-    minutesPerSession: 11,
-    goalDescription: "Practice safely with chair support and conservative range.",
+    timePerSession: "6–9 min",
+    minutesPerSession: 8,
+    goalDescription: "Practice with chair and wall support and a conservative range.",
     summary:
-      "Designed for desk workers, recovery days, and anyone who prefers not to get on the floor. Large cues, short holds, and rest options on every day.",
+      "Every pose is either seated in a chair or standing with a wall close by — no lying down, kneeling or sitting on the floor. You'll need a sturdy chair without wheels and a clear stretch of wall. Standing days are short; skip any pose that isn't right for you today.",
     schedule: [],
     weekPlan: [],
+    // Only poses listed in data/floorAccess.ts (read from each pose's own
+    // steps). chairProgram.test.ts fails if a floor pose is added here.
     dailyPlan: [
       {
-        day: 1, theme: "Seated arrival", focus: "general", totalMinutes: 10,
+        day: 1, theme: "Seated arrival", focus: "general", totalMinutes: 7,
         poses: [
-          { asanaSlug: "sukhasana", holdSeconds: 60, sides: "once", note: "or sit in a chair" },
+          { asanaSlug: "womb-seat", holdSeconds: 90, sides: "once", note: "sit in the chair, feet flat" },
           { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once" },
-          { asanaSlug: "bharadvajasana", holdSeconds: 30, sides: "each", note: "chair twist ok" },
-          { asanaSlug: "chair-viparita-karani", holdSeconds: 90, sides: "once", note: "legs on chair" },
+          { asanaSlug: "wall-chest-opener", holdSeconds: 30, sides: "each" },
+          { asanaSlug: "womb-seat", holdSeconds: 60, sides: "once", note: "close seated" },
         ],
       },
       {
-        day: 2, theme: "Shoulders free", focus: "general", totalMinutes: 11,
+        day: 2, theme: "Shoulders free", focus: "general", totalMinutes: 8,
         poses: [
-          { asanaSlug: "sukhasana", holdSeconds: 45, sides: "once" },
-          { asanaSlug: "gomukhasana", holdSeconds: 30, sides: "each", note: "arms only if needed" },
-          { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once" },
-          { asanaSlug: "savasana", holdSeconds: 120, sides: "once", note: "or recline in chair" },
+          { asanaSlug: "womb-seat", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "wall-angel", holdSeconds: 45, sides: "once", note: "small range is fine" },
+          { asanaSlug: "wall-chest-opener", holdSeconds: 30, sides: "each" },
+          { asanaSlug: "chair-forward-fold", holdSeconds: 60, sides: "once" },
         ],
       },
       {
-        day: 3, theme: "Gentle stand optional", focus: "general", totalMinutes: 12,
+        day: 3, theme: "Standing, with support", focus: "general", totalMinutes: 8,
         poses: [
-          { asanaSlug: "tadasana", holdSeconds: 40, sides: "once", note: "hold chair back" },
-          { asanaSlug: "uttanasana", holdSeconds: 30, sides: "once", note: "hands to chair seat" },
-          { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once" },
-          { asanaSlug: "chair-viparita-karani", holdSeconds: 90, sides: "once" },
+          { asanaSlug: "tadasana", holdSeconds: 40, sides: "once", note: "a wall within reach" },
+          { asanaSlug: "urdhva-hastasana", holdSeconds: 20, sides: "once" },
+          { asanaSlug: "wall-calf-stretch", holdSeconds: 30, sides: "each" },
+          { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once", note: "sit back down" },
         ],
       },
       {
-        day: 4, theme: "Rest and breathe", focus: "sleep", totalMinutes: 10, restDay: true,
+        day: 4, theme: "Rest and breathe", focus: "sleep", totalMinutes: 6, restDay: true,
         poses: [
-          { asanaSlug: "sukhasana", holdSeconds: 90, sides: "once" },
-          { asanaSlug: "chair-viparita-karani", holdSeconds: 150, sides: "once" },
-          { asanaSlug: "savasana", holdSeconds: 90, sides: "once" },
+          { asanaSlug: "womb-seat", holdSeconds: 120, sides: "once" },
+          { asanaSlug: "chair-forward-fold", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "womb-seat", holdSeconds: 90, sides: "once" },
         ],
       },
       {
-        day: 5, theme: "Spine mobility", focus: "general", totalMinutes: 11,
+        day: 5, theme: "Side body and breath", focus: "general", totalMinutes: 8,
         poses: [
-          { asanaSlug: "marjaryasana-bitilasana", holdSeconds: 45, sides: "once", note: "seated cat-cow ok" },
-          { asanaSlug: "bharadvajasana", holdSeconds: 35, sides: "each" },
-          { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once" },
-          { asanaSlug: "savasana", holdSeconds: 120, sides: "once" },
+          { asanaSlug: "womb-seat", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "standing-side-stretch", holdSeconds: 25, sides: "each", note: "hand on hip is fine" },
+          { asanaSlug: "wall-chest-opener", holdSeconds: 30, sides: "each" },
+          { asanaSlug: "chair-forward-fold", holdSeconds: 60, sides: "once" },
         ],
       },
       {
-        day: 6, theme: "Hip comfort", focus: "hips", totalMinutes: 12,
+        day: 6, theme: "Legs and posture", focus: "general", totalMinutes: 9,
         poses: [
-          { asanaSlug: "sukhasana", holdSeconds: 45, sides: "once" },
-          { asanaSlug: "baddha-konasana", holdSeconds: 60, sides: "once", note: "seated on chair edge" },
+          { asanaSlug: "tadasana", holdSeconds: 40, sides: "once", note: "a wall within reach" },
+          { asanaSlug: "wall-calf-stretch", holdSeconds: 30, sides: "each" },
+          { asanaSlug: "wall-angel", holdSeconds: 45, sides: "once" },
           { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once" },
-          { asanaSlug: "chair-viparita-karani", holdSeconds: 120, sides: "once" },
+          { asanaSlug: "womb-seat", holdSeconds: 90, sides: "once" },
         ],
       },
       {
-        day: 7, theme: "Integrate", focus: "general", totalMinutes: 12,
+        day: 7, theme: "Integrate", focus: "general", totalMinutes: 9,
         poses: [
-          { asanaSlug: "tadasana", holdSeconds: 30, sides: "once", note: "optional" },
-          { asanaSlug: "chair-forward-fold", holdSeconds: 45, sides: "once" },
-          { asanaSlug: "bharadvajasana", holdSeconds: 30, sides: "each" },
-          { asanaSlug: "chair-viparita-karani", holdSeconds: 90, sides: "once" },
-          { asanaSlug: "savasana", holdSeconds: 120, sides: "once", note: "well done" },
+          { asanaSlug: "womb-seat", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "tadasana", holdSeconds: 30, sides: "once", note: "optional — stay seated if you prefer" },
+          { asanaSlug: "urdhva-hastasana", holdSeconds: 20, sides: "once" },
+          { asanaSlug: "wall-angel", holdSeconds: 40, sides: "once" },
+          { asanaSlug: "chair-forward-fold", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "womb-seat", holdSeconds: 120, sides: "once", note: "well done" },
         ],
       },
     ],
@@ -7583,6 +7537,13 @@ export const PATHWAYS: Pathway[] = [
     ],
   },
 ];
+
+/**
+ * Programs with their session preparation folded in (see
+ * sessionPreparation.ts) — so every card, preview and the player count the
+ * same queue. There is no separate warm-up to add on top.
+ */
+export const PATHWAYS: Pathway[] = RAW_PATHWAYS.map((p) => withSessionPreparation(p, asanaBySlug));
 
 /** Theme ids shown in Affirmations UI (and linked from profiles). */
 export const AFFIRMATION_THEMES = [

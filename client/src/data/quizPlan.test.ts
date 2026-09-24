@@ -46,7 +46,10 @@ describe("quizPlan", () => {
     const twenty = buildQuizPlan({ goal: "calm", body: "full", experience: "new", time: "20" });
     const thirty = buildQuizPlan({ goal: "strength", body: "full", experience: "some", time: "30" });
     assert.ok(twenty.minutes >= 18 && twenty.minutes <= 22, `20-min plan was ${twenty.minutes}`);
-    assert.ok(thirty.minutes >= 26 && thirty.minutes <= 32, `30-min plan was ${thirty.minutes}`);
+    // Holds are capped at twice their reviewed length, so a 7-pose template
+    // can finish early. It must never overrun, and when short it says so.
+    assert.ok(thirty.minutes >= 22 && thirty.minutes <= 32, `30-min plan was ${thirty.minutes}`);
+    if (thirty.minutes <= 27) assert.match(thirty.shortNote ?? "", /not 30/);
   });
 
   it("parses program refs from the landing tiles", () => {

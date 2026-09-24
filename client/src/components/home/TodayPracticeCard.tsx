@@ -19,11 +19,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { asanaBySlug } from "@/data/content";
 import { formatDuration } from "@/lib/formatDuration";
 import type { PracticeRecommendation } from "@/lib/homeRecommendation";
-import { buildSessionPreflight, toTimedPoses } from "@/lib/sessionPreflight";
+import { buildSessionPreflight, durationPhrase, toTimedPoses } from "@/lib/sessionPreflight";
+import { countOf } from "@/lib/plural";
 import { briefModeFit, nearestOfferedMinutes } from "@/lib/sessionFit";
 import { DurationFitNotice } from "@/components/DurationFitNotice";
 import { TIME_OPTIONS, NEED_OPTIONS } from "@/lib/yogaTrainer";
-import type { InstructionMode } from "@/lib/guidedDuration";
+import { instructionModeShort, type InstructionMode } from "@/lib/guidedDuration";
 import { ChevronDown, Package, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,8 +47,12 @@ export function TodayPracticeCard({
   onStart,
   onChangeMinutes,
   onChangeFocus,
+  onChangeEnergy,
+  onToggleNoProps,
   currentMinutes,
   currentNeed,
+  currentEnergy,
+  noProps = false,
 }: {
   recommendation: PracticeRecommendation;
   mode?: InstructionMode;
@@ -56,10 +61,16 @@ export function TodayPracticeCard({
   onChangeMinutes?: (minutes: number) => void;
   /** Re-generate for a different focus. Absent when this practice is fixed. */
   onChangeFocus?: (need: string) => void;
+  /** Re-generate for a different energy level ("Low" | "Balanced" | "Energized"). */
+  onChangeEnergy?: (energy: string) => void;
+  /** Swap or drop anything that needs a prop. */
+  onToggleNoProps?: (noProps: boolean) => void;
   currentMinutes?: number | null;
   currentNeed?: string | null;
+  currentEnergy?: string | null;
+  noProps?: boolean;
 }) {
-  const [panel, setPanel] = useState<"none" | "time" | "focus" | "poses">("none");
+  const [panel, setPanel] = useState<"none" | "time" | "focus" | "energy" | "poses">("none");
 
   const poses = recommendation.poses
     .map((p) => {
@@ -92,6 +103,11 @@ export function TodayPracticeCard({
         })()
       : null;
   const toggle = (next: typeof panel) => setPanel((p) => (p === next ? "none" : next));
+  /** Day number when this is today's day of an enrolled program. */
+  const programDay =
+    recommendation.source === "program"
+      ? Number(/^program:[^:]+:(\d+)/.exec(recommendation.id)?.[1] ?? "") || null
+      : null;
 
   return (
     <Card className="surface-banner border-primary/30" data-testid="today-practice">
@@ -101,7 +117,11 @@ export function TodayPracticeCard({
             {recommendation.title}
           </h3>
           <p className="text-sm text-muted-foreground" data-testid="today-practice-spec">
-            {preflight.timeLabel} · {preflight.difficulty.level} · {preflight.intensity.level}
+            {durationPhrase(preflight)} · {preflight.difficulty.level} · {preflight.intensity.level} ·{" "}
+            {countOf(preflight.poseCount, "pose")}
+          </p>
+          <p className="text-xs text-muted-foreground" data-testid="today-practice-format">
+            {instructionModeShort(preflight.mode)}
           </p>
         </div>
 
@@ -118,6 +138,7 @@ export function TodayPracticeCard({
         </p>
 
         <p className="text-sm text-muted-foreground" data-testid="today-practice-reason">
+          <span className="font-medium text-foreground">Why this: </span>
           {recommendation.reason}
         </p>
 
@@ -146,7 +167,7 @@ export function TodayPracticeCard({
           data-testid="button-start-today-practice"
         >
           <Play className="mr-2 h-5 w-5" />
-          Start {preflight.timeLabel} practice
+          {programDay ? `Continue Day ${programDay} · ${preflight.timeLabel}` : `Start ${preflight.timeLabel} practice`}
         </Button>
 
         <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-sm">
@@ -167,6 +188,31 @@ export function TodayPracticeCard({
             >
               Change focus
             </SecondaryControl>
+          )}
+          {onChangeEnergy && (
+            <SecondaryControl
+              active={panel === "energy"}
+              onClick={() => toggle("energy")}
+              testId="button-change-energy"
+            >
+              Energy
+            </SecondaryControl>
+          )}
+          {onToggleNoProps && (preflight.equipmentSentence || noProps) && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={noProps}
+              onClick={() => onToggleNoProps(!noProps)}
+              className={cn(
+                "inline-flex min-h-11 items-center gap-1 rounded-full px-3 text-sm text-muted-foreground",
+                "hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                noProps && "bg-accent text-foreground",
+              )}
+              data-testid="toggle-no-props"
+            >
+              {noProps ? "No props: on" : "No props"}
+            </button>
           )}
           <SecondaryControl
             active={panel === "poses"}
@@ -206,6 +252,27 @@ export function TodayPracticeCard({
                 data-testid={`option-focus-${n.id}`}
               >
                 {n.label}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {panel === "energy" && onChangeEnergy && (
+          <div className="flex flex-wrap gap-2" data-testid="panel-change-energy">
+            {[
+              { id: "Low", label: "Low — keep it gentle" },
+              { id: "Balanced", label: "Balanced" },
+              { id: "Energized", label: "Energized" },
+            ].map((e) => (
+              <Button
+                key={e.id}
+                size="sm"
+                variant={(currentEnergy ?? "Balanced") === e.id ? "default" : "outline"}
+                className="min-h-11"
+                onClick={() => onChangeEnergy(e.id)}
+                data-testid={`option-energy-${e.id.toLowerCase()}`}
+              >
+                {e.label}
               </Button>
             ))}
           </div>

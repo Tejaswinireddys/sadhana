@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { PATHWAYS, WARMUP, asanaBySlug } from "../data/content.ts";
+import { PATHWAYS, asanaBySlug } from "../data/content.ts";
 import {
   catalogSessionLabel,
   catalogSessionMinutes,
@@ -11,12 +11,11 @@ import {
   poseSides,
   timerOnlySessionSeconds,
   weekSessionLabel,
-  warmupSessionLabel,
-  warmupSessionMinutes,
+  sessionPreparation,
   pathwaySessionRangeLabel,
 } from "./pathwayTiming.ts";
 import { sessionTimeLabel } from "../data/quickSessions.ts";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const QUICK_FLOWS = PATHWAYS.filter((p) => p.kind === "flow");
@@ -42,16 +41,28 @@ describe("shared catalog timing", () => {
     }
   });
 
-  it("warmup catalog minutes match guided setup instead of a 5-minute literal", () => {
-    assert.equal(/5 min/.test(WARMUP.title), false, WARMUP.title);
-    assert.equal(warmupSessionLabel(), catalogSessionLabel(WARMUP.steps));
-    assert.ok(warmupSessionMinutes() > 5, `warmup guided ${warmupSessionMinutes()} min`);
-    const warmupCard = readFileSync(resolve("client/src/components/WarmupCard.tsx"), "utf8");
-    assert.match(warmupCard, /warmupSessionLabel/);
-    const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
-    assert.equal(/5-minute warm-up/.test(home), false);
-    const hub = readFileSync(resolve("client/src/pages/GuidedSession.tsx"), "utf8");
-    assert.equal(/5-min warm-up/.test(hub), false);
+  it("has no universal warm-up — preparation lives inside each session", () => {
+    assert.equal(existsSync(resolve("client/src/components/WarmupCard.tsx")), false);
+    for (const f of ["pages/Pathways.tsx", "pages/PathwayDetail.tsx", "pages/Home.tsx", "pages/GuidedSession.tsx"]) {
+      const src = readFileSync(resolve("client/src", f), "utf8");
+      assert.equal(/Always warm up first|WarmupCard|WARMUP\b/.test(src), false, f);
+    }
+    // Every session with build or peak work opens with preparation, and that
+    // preparation is part of the length the card shows.
+    for (const p of PATHWAYS) {
+      const sessions =
+        p.kind === "daily" && p.dailyPlan?.length ? p.dailyPlan.map((d) => d.poses) : p.weekPlan.map((w) => w.poses);
+      for (const poses of sessions) {
+        const active = poses.some((x) => {
+          const slot = asanaBySlug(x.asanaSlug)?.arcSlot;
+          return slot === 2 || slot === 3;
+        });
+        if (!active) continue;
+        const prep = sessionPreparation(poses);
+        assert.ok(prep, `${p.slug}: an active session with no preparation`);
+        assert.ok(catalogSessionSeconds(poses) > prep.seconds, p.slug);
+      }
+    }
   });
 
   it("matches guided setup for every advertised quick flow", () => {
@@ -84,8 +95,8 @@ describe("shared catalog timing", () => {
     const front = PATHWAYS.find((p) => p.slug === "front-splits");
     assert.ok(front);
     const label = pathwaySessionRangeLabel(front);
-    assert.equal(/15 min/.test(label), false, label);
-    assert.match(label, /10–18 min, 4x\/week/);
+    assert.equal(/^15 min/.test(label), false, label);
+    assert.match(label, /9–18 min, 4x\/week/);
   });
 
   it("counts both sides on Front Splits week 1 instead of a holds-only sum", () => {

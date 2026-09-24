@@ -600,9 +600,9 @@ export default function Settings() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            This caches the app shell and a handful of pose illustrations for a flaky network. It
-            is not a downloadable practice: guided sequences, timings, narration and your journal
-            all still need a connection. Calling it a "practice pack" oversold what it does.
+            Saves the app shell and five pose illustrations so pages load on a weak connection.
+            It does not make practice work offline — sessions, narration and your journal still
+            need a connection.
           </p>
           <p className="text-xs text-muted-foreground" data-testid="offline-status">
             {offlineStatus.present

@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { WithheldPoseImage } from "@/components/WithheldPoseImage";
+import { poseImageWithheld } from "@/data/poseImageAccuracy";
 import { countOf, posesQueued } from "@/lib/plural";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -24,7 +26,15 @@ import type { Pathway, DailyPlan } from "@/data/content";
 import { usePractice } from "@/context/PracticeContext";
 import type { Enrollment, Session } from "@shared/schema";
 import { Clock, Play, Moon, Ruler, Sparkles } from "lucide-react";
-import { catalogSessionMinutes, dailySessionLabel, poseSides, queueCatalogPoses } from "@/lib/pathwayTiming";
+import {
+  catalogPreflight,
+  catalogSessionMinutes,
+  dailySessionLabel,
+  poseSides,
+  queueCatalogPoses,
+  sessionPreparation,
+} from "@/lib/pathwayTiming";
+import { SessionSpec } from "@/components/SessionSpec";
 import { mobilityCheckInCopy } from "@/lib/mobilityCheckIn";
 
 const MS_PER_DAY = 86400000;
@@ -59,12 +69,16 @@ function PoseRow({ p }: { p: DailyPlan["poses"][number] }) {
   return (
     <div className="flex items-center gap-3 rounded-md border border-border bg-background p-2">
       <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-accent/30">
-        <img width={600} height={1200}
+        {poseImageWithheld(p.asanaSlug) ? (
+          <WithheldPoseImage slug={p.asanaSlug} compact />
+        ) : (
+          <img width={600} height={1200}
           src={`${import.meta.env.BASE_URL}poses/${p.asanaSlug}.png`}
           alt={asana?.imageAlt ?? p.asanaSlug}
           className="h-full w-full object-contain"
           loading="lazy"
         />
+        )}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{asana?.english ?? p.asanaSlug}</p>
@@ -210,6 +224,16 @@ export function DailyProgram({
                     <Badge variant="outline">{focusLabel(today.focus)}</Badge>
                   </div>
                 </div>
+
+                <SessionSpec preflight={catalogPreflight(today.poses)} testId="spec-today" />
+                <p className="text-xs text-muted-foreground" data-testid="prep-today">
+                  {(() => {
+                    const prep = sessionPreparation(today.poses);
+                    return prep
+                      ? `Starts with ${prep.label} of preparation — ${prep.names.join(", ")} — included in the total.`
+                      : "Gentle throughout — no separate warm-up needed.";
+                  })()}
+                </p>
 
                 <div className="grid gap-2 sm:grid-cols-2">
                   {today.poses.map((p, i) => (

@@ -45,7 +45,7 @@ test.describe("Today leads with one practice", () => {
     const card = page.getByTestId("today-practice");
     await expect(card).toBeVisible();
     await expect(page.getByTestId("today-practice-spec")).toContainText(
-      /\d+ min · (Beginner|Intermediate|Advanced) · (Gentle|Moderate|Strong)/,
+      /\d+ min(, including guidance)? · (Beginner|Intermediate|Advanced) · (Gentle|Moderate|Strong)/,
     );
     await expect(page.getByTestId("today-practice-equipment")).toContainText(
       /You'll need|No props needed/,
@@ -116,7 +116,7 @@ test.describe("Today leads with one practice", () => {
     await expect(alts).toHaveCount(3);
     for (let i = 0; i < 3; i++) {
       await expect(alts.nth(i)).toContainText(
-        /\d+ min · (Beginner|Intermediate|Advanced) · (Gentle|Moderate|Strong)/,
+        /\d+ min(, including guidance)? · (Beginner|Intermediate|Advanced) · (Gentle|Moderate|Strong)/,
       );
     }
   });
@@ -149,7 +149,9 @@ test.describe("Today handles its states deliberately", () => {
     await page.route("**/api/sessions/stats/**", async (route) => {
       const res = await route.fetch();
       const body = await res.json();
-      const today = new Date().toISOString().slice(0, 10);
+      // The app's "today" is the local calendar date, not UTC.
+      const now = new Date();
+      const today = new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
       body.totalSessions = 3;
       body.daysPracticed = 3;
       body.currentStreak = 1;
@@ -162,7 +164,9 @@ test.describe("Today handles its states deliberately", () => {
     await expect(done).toContainText(/You practised today/);
     await expect(done).toContainText(/12 minutes/);
     await expect(page.getByTestId("button-practiced-reflect")).toBeVisible();
-    await expect(page.getByTestId("button-practiced-breath")).toBeVisible();
+    // Compact: one line, so the next practice stays above the fold on a phone.
+    const box = await done.boundingBox();
+    expect(box?.height ?? 999).toBeLessThan(120);
     // And practising again is offered as a choice, not as if nothing happened.
     await expect(page.getByRole("heading", { name: /Practise again/i })).toBeVisible();
   });
@@ -182,6 +186,7 @@ test.describe("Today handles its states deliberately", () => {
     await page.goto("/");
     await expect(page.getByTestId("home-explore-more")).toHaveCount(0);
     await page.goto("/guided");
+    await page.getByTestId("hub-all-destinations").locator("summary").click();
     await expect(page.getByTestId("home-explore-more")).toBeVisible();
   });
 

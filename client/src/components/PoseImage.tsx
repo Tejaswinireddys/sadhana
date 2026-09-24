@@ -14,7 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PoseSvg } from "@/components/PoseSvg";
 import { asanaBySlug } from "@/data/content";
 import { resolvePoseImageSources } from "@/lib/poseImageSources";
-import { accurateImageAlt } from "@/data/poseImageAccuracy";
+import { accurateImageAlt, poseImageWithheld } from "@/data/poseImageAccuracy";
+import { WithheldPoseImage } from "@/components/WithheldPoseImage";
 import { cn } from "@/lib/utils";
 
 export function PoseImage({
@@ -106,6 +107,18 @@ export function PoseImage({
     }
     setErrored(true);
   };
+
+  if (poseImageWithheld(slug)) {
+    return (
+      <div
+        className={cn("relative w-full overflow-hidden", rounded, aspectClass, className)}
+        style={{ aspectRatio: aspectRatioCss }}
+        data-testid={testId ?? `pose-image-${slug}`}
+      >
+        <WithheldPoseImage slug={slug} compact={thumb} className={rounded} />
+      </div>
+    );
+  }
 
   return (
     <div

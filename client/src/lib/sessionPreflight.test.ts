@@ -2,7 +2,6 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { asanaBySlug } from "../data/content.ts";
 import { QUICK_SESSIONS } from "../data/quickSessions.ts";
-import { WARMUP } from "../data/content.ts";
 import {
   equipmentSentence,
   poseEquipment,
@@ -135,11 +134,19 @@ describe("preflight facts come from the queue", () => {
 });
 
 describe("intensity is effort, weighted by time spent", () => {
+  // The old universal warm-up, kept as a fixture: Cat/Cow, Bird Dog, Down
+  // Dog, Low Lunge, Upward Salute, Forward Fold.
   const warmup = () =>
-    WARMUP.steps.map((s) => {
-      const a = asana(s.asanaSlug);
-      return { ...a, holdSeconds: s.holdSeconds, sides: s.sides };
-    });
+    (
+      [
+        ["marjaryasana-bitilasana", 60, "once"],
+        ["chakravakasana", 20, "each"],
+        ["adho-mukha-svanasana", 45, "once"],
+        ["anjaneyasana", 30, "each"],
+        ["urdhva-hastasana", 20, "once"],
+        ["uttanasana", 45, "once"],
+      ] as const
+    ).map(([slug, holdSeconds, sides]) => ({ ...asana(slug), holdSeconds, sides }));
 
   it("does not call the warm-up a strong practice", () => {
     // Half its poses are Standing, which a headcount read as "Strong" — for a

@@ -48,6 +48,8 @@ export type BuiltQuizPlan = {
   breathSlug?: string;
   introPoseSlug: string;
   poseNames: string[];
+  /** Set when the plan finishes well before the requested length. */
+  shortNote?: string | null;
   /** The length asked for in the quiz, in minutes. */
   requestedMinutes: number;
   /** Whether the plan honours that request, and what to say when it cannot. */
@@ -363,7 +365,18 @@ export function buildQuizPlan(answers: QuizAnswers): BuiltQuizPlan {
     requestedMinutes,
     fit,
     offerMinutes: fit.fits ? null : nearestOfferedMinutes(fit.plannedMinutes, QUIZ_TIME_OPTIONS),
+    shortNote: shortOfRequestNote(sessionMinutes(poses), requestedMinutes),
   };
+}
+
+/**
+ * A long request can come up short: every hold is already at twice its
+ * reviewed length and there are no more poses in the template. Say so rather
+ * than stretch a hold past what is safe.
+ */
+export function shortOfRequestNote(minutes: number, requestedMinutes: number): string | null {
+  if (requestedMinutes - minutes < 3) return null;
+  return `Runs about ${minutes} minutes, not ${requestedMinutes} — holds stay within safe lengths for these poses. Add a breathing practice or rest to use the rest of your time.`;
 }
 
 /** The lengths the quiz offers, so an alternative is a real answer to re-pick. */

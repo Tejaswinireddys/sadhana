@@ -49,9 +49,13 @@ test.describe("the practice image stays usable on a small screen", () => {
       expect(stage.height, `demonstration only ${stage.height}px tall`).toBeGreaterThanOrEqual(
         MIN_MEDIA_PX,
       );
-      const img = page.locator('[data-testid="guided-hero"] img').first();
-      const imgBox = await img.boundingBox();
-      expect(imgBox!.height, "pose image shrank to a thumbnail").toBeGreaterThanOrEqual(
+      // Supported Child's Pose opens this session; its mismatched illustration
+      // is withheld, and the description that replaces it must be as usable.
+      const media = page
+        .locator('[data-testid="guided-hero"] img, [data-testid="guided-hero"] [data-testid^="pose-image-withheld-"]')
+        .first();
+      const imgBox = await media.boundingBox();
+      expect(imgBox!.height, "pose media shrank to a thumbnail").toBeGreaterThanOrEqual(
         MIN_MEDIA_PX - 30,
       );
 
@@ -71,8 +75,8 @@ test.describe("the practice image stays usable on a small screen", () => {
   }
 });
 
-test.describe("an illustration that disagrees with its steps says so", () => {
-  test("Supported Child's Pose is labelled, not passed off as accurate", async ({ page }) => {
+test.describe("an illustration that disagrees with its steps is withheld", () => {
+  test("Supported Child's Pose shows the instructed shape in words, not a wrong picture", async ({ page }) => {
     await seed(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/guided");
@@ -83,17 +87,14 @@ test.describe("an illustration that disagrees with its steps says so", () => {
       /not the full-length bolster/i,
     );
 
-    // And on the demonstration itself.
+    // On the demonstration itself: no picture of the wrong shape, and the
+    // accessible label describes the shape the steps teach.
     await page.getByTestId("button-begin-guided").click();
     await page.waitForTimeout(1500);
-    const note = page.getByTestId("pose-human-note-salamba-balasana");
-    await expect(note).toContainText(/less support than the steps/i);
-    await expect(note).toHaveAttribute("title", /small cushion/i);
-
-    // The alt text describes what is drawn, not what was instructed.
-    const alt = await page.locator('[data-testid="guided-hero"] img').first().getAttribute("alt");
-    expect(alt ?? "").toMatch(/cushion/i);
-    expect(alt ?? "").not.toMatch(/draped over a bolster/i);
+    const withheld = page.getByTestId("pose-image-withheld-salamba-balasana").first();
+    await expect(withheld).toBeVisible();
+    await expect(withheld).toHaveAttribute("aria-label", /bolster or stack of pillows lengthwise/i);
+    await expect(page.locator('[data-testid="guided-hero"] img[src*="salamba-balasana"]')).toHaveCount(0);
   });
 });
 
@@ -249,10 +250,10 @@ test.describe("every entry point prepares you the same way", () => {
       },
     },
     {
-      name: "the warm-up",
+      name: "the first practice",
       open: async (page) => {
         await page.goto("/guided");
-        await page.getByTestId("button-hub-warmup").click();
+        await page.getByTestId("button-hub-first-practice").click();
       },
     },
   ];

@@ -1,6 +1,6 @@
 // Where each asana appears in real practice — so detail pages can invite
 // users into a session, not leave them staring at a catalog card.
-import { PATHWAYS, WARMUP } from "./content";
+import { PATHWAYS } from "./content";
 import { QUICK_SESSIONS, sessionTimeLabel } from "./quickSessions";
 import { flowSessionMinutes } from "../lib/pathwayTiming";
 import { PROFILES } from "./profiles";
@@ -8,15 +8,10 @@ import { PROFILES } from "./profiles";
 export type AsanaUsageHit =
   | { kind: "mood"; id: string; label: string; time: string }
   | { kind: "flow"; slug: string; name: string; minutes: number }
-  | { kind: "profile"; id: string; name: string }
-  | { kind: "warmup"; label: string };
+  | { kind: "profile"; id: string; name: string };
 
 export function usagesForAsana(slug: string): AsanaUsageHit[] {
   const hits: AsanaUsageHit[] = [];
-
-  if (WARMUP.steps.some((s) => s.asanaSlug === slug)) {
-    hits.push({ kind: "warmup", label: WARMUP.title });
-  }
 
   for (const q of QUICK_SESSIONS) {
     if (q.poses.some((p) => p.slug === slug)) {

@@ -747,7 +747,7 @@ export default function InstructorSession() {
           <h1 className="font-serif text-3xl font-semibold tracking-tight">Virtual instructor</h1>
           <p className="text-sm text-muted-foreground">
             Learn or Flow through Mountain, Child&apos;s Pose, Cat–Cow, Warrior II, and Plank.
-            Media is labeled honestly — filmed instructor clips are not claimed.
+            Poses are shown as illustrations — there are no filmed instructor clips yet.
           </p>
         </header>
       ) : (

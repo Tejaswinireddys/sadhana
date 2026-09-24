@@ -16,7 +16,7 @@ import {
   SIDE_SWITCH_SECONDS,
   TRANSITION_SECONDS,
   guidedSessionSeconds,
-  resolveInstructionSeconds,
+  occurrenceInstructionSeconds,
   type GuidedTimedPose,
   type InstructionMode,
 } from "@/lib/guidedDuration";
@@ -26,17 +26,25 @@ export function poseOverheadSeconds(
   pose: GuidedTimedPose,
   mode: InstructionMode = "guided",
 ): number {
-  const instruction = resolveInstructionSeconds(pose, mode);
+  const first = occurrenceInstructionSeconds(pose, mode, { repeat: false, side: 1 });
   const each = pose.sides === "each";
-  return TRANSITION_SECONDS + instruction * (each ? 2 : 1) + (each ? SIDE_SWITCH_SECONDS : 0);
+  if (!each) return TRANSITION_SECONDS + first;
+  const second = occurrenceInstructionSeconds(pose, mode, { repeat: false, side: 2 });
+  return TRANSITION_SECONDS + first + SIDE_SWITCH_SECONDS + second;
 }
 
-/** Narration + transitions for the whole queue — the part holds cannot shrink. */
+/**
+ * Narration + transitions for the whole queue — the part holds cannot shrink.
+ * Same repeat rule as the player: a pose taught once is not re-taught.
+ */
 export function sessionOverheadSeconds(
   poses: GuidedTimedPose[],
   mode: InstructionMode = "guided",
 ): number {
-  return poses.reduce((sum, p) => sum + poseOverheadSeconds(p, mode), 0);
+  return guidedSessionSeconds(
+    poses.map((p) => ({ ...p, holdSeconds: 0 })),
+    mode,
+  );
 }
 
 /** How many seconds of hold are left for a target wall-clock. Never negative. */
@@ -81,6 +89,18 @@ function toleranceSeconds(requestedSeconds: number): number {
   return Math.max(45, Math.round(requestedSeconds * 0.15));
 }
 
+/** What a length includes beyond the holds, for each teaching mode. */
+export const DURATION_INCLUDES: Record<InstructionMode, string> = {
+  guided: "including guidance",
+  brief: "including on-screen cues",
+  timer: "including transitions",
+};
+
+/** True for a sentence `evaluateSessionFit` wrote, wherever it ended up. */
+export function isDurationFitSentence(text: string): boolean {
+  return /min, including (guidance|on-screen cues|transitions) — /.test(text);
+}
+
 export function evaluateSessionFit(opts: {
   requestedMinutes: number;
   poses: GuidedTimedPose[];
@@ -120,21 +140,11 @@ export function evaluateSessionFit(opts: {
   // Below the floor, trimming holds cannot help — the spoken instruction for
   // this many poses is already longer than the request.
   const belowFloor = requestedSeconds < floorSeconds;
-  const taught =
-    mode === "timer"
-      ? "settled into"
-      : mode === "brief"
-        ? "read through"
-        : "talked through";
-  const counted =
-    mode === "timer"
-      ? "transitions between poses are counted, not just the holds"
-      : mode === "brief"
-        ? "on-screen instruction and transitions are counted, not just the holds"
-        : "spoken instruction and transitions are counted, not just the holds";
+  const including = DURATION_INCLUDES[mode];
+  const asked = Math.round(requestedSeconds / 60);
   const explanation = belowFloor
-    ? `A ${opts.poses.length}-pose practice runs about ${plannedMinutes} min because each pose is ${taught} before you hold it. Even at the shortest safe holds it is ${floorMinutes} min — ${Math.round(requestedSeconds / 60)} min is not enough time for this sequence.`
-    : `This runs about ${plannedMinutes} min, not ${Math.round(requestedSeconds / 60)} min — ${counted}.`;
+    ? `These ${opts.poses.length} poses need at least ${floorMinutes} min, ${including} — ${asked} min is too short for this sequence.`
+    : `This runs about ${plannedMinutes} min, ${including} — not ${asked} min.`;
 
   return {
     requestedSeconds,

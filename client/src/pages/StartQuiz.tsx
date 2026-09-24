@@ -3,6 +3,8 @@
  * → loads a real guided session (not an empty Practice hub).
  * Emits funnel product analytics events (PostHog + local buffer).
  */
+import { WithheldPoseImage } from "@/components/WithheldPoseImage";
+import { poseImageWithheld } from "@/data/poseImageAccuracy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -405,6 +407,11 @@ export default function StartQuiz() {
                 actually hold the sequence — never a badge that claims the
                 requested time while the player runs longer.
               */}
+              {plan.shortNote && (
+                <p className="text-sm text-muted-foreground" data-testid="text-quiz-short-note">
+                  {plan.shortNote}
+                </p>
+              )}
               {!plan.fit.fits && plan.fit.explanation && (
                 <p
                   className="mx-auto max-w-md rounded-2xl border border-primary/30 bg-primary/5 p-3 text-sm"
@@ -435,13 +442,17 @@ export default function StartQuiz() {
                       data-testid="plan-pose-preview"
                     >
                       <div className="aspect-square overflow-hidden rounded-xl bg-muted">
-                        <img width={600} height={1200}
+                        {poseImageWithheld(p.slug) ? (
+                          <WithheldPoseImage slug={p.slug} compact />
+                        ) : (
+                          <img width={600} height={1200}
                           src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
                           alt={a.imageAlt}
                           className="h-full w-full object-cover object-center"
                           loading="lazy"
                           decoding="async"
                         />
+                        )}
                       </div>
                       <p className="truncate text-[10px] font-medium leading-tight text-muted-foreground">
                         {a.english}

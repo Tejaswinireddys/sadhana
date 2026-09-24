@@ -53,11 +53,11 @@ describe("home discoverability", () => {
   it("keeps one-tap Home links for Breathing, Kids, Pathways, and Challenges", () => {
     const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
     for (const href of ["/breathing", "/kids", "/pathways", "/challenges"]) {
-      assert.match(home, new RegExp(`href: "${href}"`));
+      assert.match(home, new RegExp(`href(: |=)"${href}"`));
     }
     assert.match(home, /data-testid="home-discover"/);
     assert.match(home, /testId: "home-discover-breathing"/);
-    assert.match(home, /testId: "home-discover-kids"/);
+    assert.match(home, /(testId: |data-testid=)"home-discover-kids"/);
   });
 
   it("keeps primary nav to five items while Home names the secondary doors", () => {

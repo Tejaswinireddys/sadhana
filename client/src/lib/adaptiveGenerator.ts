@@ -2,7 +2,9 @@
  * Explainable adaptive session generator.
  * Hard safety filters always win over preference / engagement.
  */
+import { isDurationFitSentence } from "@/lib/sessionFit";
 import { asanaBySlug, type Asana } from "@/data/content";
+import { isFloorFree, swapPreservesConstraints } from "@/data/floorAccess";
 import {
   composeTrainerSession,
   estimatedSessionSeconds,
@@ -176,7 +178,7 @@ export function generateAdaptiveSession(input: GeneratorInput): GeneratorResult 
   // says why — never both, and never a third phrasing of the same fact.
   explanations.push(
     fit.explanation ??
-      `You asked for about ${minutes} minutes; this practice runs ${totalMinutes} min including the spoken instruction.`,
+      `You asked for about ${minutes} minutes; this runs ${totalMinutes} min, including guidance.`,
   );
 
   return {
@@ -219,12 +221,6 @@ function standingExclusionCopy(
 
 const REST_SLUG = /savasana|viparita-karani|balasana|constructive-rest/;
 
-/** Sentences produced by `evaluateSessionFit`, wherever they were written. */
-function isDurationFitSentence(text: string): boolean {
-  return /talked through before you hold it|spoken instruction and transitions are counted|on-screen instruction and transitions are counted|transitions between poses are counted/.test(
-    text,
-  );
-}
 
 /** Hold-scale eases effort; leftover seconds go to rest so the minute chip still holds. */
 /**
@@ -274,12 +270,22 @@ export const EASIER_SWAP_SLUGS = [
   "viparita-karani",
 ] as const;
 
+/** Floor-free equivalents, for a practice that never goes to the floor. */
+export const EASIER_NO_FLOOR_SWAP_SLUGS = ["womb-seat", "chair-forward-fold"] as const;
+
+/**
+ * An easier pose to stand in for `fromSlug`. When the session never goes to
+ * the floor, the swap does not either — "easier" must not mean "now lie down".
+ */
 export function pickEasierSwap(fromSlug: string, usedSlugs: Iterable<string>): string | null {
   const used = new Set(usedSlugs);
-  for (const slug of EASIER_SWAP_SLUGS) {
+  const keepOffFloor = isFloorFree([fromSlug, ...used].filter((s) => s !== ""));
+  const pool = keepOffFloor ? EASIER_NO_FLOOR_SWAP_SLUGS : EASIER_SWAP_SLUGS;
+  for (const slug of pool) {
     if (slug === fromSlug) continue;
     if (used.has(slug)) continue;
     if (!asanaBySlug(slug)) continue;
+    if (!swapPreservesConstraints(fromSlug, slug, { keepOffFloor })) continue;
     return slug;
   }
   return null;

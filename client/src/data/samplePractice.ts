@@ -16,7 +16,7 @@ export const SAMPLE_PRACTICE: {
   poses: Array<{ slug: string; holdSeconds: number }>;
 } = {
   id: "sample",
-  title: "A short sample practice",
+  title: "A first practice",
   poses: [
     { slug: "tadasana", holdSeconds: 30 },
     { slug: "uttanasana", holdSeconds: 40 },

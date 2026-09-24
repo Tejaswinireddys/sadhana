@@ -79,10 +79,17 @@ export function preSessionSummary(opts: {
   poseCount: number;
   minutes?: number;
   timeLabel?: string;
+  mode?: InstructionMode;
 }): string {
   const poseWord = opts.poseCount === 1 ? "pose" : "poses";
   const time = opts.timeLabel ?? (opts.minutes != null ? guidedTimeLabel(opts.minutes * 60) : "");
-  const core = `${opts.poseCount} ${poseWord} · ${time} · a continuous voice-narrated flow.`;
+  const how =
+    opts.mode === "timer"
+      ? "timer only"
+      : opts.mode === "brief"
+        ? "Flow — short on-screen cues"
+        : "Learn — voice guidance with captions";
+  const core = `${opts.poseCount} ${poseWord} · ${time} · ${how}.`;
   const label = opts.label?.trim();
   return label ? `${label} · ${core}` : core;
 }
