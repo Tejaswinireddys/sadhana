@@ -10,13 +10,14 @@
  *
  *   1. Today's practice     — one card, one Start, truthful about what it is
  *   2. Quick adjustments    — time, gentler, focus (on that card)
- *   3. Continue             — an unfinished session or the program you joined
- *   4. This week            — four numbers, compact
- *   5. Three alternatives   — genuinely different, not a shelf
- *   6. One thing to learn   — a single pose or breath, not a reading list
- *   7. Where your data is   — quiet, one card, no duplicate nags
+ *   3. Also try             — Breathing, Kids, Pathways, Challenges (one tap)
+ *   4. Continue             — an unfinished session or the program you joined
+ *   5. This week            — four numbers, compact
+ *   6. Three alternatives   — genuinely different, not a shelf
+ *   7. One thing to learn   — a single pose or breath, not a reading list
+ *   8. Where your data is   — quiet, one card, no duplicate nags
  *
- * Comprehensive discovery moved to Practice (`ExploreDirectory`).
+ * Broader catalogue browsing still lives on Practice (`ExploreDirectory`).
  */
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -72,7 +73,10 @@ import {
   CloudDownload,
   NotebookPen,
   Play,
+  Route as RouteIcon,
+  Smile,
   Sparkles,
+  Trophy,
   UserRound,
   Wind,
 } from "lucide-react";
@@ -462,7 +466,66 @@ export default function Home() {
         )}
       </Reveal>
 
-      {/* ── 3. Continue what's already going ─────────────────────────────── */}
+
+      {/* ── 3. Also try — one-tap doors that used to hide behind Practice ── */}
+      <section className="space-y-3" aria-labelledby="home-discover-heading" data-testid="home-discover">
+        <h2 id="home-discover-heading" className="font-serif text-xl">
+          Also try
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Breathing, kids practice, pathways, and challenges — one tap from Today.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {[
+            {
+              href: "/breathing",
+              label: "Breathing",
+              blurb: "Box, 4-7-8, Ujjayi, and more",
+              testId: "home-discover-breathing",
+              Icon: Wind,
+            },
+            {
+              href: "/kids",
+              label: "Kids",
+              blurb: "Story poses and breath games",
+              testId: "home-discover-kids",
+              Icon: Smile,
+            },
+            {
+              href: "/pathways",
+              label: "Pathways",
+              blurb: "Quick flows and multi-week programs",
+              testId: "home-discover-pathways",
+              Icon: RouteIcon,
+            },
+            {
+              href: "/challenges",
+              label: "Challenges",
+              blurb: "Short streaks with a buddy option",
+              testId: "home-discover-challenges",
+              Icon: Trophy,
+            },
+          ].map(({ href, label, blurb, testId, Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex min-h-14 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30"
+              data-testid={testId}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Icon className="h-5 w-5" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">{label}</span>
+                <span className="block truncate text-xs text-muted-foreground">{blurb}</span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* ── 4. Continue what's already going ─────────────────────────────── */}
       {(showResume || (programDay && recommendation?.source !== "program")) && (
         <section className="space-y-3" aria-labelledby="continue-heading">
           <h2 id="continue-heading" className="font-serif text-xl">

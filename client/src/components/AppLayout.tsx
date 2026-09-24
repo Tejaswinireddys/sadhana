@@ -21,7 +21,7 @@ import { useTheme } from "./ThemeProvider";
 import { APP_SHELL_ID } from "./FullScreenOverlay";
 import { useAuth } from "@/lib/auth";
 import { useRecentSearches } from "@/context/RecentSearchesContext";
-import { searchPoses } from "@/lib/poseSearch";
+import { searchSidebarSuggestions } from "@/lib/globalSearch";
 import { cn } from "@/lib/utils";
 import {
   Home,
@@ -31,6 +31,8 @@ import {
   Moon,
   Sun,
   Search,
+  Wind,
+  Smile,
   UserRound,
   Info,
 } from "lucide-react";
@@ -85,7 +87,7 @@ function SidebarSearch() {
   const [dismissed, setDismissed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const suggestions = useMemo(() => searchPoses(value, 6), [value]);
+  const suggestions = useMemo(() => searchSidebarSuggestions(value, 8), [value]);
 
   const close = () => {
     setDismissed(true);
@@ -156,45 +158,127 @@ function SidebarSearch() {
         >
           {/* Live preview. Showing only "Search for …" made the user navigate
               just to discover whether anything matched. */}
-          {suggestions.items.length > 0 && (
+          {suggestions.items.some((s) => s.kind === "breathing") && (
+            <>
+              <p className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Breathing
+              </p>
+              {suggestions.items
+                .filter((s) => s.kind === "breathing")
+                .map((s) => (
+                  <button
+                    key={s.technique.slug}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      addRecent(value.trim());
+                      navigate(`/breathing?slug=${encodeURIComponent(s.technique.slug)}`);
+                      close();
+                    }}
+                    data-testid={`search-suggestion-breath-${s.technique.slug}`}
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-secondary/20 text-secondary">
+                      <Wind className="h-4 w-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{s.technique.name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {s.technique.tagline}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+            </>
+          )}
+          {suggestions.items.some((s) => s.kind === "kids") && (
+            <>
+              <p className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Kids
+              </p>
+              {suggestions.items
+                .filter((s) => s.kind === "kids")
+                .map((s) => {
+                  const href =
+                    s.hit.kind === "pose"
+                      ? `/kids/${s.hit.slug}`
+                      : `/kids/breath/${s.hit.slug}`;
+                  const label =
+                    s.hit.kind === "pose" ? s.hit.title : s.hit.techniqueName;
+                  const sub =
+                    s.hit.kind === "pose" ? s.hit.poseName : s.hit.description;
+                  return (
+                    <button
+                      key={`${s.hit.kind}-${s.hit.slug}`}
+                      type="button"
+                      role="option"
+                      aria-selected={false}
+                      className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        addRecent(value.trim());
+                        navigate(href);
+                        close();
+                      }}
+                      data-testid={`search-suggestion-kids-${s.hit.slug}`}
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
+                        <Smile className="h-4 w-4" aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate">{label}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {sub}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+            </>
+          )}
+          {suggestions.items.some((s) => s.kind === "pose") && (
             <>
               <p className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                 Poses
               </p>
-              {suggestions.items.map((pose) => (
-                <button
-                  key={pose.slug}
-                  type="button"
-                  role="option"
-                  aria-selected={false}
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    addRecent(value.trim());
-                    navigate(`/asanas/${pose.slug}`);
-                    close();
-                  }}
-                  data-testid={`search-suggestion-${pose.slug}`}
-                >
-                  <span className="h-8 w-8 shrink-0 overflow-hidden rounded bg-accent/30">
-                    <img
-                      src={`${import.meta.env.BASE_URL}poses/${pose.slug}.png`}
-                      alt={pose.imageAlt}
-                      width={96}
-                      height={192}
-                      className="h-full w-full scale-[1.35] object-contain"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate">{pose.english}</span>
-                    <span className="block truncate text-xs italic text-muted-foreground">
-                      {pose.sanskrit}
+              {suggestions.items
+                .filter((s) => s.kind === "pose")
+                .map((s) => (
+                  <button
+                    key={s.pose.slug}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      addRecent(value.trim());
+                      navigate(`/asanas/${s.pose.slug}`);
+                      close();
+                    }}
+                    data-testid={`search-suggestion-${s.pose.slug}`}
+                  >
+                    <span className="h-8 w-8 shrink-0 overflow-hidden rounded bg-accent/30">
+                      <img
+                        src={`${import.meta.env.BASE_URL}poses/${s.pose.slug}.png`}
+                        alt={s.pose.imageAlt}
+                        width={96}
+                        height={192}
+                        className="h-full w-full scale-[1.35] object-contain"
+                        loading="lazy"
+                        decoding="async"
+                      />
                     </span>
-                  </span>
-                </button>
-              ))}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{s.pose.english}</span>
+                      <span className="block truncate text-xs italic text-muted-foreground">
+                        {s.pose.sanskrit}
+                      </span>
+                    </span>
+                  </button>
+                ))}
             </>
           )}
           {value.trim() ? (

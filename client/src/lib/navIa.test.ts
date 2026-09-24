@@ -73,6 +73,13 @@ describe("pose self-check discoverability", () => {
     assert.match(guided, /Pose self-check/);
   });
 
+  it("also surfaces Breathing and Kids as one-tap links on Home", () => {
+    const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
+    assert.match(home, /data-testid="home-discover"/);
+    assert.match(home, /testId: "home-discover-breathing"/);
+    assert.match(home, /testId: "home-discover-kids"/);
+  });
+
   it("keeps Breathing, Kids and Challenges two taps away even with a queue loaded", () => {
     // With a session queued (the quiz loads one) the Practice tab opens the
     // pre-session screen, not the hub — which used to strand these surfaces
