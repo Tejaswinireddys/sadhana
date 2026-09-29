@@ -65,6 +65,7 @@ import {
   TodayPracticeCard,
   TodayPracticeCardSkeleton,
 } from "@/components/home/TodayPracticeCard";
+import { PoseImage } from "@/components/PoseImage";
 import { SavePracticeBanner } from "@/components/SavePracticePrompt";
 import { CancelAccessBanner } from "@/components/CancelAccessBanner";
 import { dismissBanner, savePromptLevel, shouldShowSaveBanner } from "@/lib/savePracticePrompt";
@@ -938,6 +939,31 @@ function AlternativeCard({
         <p className="text-xs text-muted-foreground">
           {preflight.timeLabel} · {preflight.difficulty.level} · {preflight.intensity.level}
         </p>
+        {poses.length > 0 && (
+          <div
+            className="flex items-center gap-1.5"
+            data-testid={`home-alt-thumbs-${alt.id}`}
+            aria-hidden
+          >
+            {poses.slice(0, 4).map((p, i) => (
+              <PoseImage
+                key={`${p.slug}-${i}`}
+                slug={p.slug}
+                thumb
+                breath={false}
+                shadow={false}
+                rounded="rounded-md"
+                aspect="aspect-square"
+                fit="cover"
+                className="h-10 w-10 shrink-0 bg-background"
+                sizes="40px"
+              />
+            ))}
+            {poses.length > 4 && (
+              <span className="text-xs tabular-nums text-muted-foreground">+{poses.length - 4}</span>
+            )}
+          </div>
+        )}
         <p className="text-sm text-muted-foreground">{alt.reason}</p>
         {preflight.equipmentSentence && (
           <p className="text-xs text-muted-foreground">Needs {preflight.equipmentSentence}.</p>

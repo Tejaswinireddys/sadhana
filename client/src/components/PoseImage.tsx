@@ -4,10 +4,10 @@
  * Serves WebP via `<picture>` when generated (`npm run gen:pose-webp`), PNG fallback.
  *
  * Fit: every pose source is authored at 600x1200 (1:2, full standing figure).
- * `object-cover` in any wider container clips the top and bottom of the frame —
- * which on a pose illustration is the head and the feet, i.e. the part that
- * teaches the pose. Default to `contain` so the figure is never cut; the
- * container's background wash fills the remaining side space.
+ * `object-cover` in a wide/short container clips head and feet — bad while
+ * teaching. Default to `contain` so the figure is never cut. Library cards
+ * intentionally pass `fit="cover"` with a fixed 3:4 frame and a cream
+ * (`bg-background`) wash so thumbnails fill without grey side bands.
  */
 import { useCallback, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -122,13 +122,25 @@ export function PoseImage({
 
   return (
     <div
-      className={cn("relative w-full overflow-hidden bg-accent/30", rounded, aspectClass, className)}
+      className={cn(
+        "relative w-full overflow-hidden",
+        fit === "cover" ? "bg-background" : "bg-accent/30",
+        rounded,
+        aspectClass,
+        className,
+      )}
       style={{ aspectRatio: aspectRatioCss }}
       data-testid={testId ?? `pose-image-${slug}`}
     >
       {!loaded && !errored && (
         <>
-          <Skeleton className={cn("absolute inset-0 h-full w-full", rounded)} />
+          <Skeleton
+            className={cn(
+              "absolute inset-0 h-full w-full",
+              fit === "cover" ? "bg-background" : "",
+              rounded,
+            )}
+          />
           {/* LQIP-style blur layer from the same asset at tiny intrinsic size.
               Skipped for thumbs — a blur pass costs more than it buys at 64px. */}
           {!thumb && (
