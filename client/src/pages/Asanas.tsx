@@ -10,7 +10,11 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ASANAS, CATEGORIES, type Category, type Asana } from "@/data/content";
 import { matchesCategoryFilter } from "@/data/poseTaxonomy";
 import { audienceChipFromProfileId, type AudienceChip } from "@/data/profiles";
-import { DEFAULT_AUDIENCE_FILTER, matchesAudience } from "@/lib/asanaLibraryFilters";
+import {
+  DEFAULT_AUDIENCE_FILTER,
+  libraryFamilyChipCounts,
+  matchesAudience,
+} from "@/lib/asanaLibraryFilters";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useProgressiveList } from "@/hooks/useProgressiveList";
 import type { FavoriteAsana, UserProfile } from "@shared/schema";
@@ -18,6 +22,7 @@ import { Heart, Smile, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { difficultyBadgeClass } from "@/lib/difficultyBadge";
 import { FadeIn } from "@/components/motion";
+import { ScrollRow } from "@/components/ScrollRow";
 import {
   Collapsible,
   CollapsibleContent,
@@ -61,6 +66,16 @@ export default function Asanas() {
     queryKey: ["/api/profile/active"],
   });
   const favSet = useMemo(() => new Set(favorites.map((f) => f.slug)), [favorites]);
+  const familyChips = useMemo(() => libraryFamilyChipCounts(), []);
+  const levelCounts = useMemo(() => {
+    const base = ASANAS.filter((a) => matchesAudience(a, audience));
+    return {
+      All: base.length,
+      Beginner: base.filter((a) => a.difficulty === "Beginner").length,
+      Intermediate: base.filter((a) => a.difficulty === "Intermediate").length,
+      Advanced: base.filter((a) => a.difficulty === "Advanced").length,
+    } as Record<LevelFilter, number>;
+  }, [audience]);
 
   const toggleFav = useMutation({
     mutationFn: ({ slug, isFav }: { slug: string; isFav: boolean }) =>
@@ -113,8 +128,6 @@ export default function Asanas() {
 
   const activeFilterCount = [
     audience !== "All",
-    category !== "All",
-    level !== "All",
     time !== "Any time",
     prop !== "Any props",
   ].filter(Boolean).length;
@@ -164,6 +177,48 @@ export default function Asanas() {
         </p>
       </header>
 
+      <div className="space-y-3" data-testid="asana-library-quick-filters">
+        <ScrollRow label="Pose families" testId="chip-row-families">
+          {familyChips.map((chip) => (
+            <Button
+              key={chip.id}
+              size="sm"
+              variant={category === chip.id ? "default" : "outline"}
+              onClick={() => setCategory(chip.id)}
+              aria-pressed={category === chip.id}
+              className={cn(
+                "min-h-11 shrink-0 snap-start cursor-pointer gap-1.5 rounded-full px-3 transition-colors duration-200",
+                category === chip.id && "shadow-soft",
+              )}
+              data-testid={`chip-family-${String(chip.id).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+            >
+              <span>{chip.label}</span>
+              <span className="tabular-nums text-xs opacity-80">{chip.count}</span>
+            </Button>
+          ))}
+        </ScrollRow>
+
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Level">
+          {LEVELS.map((l) => (
+            <Button
+              key={l}
+              size="sm"
+              variant={level === l ? "default" : "outline"}
+              onClick={() => setLevel(l)}
+              aria-pressed={level === l}
+              className={cn(
+                "min-h-11 cursor-pointer gap-1.5 rounded-full px-3 transition-colors duration-200",
+                level === l && "shadow-soft",
+              )}
+              data-testid={`chip-level-${l.toLowerCase()}`}
+            >
+              <span>{l}</span>
+              <span className="tabular-nums text-xs opacity-80">{levelCounts[l]}</span>
+            </Button>
+          ))}
+        </div>
+      </div>
+
       <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen}>
         <div className="flex flex-wrap items-center gap-3">
           <CollapsibleTrigger asChild>
@@ -175,7 +230,7 @@ export default function Asanas() {
               data-testid="button-library-filter"
             >
               <SlidersHorizontal className="h-4 w-4" />
-              Filter
+              More filters
               {activeFilterCount > 0 && (
                 <span
                   className="rounded-full bg-background/30 px-1.5 text-xs tabular-nums"
@@ -247,14 +302,9 @@ export default function Asanas() {
                 .
               </p>
             )}
-            <FilterRow
-              label="Category"
-              options={["All", ...CATEGORIES]}
-              active={category}
-              onSelect={setCategory}
-              group="category"
-            />
-            <FilterRow label="Level" options={LEVELS} active={level} onSelect={setLevel} group="level" />
+            <p className="text-xs text-muted-foreground">
+              Family and level chips above stay in view. Use these for audience, hold time, and props.
+            </p>
             <FilterRow label="Hold time" options={TIME_FILTERS} active={time} onSelect={setTime} group="time" />
             <FilterRow label="Props" options={PROP_FILTERS} active={prop} onSelect={setProp} group="props" />
           </div>

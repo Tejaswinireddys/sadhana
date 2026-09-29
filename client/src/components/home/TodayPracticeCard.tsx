@@ -142,6 +142,35 @@ export function TodayPracticeCard({
           {recommendation.reason}
         </p>
 
+        {poses.length > 0 && (
+          <div
+            className="flex items-center gap-2 overflow-x-auto overscroll-x-contain pb-1"
+            data-testid="today-practice-pose-thumbs"
+            aria-label="Poses in this practice"
+          >
+            {poses.slice(0, 6).map((p, i) => (
+              <PoseImage
+                key={`${p.slug}-${i}`}
+                slug={p.slug}
+                thumb
+                breath={false}
+                shadow={false}
+                rounded="rounded-lg"
+                aspect="aspect-square"
+                fit="cover"
+                className="h-12 w-12 shrink-0 bg-background"
+                sizes="48px"
+                testId={`today-practice-thumb-${p.slug}`}
+              />
+            ))}
+            {poses.length > 6 && (
+              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                +{poses.length - 6}
+              </span>
+            )}
+          </div>
+        )}
+
         {fit && !fit.fits && fit.explanation && (
           <DurationFitNotice
             fit={fit}

@@ -48,3 +48,32 @@ describe("pose presentation videos", () => {
     assert.match(search, /PoseCardVideo/);
   });
 });
+
+describe("pose library card visual polish", () => {
+  it("fills cards with a fixed 3:4 cover crop and cream frame", () => {
+    const card = readFileSync(resolve("client/src/components/PoseCardVideo.tsx"), "utf8");
+    assert.match(card, /aspect-\[3\/4\]/);
+    assert.match(card, /object-cover/);
+    assert.match(card, /bg-background/);
+    assert.match(card, /fit="cover"/);
+    // Blank lazy frames: cream placeholder + eager poster decode.
+    assert.match(card, /pose-card-placeholder/);
+    assert.match(card, /loading="eager"/);
+  });
+
+  it("keeps teaching PoseImage on contain by default", () => {
+    const img = readFileSync(resolve("client/src/components/PoseImage.tsx"), "utf8");
+    assert.match(img, /fit = "contain"/);
+  });
+});
+
+describe("Today pose thumbnails", () => {
+  it("shows pose thumbs on the plan card and Or something else alternatives", () => {
+    const today = readFileSync(resolve("client/src/components/home/TodayPracticeCard.tsx"), "utf8");
+    assert.match(today, /data-testid="today-practice-pose-thumbs"/);
+    assert.match(today, /fit="cover"/);
+    const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
+    assert.match(home, /home-alt-thumbs-/);
+    assert.match(home, /PoseImage/);
+  });
+});

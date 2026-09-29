@@ -1,4 +1,5 @@
-import { ASANAS, type Asana } from "../data/content";
+import { ASANAS, CATEGORIES, type Asana, type Category } from "../data/content";
+import { matchesCategoryFilter } from "../data/poseTaxonomy";
 import { profileById, type AudienceChip } from "../data/profiles";
 
 /** Library opens unfiltered. Do not seed this from the active practice path. */
@@ -18,4 +19,16 @@ export function matchesAudience(a: Asana, audience: AudienceChip): boolean {
 
 export function libraryCountForAudience(audience: AudienceChip): number {
   return ASANAS.filter((a) => matchesAudience(a, audience)).length;
+}
+
+/** Pose-family counts for the always-visible library chips (All + each CATEGORIES entry). */
+export function libraryCountForCategory(category: Category | "All"): number {
+  return ASANAS.filter((a) => matchesCategoryFilter(a, category)).length;
+}
+
+export function libraryFamilyChipCounts(): { id: Category | "All"; label: string; count: number }[] {
+  return [
+    { id: "All", label: "All", count: libraryCountForCategory("All") },
+    ...CATEGORIES.map((c) => ({ id: c, label: c, count: libraryCountForCategory(c) })),
+  ];
 }

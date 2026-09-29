@@ -4,6 +4,10 @@
  * Demo clips are step journeys that start on a shared standing entry (~0.2s).
  * Autoplaying (or pausing there) makes every card look identical. Show the
  * pose PNG — the same poster Pathways uses — and only swap to video on hover.
+ *
+ * Card frame: fixed 3:4 aspect + object-cover + cream wash so tall 1:2
+ * illustrations fill the card without grey side bands. Teaching surfaces keep
+ * object-contain via PoseImage's default.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PoseImage } from "@/components/PoseImage";
@@ -16,6 +20,10 @@ function prefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
+
+/** Shared library-card frame: cream wash + fixed portrait crop. */
+export const POSE_CARD_ASPECT = "aspect-[3/4]";
+export const POSE_CARD_FRAME_CLASS = "bg-background";
 
 export function PoseCardVideo({
   slug,
@@ -32,6 +40,7 @@ export function PoseCardVideo({
   const hlsRef = useRef<HlsAttachHandle | null>(null);
   const [hover, setHover] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [posterReady, setPosterReady] = useState(false);
   const reduceMotion = useMemo(() => prefersReducedMotion(), []);
   const { data: manifest } = usePoseMedia(slug);
   const media = useMemo(() => manifestToVideoSources(slug, manifest), [slug, manifest]);
@@ -41,6 +50,7 @@ export function PoseCardVideo({
 
   useEffect(() => {
     setFailed(false);
+    setPosterReady(false);
   }, [slug]);
 
   useEffect(() => {
@@ -79,37 +89,58 @@ export function PoseCardVideo({
         slug={slug}
         alt={resolvedAlt}
         rounded="rounded-none"
-        aspect="aspect-square"
+        aspect={POSE_CARD_ASPECT}
+        fit="cover"
         shadow={false}
         breath={false}
         testId={testId}
-        className={className}
+        className={cn(POSE_CARD_FRAME_CLASS, className)}
       />
     );
   }
 
   return (
     <div
-      className={cn("relative aspect-square w-full overflow-hidden bg-accent/30", className)}
-      style={{ aspectRatio: "1 / 1" }}
+      className={cn(
+        "relative w-full overflow-hidden",
+        POSE_CARD_ASPECT,
+        POSE_CARD_FRAME_CLASS,
+        className,
+      )}
+      style={{ aspectRatio: "3 / 4" }}
       data-testid={testId ?? `pose-card-video-${slug}`}
       data-media={showVideo ? "video" : "poster"}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
+      {/* Cream frame stays visible while the poster decodes — avoids blank lazy frames. */}
+      {!posterReady && (
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-background"
+          data-testid={`pose-card-placeholder-${slug}`}
+        />
+      )}
       <img
         width={600}
         height={1200}
         src={media.poster}
         alt={resolvedAlt}
-        className="relative z-0 h-full w-full object-contain"
-        loading="lazy"
+        className={cn(
+          "relative z-0 h-full w-full object-cover object-center transition-opacity duration-200",
+          posterReady ? "opacity-100" : "opacity-0",
+        )}
+        loading="eager"
         decoding="async"
+        onLoad={() => setPosterReady(true)}
+        ref={(node) => {
+          if (node?.complete && node.naturalWidth > 0) setPosterReady(true);
+        }}
       />
       {showVideo && (
         <video
           ref={videoRef}
-          className="absolute inset-0 z-[1] h-full w-full object-contain"
+          className="absolute inset-0 z-[1] h-full w-full object-cover object-center"
           poster={media.poster}
           playsInline
           muted
