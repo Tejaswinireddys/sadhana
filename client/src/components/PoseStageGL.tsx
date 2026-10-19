@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { PoseFigurine3D } from "@/components/PoseFigurine3D";
 import { StepMotion, type StepMotionKey } from "@/components/StepMotion";
 import { useMotionEnabled } from "@/components/motion";
-import { POSE_KEYFRAMES } from "@/data/poseKeyframes";
+import { POSE_KEYFRAMES, resolvePoseSequence } from "@/data/poseKeyframes";
 import { resolvePosePhase, type FocusZone } from "@/lib/poseMoments";
 
 const Figurine = lazy(() =>
@@ -81,7 +81,10 @@ export function PoseStageGL(props: PoseStageGLProps) {
   } = props;
 
   const motionOn = useMotionEnabled();
-  const sequence = POSE_KEYFRAMES[slug];
+  const sequence = useMemo(
+    () => POSE_KEYFRAMES[slug] ?? resolvePoseSequence(slug),
+    [slug],
+  );
   const [canGL, setCanGL] = useState<boolean | null>(null);
 
   useEffect(() => {

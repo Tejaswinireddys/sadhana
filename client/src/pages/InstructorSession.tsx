@@ -986,6 +986,10 @@ export default function InstructorSession() {
               playing={clock.playing}
               mediaProgress={mediaProgress}
               mediaWindow={current.mediaWindow}
+              poseSlug={currentPose.slug}
+              phase={current.phase}
+              side={current.side}
+              breathCue={current.breathCue}
               onMediaStateChange={setMediaState}
               className="aspect-[3/4] max-h-[min(42vh,calc(100dvh-22rem))] min-h-[7rem] w-full shrink landscape:aspect-auto landscape:h-auto landscape:max-h-full landscape:min-h-0 landscape:flex-1 landscape:shrink landscape:basis-0 landscape:w-[46%] landscape:max-w-[46%] sm:aspect-video sm:max-h-[min(48vh,calc(100dvh-18rem))] sm:landscape:w-[50%] sm:landscape:max-w-[50%]"
               compactLabel

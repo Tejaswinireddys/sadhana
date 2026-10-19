@@ -87,6 +87,39 @@ test.describe("pose lesson — cues agree with the timeline", () => {
     expect([...seen].some((p) => /Flow|Come out/.test(p))).toBeTruthy();
   });
 
+  test("3D human yoga trainer advances posture steps, breath phases and camera views", async ({
+    page,
+  }) => {
+    await openLesson(page, "marjaryasana-bitilasana");
+
+    const trainer = page.getByTestId("pose-lesson-human-trainer");
+    const badge = page.getByTestId("pose-trainer-coach-badge");
+    await expect(trainer).toBeVisible();
+    await expect(badge).toContainText(/Foundation setup/i);
+    await expect(trainer).toHaveAttribute("data-trainer-phase", "preparation");
+    await expect(trainer).toHaveAttribute("data-trainer-step", "0");
+
+    // Advance into Step 2 (Cow Pose — inhale spine extension) and Step 3 (Cat Pose — exhale spine flexion)
+    await page.getByTestId("lesson-next").click();
+    await expect(trainer).toHaveAttribute("data-trainer-phase", "entry");
+    await expect(trainer).toHaveAttribute("data-trainer-step", "1");
+    await expect(trainer).toHaveAttribute("data-trainer-breath", "inhale");
+
+    await page.getByTestId("lesson-next").click();
+    await expect(trainer).toHaveAttribute("data-trainer-step", "2");
+    await expect(trainer).toHaveAttribute("data-trainer-breath", "exhale");
+
+    // Advance into dynamic Cat–Cow rounds and verify inhale/exhale spine cycle
+    await page.getByTestId("lesson-next").click();
+    await expect(trainer).toHaveAttribute("data-trainer-phase", "cycle");
+    await expect(badge).toContainText(/Cow|Cat/i);
+
+    // Camera view toggle switches between Auto, Front, and Side views
+    const sideBtn = page.getByTestId("pose-trainer-view-side");
+    await sideBtn.click();
+    await expect(sideBtn).toHaveAttribute("aria-pressed", "true");
+  });
+
   test("Warrior II's knee cue is its own step, not a standing figure", async ({ page }) => {
     await openLesson(page, "virabhadrasana-ii");
     await page.getByTestId("lesson-next").click();

@@ -5,13 +5,33 @@
  * Training: crossfade entry → peak when the pose has a shape journey; otherwise
  * keep the figure steady and move a focus halo to the body region being cued.
  */
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { humanStepSlug } from "@/data/poseKeyImages";
 import { poseImageAlt } from "@/data/poseImageAlts";
 import { accurateImageAlt, poseImageWithheld } from "@/data/poseImageAccuracy";
+import { resolvePoseSequence } from "@/data/poseKeyframes";
+import { useMotionEnabled } from "@/components/motion";
 import { WithheldPoseImage } from "@/components/WithheldPoseImage";
 import type { FocusZone } from "@/lib/poseMoments";
+
+const HumanTrainerFigurine = lazy(() =>
+  import("@/components/PoseFigurineGL").then((m) => ({ default: m.PoseFigurineGL })),
+);
+
+function webglSupported(): boolean {
+  if (typeof document === "undefined") return false;
+  try {
+    const c = document.createElement("canvas");
+    return !!(
+      c.getContext("webgl2") ||
+      c.getContext("webgl") ||
+      c.getContext("experimental-webgl")
+    );
+  } catch {
+    return false;
+  }
+}
 
 export type PoseHumanStageProps = {
   slug: string;
@@ -64,6 +84,13 @@ export function PoseHumanStage({
   "data-testid": testId,
 }: PoseHumanStageProps) {
   const targetSlug = humanStepSlug(slug, poseKey, stepPoseKey);
+  const motionOn = useMotionEnabled();
+  const [canGL, setCanGL] = useState(false);
+  const sequence = useMemo(() => resolvePoseSequence(slug), [slug]);
+
+  useEffect(() => {
+    setCanGL(webglSupported());
+  }, []);
 
   const [layers, setLayers] = useState<{ slug: string; id: number }[]>([
     { slug: targetSlug, id: 0 },
@@ -79,6 +106,7 @@ export function PoseHumanStage({
   }, [targetSlug]);
 
   const moveFigure = playing && !!momentum;
+  const showGLTrainer = !poseImageWithheld(slug) && canGL && !!sequence;
 
   return (
     <div
@@ -122,12 +150,30 @@ export function PoseHumanStage({
               className={cn(
                 "h-full w-full object-contain object-center transition-opacity duration-700 ease-out",
                 layers.length > 1 ? "absolute inset-0" : "relative",
-                isTop ? "opacity-100" : "absolute inset-0 opacity-0",
+                isTop
+                  ? showGLTrainer
+                    ? "opacity-15 blur-[0.5px]"
+                    : "opacity-100"
+                  : "absolute inset-0 opacity-0",
               )}
               style={{ transform: side === 2 ? "scaleX(-1)" : undefined }}
             />
           );
         })}
+        {showGLTrainer && sequence ? (
+          <div className="absolute inset-0" data-testid={`pose-human-gl-${slug}`}>
+            <Suspense fallback={null}>
+              <HumanTrainerFigurine
+                sequence={sequence}
+                stepIndex={stepIndex}
+                stepProgress={1}
+                playing={playing}
+                side={side}
+                motionEnabled={motionOn}
+              />
+            </Suspense>
+          </div>
+        ) : null}
       </div>
 
       {focusZone && (

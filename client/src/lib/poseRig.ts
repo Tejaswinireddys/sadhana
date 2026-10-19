@@ -243,17 +243,29 @@ export function mirrorPose(pose: RigPose): RigPose {
  * Applies a subtle inhale/exhale ripple through the spine and shoulders.
  * `phase` is 0–1 through one breath cycle; `amount` scales the whole effect.
  */
-export function applyBreath(pose: Required<RigPose>, phase: number, amount = 1): Required<RigPose> {
-  const s = Math.sin(phase * Math.PI * 2) * amount;
+export function applyBreath(
+  pose: Required<RigPose>,
+  phase: number,
+  amount = 1,
+  breathMode: "inhale" | "exhale" | "steady" = "steady",
+): Required<RigPose> {
+  const wave =
+    breathMode === "inhale"
+      ? 0.35 + 0.65 * Math.sin(Math.min(1, Math.max(0, phase)) * (Math.PI / 2))
+      : breathMode === "exhale"
+        ? 0.35 - 0.85 * Math.sin(Math.min(1, Math.max(0, phase)) * (Math.PI / 2))
+        : Math.sin(phase * Math.PI * 2);
+  const s = wave * amount;
   const joints = { ...pose.joints };
   const bump = (name: JointName, d: Vec3) => {
     const [x, y, z] = joints[name] ?? ([0, 0, 0] as Vec3);
     joints[name] = [x + d[0], y + d[1], z + d[2]];
   };
-  bump("chest", [-1.1 * s, 0, 0]);
-  bump("spine", [-0.5 * s, 0, 0]);
-  bump("shoulderL", [0, 0, -1.4 * s]);
-  bump("shoulderR", [0, 0, 1.4 * s]);
+  bump("chest", [-1.4 * s, 0, 0]);
+  bump("spine", [-0.65 * s, 0, 0]);
+  bump("neck", [0.45 * s, 0, 0]);
+  bump("shoulderL", [0, 0, -1.6 * s]);
+  bump("shoulderR", [0, 0, 1.6 * s]);
   return {
     root: {
       position: [pose.root.position[0], pose.root.position[1] + 0.006 * s, pose.root.position[2]],

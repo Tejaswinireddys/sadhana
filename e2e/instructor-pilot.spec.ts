@@ -208,4 +208,13 @@ test.describe("instructor pilot — player controls", () => {
     await startPractice(page);
     await expect(page.getByTestId("instructor-camera-angle")).toHaveCount(0);
   });
+
+  test("renders the live 3D human yoga trainer instead of a crossfade video clip", async ({
+    page,
+  }) => {
+    await startPractice(page);
+    await expect(page.locator('[data-testid="instructor-stage"] video')).toHaveCount(0);
+    await expect(page.getByTestId("instructor-human-trainer")).toBeVisible();
+    await expect(page.getByTestId("instructor-trainer-badge")).toBeVisible();
+  });
 });

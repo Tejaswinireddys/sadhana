@@ -19,6 +19,7 @@ import { PoseLessonStage, type LessonStageMediaState } from "@/components/PoseLe
 import {
   buildPoseLesson,
   formatLessonClock,
+  namedSideIn,
   nextStepStart,
   phaseLabelFor,
   previousStepStart,
@@ -245,6 +246,20 @@ export function PoseExplanation({
 
   const training = started && !completed;
   const activeStepNumber = current?.stepNumber ?? null;
+  const firstSide = useMemo(
+    () => (lesson ? namedSideIn(lesson.steps) : "right"),
+    [lesson],
+  );
+  const segmentProgress =
+    training && current
+      ? Math.max(
+          0,
+          Math.min(
+            1,
+            (timeSec - current.startSec) / Math.max(0.01, current.durationSec),
+          ),
+        )
+      : 1;
 
   const controls = (
     <div className="flex flex-wrap items-center gap-2" data-testid="lesson-controls">
@@ -367,6 +382,14 @@ export function PoseExplanation({
                     }`
                   : null
               }
+              phase={training && current ? current.phase : undefined}
+              stepNumber={activeStepNumber}
+              stepProgress={segmentProgress}
+              side={training && current ? current.side : "both"}
+              firstSide={firstSide}
+              breathMovement={training && current ? current.cycle?.movement ?? null : null}
+              breathCue={training && current ? current.breathCue : null}
+              training={training}
               onMediaStateChange={setMediaState}
               className={cn(
                 "aspect-[3/4] w-full sm:aspect-video",

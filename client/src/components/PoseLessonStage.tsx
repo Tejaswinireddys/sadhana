@@ -11,12 +11,33 @@
  *    still, labelled "Static reference — movement demonstration unavailable",
  *    and says so out loud rather than implying motion.
  */
-import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, ImageOff, Loader2 } from "lucide-react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, Eye, ImageOff, Loader2, UserCheck } from "lucide-react";
 import type { PoseDemoAvailability } from "@/data/poseDemoAvailability";
 import { STATIC_REFERENCE_LABEL } from "@/data/poseDemoAvailability";
+import { resolveTrainerStageState } from "@/data/poseKeyframes";
+import { useMotionEnabled } from "@/components/motion";
+import type { LessonPhase } from "@/lib/poseLesson";
 import type { FocusZone } from "@/lib/poseMoments";
 import { cn } from "@/lib/utils";
+
+const HumanTrainerFigurine = lazy(() =>
+  import("@/components/PoseFigurineGL").then((m) => ({ default: m.PoseFigurineGL })),
+);
+
+function webglSupported(): boolean {
+  if (typeof document === "undefined") return false;
+  try {
+    const c = document.createElement("canvas");
+    return !!(
+      c.getContext("webgl2") ||
+      c.getContext("webgl") ||
+      c.getContext("experimental-webgl")
+    );
+  } catch {
+    return false;
+  }
+}
 
 export type LessonStageMediaState = "idle" | "loading" | "ready" | "buffering" | "error";
 
@@ -35,6 +56,15 @@ type Props = {
    */
   focus?: FocusZone | null;
   caption?: string | null;
+  /** Live lesson timeline state for the 3D human yoga trainer. */
+  phase?: LessonPhase;
+  stepNumber?: number | null;
+  stepProgress?: number;
+  side?: "left" | "right" | "both";
+  firstSide?: "left" | "right";
+  breathMovement?: "inhale" | "exhale" | "neutral" | null;
+  breathCue?: string | null;
+  training?: boolean;
   onMediaStateChange?: (state: LessonStageMediaState) => void;
   className?: string;
   "data-testid"?: string;
@@ -48,13 +78,54 @@ export function PoseLessonStage({
   restartToken = 0,
   focus = null,
   caption = null,
+  phase,
+  stepNumber = null,
+  stepProgress = 1,
+  side = "both",
+  firstSide = "right",
+  breathMovement = null,
+  breathCue = null,
+  training = false,
   onMediaStateChange,
   className,
   "data-testid": testId = "pose-lesson-stage",
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<LessonStageMediaState>("idle");
+  const [canGL, setCanGL] = useState(false);
+  const [cameraView, setCameraView] = useState<"auto" | "front" | "side">("auto");
+  const motionOn = useMotionEnabled();
   const hasMovement = demo.kind === "movement";
+
+  useEffect(() => {
+    setCanGL(webglSupported());
+  }, []);
+
+  const trainerState = useMemo(
+    () =>
+      resolveTrainerStageState({
+        slug: demo.slug,
+        phase: training ? phase : undefined,
+        stepNumber: training ? stepNumber : null,
+        stepProgress: training ? stepProgress : 1,
+        side: training ? side : "both",
+        firstSide,
+        breathMovement: training ? breathMovement : null,
+        breathCue: training ? breathCue : null,
+        training,
+      }),
+    [
+      demo.slug,
+      training,
+      phase,
+      stepNumber,
+      stepProgress,
+      side,
+      firstSide,
+      breathMovement,
+      breathCue,
+    ],
+  );
 
   useEffect(() => {
     const next: LessonStageMediaState = hasMovement ? "loading" : "idle";
@@ -109,14 +180,48 @@ export function PoseLessonStage({
           onError={() => report("error")}
         />
       ) : demo.poster ? (
-        <img
-          src={demo.poster}
-          alt={`${english} — still reference`}
-          className="h-full w-full object-contain"
-          width={600}
-          height={1200}
-          data-testid="pose-lesson-static-reference"
-        />
+        <>
+          {canGL && trainerState ? (
+            <div
+              className="absolute inset-0"
+              data-testid="pose-lesson-human-trainer"
+              data-trainer-phase={phase ?? "preview"}
+              data-trainer-step={trainerState.stepIndex}
+              data-trainer-breath={trainerState.breathMode}
+            >
+              <Suspense fallback={null}>
+                <HumanTrainerFigurine
+                  sequence={trainerState.sequence}
+                  stepIndex={trainerState.stepIndex}
+                  stepProgress={trainerState.stepProgress}
+                  playing={playing || !training}
+                  side={trainerState.side}
+                  motionEnabled={motionOn}
+                  overridePose={trainerState.overridePose}
+                  breathMode={trainerState.breathMode}
+                  cameraView={cameraView}
+                  data-testid={`pose-lesson-gl-${demo.slug}`}
+                />
+              </Suspense>
+            </div>
+          ) : null}
+          <img
+            src={demo.poster}
+            alt={`${english} — still reference`}
+            className={cn(
+              "object-contain transition-all duration-300",
+              canGL && trainerState
+                ? cn(
+                    " absolute right-2 z-10 h-16 w-12 rounded-lg border border-border/80 bg-background/95 p-0.5 shadow-sm",
+                    caption ? "bottom-10" : "bottom-2",
+                  )
+                : "h-full w-full",
+            )}
+            width={600}
+            height={1200}
+            data-testid="pose-lesson-static-reference"
+          />
+        </>
       ) : (
         <div
           className="flex h-full min-h-[10rem] w-full flex-col items-center justify-center gap-2 p-4 text-center"
@@ -175,12 +280,54 @@ export function PoseLessonStage({
       {/* Honest media label — always visible, never a raw asset path. */}
       {!hasMovement ? (
         <p
-          className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-[11px] font-medium text-muted-foreground"
+          className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-[11px] font-medium text-muted-foreground shadow-sm backdrop-blur-sm"
           data-testid="pose-lesson-media-label"
         >
-          <AlertTriangle className="h-3 w-3" aria-hidden />
-          {STATIC_REFERENCE_LABEL}
+          <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
+          <span className="truncate">{STATIC_REFERENCE_LABEL}</span>
         </p>
+      ) : null}
+
+      {/* Human trainer angle selector & live coaching badge */}
+      {!hasMovement && canGL && trainerState ? (
+        <div
+          className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full bg-background/90 p-0.5 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur-sm"
+          data-testid="pose-trainer-view-toggle"
+          role="group"
+          aria-label="Trainer camera angle"
+        >
+          <Eye className="ml-1.5 h-3 w-3 text-primary" aria-hidden />
+          {(["auto", "front", "side"] as const).map((view) => (
+            <button
+              key={view}
+              type="button"
+              onClick={() => setCameraView(view)}
+              aria-pressed={cameraView === view}
+              className={cn(
+                "rounded-full px-1.5 py-0.5 capitalize transition-colors",
+                cameraView === view
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:text-foreground",
+              )}
+              data-testid={`pose-trainer-view-${view}`}
+            >
+              {view}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {!hasMovement && canGL && trainerState ? (
+        <div
+          className={cn(
+            "pointer-events-none absolute left-2 z-10 inline-flex items-center gap-1.5 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur-sm",
+            caption ? "bottom-10" : "bottom-2",
+          )}
+          data-testid="pose-trainer-coach-badge"
+        >
+          <UserCheck className="h-3 w-3 text-primary" aria-hidden />
+          <span>{trainerState.coachBadge}</span>
+        </div>
       ) : null}
     </div>
   );

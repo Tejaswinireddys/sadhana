@@ -1,8 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { POSE_KEYFRAMES, hasRigSequence } from "./poseKeyframes.ts";
+import {
+  POSE_KEYFRAMES,
+  hasRigSequence,
+  resolvePoseSequence,
+  resolveTrainerStageState,
+} from "./poseKeyframes.ts";
 import { ASANAS } from "./content.ts";
-import { SKELETON, lerpPose, mirrorPose, normalizePose } from "../lib/poseRig.ts";
+import { SKELETON, applyBreath, lerpPose, mirrorPose, normalizePose } from "../lib/poseRig.ts";
 
 const asanaBySlug = new Map(ASANAS.map((a) => [a.slug, a]));
 
@@ -103,3 +108,68 @@ test("hasRigSequence only claims poses we actually authored", () => {
   assert.equal(hasRigSequence("definitely-not-a-pose"), false);
   assert.equal(hasRigSequence("constructor"), false);
 });
+
+test("resolvePoseSequence builds a multi-step human trainer sequence for every catalog pose", () => {
+  for (const asana of ASANAS) {
+    const seq = resolvePoseSequence(asana.slug);
+    assert.ok(seq, `missing trainer sequence for ${asana.slug}`);
+    assert.equal(
+      seq.frames.length,
+      Math.max(1, asana.steps.length),
+      `${asana.slug} trainer sequence frame count`,
+    );
+  }
+});
+
+test("resolveTrainerStageState articulates Cat–Cow inhale vs exhale spine phases and bilateral side changes", () => {
+  const cowState = resolveTrainerStageState({
+    slug: "marjaryasana-bitilasana",
+    phase: "cycle",
+    breathMovement: "inhale",
+    stepProgress: 1,
+  });
+  const catState = resolveTrainerStageState({
+    slug: "marjaryasana-bitilasana",
+    phase: "cycle",
+    breathMovement: "exhale",
+    stepProgress: 1,
+  });
+  assert.ok(cowState && catState);
+  assert.equal(cowState.breathMode, "inhale");
+  assert.equal(catState.breathMode, "exhale");
+  assert.ok(cowState.overridePose && catState.overridePose);
+  // In tabletop (~88° horizontal spine), Cow dips the belly (98°) and lifts the gaze,
+  // while Cat domes the back toward the ceiling (74°) and tucks the chin.
+  assert.ok(
+    cowState.overridePose.joints.spine![0] > catState.overridePose.joints.spine![0],
+    `expected Cow spine (${cowState.overridePose.joints.spine![0]}) > Cat spine (${catState.overridePose.joints.spine![0]})`,
+  );
+  assert.ok(
+    cowState.overridePose.joints.neck![0] < catState.overridePose.joints.neck![0],
+    `expected Cow neck (${cowState.overridePose.joints.neck![0]}) < Cat neck (${catState.overridePose.joints.neck![0]})`,
+  );
+
+  // Bilateral Warrior II side switching
+  const firstSideHold = resolveTrainerStageState({
+    slug: "virabhadrasana-ii",
+    phase: "hold",
+    side: "right",
+    firstSide: "right",
+  });
+  const secondSideHold = resolveTrainerStageState({
+    slug: "virabhadrasana-ii",
+    phase: "hold",
+    side: "left",
+    firstSide: "right",
+  });
+  assert.equal(firstSideHold?.side, 1);
+  assert.equal(secondSideHold?.side, 2);
+});
+
+test("applyBreath differentiates inhale chest expansion from exhale grounding", () => {
+  const base = normalizePose(POSE_KEYFRAMES.tadasana.frames[0]);
+  const inhaled = applyBreath(base, 0.25, 1, "inhale");
+  const exhaled = applyBreath(base, 0.25, 1, "exhale");
+  assert.notDeepEqual(inhaled.joints.chest, exhaled.joints.chest);
+});
+

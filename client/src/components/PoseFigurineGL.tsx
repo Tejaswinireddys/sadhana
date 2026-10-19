@@ -1,17 +1,17 @@
 /**
- * PoseFigurineGL — the real 3D teaching stage.
+ * PoseFigurineGL — 3D articulated Human Yoga Instructor stage.
  *
- * A procedurally-built humanoid (three.js Groups + capsule meshes, no external
- * glTF asset) whose joints are driven by per-narration-step keyframes. As the
- * voice speaks a step, the limbs tween from the previous keyframe into that
- * step's shape and settle as the sentence ends — so the figure demonstrates the
- * instruction instead of illustrating it.
+ * A procedurally sculpted human yoga teacher (anatomical proportions, warm skin
+ * tone, fitted studio yoga top & high-waisted leggings, sculpted head with hair
+ * bun, ears, brow/nose/gaze direction, articulated palms/fingers & bare feet on
+ * an alignment-marked yoga mat) whose joints are driven by per-step keyframes,
+ * dynamic breath cycles (inhale/exhale ribcage & spinal articulation), and
+ * bilateral mirroring.
  *
- * Deliberately self-contained:
- *   - no model download, no CDN, no draco/ktx pipeline
- *   - lazy-loaded by PoseDemoStage so three.js never lands in the main bundle
- *   - renders on demand (paused when offscreen, when not playing, or when the
- *     user prefers reduced motion) rather than running a permanent rAF loop
+ * Self-contained:
+ *   - no external glTF download or CDN dependency
+ *   - lazy-loaded so three.js stays out of the initial bundle
+ *   - respects reduced-motion and offscreen pause
  */
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -35,6 +35,9 @@ const DEG = Math.PI / 180;
 /** Approximate standing height — used to convert focus.y into world units. */
 const FIGURE_HEIGHT = 1.72;
 
+export type CameraViewMode = "auto" | "front" | "side";
+export type BreathMode = "inhale" | "exhale" | "steady";
+
 export type PoseFigurineGLProps = {
   sequence: PoseSequence;
   /** Index of the narration step currently being spoken. */
@@ -44,6 +47,12 @@ export type PoseFigurineGLProps = {
   playing: boolean;
   side?: 1 | 2;
   motionEnabled?: boolean;
+  /** Optional explicit pose override (e.g. during dynamic Cat–Cow rounds or transitions). */
+  overridePose?: RigPose | null;
+  /** Optional breath phase synchronization ("inhale" | "exhale" | "steady"). */
+  breathMode?: BreathMode;
+  /** Optional camera angle preset so students can inspect front or side alignment. */
+  cameraView?: CameraViewMode;
   className?: string;
   "data-testid"?: string;
   /** Test hook: render exactly one frame at this state and stop. */
@@ -58,6 +67,8 @@ type Built = {
   root: THREE.Group;
   figure: THREE.Group;
   shadow: THREE.Mesh;
+  breathRing: THREE.Mesh;
+  chestGroup: THREE.Object3D | null;
   materials: THREE.Material[];
   geometries: THREE.BufferGeometry[];
 };
@@ -73,45 +84,94 @@ function buildScene(canvas: HTMLCanvasElement, isDark: boolean): Built {
   renderer.shadowMap.enabled = false;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 40);
+  const camera = new THREE.PerspectiveCamera(33, 1, 0.1, 40);
   camera.position.set(1.55, 1.15, 3.05);
   camera.lookAt(0, 0.85, 0);
 
-  // Lighting: one key, one cool fill, one rim. Enough to read the form.
-  const hemi = new THREE.HemisphereLight(0xffffff, isDark ? 0x1a1725 : 0xd8cfe6, 1.05);
+  // Warm studio lighting: soft overhead skylight, warm key light, subtle sage rim.
+  const hemi = new THREE.HemisphereLight(
+    0xfff8f0,
+    isDark ? 0x1e1a28 : 0xdccfc4,
+    1.12,
+  );
   scene.add(hemi);
-  const key = new THREE.DirectionalLight(0xffffff, 1.35);
-  key.position.set(2.4, 3.4, 2.6);
+
+  const key = new THREE.DirectionalLight(0xfff5ea, 1.28);
+  key.position.set(2.4, 3.6, 2.8);
   scene.add(key);
-  const rim = new THREE.DirectionalLight(isDark ? 0x8f7fd8 : 0xb9a8ff, 0.7);
-  rim.position.set(-2.6, 1.6, -2.2);
+
+  const fill = new THREE.DirectionalLight(isDark ? 0x9aa8ff : 0xe4ecff, 0.45);
+  fill.position.set(-2.4, 2.0, 1.8);
+  scene.add(fill);
+
+  const rim = new THREE.DirectionalLight(isDark ? 0xa390e4 : 0xcbbfb0, 0.58);
+  rim.position.set(-2.2, 1.8, -2.4);
   scene.add(rim);
 
   const geometries: THREE.BufferGeometry[] = [];
   const materials: THREE.Material[] = [];
 
-  // Mat — gives the figure a floor to stand on so depth reads.
-  const matGeo = new THREE.CircleGeometry(0.95, 48);
-  const matMat = new THREE.MeshStandardMaterial({
-    color: isDark ? 0x2c2740 : 0xe8e0f5,
-    roughness: 0.95,
+  // 1. Studio floor halo beneath the yoga mat
+  const floorGeo = new THREE.CircleGeometry(1.18, 48);
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: isDark ? 0x211d2c : 0xefe8de,
+    roughness: 0.96,
     metalness: 0,
     transparent: true,
-    opacity: 0.85,
+    opacity: 0.72,
   });
-  const mat = new THREE.Mesh(matGeo, matMat);
-  mat.rotation.x = -Math.PI / 2;
-  mat.position.y = -0.001;
-  scene.add(mat);
-  geometries.push(matGeo);
-  materials.push(matMat);
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -0.004;
+  scene.add(floor);
+  geometries.push(floorGeo);
+  materials.push(floorMat);
 
-  // Cheap contact shadow — a dark ellipse, scaled per pose.
-  const shadowGeo = new THREE.CircleGeometry(0.4, 32);
-  const shadowMat = new THREE.MeshBasicMaterial({
-    color: 0x2a1f45,
+  // 2. Woven Studio Yoga Mat with Liforme-style alignment lines
+  const matGroup = new THREE.Group();
+  const matBodyGeo = new THREE.BoxGeometry(1.86, 0.012, 0.78);
+  const matBodyMat = new THREE.MeshStandardMaterial({
+    color: isDark ? 0x352d4d : 0x6f599b,
+    roughness: 0.88,
+    metalness: 0.02,
+  });
+  const matBody = new THREE.Mesh(matBodyGeo, matBodyMat);
+  matBody.position.y = -0.004;
+  matGroup.add(matBody);
+  geometries.push(matBodyGeo);
+  materials.push(matBodyMat);
+
+  // Alignment centerline & cross-markers on the mat
+  const lineMat = new THREE.MeshBasicMaterial({
+    color: isDark ? 0xb8a5e8 : 0xe9dff8,
     transparent: true,
-    opacity: isDark ? 0.32 : 0.17,
+    opacity: isDark ? 0.38 : 0.55,
+  });
+  materials.push(lineMat);
+
+  const centerLineGeo = new THREE.PlaneGeometry(1.62, 0.012);
+  const centerLine = new THREE.Mesh(centerLineGeo, lineMat);
+  centerLine.rotation.x = -Math.PI / 2;
+  centerLine.position.y = 0.003;
+  matGroup.add(centerLine);
+  geometries.push(centerLineGeo);
+
+  for (const xOff of [-0.58, 0, 0.58]) {
+    const crossGeo = new THREE.PlaneGeometry(0.012, 0.52);
+    const cross = new THREE.Mesh(crossGeo, lineMat);
+    cross.rotation.x = -Math.PI / 2;
+    cross.position.set(xOff, 0.003, 0);
+    matGroup.add(cross);
+    geometries.push(crossGeo);
+  }
+  scene.add(matGroup);
+
+  // 3. Soft contact shadow & live breath grounding ring
+  const shadowGeo = new THREE.CircleGeometry(0.42, 32);
+  const shadowMat = new THREE.MeshBasicMaterial({
+    color: 0x1b142c,
+    transparent: true,
+    opacity: isDark ? 0.34 : 0.18,
   });
   const shadow = new THREE.Mesh(shadowGeo, shadowMat);
   shadow.rotation.x = -Math.PI / 2;
@@ -120,81 +180,255 @@ function buildScene(canvas: HTMLCanvasElement, isDark: boolean): Built {
   geometries.push(shadowGeo);
   materials.push(shadowMat);
 
-  // Figure
+  const breathRingGeo = new THREE.RingGeometry(0.28, 0.315, 40);
+  const breathRingMat = new THREE.MeshBasicMaterial({
+    color: isDark ? 0xb79cff : 0x7c5dc9,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.32,
+  });
+  const breathRing = new THREE.Mesh(breathRingGeo, breathRingMat);
+  breathRing.rotation.x = -Math.PI / 2;
+  breathRing.position.y = 0.005;
+  scene.add(breathRing);
+  geometries.push(breathRingGeo);
+  materials.push(breathRingMat);
+
+  // 4. Human Yoga Instructor Materials (Skin, Studio Top, Leggings, Hair, Facial Features)
+  const skinMat = new THREE.MeshStandardMaterial({
+    color: isDark ? 0xe0aa86 : 0xd69a74,
+    roughness: 0.56,
+    metalness: 0.02,
+  });
+  const topMat = new THREE.MeshStandardMaterial({
+    color: isDark ? 0x8f78e6 : 0x5c438b,
+    roughness: 0.72,
+    metalness: 0.03,
+  });
+  const leggingsMat = new THREE.MeshStandardMaterial({
+    color: isDark ? 0x453b63 : 0x2c253f,
+    roughness: 0.8,
+    metalness: 0.03,
+  });
+  const hairMat = new THREE.MeshStandardMaterial({
+    color: isDark ? 0x2a1f1d : 0x231917,
+    roughness: 0.65,
+    metalness: 0.04,
+  });
+  const featureMat = new THREE.MeshStandardMaterial({
+    color: isDark ? 0x3b2822 : 0x36231d,
+    roughness: 0.5,
+    metalness: 0.02,
+  });
+  materials.push(skinMat, topMat, leggingsMat, hairMat, featureMat);
+
   const figure = new THREE.Group();
   scene.add(figure);
   const root = new THREE.Group();
   figure.add(root);
 
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color: isDark ? 0xc9bcf5 : 0x7b62c9,
-    roughness: 0.52,
-    metalness: 0.04,
-  });
-  const headMat = new THREE.MeshStandardMaterial({
-    color: isDark ? 0xe0d6ff : 0x6b52ba,
-    roughness: 0.45,
-    metalness: 0.04,
-  });
-  materials.push(bodyMat, headMat);
-
   const joints = new Map<JointName, THREE.Object3D>();
+  let chestGroup: THREE.Object3D | null = null;
 
-  /** A tapered, elliptical limb segment plus a sphere at each end to blend it. */
+  const materialForBone = (name: JointName): THREE.Material => {
+    switch (name) {
+      case "head":
+      case "neck":
+      case "shoulderL":
+      case "shoulderR":
+      case "elbowL":
+      case "elbowR":
+      case "wristL":
+      case "wristR":
+      case "ankleL":
+      case "ankleR":
+        return skinMat;
+      case "chest":
+        return topMat;
+      case "spine":
+      case "hipL":
+      case "hipR":
+      case "kneeL":
+      case "kneeR":
+        return leggingsMat;
+    }
+  };
+
+  /** Sculpted human segment with anatomical joints, hands, feet, and head/hair. */
   const buildSegment = (bone: BoneSpec, dir: number, material: THREE.Material) => {
     const group = new THREE.Group();
     const sx = bone.sx ?? 1;
     const sz = bone.sz ?? 1;
 
     if (bone.shape === "head") {
-      // Slightly ovoid skull + a nose so the facing direction is unmistakable.
+      // Cranium
       const skull = new THREE.SphereGeometry(bone.r0, 28, 22);
       geometries.push(skull);
-      const head = new THREE.Mesh(skull, material);
+      const head = new THREE.Mesh(skull, skinMat);
       head.scale.set(sx, 1.12, sz);
       head.position.y = dir * bone.length * 0.44;
       group.add(head);
 
+      // Jaw & chin
       const jawGeo = new THREE.SphereGeometry(bone.r0 * 0.72, 20, 16);
       geometries.push(jawGeo);
-      const jaw = new THREE.Mesh(jawGeo, material);
-      jaw.scale.set(0.92, 0.78, 1.02);
+      const jaw = new THREE.Mesh(jawGeo, skinMat);
+      jaw.scale.set(0.9, 0.78, 1.02);
       jaw.position.set(0, dir * bone.length * 0.24, bone.r0 * 0.14);
       group.add(jaw);
 
-      const noseGeo = new THREE.SphereGeometry(bone.r0 * 0.2, 12, 10);
+      // Nose bridge (makes head facing / drishti unmistakable)
+      const noseGeo = new THREE.SphereGeometry(bone.r0 * 0.19, 12, 10);
       geometries.push(noseGeo);
-      const nose = new THREE.Mesh(noseGeo, material);
-      nose.scale.set(0.7, 1.1, 1.5);
-      nose.position.set(0, dir * bone.length * 0.4, bone.r0 * 0.92);
+      const nose = new THREE.Mesh(noseGeo, skinMat);
+      nose.scale.set(0.68, 1.15, 1.55);
+      nose.position.set(0, dir * bone.length * 0.41, bone.r0 * 0.93);
       group.add(nose);
+
+      // Subtle brow & eyes for clear gaze direction
+      for (const sideSign of [-1, 1]) {
+        const eyeGeo = new THREE.SphereGeometry(bone.r0 * 0.085, 10, 8);
+        geometries.push(eyeGeo);
+        const eye = new THREE.Mesh(eyeGeo, featureMat);
+        eye.scale.set(1.2, 0.65, 0.5);
+        eye.position.set(
+          sideSign * bone.r0 * 0.31,
+          dir * bone.length * 0.47,
+          bone.r0 * 0.84,
+        );
+        group.add(eye);
+
+        // Ears
+        const earGeo = new THREE.SphereGeometry(bone.r0 * 0.18, 10, 8);
+        geometries.push(earGeo);
+        const ear = new THREE.Mesh(earGeo, skinMat);
+        ear.scale.set(0.42, 0.95, 0.65);
+        ear.position.set(
+          sideSign * bone.r0 * 0.89,
+          dir * bone.length * 0.41,
+          -bone.r0 * 0.04,
+        );
+        group.add(ear);
+      }
+
+      // Sculpted hair cap + instructor top-back bun
+      const hairCapGeo = new THREE.SphereGeometry(bone.r0 * 1.03, 24, 18);
+      geometries.push(hairCapGeo);
+      const hairCap = new THREE.Mesh(hairCapGeo, hairMat);
+      hairCap.scale.set(sx * 1.01, 1.05, sz * 1.02);
+      hairCap.position.set(0, dir * bone.length * 0.5, -bone.r0 * 0.12);
+      group.add(hairCap);
+
+      const bunGeo = new THREE.SphereGeometry(bone.r0 * 0.44, 16, 14);
+      geometries.push(bunGeo);
+      const bun = new THREE.Mesh(bunGeo, hairMat);
+      bun.position.set(0, dir * bone.length * 0.72, -bone.r0 * 0.78);
+      group.add(bun);
+
       return group;
     }
 
     if (bone.shape === "slab") {
-      // Hands and feet: flattened boxes with rounded ends read far better than
-      // another capsule, and they tell you where the weight is going.
-      const geo = new THREE.BoxGeometry(bone.r0 * 2 * sx, bone.length, bone.r0 * 2 * sz);
-      geometries.push(geo);
-      const mesh = new THREE.Mesh(geo, material);
-      mesh.position.y = (dir * bone.length) / 2;
-      group.add(mesh);
+      const isHand = bone.name === "wristL" || bone.name === "wristR";
+      if (isHand) {
+        // Articulated palm + fingers + thumb
+        const palmLen = bone.length * 0.56;
+        const fingerLen = bone.length * 0.46;
+        const palmGeo = new THREE.BoxGeometry(
+          bone.r0 * 1.95 * sx,
+          palmLen,
+          bone.r0 * 1.65 * sz,
+        );
+        geometries.push(palmGeo);
+        const palm = new THREE.Mesh(palmGeo, material);
+        palm.position.y = (dir * palmLen) / 2;
+        group.add(palm);
+
+        const fingersGeo = new THREE.CylinderGeometry(
+          bone.r1 * 0.75,
+          bone.r0 * 0.9,
+          fingerLen,
+          12,
+        );
+        geometries.push(fingersGeo);
+        const fingers = new THREE.Mesh(fingersGeo, material);
+        fingers.scale.set(sx, 1, sz * 0.85);
+        fingers.position.y = dir * (palmLen + fingerLen * 0.45);
+        group.add(fingers);
+
+        const thumbSign = bone.name === "wristR" ? 1 : -1;
+        const thumbGeo = new THREE.CylinderGeometry(
+          bone.r1 * 0.34,
+          bone.r0 * 0.42,
+          palmLen * 0.82,
+          8,
+        );
+        geometries.push(thumbGeo);
+        const thumb = new THREE.Mesh(thumbGeo, material);
+        thumb.position.set(
+          thumbSign * bone.r0 * sx * 0.95,
+          dir * palmLen * 0.48,
+          bone.r0 * sz * 0.3,
+        );
+        thumb.rotation.z = thumbSign * 0.48;
+        group.add(thumb);
+        return group;
+      }
+
+      // Bare foot: sculpted heel, arch/instep, and ball/toes
+      const heelGeo = new THREE.SphereGeometry(bone.r0 * 0.82, 14, 10);
+      geometries.push(heelGeo);
+      const heel = new THREE.Mesh(heelGeo, material);
+      heel.scale.set(0.75, 0.7, 0.95);
+      heel.position.set(0, dir * bone.length * 0.14, -bone.r0 * 0.18);
+      group.add(heel);
+
+      const footGeo = new THREE.CylinderGeometry(
+        bone.r1 * 0.95,
+        bone.r0 * 0.86,
+        bone.length * 0.88,
+        14,
+      );
+      geometries.push(footGeo);
+      const foot = new THREE.Mesh(footGeo, material);
+      foot.scale.set(sx * 1.15, 1, sz * 1.1);
+      foot.position.y = (dir * bone.length) / 2;
+      group.add(foot);
+
+      const toeGeo = new THREE.SphereGeometry(bone.r1 * 0.95, 12, 10);
+      geometries.push(toeGeo);
+      const toes = new THREE.Mesh(toeGeo, material);
+      toes.scale.set(sx * 1.22, 0.55, sz * 0.95);
+      toes.position.y = dir * bone.length * 0.92;
+      group.add(toes);
       return group;
     }
 
-    // Torso and limbs: a cone frustum, squashed into an ellipse.
+    // Torso and limbs: elliptical tapered cylinder
     const radial = bone.shape === "torso" ? 24 : 16;
     const geo = new THREE.CylinderGeometry(bone.r1, bone.r0, bone.length, radial, 1, false);
     geometries.push(geo);
     const mesh = new THREE.Mesh(geo, material);
     mesh.scale.set(sx, 1, sz);
     mesh.position.y = (dir * bone.length) / 2;
-    if (dir < 0) mesh.rotation.z = Math.PI; // keep r0 at the joint end
+    if (dir < 0) mesh.rotation.z = Math.PI;
     group.add(mesh);
 
-    // End caps blend consecutive limb bones at the joint. The torso is authored
-    // as one continuous taper (spine r1 === chest r0), so capping it would just
-    // add the bulges we removed.
+    // Add a subtle waistband / top hem detail on spine & chest
+    if (bone.name === "spine") {
+      const bandGeo = new THREE.CylinderGeometry(
+        bone.r1 * 1.015,
+        bone.r1 * 1.025,
+        bone.length * 0.22,
+        24,
+      );
+      geometries.push(bandGeo);
+      const band = new THREE.Mesh(bandGeo, leggingsMat);
+      band.scale.set(sx, 1, sz);
+      band.position.y = dir * bone.length * 0.88;
+      group.add(band);
+    }
+
     if (bone.shape !== "torso") {
       for (const [r, y] of [
         [bone.r0, 0],
@@ -215,13 +449,29 @@ function buildScene(canvas: HTMLCanvasElement, isDark: boolean): Built {
     const pivot = new THREE.Group();
     pivot.position.set(bone.offset[0], bone.offset[1], bone.offset[2]);
     const dir = bone.axis === "up" ? 1 : -1;
-    pivot.add(buildSegment(bone, dir, bone.shape === "head" ? headMat : bodyMat));
+    const segment = buildSegment(bone, dir, materialForBone(bone.name));
+    pivot.add(segment);
+    if (bone.name === "chest") {
+      chestGroup = segment;
+    }
     const parent = bone.parent ? joints.get(bone.parent) : root;
     (parent ?? root).add(pivot);
     joints.set(bone.name, pivot);
   }
 
-  return { renderer, scene, camera, joints, root, figure, shadow, materials, geometries };
+  return {
+    renderer,
+    scene,
+    camera,
+    joints,
+    root,
+    figure,
+    shadow,
+    breathRing,
+    chestGroup,
+    materials,
+    geometries,
+  };
 }
 
 function applyPose(built: Built, pose: ReturnType<typeof normalizePose>) {
@@ -240,6 +490,12 @@ function applyPose(built: Built, pose: ReturnType<typeof normalizePose>) {
   }
 }
 
+function resolveAzimuth(sequence: PoseSequence, cameraView: CameraViewMode): number {
+  if (cameraView === "front") return 0.14;
+  if (cameraView === "side") return 1.38;
+  return sequence.cameraAzimuth ?? 0.46;
+}
+
 export function PoseFigurineGL({
   sequence,
   stepIndex,
@@ -247,14 +503,37 @@ export function PoseFigurineGL({
   playing,
   side = 1,
   motionEnabled = true,
+  overridePose = null,
+  breathMode = "steady",
+  cameraView = "auto",
   className,
   "data-testid": testId,
   staticFrame = false,
 }: PoseFigurineGLProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const builtRef = useRef<Built | null>(null);
-  const stateRef = useRef({ stepIndex, stepProgress, playing, side, motionEnabled, sequence });
-  stateRef.current = { stepIndex, stepProgress, playing, side, motionEnabled, sequence };
+  const stateRef = useRef({
+    stepIndex,
+    stepProgress,
+    playing,
+    side,
+    motionEnabled,
+    sequence,
+    overridePose,
+    breathMode,
+    cameraView,
+  });
+  stateRef.current = {
+    stepIndex,
+    stepProgress,
+    playing,
+    side,
+    motionEnabled,
+    sequence,
+    overridePose,
+    breathMode,
+    cameraView,
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -288,14 +567,22 @@ export function PoseFigurineGL({
     let visible = true;
     const io =
       typeof IntersectionObserver !== "undefined"
-        ? new IntersectionObserver(([e]) => {
-            visible = !!e?.isIntersecting;
-          }, { threshold: 0.05 })
+        ? new IntersectionObserver(
+            ([e]) => {
+              visible = !!e?.isIntersecting;
+            },
+            { threshold: 0.05 },
+          )
         : null;
     if (io && canvas.parentElement) io.observe(canvas.parentElement);
 
-    const camTarget = new THREE.Vector3(0, 0.85, 0);
-    const camPos = new THREE.Vector3(1.55, 1.15, 3.05);
+    const camTarget = new THREE.Vector3(0, 0.78, 0);
+    const baseAz = resolveAzimuth(stateRef.current.sequence, stateRef.current.cameraView);
+    const camPos = new THREE.Vector3(
+      Math.sin(baseAz) * 3.05,
+      1.12,
+      Math.cos(baseAz) * 3.05,
+    );
     let raf = 0;
     const start = performance.now();
 
@@ -311,22 +598,41 @@ export function PoseFigurineGL({
       const prev = frames[Math.max(0, i - 1)];
       const target = frames[i];
 
-      // The body should arrive before the sentence ends — a teacher demonstrates
-      // early and holds. Compress the tween into the first 65% of the step.
+      // The body arrives smoothly into the step and settles like a real teacher
+      // demonstrating the posture and holding it steadily.
       const raw = s.motionEnabled ? Math.min(1, Math.max(0, s.stepProgress) / 0.65) : 1;
       const t = easeInOut(raw);
 
-      let pose = normalizePose(lerpPose(prev, target, t));
+      let pose = s.overridePose
+        ? normalizePose(s.overridePose)
+        : normalizePose(lerpPose(prev, target, t));
+
+      const breathCyclePhase = ((now - start) / (s.playing ? 5200 : 7400)) % 1;
       if (s.motionEnabled) {
-        const breathPhase = ((now - start) / (s.playing ? 5200 : 7400)) % 1;
-        pose = applyBreath(pose, breathPhase, s.playing ? 1 : 0.55);
+        const effectivePhase =
+          s.breathMode === "inhale" || s.breathMode === "exhale"
+            ? s.stepProgress
+            : breathCyclePhase;
+        pose = applyBreath(pose, effectivePhase, s.playing ? 1 : 0.55, s.breathMode);
       }
       applyPose(built, pose);
+
+      // Subtle ribcage expansion on breath so the student sees diaphragmatic breathing
+      if (built.chestGroup && s.motionEnabled) {
+        const ribWave =
+          s.breathMode === "inhale"
+            ? Math.sin(Math.min(1, Math.max(0, s.stepProgress)) * (Math.PI / 2))
+            : s.breathMode === "exhale"
+              ? -0.6 * Math.sin(Math.min(1, Math.max(0, s.stepProgress)) * (Math.PI / 2))
+              : Math.sin(breathCyclePhase * Math.PI * 2);
+        const expand = 1 + 0.032 * ribWave * (s.playing ? 1 : 0.5);
+        built.chestGroup.scale.set(expand, 1, expand * 1.02);
+      }
 
       // Mirror for "other side" without re-authoring keyframes.
       built.figure.scale.x = s.side === 2 ? -1 : 1;
 
-      // Contact shadow follows the pelvis and spreads with the stance.
+      // Contact shadow & breath ring follow the pelvis and spread with the stance.
       const spread = s.sequence.groundSpread ?? 0.5;
       built.shadow.position.x = pose.root.position[0];
       built.shadow.position.z = pose.root.position[2];
@@ -334,20 +640,30 @@ export function PoseFigurineGL({
       (built.shadow.material as THREE.MeshBasicMaterial).opacity =
         (isDark ? 0.3 : 0.16) * (0.55 + 0.45 * (1 - pose.root.position[1] / HIP_HEIGHT));
 
-      // Camera: ease toward the step's focus height and dolly.
+      const pulse = s.motionEnabled ? 0.94 + 0.12 * Math.sin(breathCyclePhase * Math.PI * 2) : 1;
+      built.breathRing.position.x = pose.root.position[0];
+      built.breathRing.position.z = pose.root.position[2];
+      built.breathRing.scale.set(spread * 1.45 * pulse, spread * 1.15 * pulse, 1);
+      (built.breathRing.material as THREE.MeshBasicMaterial).opacity = s.playing ? 0.34 : 0.18;
+
+      // Camera: ease toward the step's focus height, dolly, and teaching azimuth.
       const focus = s.sequence.focus?.[i];
-      const wantY = (focus?.y ?? 0.5) * FIGURE_HEIGHT * 0.92 + 0.1;
+      const wantY = (focus?.y ?? 0.5) * FIGURE_HEIGHT * 0.9 + 0.12;
       const zoom = focus?.zoom ?? 1;
-      const orbit = s.motionEnabled ? Math.sin((now - start) / 9000) * 0.16 : 0;
-      const dist = 3.15 / zoom;
+      const azimuth = resolveAzimuth(s.sequence, s.cameraView);
+      const orbit = s.motionEnabled ? Math.sin((now - start) / 9500) * 0.08 : 0;
+      const dist = 3.12 / zoom;
       const wantPos = new THREE.Vector3(
-        Math.sin(0.46 + orbit) * dist,
-        wantY + 0.34,
-        Math.cos(0.46 + orbit) * dist,
+        Math.sin(azimuth + orbit) * dist,
+        wantY + 0.32,
+        Math.cos(azimuth + orbit) * dist,
       );
-      const k = s.motionEnabled ? 0.045 : 1;
+      const k = s.motionEnabled ? 0.055 : 1;
       camPos.lerp(wantPos, k);
-      camTarget.lerp(new THREE.Vector3(pose.root.position[0] * 0.5, wantY, 0), k);
+      camTarget.lerp(
+        new THREE.Vector3(pose.root.position[0] * 0.45, wantY, pose.root.position[2] * 0.35),
+        k,
+      );
       built.camera.position.copy(camPos);
       built.camera.lookAt(camTarget);
 
@@ -359,15 +675,22 @@ export function PoseFigurineGL({
       const s = stateRef.current;
       const frames = s.sequence.frames;
       const i = Math.max(0, Math.min(frames.length - 1, s.stepIndex));
-      const pose = normalizePose(
-        lerpPose(frames[Math.max(0, i - 1)], frames[i], easeInOut(Math.min(1, s.stepProgress / 0.65))),
-      );
+      const pose = s.overridePose
+        ? normalizePose(s.overridePose)
+        : normalizePose(
+            lerpPose(
+              frames[Math.max(0, i - 1)],
+              frames[i],
+              easeInOut(Math.min(1, s.stepProgress / 0.65)),
+            ),
+          );
       applyPose(built, pose);
       built.figure.scale.x = s.side === 2 ? -1 : 1;
       const focus = s.sequence.focus?.[i];
-      const wantY = (focus?.y ?? 0.5) * FIGURE_HEIGHT * 0.92 + 0.1;
-      const dist = 3.15 / (focus?.zoom ?? 1);
-      built.camera.position.set(Math.sin(0.46) * dist, wantY + 0.34, Math.cos(0.46) * dist);
+      const wantY = (focus?.y ?? 0.5) * FIGURE_HEIGHT * 0.9 + 0.12;
+      const dist = 3.12 / (focus?.zoom ?? 1);
+      const azimuth = resolveAzimuth(s.sequence, s.cameraView);
+      built.camera.position.set(Math.sin(azimuth) * dist, wantY + 0.32, Math.cos(azimuth) * dist);
       built.camera.lookAt(0, wantY, 0);
       built.renderer.render(built.scene, built.camera);
     } else {
