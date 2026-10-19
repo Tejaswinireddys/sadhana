@@ -942,7 +942,8 @@ function AlternativeCard({
         {poses.length > 0 && (
           <div
             className="flex items-center gap-1.5"
-            data-testid={`home-alt-thumbs-${alt.id}`}
+            data-testid={`alt-thumbs-${alt.id}`}
+            data-thumbs={`home-alt-thumbs-${alt.id}`}
             aria-hidden
           >
             {poses.slice(0, 4).map((p, i) => (

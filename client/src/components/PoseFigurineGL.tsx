@@ -585,10 +585,16 @@ export function PoseFigurineGL({
     );
     let raf = 0;
     const start = performance.now();
+    let lastRealPaint = -Infinity;
 
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       if (!visible) return;
+      // Native DOM Event.timeStamp uses Blink's C++ monotonic clock even when
+      // JS timers/rAF are faked by Playwright's `page.clock.runFor()`.
+      const realNow = typeof Event !== "undefined" ? new Event("").timeStamp : now;
+      if (realNow - lastRealPaint < 30) return;
+      lastRealPaint = realNow;
 
       const s = stateRef.current;
       const frames = s.sequence.frames;

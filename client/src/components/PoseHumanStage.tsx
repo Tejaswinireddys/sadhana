@@ -106,7 +106,8 @@ export function PoseHumanStage({
   }, [targetSlug]);
 
   const moveFigure = playing && !!momentum;
-  const showGLTrainer = !poseImageWithheld(slug) && canGL && !!sequence;
+  const showGLTrainer =
+    variant === "detail" && !poseImageWithheld(slug) && canGL && !!sequence;
 
   return (
     <div
