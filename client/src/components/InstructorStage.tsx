@@ -10,31 +10,13 @@
  * clock has to stall too, or the narration and the hold timer run ahead of the
  * body on screen.
  */
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Loader2, RotateCcw, UserCheck } from "lucide-react";
 import type { InstructorMediaRef } from "@/data/instructorPilot";
 import { resolveTrainerStageState, type TrainerPhase } from "@/data/poseKeyframes";
-import { useMotionEnabled } from "@/components/motion";
+import { HumanPoseTrainerMovie } from "@/components/HumanPoseTrainerMovie";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const HumanTrainerFigurine = lazy(() =>
-  import("@/components/PoseFigurineGL").then((m) => ({ default: m.PoseFigurineGL })),
-);
-
-function webglSupported(): boolean {
-  if (typeof document === "undefined") return false;
-  try {
-    const c = document.createElement("canvas");
-    return !!(
-      c.getContext("webgl2") ||
-      c.getContext("webgl") ||
-      c.getContext("experimental-webgl")
-    );
-  } catch {
-    return false;
-  }
-}
 
 export type StageMediaState = "idle" | "loading" | "ready" | "buffering" | "error";
 
@@ -44,7 +26,7 @@ type Props = {
   /** 0–1 progress through the current media window (entry/exit). */
   mediaProgress?: number;
   mediaWindow?: { start: number; end: number } | null;
-  /** Live session context for the 3D human yoga instructor. */
+  /** Live session context for the human yoga instructor. */
   poseSlug?: string;
   phase?: TrainerPhase;
   side?: "left" | "right" | "both";
@@ -73,14 +55,8 @@ export function InstructorStage({
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<StageMediaState>("idle");
-  const [canGL, setCanGL] = useState(false);
-  const motionOn = useMotionEnabled();
   // Bumped by Retry to force the element to re-request its sources.
   const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    setCanGL(webglSupported());
-  }, []);
 
   // Never play generated presentation_animation crossfade clips as instructor video.
   // Only real filmed or reviewed 3D movement footage uses the <video> player.
@@ -230,26 +206,34 @@ export function InstructorStage({
         </div>
       ) : (
         <>
-          {canGL && trainerState ? (
+          <img
+            src={media.poster!}
+            alt="Static pose reference"
+            className="h-full w-full object-contain"
+            width={600}
+            height={1200}
+          />
+          {trainerState ? (
             <div
               className="absolute inset-0"
               data-testid="instructor-human-trainer"
               data-trainer-phase={phase ?? "hold"}
               data-trainer-step={trainerState.stepIndex}
             >
-              <Suspense fallback={null}>
-                <HumanTrainerFigurine
-                  sequence={trainerState.sequence}
-                  stepIndex={trainerState.stepIndex}
-                  stepProgress={trainerState.stepProgress}
-                  playing={playing}
-                  side={trainerState.side}
-                  motionEnabled={motionOn}
-                  overridePose={trainerState.overridePose}
-                  breathMode={trainerState.breathMode}
-                  data-testid={`instructor-gl-${resolvedSlug}`}
-                />
-              </Suspense>
+              <HumanPoseTrainerMovie
+                slug={resolvedSlug}
+                english="Yoga instructor demonstration"
+                posterSrc={media.poster!}
+                playing={playing}
+                training
+                phase={phase === "side_switch" ? "side_switch" : phase === "transition" ? "transition" : phase ?? "hold"}
+                stepIndex={trainerState.stepIndex}
+                stepProgress={trainerState.stepProgress}
+                side={trainerState.side}
+                breathMode={trainerState.breathMode}
+                breathCue={breathCue}
+                data-testid={`instructor-gl-${resolvedSlug}`}
+              />
               <div
                 className="pointer-events-none absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-medium text-foreground shadow-sm backdrop-blur-sm"
                 data-testid="instructor-trainer-badge"
@@ -259,18 +243,6 @@ export function InstructorStage({
               </div>
             </div>
           ) : null}
-          <img
-            src={media.poster!}
-            alt="Static pose reference"
-            className={cn(
-              "object-contain transition-all duration-300",
-              canGL && trainerState
-                ? "absolute bottom-2 right-2 z-10 h-14 w-11 rounded-lg border border-border/80 bg-background/95 p-0.5 shadow-sm"
-                : "h-full w-full",
-            )}
-            width={600}
-            height={1200}
-          />
         </>
       )}
 

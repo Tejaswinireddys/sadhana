@@ -167,7 +167,7 @@ export function PoseTrainerStage({
     );
   }
 
-  if (useRig) {
+  if (useRig && !isTeaching) {
     return (
       <PoseDemoStage
         key={`rig-${slug}`}

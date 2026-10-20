@@ -116,28 +116,22 @@ function defaultEntrySlug(asana: Asana): string | null {
 
 /**
  * Ordered unique illustration slugs that tell the pose's shape journey.
- * Always ends on this asana's own PNG.
+ * Always stays on this asana's own human instructor PNG so a clip never
+ * dissolves a foreign pose's body into this one.
  */
 export function journeySlugsFor(asana: Asana): string[] {
-  const seq: string[] = [];
-  for (const step of asana.steps) {
-    const s = humanStepSlug(asana.slug, asana.pose, step.pose);
-    if (seq[seq.length - 1] !== s) seq.push(s);
-  }
-  if (seq[seq.length - 1] !== asana.slug) seq.push(asana.slug);
-  if (seq.length === 1) {
-    const entry = defaultEntrySlug(asana);
-    if (entry) seq.unshift(entry);
-  }
-  // Cap length so encodes stay short (~8s).
-  if (seq.length > 5) {
-    return [seq[0]!, seq[Math.floor(seq.length / 2)]!, seq[seq.length - 1]!];
-  }
-  return seq;
+  return [asana.slug];
 }
 
 function padFilter(): string {
-  return `scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease,pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${FPS},format=yuv420p`;
+  return [
+    `scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease`,
+    `pad=${WIDTH}:${HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=#f4ede2`,
+    `eq=brightness='0.012*sin(2*PI*t/4.0)':contrast=1.02:saturation='1.03+0.02*sin(2*PI*t/4.0)'`,
+    `setsar=1`,
+    `fps=${FPS}`,
+    `format=yuv420p`,
+  ].join(",");
 }
 
 async function encodeJourney(pngs: string[], webm: string, mp4: string | null): Promise<void> {

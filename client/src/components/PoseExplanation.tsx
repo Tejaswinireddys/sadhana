@@ -207,7 +207,17 @@ export function PoseExplanation({
     setCompleted(false);
     setRestartToken((n) => n + 1);
     const a = audioRef.current;
-    if (a) a.currentTime = 0;
+    if (a) {
+      try {
+        if (a.duration && Number.isFinite(a.duration) && lesson.totalSec > 0) {
+          a.currentTime = Math.min(a.duration, (clamped / lesson.totalSec) * a.duration);
+        } else {
+          a.currentTime = 0;
+        }
+      } catch {
+        /* seek abort */
+      }
+    }
     setKeepInView((n) => n + 1);
   };
 
@@ -389,6 +399,7 @@ export function PoseExplanation({
               firstSide={firstSide}
               breathMovement={training && current ? current.cycle?.movement ?? null : null}
               breathCue={training && current ? current.breathCue : null}
+              cueText={training && current ? current.cue : null}
               training={training}
               onMediaStateChange={setMediaState}
               className={cn(

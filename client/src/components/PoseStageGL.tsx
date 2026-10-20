@@ -5,17 +5,11 @@
  * existing CSS PoseFigurine3D stage whenever WebGL is unavailable, the device
  * asks for reduced data, or the pose has no authored rig sequence.
  */
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { PoseFigurine3D } from "@/components/PoseFigurine3D";
+import { HumanPoseTrainerMovie } from "@/components/HumanPoseTrainerMovie";
 import { StepMotion, type StepMotionKey } from "@/components/StepMotion";
-import { useMotionEnabled } from "@/components/motion";
-import { POSE_KEYFRAMES, resolvePoseSequence } from "@/data/poseKeyframes";
 import { resolvePosePhase, type FocusZone } from "@/lib/poseMoments";
-
-const Figurine = lazy(() =>
-  import("@/components/PoseFigurineGL").then((m) => ({ default: m.PoseFigurineGL })),
-);
 
 const PHASE_LABEL: Record<string, string> = {
   enter: "Enter",
@@ -43,25 +37,7 @@ export type PoseStageGLProps = {
   "data-testid"?: string;
 };
 
-function webglAvailable(): boolean {
-  if (typeof document === "undefined") return false;
-  try {
-    const c = document.createElement("canvas");
-    return !!(
-      c.getContext("webgl2") ||
-      c.getContext("webgl") ||
-      c.getContext("experimental-webgl")
-    );
-  } catch {
-    return false;
-  }
-}
-
-function saveDataOn(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
-  return !!conn?.saveData;
-}
+const BASE = import.meta.env.BASE_URL;
 
 export function PoseStageGL(props: PoseStageGLProps) {
   const {
@@ -80,26 +56,12 @@ export function PoseStageGL(props: PoseStageGLProps) {
     "data-testid": testId,
   } = props;
 
-  const motionOn = useMotionEnabled();
-  const sequence = useMemo(
-    () => POSE_KEYFRAMES[slug] ?? resolvePoseSequence(slug),
-    [slug],
-  );
-  const [canGL, setCanGL] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    setCanGL(webglAvailable() && !saveDataOn());
-  }, []);
-
   const phase = useMemo(
     () => resolvePosePhase(stepMotion, stepIndex, stepCount),
     [stepMotion, stepIndex, stepCount],
   );
 
-  // No rig for this pose, or no WebGL — the CSS stage is still a good teacher.
-  if (!sequence || canGL === false) {
-    return <PoseFigurine3D {...props} />;
-  }
+  const resolvedPoster = posterSrc || `${BASE}poses/${slug}.png`;
 
   return (
     <div
@@ -112,38 +74,22 @@ export function PoseStageGL(props: PoseStageGLProps) {
       data-testid={testId ?? `pose-stage-gl-${slug}`}
       data-phase={phase}
       data-step={stepIndex}
-      data-render="webgl"
-      aria-label={`3D demonstration of ${english}, ${PHASE_LABEL[phase] ?? phase} moment`}
+      data-render="movie"
+      aria-label={`Human instructor demonstration of ${english}, ${PHASE_LABEL[phase] ?? phase} moment`}
     >
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_45%_28%,hsl(var(--primary)/0.16),transparent_55%),linear-gradient(165deg,hsl(var(--accent)/0.55)_0%,hsl(var(--background)/0.2)_48%,hsl(var(--primary)/0.08)_100%)]"
-        aria-hidden
-      />
-
-      {posterSrc ? (
-        <img loading="lazy" width={1280} height={720}
-          src={posterSrc}
-          alt=""
-          aria-hidden
-          draggable={false}
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.07] blur-[1px]"
-        />
-      ) : null}
-
       <div className="absolute inset-0">
-        <Suspense fallback={null}>
-          {canGL ? (
-            <Figurine
-              sequence={sequence}
-              stepIndex={stepIndex}
-              stepProgress={stepProgress}
-              playing={playing}
-              side={side}
-              motionEnabled={motionOn}
-              data-testid={`pose-gl-canvas-${slug}`}
-            />
-          ) : null}
-        </Suspense>
+        <HumanPoseTrainerMovie
+          slug={slug}
+          english={english}
+          posterSrc={resolvedPoster}
+          playing={playing}
+          training={variant === "practice" || Boolean(focusZone)}
+          stepIndex={stepIndex}
+          stepProgress={stepProgress}
+          side={side}
+          cueText={focusZone?.label ?? null}
+          data-testid={`pose-gl-canvas-${slug}`}
+        />
       </div>
 
       {/* Teaching chrome — same language as the CSS stage. */}
@@ -158,7 +104,7 @@ export function PoseStageGL(props: PoseStageGLProps) {
             </span>
           ) : (
             <span className="inline-block rounded-full bg-background/70 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground backdrop-blur-sm">
-              3D · {PHASE_LABEL[phase] ?? phase}
+              Studio · {PHASE_LABEL[phase] ?? phase}
             </span>
           )}
         </div>
@@ -173,7 +119,7 @@ export function PoseStageGL(props: PoseStageGLProps) {
       </div>
 
       <span className="pointer-events-none absolute right-2 top-2 z-10 rounded-full bg-background/75 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground backdrop-blur-sm">
-        3D guide
+        Human guide
       </span>
     </div>
   );

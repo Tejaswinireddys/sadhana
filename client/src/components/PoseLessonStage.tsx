@@ -11,33 +11,15 @@
  *    still, labelled "Static reference — movement demonstration unavailable",
  *    and says so out loud rather than implying motion.
  */
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Eye, ImageOff, Loader2, UserCheck } from "lucide-react";
 import type { PoseDemoAvailability } from "@/data/poseDemoAvailability";
 import { STATIC_REFERENCE_LABEL } from "@/data/poseDemoAvailability";
 import { resolveTrainerStageState } from "@/data/poseKeyframes";
-import { useMotionEnabled } from "@/components/motion";
+import { HumanPoseTrainerMovie } from "@/components/HumanPoseTrainerMovie";
 import type { LessonPhase } from "@/lib/poseLesson";
 import type { FocusZone } from "@/lib/poseMoments";
 import { cn } from "@/lib/utils";
-
-const HumanTrainerFigurine = lazy(() =>
-  import("@/components/PoseFigurineGL").then((m) => ({ default: m.PoseFigurineGL })),
-);
-
-function webglSupported(): boolean {
-  if (typeof document === "undefined") return false;
-  try {
-    const c = document.createElement("canvas");
-    return !!(
-      c.getContext("webgl2") ||
-      c.getContext("webgl") ||
-      c.getContext("experimental-webgl")
-    );
-  } catch {
-    return false;
-  }
-}
 
 export type LessonStageMediaState = "idle" | "loading" | "ready" | "buffering" | "error";
 
@@ -56,7 +38,7 @@ type Props = {
    */
   focus?: FocusZone | null;
   caption?: string | null;
-  /** Live lesson timeline state for the 3D human yoga trainer. */
+  /** Live lesson timeline state for the human yoga trainer. */
   phase?: LessonPhase;
   stepNumber?: number | null;
   stepProgress?: number;
@@ -64,6 +46,7 @@ type Props = {
   firstSide?: "left" | "right";
   breathMovement?: "inhale" | "exhale" | "neutral" | null;
   breathCue?: string | null;
+  cueText?: string | null;
   training?: boolean;
   onMediaStateChange?: (state: LessonStageMediaState) => void;
   className?: string;
@@ -85,6 +68,7 @@ export function PoseLessonStage({
   firstSide = "right",
   breathMovement = null,
   breathCue = null,
+  cueText = null,
   training = false,
   onMediaStateChange,
   className,
@@ -92,14 +76,8 @@ export function PoseLessonStage({
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<LessonStageMediaState>("idle");
-  const [canGL, setCanGL] = useState(false);
   const [cameraView, setCameraView] = useState<"auto" | "front" | "side">("auto");
-  const motionOn = useMotionEnabled();
   const hasMovement = demo.kind === "movement";
-
-  useEffect(() => {
-    setCanGL(webglSupported());
-  }, []);
 
   const trainerState = useMemo(
     () =>
@@ -181,7 +159,15 @@ export function PoseLessonStage({
         />
       ) : demo.poster ? (
         <>
-          {canGL && trainerState ? (
+          <img
+            src={demo.poster}
+            alt={`${english} — still reference`}
+            className="h-full w-full object-contain"
+            width={600}
+            height={1200}
+            data-testid="pose-lesson-static-reference"
+          />
+          {trainerState ? (
             <div
               className="absolute inset-0"
               data-testid="pose-lesson-human-trainer"
@@ -189,38 +175,24 @@ export function PoseLessonStage({
               data-trainer-step={trainerState.stepIndex}
               data-trainer-breath={trainerState.breathMode}
             >
-              <Suspense fallback={null}>
-                <HumanTrainerFigurine
-                  sequence={trainerState.sequence}
-                  stepIndex={trainerState.stepIndex}
-                  stepProgress={trainerState.stepProgress}
-                  playing={playing || !training}
-                  side={trainerState.side}
-                  motionEnabled={motionOn}
-                  overridePose={trainerState.overridePose}
-                  breathMode={trainerState.breathMode}
-                  cameraView={cameraView}
-                  data-testid={`pose-lesson-gl-${demo.slug}`}
-                />
-              </Suspense>
+              <HumanPoseTrainerMovie
+                slug={demo.slug}
+                english={english}
+                posterSrc={demo.poster}
+                playing={playing || !training}
+                training={training}
+                phase={phase}
+                stepIndex={trainerState.stepIndex}
+                stepProgress={trainerState.stepProgress}
+                side={trainerState.side}
+                breathMode={trainerState.breathMode}
+                breathCue={breathCue}
+                cueText={cueText}
+                cameraView={cameraView}
+                data-testid={`pose-lesson-gl-${demo.slug}`}
+              />
             </div>
           ) : null}
-          <img
-            src={demo.poster}
-            alt={`${english} — still reference`}
-            className={cn(
-              "object-contain transition-all duration-300",
-              canGL && trainerState
-                ? cn(
-                    " absolute right-2 z-10 h-16 w-12 rounded-lg border border-border/80 bg-background/95 p-0.5 shadow-sm",
-                    caption ? "bottom-10" : "bottom-2",
-                  )
-                : "h-full w-full",
-            )}
-            width={600}
-            height={1200}
-            data-testid="pose-lesson-static-reference"
-          />
         </>
       ) : (
         <div
@@ -289,7 +261,7 @@ export function PoseLessonStage({
       ) : null}
 
       {/* Human trainer angle selector & live coaching badge */}
-      {!hasMovement && canGL && trainerState ? (
+      {!hasMovement && trainerState ? (
         <div
           className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full bg-background/90 p-0.5 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur-sm"
           data-testid="pose-trainer-view-toggle"
@@ -317,7 +289,7 @@ export function PoseLessonStage({
         </div>
       ) : null}
 
-      {!hasMovement && canGL && trainerState ? (
+      {!hasMovement && trainerState ? (
         <div
           className={cn(
             "pointer-events-none absolute left-2 z-10 inline-flex items-center gap-1.5 rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur-sm",
