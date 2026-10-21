@@ -10,6 +10,10 @@
  *
  * Static poses:   preparation → entry → hold → exit ( → side change → repeat )
  * Dynamic poses:  preparation → entry → cycle × rounds → exit
+ *
+ * Every pose teaches the complete trainer progression:
+ * Starting position → small movement steps → breathing → alignment checks →
+ * easier option → hold → exact exit → next-pose transition.
  */
 import type { Asana, Variation } from "@/data/content";
 import { asanaBySlug } from "@/data/content";
@@ -20,6 +24,8 @@ import {
   type VariationLevel,
 } from "@/data/poseDemoAvailability";
 import type { FocusZone } from "@/lib/poseMoments";
+
+export type { VariationLevel };
 
 export type LessonPhase =
   | "preparation"
@@ -117,10 +123,200 @@ function variationFor(asana: Asana, level: VariationLevel): Variation | undefine
   return asana.variations?.[level];
 }
 
-function stepsFor(asana: Asana, level: VariationLevel): Array<{ text: string; focusZone?: FocusZone | null }> {
+/**
+ * Identify the starting position for a pose so preparation cues always begin
+ * from an explicit anatomical base.
+ */
+export function startingPositionFor(asana: Asana): string {
+  const first = asana.steps[0]?.text ?? "";
+  if (/all fours|tabletop|hands and knees/i.test(first)) {
+    return "neutral Tabletop on hands and knees";
+  }
+  if (/lie on your back|supine|on your back/i.test(first)) {
+    return "a comfortable supine position on your back";
+  }
+  if (/belly|prone|on your stomach/i.test(first)) {
+    return "a prone position on your belly";
+  }
+  if (/sit|seated|dandasana|cross-legged|staff/i.test(first) || asana.category === "Seated") {
+    return "Staff Pose (Dandasana) with a tall spine";
+  }
+  if (/kneel|shins/i.test(first)) {
+    return "a comfortable kneeling position on your shins";
+  }
+  return "Mountain Pose (Tadasana) at the top of your mat";
+}
+
+/**
+ * Adapt every step of a pose to the selected difficulty and modification so
+ * beginner instructions never contradict themselves (e.g. Warrior II saying
+ * "bend the front knee partway" in setup and then "bend toward 90°" in Step 2,
+ * or Tree Pose saying "toes on the floor" and then "sole on the inner thigh").
+ */
+export function stepsForVariation(
+  asana: Asana,
+  level: VariationLevel,
+): Array<{ text: string; pose?: string; focusZone?: FocusZone | null }> {
   const v = variationFor(asana, level);
   if (v?.steps && v.steps.length > 0) return v.steps;
-  return asana.steps;
+
+  const base = asana.steps;
+  const slug = asana.slug;
+
+  if (slug === "virabhadrasana-ii") {
+    if (level === "beginner") {
+      return [
+        {
+          text: "Start in Mountain Pose (Tadasana). Step your feet to a shortened stance about 3 to 3.5 feet apart, turn the right foot out 90° and the back foot slightly in.",
+          pose: base[0]?.pose,
+          focusZone: base[0]?.focusZone ?? null,
+        },
+        {
+          text: "Exhale and bend the right knee only partway (about 45°–60°), keeping the kneecap stacked over the ankle without forcing a deep lunge.",
+          pose: base[1]?.pose,
+          focusZone: base[1]?.focusZone ?? null,
+        },
+        {
+          text: "Inhale to float your arms to shoulder height, palms down — or rest your hands on your hips anytime your shoulders tire (easier option).",
+          pose: base[2]?.pose,
+          focusZone: base[2]?.focusZone ?? null,
+        },
+        {
+          text: "Check that your torso stays stacked upright over your pelvis, soften your shoulders, and gaze steadily over your right fingertips as you breathe.",
+          pose: base[3]?.pose,
+          focusZone: base[3]?.focusZone ?? null,
+        },
+      ];
+    }
+    if (level === "advanced") {
+      return [
+        {
+          text: "Start in Mountain Pose. Step the feet 4 to 4.5 feet apart, align front heel to back arch, and turn the right foot out 90°.",
+          pose: base[0]?.pose,
+          focusZone: base[0]?.focusZone ?? null,
+        },
+        {
+          text: "Exhale and lower the right thigh parallel to the floor (a full 90° knee bend), tracking the right knee cleanly toward the second toe.",
+          pose: base[1]?.pose,
+          focusZone: base[1]?.focusZone ?? null,
+        },
+        {
+          text: "Inhale to extend both arms strongly from the shoulder blades, broadening across the collarbones while rooting the outer left heel.",
+          pose: base[2]?.pose,
+          focusZone: base[2]?.focusZone ?? null,
+        },
+        {
+          text: "Hold with a longer, unhurried breath, keeping the spine vertical and gaze locked over the front middle finger.",
+          pose: base[3]?.pose,
+          focusZone: base[3]?.focusZone ?? null,
+        },
+      ];
+    }
+  }
+
+  if (slug === "vrksasana") {
+    if (level === "beginner") {
+      return [
+        {
+          text: "Start in Mountain Pose beside a wall. Shift your weight into the left foot and rest your fingertips lightly on the wall for balance.",
+          pose: base[0]?.pose,
+          focusZone: base[0]?.focusZone ?? null,
+        },
+        {
+          text: "Turn the right knee gently out and place the right heel against the inner left ankle with the toes of the lifted foot resting on the floor as a kickstand.",
+          pose: base[1]?.pose,
+          focusZone: base[1]?.focusZone ?? null,
+        },
+        {
+          text: "Bring your free hand to your heart or keep both hands on your hips (easier option) while lengthening tall through the crown of your head.",
+          pose: base[2]?.pose,
+          focusZone: base[2]?.focusZone ?? null,
+        },
+        {
+          text: "Fix a calm gaze at eye level, check that both hips stay level, and breathe smoothly through the nose.",
+          pose: base[3]?.pose,
+          focusZone: base[3]?.focusZone ?? null,
+        },
+      ];
+    }
+    if (level === "advanced") {
+      return [
+        {
+          text: "Start in Mountain Pose at the center of your mat and root evenly through all four corners of the left foot.",
+          pose: base[0]?.pose,
+          focusZone: base[0]?.focusZone ?? null,
+        },
+        {
+          text: "Draw the right foot up and press the sole firmly into the inner left thigh above the knee, resisting thigh and foot equally into the midline.",
+          pose: base[1]?.pose,
+          focusZone: base[1]?.focusZone ?? null,
+        },
+        {
+          text: "Inhale to reach both arms overhead with palms facing or touching, softening the tops of the shoulders away from the ears.",
+          pose: base[2]?.pose,
+          focusZone: base[2]?.focusZone ?? null,
+        },
+        {
+          text: "Hold steady with deep nasal breath; if stable, experiment with lifting the gaze slightly or softly closing the eyes.",
+          pose: base[3]?.pose,
+          focusZone: base[3]?.focusZone ?? null,
+        },
+      ];
+    }
+  }
+
+  if (slug === "marjaryasana-bitilasana" && level === "beginner") {
+    return [
+      {
+        text: "Start on all fours in Tabletop with a folded blanket under your knees, wrists under shoulders, and knees under hips.",
+        pose: base[0]?.pose,
+        focusZone: base[0]?.focusZone ?? null,
+      },
+      {
+        text: "Inhale: let the belly soften slightly and lift the chest and gaze forward in a gentle, comfortable arc (Cow Pose).",
+        pose: base[1]?.pose,
+        focusZone: base[1]?.focusZone ?? null,
+      },
+      {
+        text: "Exhale: press into your palms, draw the navel in, and round the upper back gently toward the ceiling (Cat Pose).",
+        pose: base[2]?.pose,
+        focusZone: base[2]?.focusZone ?? null,
+      },
+      {
+        text: "Press into your palms first and inhale to lengthen the spine back into a flat, neutral Tabletop.",
+        pose: base[3]?.pose,
+        focusZone: base[3]?.focusZone ?? null,
+      },
+    ];
+  }
+
+  if (level === "beginner" && v) {
+    const desc = v.description ?? "";
+    const partialBend = /partway|smaller range|shorten|gentle|micro-bend|bend the knees/i.test(desc);
+    return base.map((s, idx) => {
+      let text = s.text;
+      if (partialBend) {
+        text = text
+          .replace(/toward 90°/gi, "partway to a comfortable angle (about 45°–60°)")
+          .replace(/to 90°/gi, "to a comfortable, supported angle")
+          .replace(/parallel to the floor/gi, "toward a comfortable, supported depth");
+      }
+      if (idx === base.length - 1 && asana.modifications && !text.includes(asana.modifications)) {
+        text = `${text} Easier option: ${asana.modifications}`;
+      }
+      return {
+        text,
+        pose: s.pose,
+        focusZone: s.focusZone ?? null,
+      };
+    });
+  }
+
+  return base;
+}
+
+function stepsFor(asana: Asana, level: VariationLevel): Array<{ text: string; focusZone?: FocusZone | null }> {
+  return stepsForVariation(asana, level);
 }
 
 function sidesFor(asana: Asana): "once" | "each" {
@@ -182,6 +378,106 @@ export function variationSetupCue(asana: Asana, level: VariationLevel): string |
 
 function sideSuffix(side: "left" | "right" | "both"): string {
   return side === "both" ? "" : ` · ${side} side`;
+}
+
+/**
+ * Exact anatomical exit cue explaining which body part moves first and how to
+ * return to a neutral position — never a vague "Come out of … with control."
+ */
+export function exactExitCueFor(
+  asana: Asana,
+  side: "left" | "right" | "both" = "both",
+  mirrored = false,
+): string {
+  const say = (text: string) => (mirrored ? mirrorCue(text) : text);
+  const slug = asana.slug;
+
+  const authoredExits: Record<string, string> = {
+    "virabhadrasana-ii":
+      "Inhale to press firmly into the right heel and straighten the right knee first, lower both arms to your sides, turn the right toes in to parallel, and step the feet together into neutral Mountain Pose.",
+    "virabhadrasana-i":
+      "Exhale to lower your hands to your hips first, inhale to press into the right heel and straighten the front leg, then step the back foot forward into neutral Mountain Pose.",
+    "virabhadrasana-iii":
+      "Soften the standing knee first, lower the lifted leg to the mat beside your standing foot, bring your hands to your hips, and rise upright into neutral Mountain Pose.",
+    vrksasana:
+      "Exhale to bring your hands to your hips first, guide the right knee forward to center, set the right foot flat on the mat beside the left foot, and stand tall in neutral Mountain Pose.",
+    trikonasana:
+      "Look down at your front foot and soften the right knee first, press through the right heel to inhale the torso upright, lower your arms, turn the right toes in, and step back to Mountain Pose.",
+    "utthita-parsvakonasana":
+      "Press firmly through the back heel and front foot first, inhale to lift the torso upright, straighten the right knee, lower both arms, and step the feet together into Mountain Pose.",
+    anjaneyasana:
+      "Exhale to frame the front foot with both hands first, shift the hips slightly back to take weight off the front knee, and step the front knee back beside the other into neutral Tabletop.",
+    uttanasana:
+      "Soften both knees first, bring your hands to your hips, press evenly through your heels, and inhale to hinge upright with a long spine into neutral Mountain Pose.",
+    "ardha-uttanasana":
+      "Soften both knees first, bring your hands to your hips, and inhale to rise all the way up into neutral Mountain Pose.",
+    "adho-mukha-svanasana":
+      "Exhale to bend both knees first and lower them gently to the mat, untuck the toes, and stack your shoulders over your wrists in neutral Tabletop.",
+    balasana:
+      "Walk your hands back toward your knees first, press into your palms, and inhale to stack the spine upright vertebra by vertebra into a neutral kneeling seat.",
+    "salamba-balasana":
+      "Slide your hands back beside your ribs first, press into the palms, and inhale to lift the torso upright off the bolster into a neutral kneeling seat.",
+    "marjaryasana-bitilasana":
+      "Press evenly into your palms first, inhale to lengthen the spine back to a flat, neutral Tabletop, and let your breath settle.",
+    kumbhakasana:
+      "Exhale to lower both knees gently to the mat first, untuck the toes, and shift your hips back slightly into neutral Tabletop.",
+    bhujangasana:
+      "Exhale to bend the elbows first and slowly lower the lower ribs, chest, and forehead back to the mat, resting in neutral prone position.",
+    "setu-bandhasana":
+      "Release your hands out from under your back first, lift the heels slightly, and exhale to roll the upper spine, mid-back, and sacrum down to the mat into neutral constructive rest.",
+    "setu-bandha-sarvangasana":
+      "Release your hands out from under your back first, lift the heels slightly, and exhale to roll the upper spine, mid-back, and sacrum down to the mat into neutral constructive rest.",
+    paschimottanasana:
+      "Release your feet or shins with your hands first, inhale to walk your palms back along your legs, and stack the spine upright into neutral Staff Pose.",
+    "baddha-konasana":
+      "Use your hands on the outer thighs to draw both knees together first, plant the feet flat on the floor, and lengthen the spine in a neutral upright seat.",
+    "viparita-karani":
+      "Bend both knees first and slide your feet down the wall toward your pelvis, roll gently onto one side for a breath, and press up with your hands to a neutral seat.",
+    savasana:
+      "Wiggle your fingers and toes first, bend your knees one at a time to plant your feet on the mat, roll gently onto your side, and press up into a comfortable neutral seat.",
+  };
+
+  if (authoredExits[slug]) {
+    return say(authoredExits[slug]!);
+  }
+
+  const startPos = startingPositionFor(asana);
+  if (asana.category === "Standing") {
+    return say(
+      `Soften the working knee and bring your hands to your hips first, press through your feet to lift the torso upright, and step back into neutral ${startPos}${sideSuffix(side)}.`,
+    );
+  }
+  if (asana.category === "Forward Bends" || asana.category === "Seated") {
+    return say(
+      `Release your hands first, walk your palms back toward your hips, and inhale to stack the spine upright into neutral ${startPos}${sideSuffix(side)}.`,
+    );
+  }
+  if (asana.category === "Backbends") {
+    return say(
+      `Release your grip or soften your elbows first, and exhale to lower the spine vertebra by vertebra back into neutral ${startPos}${sideSuffix(side)}.`,
+    );
+  }
+  return say(
+    `Release the active limb first, unwind the spine slowly on an exhale, and return to neutral ${startPos}${sideSuffix(side)}.`,
+  );
+}
+
+/**
+ * Exact side-change cue explaining how to release the first side to neutral
+ * before setting up on the second side.
+ */
+export function exactSideChangeCueFor(
+  asana: Asana,
+  firstSide: "left" | "right",
+  secondSide: "left" | "right",
+): string {
+  if (asana.slug === "virabhadrasana-ii") {
+    return `Release ${asana.english}: press through the ${firstSide} heel to straighten the ${firstSide} knee first, lower your arms, parallel your feet in Mountain Pose, then turn the ${secondSide} foot out 90° for the ${secondSide} side.`;
+  }
+  if (asana.slug === "vrksasana") {
+    return `Release ${asana.english}: bring your hands to your hips first, set the ${firstSide} foot down beside the ${secondSide} in neutral Mountain Pose, then shift your weight into the ${firstSide} foot for the ${secondSide} side.`;
+  }
+  return `Release ${asana.english} by unwinding the ${firstSide} side first, return to ${startingPositionFor(asana)}, and set up on the ${secondSide} side.`;
 }
 
 /** Rounds for a flowing practice, derived from the variation's time budget. */
@@ -283,13 +579,13 @@ function buildDynamicSegments(opts: {
     });
   }
 
-  // Finish where we started.
+  // Finish where we started with an explicit anatomical exit.
   pushSegment(out, cursor, {
     id: `${slug}-exit`,
     phase: "exit",
     stepNumber: steps.length,
     durationSec: 8,
-    cue: steps[steps.length - 1]?.text ?? "Return to a neutral starting position.",
+    cue: exactExitCueFor(asana, "both", false),
     caption: `${asana.english} · return to neutral`,
     breathCue: "Let the breath settle.",
     side: "both",
@@ -329,26 +625,35 @@ function buildStaticSideSegments(opts: {
     stepNumber: 1,
     durationSec: 10,
     // The variation's own setup leads, because it is what the practitioner is
-    // about to do; the generic first step follows it.
+    // about to do; the adapted first step follows it.
     cue: setup
       ? `${setup} ${say(entrySteps[0]?.text ?? "")}`.trim()
       : say(entrySteps[0]?.text ?? `Set up for ${asana.english}.`),
     caption: `${asana.english} · ${level} · set up${sideSuffix(side)}`,
-    breathCue: "Find your starting position.",
+    breathCue: `Start in ${startingPositionFor(asana)} and settle your breath.`,
     side,
     focus: authoredFocus(slug, entrySteps[0]),
     cycle: null,
   });
 
   for (let i = 1; i < entrySteps.length; i++) {
+    const stepText = say(entrySteps[i]!.text);
+    const stepBreath =
+      /\binhale\b/i.test(stepText)
+        ? "Inhale as you lengthen into this step."
+        : /\bexhale\b/i.test(stepText)
+          ? "Exhale as you settle into this step."
+          : i === 1
+            ? "Exhale smoothly as you move into the shape."
+            : "Inhale to lengthen the spine and check alignment.";
     pushSegment(out, cursor, {
       id: `${slug}${tag}-entry-${i}`,
       phase: "entry",
       stepNumber: i + 1,
       durationSec: 8,
-      cue: say(entrySteps[i]!.text),
+      cue: stepText,
       caption: `${asana.english} · step ${i + 1}${sideSuffix(side)}`,
-      breathCue: null,
+      breathCue: stepBreath,
       side,
       focus: authoredFocus(slug, entrySteps[i]),
       cycle: null,
@@ -373,9 +678,9 @@ function buildStaticSideSegments(opts: {
     phase: "exit",
     stepNumber: null,
     durationSec: 6,
-    cue: `Come out of ${asana.english} with control${sideSuffix(side)}.`,
-    caption: `Exit${sideSuffix(side)}`,
-    breathCue: null,
+    cue: exactExitCueFor(asana, side, mirrored),
+    caption: `Exit to neutral${sideSuffix(side)}`,
+    breathCue: "Exhale to release back to neutral.",
     side,
     focus: null,
     cycle: null,
@@ -383,8 +688,9 @@ function buildStaticSideSegments(opts: {
 }
 
 /**
- * There is exactly one illustration per pose, so any variation whose setup
- * differs visibly from that picture is being misrepresented. Say so.
+ * There is one base catalog illustration per pose, so any variation whose setup
+ * differs visibly from that base artwork is noted while the stage trainer guide
+ * adjusts to demonstrate the selected variation.
  */
 export function variationVisualMismatchFor(
   asana: Asana,
@@ -394,17 +700,15 @@ export function variationVisualMismatchFor(
   const description = v?.description?.trim();
   if (!v || !description) return null;
   const props = (v.props ?? []).filter((p) => p && p !== "none");
-  // A prop in the shape, or an explicitly different limb position, means the
-  // single catalog illustration cannot be showing this variation.
   const changesTheShape =
     props.length > 0 ||
     /\b(kickstand|toes? on the floor|hand on a wall|knees? down|forearms?|fists?|partway|shorten(ed)? (the )?stance|chair|blanket|bolster|block|strap|wall)\b/i.test(
       description,
     );
   if (!changesTheShape) return null;
-  return `The picture shows ${asana.english} in its standard shape, not the ${level} variation described here${
+  return `The base illustration shows ${asana.english} in its standard shape, not the ${level} variation described here${
     props.length ? ` (${props.join(", ")})` : ""
-  }. Follow the written setup.`;
+  }. The stage trainer guide adjusts for your selected ${level} modification — follow the setup cues.`;
 }
 
 export function buildPoseLesson(opts: {
@@ -428,7 +732,7 @@ export function buildPoseLesson(opts: {
     rounds = buildDynamicSegments({ asana, level, steps, out: segments, cursor });
   } else if (sides === "each") {
     // Teach the side the catalog text is written for first, then mirror.
-    const firstSide = namedSideIn(steps);
+    const firstSide = namedSideIn(asana.steps);
     const secondSide = firstSide === "right" ? "left" : "right";
     buildStaticSideSegments({
       asana,
@@ -445,9 +749,9 @@ export function buildPoseLesson(opts: {
       phase: "side_change",
       stepNumber: null,
       durationSec: 8,
-      cue: `Release ${asana.english}, come back to your starting position, and set up on the ${secondSide} side.`,
+      cue: exactSideChangeCueFor(asana, firstSide, secondSide),
       caption: `Switch sides · now the ${secondSide} side`,
-      breathCue: null,
+      breathCue: "Take a resetting breath in neutral before the second side.",
       side: "both",
       focus: null,
       cycle: null,

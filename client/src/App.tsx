@@ -169,14 +169,17 @@ function AppShell() {
     });
   }, []);
   const welcomeSeen = !!readString(KEYS.welcomeSeen);
-  const onMarketing = MARKETING_PATHS.has(location);
+  const routePath = location.split("?")[0] || "/";
+  const onMarketing = MARKETING_PATHS.has(routePath);
+  const onDirectPractice =
+    routePath === "/guided" || routePath === "/practice" || routePath === "/instructor";
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    if (welcomeSeen && !onMarketing && !readString(KEYS.onboardingDone)) {
+    if (welcomeSeen && !onMarketing && !onDirectPractice && !readString(KEYS.onboardingDone)) {
       setShowOnboarding(true);
     }
-  }, [welcomeSeen, onMarketing]);
+  }, [welcomeSeen, onMarketing, onDirectPractice]);
 
   return (
     <>

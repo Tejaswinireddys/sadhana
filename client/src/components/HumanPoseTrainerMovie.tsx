@@ -1,23 +1,21 @@
 /**
- * HumanPoseTrainerMovie — Cinematic human yoga instructor training stage.
+ * HumanPoseTrainerMovie — Phase-synchronized studio pose guide & movement trainer.
  *
- * Uses the high-resolution human yoga instructor artwork (`/poses/{slug}.png`,
- * depicting our South Asian studio yoga teacher in a sage-green tank top and
- * terracotta leggings) and renders it as a live, movie-like studio coaching
- * canvas:
+ * Uses the high-resolution pose artwork (`/poses/{slug}.png`) and renders a
+ * synchronized studio teaching stage:
  *   1. Automatic figure-bounding-box framing & edge-sampled studio background
  *      extension so wide poses (Warrior II, Downward Dog, Cobra) fill the
- *      widescreen cinema stage cleanly instead of being squeezed into a narrow
- *      letterboxed column with empty top/bottom padding.
- *   2. Real-time 2D anatomical mesh deformation (diaphragmatic ribcage/chest
- *      expansion on inhale, spinal flexion/extension during Cat-Cow & flow
- *      rounds, gentle postural weight-shift, and head/gaze articulation).
- *   3. Studio cinematography: warm sunlit studio backdrop matching the canvas
- *      tone, soft window light rays, grounded floor shadow, subtle film
- *      vignette, and smooth camera framing (`auto` / `front` / `side`) that
- *      keeps the instructor's full body visible.
- *   4. Live coaching HUD: anatomical alignment callout rings + pointer labels
- *      synced to the current spoken cue, and synchronized breath pacer pill.
+ *      widescreen stage cleanly without letterboxed whitespace.
+ *   2. Phase-synchronized postural articulation across Setup (`preparation`),
+ *      Step-by-step Entry (`entry`), Breath-paced Hold (`hold` / `cycle`),
+ *      and Exact Exit to neutral (`exit` / `side_change`), plus Difficulty
+ *      Adaptation (`beginner` shortened stance / partial bend / wall kickstand).
+ *   3. Interactive Kinematic Movement & Modification Guide card in the upper-right
+ *      corner of the stage showing the trainer's live joint progression from
+ *      Starting Position → Entry Steps → Hold (with selected Beginner/Intermediate/Advanced
+ *      modification and props) → Return to Neutral.
+ *   4. Anatomical alignment callout ring + pointer label synced to the current
+ *      spoken cue, and synchronized breath pacer indicator.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { asanaBySlug } from "@/data/content";
@@ -25,9 +23,9 @@ import { poseImageAlt } from "@/data/poseImageAlts";
 import { accurateImageAlt, poseImageWithheld } from "@/data/poseImageAccuracy";
 import { WithheldPoseImage } from "@/components/WithheldPoseImage";
 import { useMotionEnabled } from "@/components/motion";
-import type { LessonPhase } from "@/lib/poseLesson";
+import type { LessonPhase, VariationLevel } from "@/lib/poseLesson";
 import { cn } from "@/lib/utils";
-import { Sparkles, UserCheck, Wind } from "lucide-react";
+import { UserCheck, Wind } from "lucide-react";
 
 export type TrainerCameraShot = "auto" | "front" | "side";
 export type BreathMode = "inhale" | "exhale" | "steady";
@@ -55,6 +53,7 @@ export type HumanPoseTrainerMovieProps = {
   posterSrc: string;
   playing: boolean;
   training?: boolean;
+  level?: VariationLevel;
   phase?: LessonPhase | "side_switch" | "transition";
   stepIndex?: number;
   stepCount?: number;
@@ -70,15 +69,16 @@ export type HumanPoseTrainerMovieProps = {
 };
 
 /**
- * Derive an accurate anatomical callout point on the human instructor figure
+ * Derive an accurate anatomical callout point on the instructor figure
  * (normalized 0..1 within the cropped figure bounds) from the active step cue
- * text and pose category.
+ * text, phase, and selected difficulty level.
  */
 export function resolveAnatomicalCallout(
   slug: string,
   cueText: string | null | undefined,
   stepIndex: number,
   phase?: string,
+  level: VariationLevel = "intermediate",
 ): CalloutPoint {
   const cue = (cueText ?? "").toLowerCase();
   const asana = asanaBySlug(slug);
@@ -96,12 +96,21 @@ export function resolveAnatomicalCallout(
     slug.includes("supta") ||
     cat === "Restorative";
 
+  if (phase === "exit" || phase === "side_change" || phase === "side_switch") {
+    return {
+      x: 0.5,
+      y: 0.62,
+      label: "Controlled Return to Neutral",
+      detail: "Unwind step by step in reverse order back to your starting position",
+    };
+  }
+
   if (isAllFours) {
     if (/wrist|palm|hand|shoulder/i.test(cue)) {
       return {
         x: 0.72,
         y: 0.68,
-        label: "Hands & Shoulders",
+        label: level === "beginner" ? "Hands & Padded Knees" : "Hands & Shoulders",
         detail: "Spread fingers wide; stack wrists directly under shoulders",
       };
     }
@@ -109,7 +118,7 @@ export function resolveAnatomicalCallout(
       return {
         x: 0.52,
         y: 0.42,
-        label: "Thoracic & Lumbar Spine",
+        label: "Cow · Spinal Extension",
         detail: "Inhale: lengthen sternum forward and tilt sit-bones up",
       };
     }
@@ -117,14 +126,14 @@ export function resolveAnatomicalCallout(
       return {
         x: 0.48,
         y: 0.36,
-        label: "Spinal Flexion",
+        label: "Cat · Spinal Flexion",
         detail: "Exhale: draw navel in and dome the upper back toward the ceiling",
       };
     }
     return {
       x: 0.32,
       y: 0.68,
-      label: "Hips Over Knees",
+      label: "Tabletop Foundation",
       detail: "Ground shins and tops of feet evenly into the mat",
     };
   }
@@ -146,6 +155,24 @@ export function resolveAnatomicalCallout(
     };
   }
 
+  if (slug === "virabhadrasana-ii" && level === "beginner" && /knee|bend|partway|stance/i.test(cue)) {
+    return {
+      x: 0.36,
+      y: 0.66,
+      label: "Beginner · Partial Knee Bend (45°–60°)",
+      detail: "Shortened stance; bend front knee partway without forcing 90°",
+    };
+  }
+
+  if (slug === "vrksasana" && level === "beginner") {
+    return {
+      x: 0.48,
+      y: 0.84,
+      label: "Beginner · Kickstand at Ankle + Wall",
+      detail: "Keep toes on the floor against the inner ankle with one hand on a wall",
+    };
+  }
+
   // Standing / Seated / Balancing poses (within tight figure crop)
   if (/knee|thigh|hip|pelvis|sink|bend/i.test(cue)) {
     return {
@@ -155,7 +182,7 @@ export function resolveAnatomicalCallout(
       detail: "Track the knee cleanly in line with the middle toes; level the pelvis",
     };
   }
-  if (/foot|feet|ankle|heel|toe|stance|sole|ground|root/i.test(cue)) {
+  if (/foot|feet|ankle|heel|toe|stance|sole|ground|root|kickstand/i.test(cue)) {
     return {
       x: 0.5,
       y: 0.88,
@@ -180,12 +207,11 @@ export function resolveAnatomicalCallout(
     };
   }
 
-  // Default progression by phase / stepIndex
   if (phase === "preparation" || stepIndex === 0) {
     return {
       x: 0.5,
       y: 0.84,
-      label: "Foundation Setup",
+      label: "Starting Position & Setup",
       detail: "Establish a steady base on the mat before moving deeper",
     };
   }
@@ -203,6 +229,357 @@ export function resolveAnatomicalCallout(
     label: "Core & Spine Alignment",
     detail: "Lengthen through the spine and move with the rhythm of your breath",
   };
+}
+
+/**
+ * Compute how far into the target posture (`0` = neutral starting position,
+ * `1` = full target pose depth for the selected variation) the trainer is at
+ * the current phase and step progress.
+ */
+export function resolvePhasePoseDepth(opts: {
+  phase?: string;
+  stepIndex: number;
+  stepCount: number;
+  stepProgress: number;
+  level: VariationLevel;
+  training: boolean;
+}): {
+  /** 0 = neutral starting stance, 1 = peak pose depth */
+  poseDepth: number;
+  /** Target max depth for the selected variation (beginner = gentler range) */
+  variationCap: number;
+  phaseLabel: string;
+} {
+  const { phase, stepIndex, stepCount, stepProgress, level, training } = opts;
+  const variationCap = level === "beginner" ? 0.68 : level === "advanced" ? 1.0 : 0.9;
+  const p = Math.max(0, Math.min(1, stepProgress));
+
+  if (!training || !phase) {
+    return {
+      poseDepth: variationCap,
+      variationCap,
+      phaseLabel: level === "beginner" ? "Beginner modification" : "Target alignment",
+    };
+  }
+
+  if (phase === "preparation" || phase === "transition") {
+    // Starts in neutral starting position and steps into initial stance setup
+    const d = (0.12 + 0.26 * p) * variationCap;
+    return { poseDepth: d, variationCap, phaseLabel: "1 · Starting position" };
+  }
+
+  if (phase === "entry") {
+    const entrySteps = Math.max(1, stepCount - 1);
+    const stepIdx = Math.max(0, Math.min(entrySteps - 1, stepIndex));
+    const startFrac = 0.38 + (stepIdx / entrySteps) * 0.55;
+    const endFrac = 0.38 + ((stepIdx + 1) / entrySteps) * 0.58;
+    const d = (startFrac + (endFrac - startFrac) * p) * variationCap;
+    return {
+      poseDepth: d,
+      variationCap,
+      phaseLabel: `2 · Step ${stepIdx + 1} movement`,
+    };
+  }
+
+  if (phase === "cycle") {
+    return {
+      poseDepth: variationCap,
+      variationCap,
+      phaseLabel: "3 · Breath-paced flow",
+    };
+  }
+
+  if (phase === "hold") {
+    return {
+      poseDepth: variationCap,
+      variationCap,
+      phaseLabel: level === "beginner" ? "3 · Hold (beginner option)" : "3 · Steady hold",
+    };
+  }
+
+  if (phase === "side_change" || phase === "side_switch") {
+    // Unwinds from hold depth back to neutral (0.15) to switch sides
+    const d = variationCap * (1 - 0.85 * p);
+    return { poseDepth: d, variationCap, phaseLabel: "Release to switch sides" };
+  }
+
+  // phase === "exit"
+  const d = variationCap * (1 - 0.88 * p);
+  return { poseDepth: d, variationCap, phaseLabel: "4 · Exact exit to neutral" };
+}
+
+/**
+ * Draw an articulated kinematic human trainer guide card in the upper-right of
+ * the canvas showing the exact body movement from Starting Position -> Entry ->
+ * Hold (with selected Beginner/Intermediate/Advanced modification & props) ->
+ * Return to Neutral.
+ */
+function drawKinematicTrainerInset(opts: {
+  ctx: CanvasRenderingContext2D;
+  w: number;
+  h: number;
+  slug: string;
+  level: VariationLevel;
+  poseDepth: number;
+  phaseLabel: string;
+  breathWave: number;
+  side: 1 | 2;
+}) {
+  const { ctx, w, h, slug, level, poseDepth, phaseLabel, breathWave, side } = opts;
+  if (w < 240 || h < 150) return;
+
+  const cardW = Math.min(138, Math.max(108, w * 0.27));
+  const cardH = Math.min(116, Math.max(92, h * 0.34));
+  const cardX = w - cardW - 8;
+  const cardY = 8;
+
+  ctx.save();
+  // Card backdrop
+  ctx.fillStyle = "rgba(251, 247, 240, 0.93)";
+  ctx.strokeStyle = "rgba(74, 107, 82, 0.42)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, 10);
+  ctx.fill();
+  ctx.stroke();
+
+  // Header label
+  ctx.fillStyle = "#2c3e2e";
+  ctx.font = "600 9.5px system-ui, -apple-system, sans-serif";
+  ctx.textBaseline = "top";
+  ctx.fillText(phaseLabel, cardX + 7, cardY + 5);
+
+  // Modification sub-badge
+  const modText =
+    level === "beginner"
+      ? slug === "vrksasana"
+        ? "Kickstand + wall"
+        : slug === "virabhadrasana-ii"
+          ? "Short stance · ~50° knee"
+          : slug === "marjaryasana-bitilasana"
+            ? "Gentle arc + blanket"
+            : "Beginner modification"
+      : level === "advanced"
+        ? "Full expression"
+        : "Standard alignment";
+  ctx.fillStyle = "#5c6f5e";
+  ctx.font = "500 8.5px system-ui, -apple-system, sans-serif";
+  ctx.fillText(modText, cardX + 7, cardY + 17);
+
+  // Floor mat line inside the inset
+  const matY = cardY + cardH - 16;
+  const centerX = cardX + cardW * 0.5;
+  ctx.strokeStyle = "rgba(122, 92, 67, 0.4)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cardX + 12, matY);
+  ctx.lineTo(cardX + cardW - 12, matY);
+  ctx.stroke();
+
+  // Draw articulated stick-figure trainer inside the inset
+  const dir = side === 2 ? -1 : 1;
+  const scale = Math.min(cardW, cardH) * 0.0068;
+
+  ctx.save();
+  ctx.translate(centerX, matY);
+  ctx.scale(dir, 1);
+
+  const isCatCow = slug.includes("marjaryasana") || slug.includes("bitilasana");
+  const isTree = slug === "vrksasana";
+  const isFold = slug === "uttanasana" || slug === "ardha-uttanasana" || slug === "paschimottanasana";
+  const isChild = slug.includes("balasana");
+
+  ctx.strokeStyle = "#3b5d43";
+  ctx.fillStyle = "#3b5d43";
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  if (isCatCow) {
+    // All-fours tabletop with dynamic spinal arch (Cow) and dome (Cat)
+    const kneeX = -22 * scale;
+    const wristX = 22 * scale;
+    const hipY = -28 * scale;
+    const shoulderY = -30 * scale;
+    const archOffset = breathWave * 11 * scale * Math.max(0.35, poseDepth);
+
+    // Optional folded blanket under knees in beginner mode
+    if (level === "beginner") {
+      ctx.fillStyle = "rgba(196, 109, 78, 0.45)";
+      ctx.fillRect(kneeX - 8 * scale, -4 * scale, 16 * scale, 4 * scale);
+      ctx.fillStyle = "#3b5d43";
+    }
+
+    // Knees/shins and arms
+    ctx.beginPath();
+    ctx.moveTo(kneeX - 10 * scale, 0);
+    ctx.lineTo(kneeX, 0);
+    ctx.lineTo(kneeX, hipY);
+    ctx.moveTo(wristX, 0);
+    ctx.lineTo(wristX, shoulderY);
+    ctx.stroke();
+
+    // Articulated spine curve
+    ctx.beginPath();
+    ctx.moveTo(kneeX, hipY);
+    ctx.quadraticCurveTo(0, (hipY + shoulderY) * 0.5 + archOffset, wristX, shoulderY);
+    ctx.stroke();
+
+    // Head
+    const headY = shoulderY - 4 * scale - archOffset * 0.45;
+    ctx.beginPath();
+    ctx.arc(wristX + 9 * scale, headY, 5.5 * scale, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (isTree) {
+    // Standing on left leg, lifted foot either at ankle kickstand (beginner) or inner thigh
+    const hipY = -38 * scale;
+    const shoulderY = -66 * scale;
+    const liftT = poseDepth;
+
+    // Wall prop on left side for beginner
+    if (level === "beginner") {
+      ctx.strokeStyle = "rgba(196, 109, 78, 0.65)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-36 * scale, 0);
+      ctx.lineTo(-36 * scale, -84 * scale);
+      ctx.stroke();
+      ctx.strokeStyle = "#3b5d43";
+      ctx.lineWidth = 2.2;
+    }
+
+    // Standing leg
+    ctx.beginPath();
+    ctx.moveTo(-4 * scale, 0);
+    ctx.lineTo(-4 * scale, hipY);
+    ctx.lineTo(-4 * scale, shoulderY);
+    ctx.stroke();
+
+    // Lifted leg: beginner keeps toes on floor at ankle; intermediate/advanced lifts to calf/thigh
+    const footY = level === "beginner" ? -2 * scale * liftT : -24 * scale * liftT;
+    const kneeOutX = (-4 + (level === "beginner" ? 13 : 20) * liftT) * scale;
+    const kneeOutY = (level === "beginner" ? -16 : -26) * scale * liftT + (1 - liftT) * (-18 * scale);
+    ctx.beginPath();
+    ctx.moveTo(-4 * scale, hipY);
+    ctx.lineTo(kneeOutX, kneeOutY);
+    ctx.lineTo(-1 * scale, footY);
+    ctx.stroke();
+
+    // Arms: beginner reaches one hand to wall & one to heart; others prayer/overhead
+    ctx.beginPath();
+    if (level === "beginner") {
+      ctx.moveTo(-4 * scale, shoulderY + 4 * scale);
+      ctx.lineTo(-35 * scale, shoulderY + 8 * scale);
+      ctx.moveTo(-4 * scale, shoulderY + 4 * scale);
+      ctx.lineTo(6 * scale, shoulderY + 14 * scale);
+    } else {
+      const armRaise = Math.max(0, (liftT - 0.4) / 0.6);
+      ctx.moveTo(-4 * scale, shoulderY + 4 * scale);
+      ctx.lineTo((-4 - 10) * scale, shoulderY + (12 - 26 * armRaise) * scale);
+      ctx.moveTo(-4 * scale, shoulderY + 4 * scale);
+      ctx.lineTo((-4 + 10) * scale, shoulderY + (12 - 26 * armRaise) * scale);
+    }
+    ctx.stroke();
+
+    // Head
+    ctx.beginPath();
+    ctx.arc(-4 * scale, shoulderY - 9 * scale, 6 * scale, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (isFold || isChild) {
+    // Standing -> Hip hinge forward fold (with generous knee bend in beginner)
+    const foldT = poseDepth;
+    const hipX = -6 * scale * foldT;
+    const hipY = -38 * scale + 4 * scale * foldT;
+    const kneeBend = (level === "beginner" ? 8 : 3) * scale * foldT;
+    const torsoAngle = -Math.PI * 0.5 + foldT * (level === "beginner" ? 1.85 : 2.25);
+    const shoulderX = hipX + Math.cos(torsoAngle) * 28 * scale;
+    const shoulderY = hipY + Math.sin(torsoAngle) * 28 * scale;
+
+    // Legs with soft knee bend
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(kneeBend, -19 * scale);
+    ctx.lineTo(hipX, hipY);
+    ctx.lineTo(shoulderX, shoulderY);
+    ctx.stroke();
+
+    // Arms hanging toward shins/blocks/floor
+    ctx.beginPath();
+    ctx.moveTo(shoulderX, shoulderY);
+    ctx.lineTo(shoulderX + 4 * scale, Math.min(-2 * scale, shoulderY + 22 * scale * foldT));
+    ctx.stroke();
+
+    // Head
+    ctx.beginPath();
+    ctx.arc(
+      shoulderX + Math.cos(torsoAngle) * 8 * scale,
+      shoulderY + Math.sin(torsoAngle) * 8 * scale,
+      5.5 * scale,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+  } else {
+    // Standing / Lunge family (Warrior II, Warrior I, Triangle, Mountain, etc.)
+    // Transitions smoothly from Mountain Pose (poseDepth=0) -> Wide stance -> Front knee bend -> Arms extended
+    const stanceT = Math.min(1, poseDepth * 1.35);
+    const bendT = Math.max(0, (poseDepth - 0.2) / 0.8);
+    const armT = Math.max(0, (poseDepth - 0.35) / 0.65);
+
+    const maxSpread = level === "beginner" ? 21 : 30;
+    const spread = (4 + (maxSpread - 4) * stanceT) * scale;
+    const hipDrop = (level === "beginner" ? 7 : 13) * bendT * scale;
+    const hipY = -40 * scale + hipDrop;
+    const shoulderY = hipY - 27 * scale - breathWave * 1.5 * scale;
+
+    const backFootX = -spread;
+    const frontFootX = spread;
+    // Front knee stacks over front ankle as bendT increases
+    const frontKneeX = frontFootX * (0.45 + 0.52 * bendT);
+    const frontKneeY = hipY * 0.52;
+
+    // Back leg + Front bending leg + Torso
+    ctx.beginPath();
+    ctx.moveTo(backFootX, 0);
+    ctx.lineTo(0, hipY);
+    ctx.lineTo(frontKneeX, frontKneeY);
+    ctx.lineTo(frontFootX, 0);
+    ctx.moveTo(0, hipY);
+    ctx.lineTo(0, shoulderY);
+    ctx.stroke();
+
+    // Arms: rise from sides/hips to T-shape (or hands-on-hips option indicator)
+    const armSpan = (6 + 24 * armT) * scale;
+    const armY = shoulderY + (16 * (1 - armT) + 2) * scale;
+    ctx.beginPath();
+    ctx.moveTo(-armSpan, armY);
+    ctx.lineTo(0, shoulderY + 3 * scale);
+    ctx.lineTo(armSpan, armY);
+    ctx.stroke();
+
+    // Head
+    ctx.beginPath();
+    ctx.arc(0, shoulderY - 8 * scale, 6 * scale, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+
+  // Phase progress bar along the bottom of the inset card
+  const barX = cardX + 8;
+  const barY = cardY + cardH - 8;
+  const barW = cardW - 16;
+  ctx.fillStyle = "rgba(74, 107, 82, 0.16)";
+  ctx.beginPath();
+  ctx.roundRect(barX, barY, barW, 3.5, 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#4a6b52";
+  ctx.beginPath();
+  ctx.roundRect(barX, barY, Math.max(6, barW * Math.min(1, poseDepth / (level === "beginner" ? 0.68 : 0.9))), 3.5, 2);
+  ctx.fill();
+
+  ctx.restore();
 }
 
 const cropCache = new Map<string, FigureCropBox>();
@@ -282,9 +659,9 @@ function measureFigureCropBox(img: HTMLImageElement, srcKey: string): FigureCrop
 }
 
 /**
- * Draw the human instructor image onto a 2D horizontal strip mesh so the
- * trainer's actual body breathes (ribcage expansion), articulates the spine
- * (Cat/Cow arch & round), and shifts weight naturally like a live movie shot.
+ * Draw the human instructor image onto a 28-slice horizontal mesh driven by
+ * `poseDepth` (setup -> entry -> hold -> exit) and `level` (`beginner` vs
+ * `intermediate`/`advanced`), plus the synchronized kinematic movement inset.
  */
 function renderArticulatedHumanFrame(opts: {
   ctx: CanvasRenderingContext2D;
@@ -295,6 +672,10 @@ function renderArticulatedHumanFrame(opts: {
   tSec: number;
   playing: boolean;
   training: boolean;
+  level: VariationLevel;
+  phase?: string;
+  stepIndex: number;
+  stepCount: number;
   breathMode: BreathMode;
   stepProgress: number;
   side: 1 | 2;
@@ -311,6 +692,11 @@ function renderArticulatedHumanFrame(opts: {
     h,
     tSec,
     playing,
+    training,
+    level,
+    phase,
+    stepIndex,
+    stepCount,
     breathMode,
     stepProgress,
     side,
@@ -354,6 +740,15 @@ function renderArticulatedHumanFrame(opts: {
   const baseX = (w - drawW) / 2;
   const baseY = padTop + (availH - drawH) / 2;
 
+  const { poseDepth, phaseLabel } = resolvePhasePoseDepth({
+    phase,
+    stepIndex,
+    stepCount,
+    stepProgress,
+    level,
+    training,
+  });
+
   // Grounding breath aura on the studio floor directly beneath the instructor's feet
   const breathCycle =
     breathMode === "inhale"
@@ -362,7 +757,10 @@ function renderArticulatedHumanFrame(opts: {
         ? Math.cos(Math.min(1, Math.max(0, stepProgress)) * (Math.PI / 2))
         : (Math.sin(tSec * (playing ? 1.25 : 0.75)) + 1) * 0.5;
 
-  const auraRadiusX = Math.min(w * 0.36, drawW * (0.48 + (motionEnabled ? breathCycle * 0.04 : 0)));
+  const auraRadiusX = Math.min(
+    w * 0.36,
+    drawW * (0.36 + 0.14 * poseDepth + (motionEnabled ? breathCycle * 0.04 : 0)),
+  );
   const auraRadiusY = Math.max(4, h * 0.026);
   const feetY = baseY + drawH * 0.965;
   ctx.save();
@@ -380,17 +778,17 @@ function renderArticulatedHumanFrame(opts: {
   ctx.stroke();
   ctx.restore();
 
-  // 4. Smooth cinematic camera framing
+  // 4. Smooth camera framing
   let camScale = 1;
   let camFocusY = 0.5;
   if (cameraView === "front") {
-    camScale = 1 + (motionEnabled && playing ? Math.sin(tSec * 0.35) * 0.016 : 0);
+    camScale = 1 + (motionEnabled && playing ? Math.sin(tSec * 0.35) * 0.014 : 0);
     camFocusY = 0.5;
   } else if (cameraView === "side") {
-    camScale = 1.1;
+    camScale = 1.08;
     camFocusY = Math.max(0.32, Math.min(0.68, callout.y));
   } else {
-    camScale = 1 + (motionEnabled && playing ? Math.sin(tSec * 0.4) * 0.014 : 0);
+    camScale = 1 + (motionEnabled && playing ? Math.sin(tSec * 0.4) * 0.012 : 0);
     camFocusY = 0.5;
   }
 
@@ -401,9 +799,11 @@ function renderArticulatedHumanFrame(opts: {
   ctx.scale(side === 2 ? -camScale : camScale, camScale);
   ctx.translate(-focalX, -focalY);
 
-  // 5. Render the human instructor through a 28-slice anatomical deformation mesh
-  // so her chest/ribcage expands on inhale, spine articulates on Cat-Cow/flow,
-  // and her posture has lifelike micro-balance while feet remain grounded.
+  // 5. Render the human instructor through a 28-slice phase-aware anatomical mesh:
+  //    - During `preparation` and `exit`, wide stances (Warrior II, Triangle, Lunges)
+  //      narrow toward neutral standing alignment and lift slightly taller (`poseDepth`).
+  //    - In `beginner` mode, stances stay visibly more compact (~82% width) and higher
+  //      so the figure reflects the shortened stance / partial knee bend modification.
   const SLICES = 28;
   const isAllFours =
     slug.includes("marjaryasana") ||
@@ -420,6 +820,8 @@ function renderArticulatedHumanFrame(opts: {
     : 0;
 
   const swayWave = activeMotion ? Math.sin(tSec * 0.72) : 0;
+  // How much the figure is currently upright/narrowed toward neutral vs settled in full pose
+  const neutralBlend = 1 - poseDepth;
 
   for (let i = 0; i < SLICES; i++) {
     const v0 = i / SLICES;
@@ -427,28 +829,37 @@ function renderArticulatedHumanFrame(opts: {
     const vMid = (v0 + v1) * 0.5;
 
     // Anatomical envelope: feet (v=0.92..1.0) stay pinned to the mat
-    const footAnchor = Math.max(0, Math.min(1, (0.92 - vMid) / 0.55));
+    const footAnchor = Math.max(0, Math.min(1, (0.94 - vMid) / 0.55));
+    // Lower body stance envelope (hips, knees, ankles: v=0.48..0.98)
+    const lowerStanceEnv = Math.max(0, Math.min(1, (vMid - 0.42) / 0.45));
+    // Arm span envelope (shoulders & outstretched arms: v=0.18..0.44)
+    const armSpanEnv = Math.exp(-Math.pow((vMid - 0.28) / 0.14, 2));
 
     let dx = 0;
     let dy = 0;
     let scaleX = 1;
 
     if (isAllFours) {
-      // Tabletop / Cat-Cow: hands and knees stay grounded while the thoracic/lumbar
-      // spine arches downward on inhale (Cow) and domes upward on exhale (Cat)
       const spineBell = Math.exp(-Math.pow((vMid - 0.44) / 0.2, 2));
       const headBell = Math.exp(-Math.pow((vMid - 0.3) / 0.16, 2));
-      dy = -breathWave * spineBell * drawH * 0.022 + breathWave * headBell * drawH * 0.01;
-      scaleX = 1 + Math.abs(breathWave) * spineBell * 0.018;
+      const phaseAmp = 0.4 + 0.6 * poseDepth;
+      dy = (-breathWave * spineBell * drawH * 0.03 + breathWave * headBell * drawH * 0.014) * phaseAmp;
+      scaleX = 1 + Math.abs(breathWave) * spineBell * 0.022 * phaseAmp;
       dx = swayWave * spineBell * drawW * 0.005;
     } else {
-      // Standing / Seated / Balancing human instructor:
-      // Ribcage & shoulders (v ≈ 0.22..0.46) expand laterally and lift slightly on inhale;
-      // gentle postural weight shift anchored at the feet.
       const chestBell = Math.exp(-Math.pow((vMid - 0.32) / 0.16, 2));
       const bellyBell = Math.exp(-Math.pow((vMid - 0.46) / 0.14, 2));
-      scaleX = 1 + breathWave * (chestBell * 0.022 + bellyBell * 0.016);
-      dy = -breathWave * footAnchor * drawH * 0.008;
+      // Phase-driven stance & arm progression:
+      // At setup/exit (`neutralBlend` high), lower stance narrows by up to 22% and
+      // torso stands taller by up to 3.5% of height, then widens/sinks into the pose
+      // across entry steps (`poseDepth` 0.15 -> 1.0).
+      const stanceScale = 1 - neutralBlend * (lowerStanceEnv * 0.22 + armSpanEnv * 0.18);
+      scaleX =
+        stanceScale *
+        (1 + breathWave * (chestBell * 0.022 + bellyBell * 0.016));
+      dy =
+        -neutralBlend * footAnchor * drawH * 0.034 -
+        breathWave * footAnchor * drawH * 0.008;
       dx = swayWave * footAnchor * drawW * 0.005;
     }
 
@@ -457,7 +868,7 @@ function renderArticulatedHumanFrame(opts: {
     const sh = Math.max(1, sy1 - sy0);
 
     const dy0 = baseY + v0 * drawH + dy;
-    const dh = (v1 - v0) * drawH + 0.9; // +0.9px overlap prevents subpixel seam lines
+    const dh = (v1 - v0) * drawH + 0.9;
     const sliceW = drawW * scaleX;
     const dx0 = baseX + (drawW - sliceW) * 0.5 + dx;
 
@@ -466,15 +877,29 @@ function renderArticulatedHumanFrame(opts: {
 
   ctx.restore();
 
-  // 6. Anatomical coaching callout ring + label in screen space (never mirrored)
-  if (opts.training) {
+  // 6. Draw synchronized Kinematic Trainer & Modification Guide Card in upper-right
+  if (training || level !== "intermediate") {
+    drawKinematicTrainerInset({
+      ctx,
+      w,
+      h,
+      slug,
+      level,
+      poseDepth,
+      phaseLabel,
+      breathWave,
+      side,
+    });
+  }
+
+  // 7. Anatomical coaching callout ring + label in screen space (never mirrored)
+  if (training) {
     const effectiveCalloutX = side === 2 ? 1 - callout.x : callout.x;
     const cx = baseX + drawW * effectiveCalloutX;
     const cy = baseY + drawH * callout.y;
     const pulse = activeMotion ? 1 + 0.12 * Math.sin(tSec * 3.2) : 1;
     const rOuter = Math.max(14, Math.min(28, Math.min(drawW, drawH) * 0.09)) * pulse;
 
-    // Soft glow halo
     const halo = ctx.createRadialGradient(cx, cy, rOuter * 0.15, cx, cy, rOuter * 1.45);
     halo.addColorStop(0, "rgba(92, 126, 96, 0.28)");
     halo.addColorStop(0.7, "rgba(92, 126, 96, 0.12)");
@@ -484,20 +909,17 @@ function renderArticulatedHumanFrame(opts: {
     ctx.arc(cx, cy, rOuter * 1.45, 0, Math.PI * 2);
     ctx.fill();
 
-    // Crisp target ring
     ctx.strokeStyle = "rgba(74, 107, 82, 0.85)";
     ctx.lineWidth = 1.75;
     ctx.beginPath();
     ctx.arc(cx, cy, rOuter * 0.72, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Center alignment dot
     ctx.fillStyle = "rgba(74, 107, 82, 0.95)";
     ctx.beginPath();
     ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Callout pill drawn in studio space near the target ring
     const labelText = callout.label;
     ctx.font = "600 11px system-ui, -apple-system, sans-serif";
     const textW = ctx.measureText(labelText).width;
@@ -506,7 +928,6 @@ function renderArticulatedHumanFrame(opts: {
     const pillX = Math.max(8, Math.min(w - pillW - 8, cx + rOuter * 0.85));
     const pillY = Math.max(32, Math.min(h - 44, cy - pillH * 0.5));
 
-    // Connector line from ring to label pill
     ctx.strokeStyle = "rgba(74, 107, 82, 0.65)";
     ctx.lineWidth = 1.25;
     ctx.beginPath();
@@ -514,7 +935,6 @@ function renderArticulatedHumanFrame(opts: {
     ctx.lineTo(pillX, pillY + pillH * 0.5);
     ctx.stroke();
 
-    // Pill background
     ctx.fillStyle = "rgba(251, 247, 240, 0.94)";
     ctx.strokeStyle = "rgba(74, 107, 82, 0.45)";
     ctx.lineWidth = 1;
@@ -528,7 +948,7 @@ function renderArticulatedHumanFrame(opts: {
     ctx.fillText(labelText, pillX + 8, pillY + pillH * 0.5);
   }
 
-  // 7. Subtle warm cinema vignette around the studio frame
+  // 8. Subtle warm cinema vignette around the studio frame
   const vig = ctx.createRadialGradient(
     w * 0.5,
     h * 0.48,
@@ -549,8 +969,10 @@ export function HumanPoseTrainerMovie({
   posterSrc,
   playing,
   training = false,
+  level = "intermediate",
   phase,
   stepIndex = 0,
+  stepCount = 4,
   stepProgress = 1,
   side = 1,
   breathMode = "steady",
@@ -568,13 +990,30 @@ export function HumanPoseTrainerMovie({
   const motionOn = useMotionEnabled();
 
   const callout = useMemo(
-    () => resolveAnatomicalCallout(slug, cueText, stepIndex, phase),
-    [slug, cueText, stepIndex, phase],
+    () => resolveAnatomicalCallout(slug, cueText, stepIndex, phase, level),
+    [slug, cueText, stepIndex, phase, level],
+  );
+
+  const depthInfo = useMemo(
+    () =>
+      resolvePhasePoseDepth({
+        phase,
+        stepIndex,
+        stepCount,
+        stepProgress,
+        level,
+        training,
+      }),
+    [phase, stepIndex, stepCount, stepProgress, level, training],
   );
 
   const stateRef = useRef({
     playing,
     training,
+    level,
+    phase,
+    stepIndex,
+    stepCount,
     breathMode,
     stepProgress,
     side,
@@ -586,6 +1025,10 @@ export function HumanPoseTrainerMovie({
   stateRef.current = {
     playing,
     training,
+    level,
+    phase,
+    stepIndex,
+    stepCount,
     breathMode,
     stepProgress,
     side,
@@ -639,8 +1082,6 @@ export function HumanPoseTrainerMovie({
 
     const paint = (now: number) => {
       raf = requestAnimationFrame(paint);
-      // Native DOM Event.timeStamp uses Blink's monotonic C++ clock so Playwright
-      // `page.clock.runFor()` fast-forwards do not choke on 2D canvas redraws.
       const realNow = typeof Event !== "undefined" ? new Event("").timeStamp : now;
       if (realNow - lastRealPaint < 30) return;
       lastRealPaint = realNow;
@@ -660,6 +1101,10 @@ export function HumanPoseTrainerMovie({
         tSec: (now - start) / 1000,
         playing: s.playing,
         training: s.training,
+        level: s.level,
+        phase: s.phase,
+        stepIndex: s.stepIndex,
+        stepCount: s.stepCount,
         breathMode: s.breathMode,
         stepProgress: s.stepProgress,
         side: s.side,
@@ -693,6 +1138,8 @@ export function HumanPoseTrainerMovie({
       data-testid={testId ?? `human-trainer-movie-${slug}`}
       data-trainer-callout={callout.label}
       data-trainer-breath={breathMode}
+      data-trainer-level={level}
+      data-trainer-depth={depthInfo.poseDepth.toFixed(2)}
     >
       {/* Underlying accessible reference image for instant paint & screen readers */}
       <img
@@ -708,7 +1155,7 @@ export function HumanPoseTrainerMovie({
         style={{ transform: side === 2 ? "scaleX(-1)" : undefined }}
       />
 
-      {/* Articulated live human trainer cinema canvas */}
+      {/* Articulated phase-synchronized pose guide canvas */}
       <canvas
         ref={canvasRef}
         className={cn(
@@ -750,17 +1197,6 @@ export function HumanPoseTrainerMovie({
           <UserCheck className="h-3 w-3 shrink-0 text-primary" aria-hidden />
           <span className="truncate">{badgeText}</span>
         </div>
-      ) : null}
-
-      {/* Subtle studio indicator in idle preview */}
-      {!training ? (
-        <span
-          className="pointer-events-none absolute right-2 bottom-2 z-10 hidden items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm sm:inline-flex"
-          aria-hidden
-        >
-          <Sparkles className="h-2.5 w-2.5 text-primary" />
-          Live human guide
-        </span>
       ) : null}
     </div>
   );

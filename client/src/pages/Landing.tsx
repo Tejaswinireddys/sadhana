@@ -185,6 +185,7 @@ export default function Landing() {
   const startPoses = (poses: PreflightPose[], label: string, minutes: number) => {
     if (!poses.length) return;
     enterApp();
+    writeString(KEYS.onboardingDone, "1");
     loadSession(
       poses.map((p) => ({ asana: p, holdSeconds: p.holdSeconds, ...(p.sides ? { sides: p.sides } : {}) })),
       { label, introPoseSlug: poses[0]!.slug, plannedMinutes: minutes },

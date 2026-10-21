@@ -1,4 +1,5 @@
 import type { Asana, Category, Difficulty } from "@/data/content";
+import { stepsForVariation } from "@/lib/poseLesson";
 
 /**
  * Structured teaching content for the pose-explanation experience.
@@ -287,8 +288,9 @@ export function buildPoseExplanation(
   const formCues = formCuesFromCatalog(asana, rawForm, level);
 
   // Align / teaching topics must follow the selected variation — never the
-  // full/default asana.steps when a variation publishes its own steps.
-  const variantSteps = (primary.steps ?? []).map((s) => s.text).filter(Boolean);
+  // full/default asana.steps when a variation adapts its steps.
+  const adapted = stepsForVariation(asana, key);
+  const variantSteps = adapted.map((s) => s.text).filter(Boolean);
   const alignmentSource =
     variantSteps.length > 0
       ? variantSteps

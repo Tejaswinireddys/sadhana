@@ -266,7 +266,7 @@ export function Onboarding({
                 variant="ghost"
                 size="sm"
                 className="min-h-11 w-full cursor-pointer"
-                onClick={() => setStep(1)}
+                onClick={() => finish()}
                 data-testid="onboarding-skip-path"
               >
                 Skip for now
@@ -325,7 +325,7 @@ export function Onboarding({
               <Button
                 variant="outline"
                 className="min-h-11 w-full cursor-pointer rounded-full"
-                onClick={() => setStep(2)}
+                onClick={() => finish()}
                 data-testid="onboarding-skip-practice"
               >
                 Maybe later — finish setup

@@ -1025,6 +1025,7 @@ export type TrainerPhase =
 
 export type TrainerStageInput = {
   slug: string;
+  level?: "beginner" | "intermediate" | "advanced";
   phase?: TrainerPhase;
   /** 1-based step number from PoseLesson, or null. */
   stepNumber?: number | null;
@@ -1062,6 +1063,12 @@ export function resolveTrainerStageState(input: TrainerStageInput): TrainerStage
   const lastIdx = frames.length - 1;
   const progress = Math.max(0, Math.min(1, input.stepProgress ?? 1));
   const firstSide = input.firstSide ?? "right";
+  const levelLabel =
+    input.level === "beginner"
+      ? " · Beginner mod"
+      : input.level === "advanced"
+        ? " · Advanced"
+        : "";
 
   let side: 1 | 2 = 1;
   if (input.side === 2) {
@@ -1093,7 +1100,7 @@ export function resolveTrainerStageState(input: TrainerStageInput): TrainerStage
       side: 1,
       overridePose: null,
       breathMode: "steady",
-      coachBadge: "Human trainer · Ready",
+      coachBadge: `Pose guide · ${input.level ? `${input.level[0]!.toUpperCase()}${input.level.slice(1)} setup` : "Ready"}`,
     };
   }
 
@@ -1107,7 +1114,7 @@ export function resolveTrainerStageState(input: TrainerStageInput): TrainerStage
       side,
       overridePose: null,
       breathMode,
-      coachBadge: `Step ${idx + 1} of ${frames.length}`,
+      coachBadge: `Step ${idx + 1} of ${frames.length}${levelLabel}`,
     };
   }
 
@@ -1119,7 +1126,7 @@ export function resolveTrainerStageState(input: TrainerStageInput): TrainerStage
       side,
       overridePose: null,
       breathMode,
-      coachBadge: "Foundation setup",
+      coachBadge: `Foundation setup${levelLabel}`,
     };
   }
 
@@ -1140,10 +1147,10 @@ export function resolveTrainerStageState(input: TrainerStageInput): TrainerStage
       breathMode,
       coachBadge:
         breathMode === "inhale"
-          ? "Inhale · Expand into shape"
+          ? `Inhale · Expand into shape${levelLabel}`
           : breathMode === "exhale"
-            ? "Exhale · Articulate spine"
-            : `Step ${idx + 1} · Joint alignment`,
+            ? `Exhale · Articulate spine${levelLabel}`
+            : `Step ${idx + 1} · Joint alignment${levelLabel}`,
     };
   }
 

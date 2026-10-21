@@ -382,6 +382,7 @@ export function PoseExplanation({
             <PoseLessonStage
               demo={lesson.demo}
               english={asana.english}
+              level={level}
               playing={training && playing}
               restartToken={restartToken}
               focus={training ? current?.focus ?? null : null}
@@ -394,6 +395,7 @@ export function PoseExplanation({
               }
               phase={training && current ? current.phase : undefined}
               stepNumber={activeStepNumber}
+              stepCount={lesson.steps.length}
               stepProgress={segmentProgress}
               side={training && current ? current.side : "both"}
               firstSide={firstSide}

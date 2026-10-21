@@ -9,15 +9,16 @@
  *    poster on pause, so pausing mid-lesson jumped to the final shape.
  *  - When there is no reviewed movement demonstration it shows this pose's own
  *    still, labelled "Static reference — movement demonstration unavailable",
- *    and says so out loud rather than implying motion.
+ *    and pairs it with a phase-synchronized posture & modification guide without
+ *    misleading camera-angle controls or "live human" badges.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Eye, ImageOff, Loader2, UserCheck } from "lucide-react";
+import { AlertTriangle, ImageOff, Loader2, UserCheck } from "lucide-react";
 import type { PoseDemoAvailability } from "@/data/poseDemoAvailability";
 import { STATIC_REFERENCE_LABEL } from "@/data/poseDemoAvailability";
 import { resolveTrainerStageState } from "@/data/poseKeyframes";
 import { HumanPoseTrainerMovie } from "@/components/HumanPoseTrainerMovie";
-import type { LessonPhase } from "@/lib/poseLesson";
+import type { LessonPhase, VariationLevel } from "@/lib/poseLesson";
 import type { FocusZone } from "@/lib/poseMoments";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,8 @@ export type LessonStageMediaState = "idle" | "loading" | "ready" | "buffering" |
 type Props = {
   demo: PoseDemoAvailability;
   english: string;
+  /** Selected variation level (`beginner`, `intermediate`, `advanced`). */
+  level?: VariationLevel;
   /** Drives the movement clip when one exists. Ignored for a static reference. */
   playing: boolean;
   /** Seconds into the current lesson segment's clip window. */
@@ -38,9 +41,10 @@ type Props = {
    */
   focus?: FocusZone | null;
   caption?: string | null;
-  /** Live lesson timeline state for the human yoga trainer. */
+  /** Live lesson timeline state for the pose guide. */
   phase?: LessonPhase;
   stepNumber?: number | null;
+  stepCount?: number;
   stepProgress?: number;
   side?: "left" | "right" | "both";
   firstSide?: "left" | "right";
@@ -56,6 +60,7 @@ type Props = {
 export function PoseLessonStage({
   demo,
   english,
+  level,
   playing,
   clipTimeSec = 0,
   restartToken = 0,
@@ -63,6 +68,7 @@ export function PoseLessonStage({
   caption = null,
   phase,
   stepNumber = null,
+  stepCount = 4,
   stepProgress = 1,
   side = "both",
   firstSide = "right",
@@ -76,13 +82,14 @@ export function PoseLessonStage({
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<LessonStageMediaState>("idle");
-  const [cameraView, setCameraView] = useState<"auto" | "front" | "side">("auto");
   const hasMovement = demo.kind === "movement";
+  const effectiveLevel: VariationLevel = level ?? "intermediate";
 
   const trainerState = useMemo(
     () =>
       resolveTrainerStageState({
         slug: demo.slug,
+        level: effectiveLevel,
         phase: training ? phase : undefined,
         stepNumber: training ? stepNumber : null,
         stepProgress: training ? stepProgress : 1,
@@ -94,6 +101,7 @@ export function PoseLessonStage({
       }),
     [
       demo.slug,
+      effectiveLevel,
       training,
       phase,
       stepNumber,
@@ -174,6 +182,7 @@ export function PoseLessonStage({
               data-trainer-phase={phase ?? "preview"}
               data-trainer-step={trainerState.stepIndex}
               data-trainer-breath={trainerState.breathMode}
+              data-trainer-level={effectiveLevel}
             >
               <HumanPoseTrainerMovie
                 slug={demo.slug}
@@ -181,14 +190,15 @@ export function PoseLessonStage({
                 posterSrc={demo.poster}
                 playing={playing || !training}
                 training={training}
+                level={effectiveLevel}
                 phase={phase}
                 stepIndex={trainerState.stepIndex}
+                stepCount={stepCount}
                 stepProgress={trainerState.stepProgress}
                 side={trainerState.side}
                 breathMode={trainerState.breathMode}
                 breathCue={breathCue}
                 cueText={cueText}
-                cameraView={cameraView}
                 data-testid={`pose-lesson-gl-${demo.slug}`}
               />
             </div>
@@ -258,35 +268,6 @@ export function PoseLessonStage({
           <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
           <span className="truncate">{STATIC_REFERENCE_LABEL}</span>
         </p>
-      ) : null}
-
-      {/* Human trainer angle selector & live coaching badge */}
-      {!hasMovement && trainerState ? (
-        <div
-          className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full bg-background/90 p-0.5 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur-sm"
-          data-testid="pose-trainer-view-toggle"
-          role="group"
-          aria-label="Trainer camera angle"
-        >
-          <Eye className="ml-1.5 h-3 w-3 text-primary" aria-hidden />
-          {(["auto", "front", "side"] as const).map((view) => (
-            <button
-              key={view}
-              type="button"
-              onClick={() => setCameraView(view)}
-              aria-pressed={cameraView === view}
-              className={cn(
-                "rounded-full px-1.5 py-0.5 capitalize transition-colors",
-                cameraView === view
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:text-foreground",
-              )}
-              data-testid={`pose-trainer-view-${view}`}
-            >
-              {view}
-            </button>
-          ))}
-        </div>
       ) : null}
 
       {!hasMovement && trainerState ? (

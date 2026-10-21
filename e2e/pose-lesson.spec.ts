@@ -87,7 +87,7 @@ test.describe("pose lesson — cues agree with the timeline", () => {
     expect([...seen].some((p) => /Flow|Come out/.test(p))).toBeTruthy();
   });
 
-  test("3D human yoga trainer advances posture steps, breath phases and camera views", async ({
+  test("pose trainer advances posture steps, breath phases, beginner modifications and exact exit", async ({
     page,
   }) => {
     await openLesson(page, "marjaryasana-bitilasana");
@@ -98,6 +98,9 @@ test.describe("pose lesson — cues agree with the timeline", () => {
     await expect(badge).toContainText(/Foundation setup/i);
     await expect(trainer).toHaveAttribute("data-trainer-phase", "preparation");
     await expect(trainer).toHaveAttribute("data-trainer-step", "0");
+
+    // No misleading camera-angle controls beside a still reference
+    await expect(page.getByTestId("pose-trainer-view-toggle")).toHaveCount(0);
 
     // Advance into Step 2 (Cow Pose — inhale spine extension) and Step 3 (Cat Pose — exhale spine flexion)
     await page.getByTestId("lesson-next").click();
@@ -114,10 +117,14 @@ test.describe("pose lesson — cues agree with the timeline", () => {
     await expect(trainer).toHaveAttribute("data-trainer-phase", "cycle");
     await expect(badge).toContainText(/Cow|Cat/i);
 
-    // Camera view toggle switches between Auto, Front, and Side views
-    const sideBtn = page.getByTestId("pose-trainer-view-side");
-    await sideBtn.click();
-    await expect(sideBtn).toHaveAttribute("aria-pressed", "true");
+    // Warrior II beginner path never contradicts itself (partial bend, never 90°) and has an exact anatomical exit
+    await page.goto("/asanas/virabhadrasana-ii");
+    await page.getByTestId("path-chip-beginner").click();
+    await page.getByTestId("button-watch-demo-virabhadrasana-ii").click();
+    await page.getByTestId("lesson-next").click();
+    const kneeCue = await page.getByTestId("lesson-cue").innerText();
+    expect(kneeCue).toMatch(/partway/i);
+    expect(kneeCue).not.toMatch(/toward 90°/i);
   });
 
   test("Warrior II's knee cue is its own step, not a standing figure", async ({ page }) => {

@@ -100,6 +100,7 @@ import { momentumClass } from "@/lib/poseMomentum";
 import { PoseImage } from "@/components/PoseImage";
 import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
 import { practiceHoldCues } from "@/lib/poseExplanation";
+import { exactExitCueFor, exactSideChangeCueFor, namedSideIn } from "@/lib/poseLesson";
 import {
   fetchPoseMedia,
   invalidatePoseMedia,
@@ -2069,13 +2070,27 @@ export default function GuidedSession() {
               phaseRemaining,
             });
 
+  const firstNamedSide = useMemo(
+    () => (current ? namedSideIn(current.steps) : "right"),
+    [current],
+  );
+  const secondNamedSide = firstNamedSide === "right" ? "left" : "right";
+  const currentSideName =
+    !isEach ? "both" : side === 1 ? firstNamedSide : secondNamedSide;
+
   const activeCaption =
     phase === "transitionIn"
-      ? `Get ready for ${current?.english ?? "the next pose"}…`
+      ? prev
+        ? `${exactExitCueFor(prev, "both", false)} Next: ${current?.english ?? "next pose"}.`
+        : `Get ready for ${current?.english ?? "the next pose"}…`
       : phase === "sideSwitch"
-        ? "Switch sides"
+        ? current
+          ? exactSideChangeCueFor(current, firstNamedSide, secondNamedSide)
+          : "Switch sides"
         : isHold
-          ? `${breathLabel} ${holdCues[cueIndex % holdCues.length] ?? ""}`.trim()
+          ? phaseRemaining <= 5 && current
+            ? `${breathLabel} Prepare to exit: ${exactExitCueFor(current, currentSideName, side === 2)}`
+            : `${breathLabel} ${holdCues[cueIndex % holdCues.length] ?? ""}`.trim()
           : activeCues[stepIndex]?.text || steps[stepIndex]?.text || "";
 
   const layersForStage =

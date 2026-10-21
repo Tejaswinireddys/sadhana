@@ -24,6 +24,7 @@ test.describe("the landing page says what this is", () => {
   test("the primary action opens the real player on the 6-minute practice", async ({ page }) => {
     await page.getByTestId("landing-cta-primary").click();
     await expect(page).toHaveURL(/\/guided/);
+    await expect(page.getByTestId("onboarding-dialog")).toHaveCount(0);
     const skip = page.getByTestId("premood-skip");
     if (await skip.isVisible().catch(() => false)) await skip.click();
     await expect(page.getByTestId("session-preflight")).toBeVisible();

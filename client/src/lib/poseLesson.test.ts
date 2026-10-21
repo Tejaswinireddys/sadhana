@@ -297,6 +297,38 @@ describe("variation consistency", () => {
       null,
     );
   });
+
+  it("keeps every step consistent with the beginner modification without conflicting 90° cues", () => {
+    const warriorBeg = buildPoseLesson({ slug: "virabhadrasana-ii", level: "beginner" })!;
+    for (const seg of warriorBeg.segments) {
+      assert.doesNotMatch(
+        seg.cue,
+        /toward 90°/i,
+        `Warrior II beginner segment "${seg.id}" contradicted partial knee bend: ${seg.cue}`,
+      );
+    }
+    const kneeStep = warriorBeg.segments.find((s) => s.phase === "entry" && s.stepNumber === 2)!;
+    assert.match(kneeStep.cue, /partway/i);
+
+    const treeBeg = buildPoseLesson({ slug: "vrksasana", level: "beginner" })!;
+    for (const seg of treeBeg.segments) {
+      assert.doesNotMatch(
+        seg.cue,
+        /sole on the inner thigh/i,
+        `Tree beginner segment "${seg.id}" contradicted kickstand setup: ${seg.cue}`,
+      );
+    }
+  });
+
+  it("teaches an exact anatomical exit specifying which body part moves first and how to return to neutral", () => {
+    for (const slug of AUDITED) {
+      const lesson = buildPoseLesson({ slug, level: "beginner" })!;
+      const exitSeg = lesson.segments.find((s) => s.phase === "exit")!;
+      assert.doesNotMatch(exitSeg.cue, /^Come out of .* with control\.?$/i);
+      assert.match(exitSeg.cue, /first/i, `${slug} exit cue did not specify which body part moves first`);
+      assert.match(exitSeg.cue, /neutral|Mountain Pose|Tabletop|Staff Pose/i);
+    }
+  });
 });
 
 describe("highlights", () => {

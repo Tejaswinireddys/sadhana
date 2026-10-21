@@ -11,6 +11,8 @@ import type {
   VariationLevel,
 } from "@/data/instructorPilot";
 import { resolveTeachingVariant } from "@/data/instructorPilot";
+import { asanaBySlug } from "@/data/content";
+import { exactExitCueFor } from "@/lib/poseLesson";
 import type { AdaptationId } from "@/lib/restrictionAdaptations";
 
 export type PoseTimeline = {
@@ -178,12 +180,17 @@ function buildSideSegments(opts: {
     });
   }
 
+  const asana = asanaBySlug(pose.slug);
+  const exitCue = asana
+    ? exactExitCueFor(asana, sideTag, side === "left")
+    : `Release ${title} step by step back to neutral${sideLabel(side)}.`;
+
   pushSeg(out, cursor, {
     id: `${pose.slug}${suffix}-exit`,
     phase: "exit",
     durationSec: exitSec,
-    cue: learn ? `Leave ${title} with control${sideLabel(side)}.` : `Exit${sideLabel(side)}.`,
-    caption: "Exit",
+    cue: learn ? exitCue : `Exit ${title} back to neutral${sideLabel(side)}.`,
+    caption: "Exit to neutral",
     side: sideTag,
     mediaWindow: anim ? { start: 0.55, end: 1 } : null,
   });

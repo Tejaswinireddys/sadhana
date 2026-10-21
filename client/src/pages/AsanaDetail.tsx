@@ -15,6 +15,7 @@ import { PoseExplanation } from "@/components/PoseExplanation";
 import { asanaBySlug, type Difficulty, type Severity } from "@/data/content";
 import { BENEFIT_REVIEW_NOTE, poseHasUnreviewedClaims } from "@/lib/benefitClaims";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
+import { stepsForVariation } from "@/lib/poseLesson";
 import { difficultyBadgeClass } from "@/lib/difficultyBadge";
 import { CONTENT_REVIEW } from "@/data/contentProvenance";
 import { manifestAudioUrl, usePoseMedia } from "@/lib/poseMediaApi";
@@ -179,10 +180,12 @@ export default function AsanaDetail() {
 
   const inToday = !!todays.find((x) => x.slug === asana.slug);
   const variation = asana.variations[level];
-  const howToSteps =
-    variation.steps && variation.steps.length > 0
-      ? variation.steps.map((s) => ({ text: s.text, pose: s.pose, stepMotion: undefined as undefined }))
-      : asana.steps;
+  const adaptedSteps = stepsForVariation(asana, level);
+  const howToSteps = adaptedSteps.map((s, idx) => ({
+    text: s.text,
+    pose: s.pose ?? asana.steps[idx]?.pose ?? asana.pose,
+    stepMotion: variation.steps?.length ? (undefined as undefined) : asana.steps[idx]?.stepMotion,
+  }));
   const usages = usagesForAsana(asana.slug);
 
   const addToday = () => {
