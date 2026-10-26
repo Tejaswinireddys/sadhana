@@ -74,8 +74,8 @@ export function PoseStageGL(props: PoseStageGLProps) {
       data-testid={testId ?? `pose-stage-gl-${slug}`}
       data-phase={phase}
       data-step={stepIndex}
-      data-render="movie"
-      aria-label={`Human instructor demonstration of ${english}, ${PHASE_LABEL[phase] ?? phase} moment`}
+      data-render="static_reference"
+      aria-label={`Static reference of ${english}, ${PHASE_LABEL[phase] ?? phase} moment`}
     >
       <div className="absolute inset-0">
         <HumanPoseTrainerMovie

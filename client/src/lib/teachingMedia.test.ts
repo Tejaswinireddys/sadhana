@@ -70,3 +70,13 @@ describe("the teaching stage enforces that", () => {
     );
   });
 });
+
+describe("the shared trainer fallback does not invent movement", () => {
+  const src = readFileSync(resolve("client/src/components/HumanPoseTrainerMovie.tsx"), "utf8");
+  it("uses a labelled reference without canvas warping or invented anatomical cues", () => {
+    assert.match(src, /STATIC_REFERENCE_LABEL/);
+    assert.match(src, /accurateImageAlt/);
+    assert.match(src, /poseImageWithheld/);
+    assert.doesNotMatch(src, /<canvas|requestAnimationFrame|resolveAnatomicalCallout|drawKinematicTrainer/);
+  });
+});

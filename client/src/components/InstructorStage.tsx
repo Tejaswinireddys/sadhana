@@ -16,6 +16,8 @@ import type { InstructorMediaRef } from "@/data/instructorPilot";
 import { resolveTrainerStageState, type TrainerPhase } from "@/data/poseKeyframes";
 import { HumanPoseTrainerMovie } from "@/components/HumanPoseTrainerMovie";
 import { Button } from "@/components/ui/button";
+import { INSTRUCTOR_CLIP_MANIFEST, isMovementDemonstration } from "@/data/instructorMediaManifest";
+import { attachHls } from "@/lib/hlsAttach";
 import { cn } from "@/lib/utils";
 
 export type StageMediaState = "idle" | "loading" | "ready" | "buffering" | "error";
@@ -60,9 +62,15 @@ export function InstructorStage({
 
   // Never play generated presentation_animation crossfade clips as instructor video.
   // Only real filmed or reviewed 3D movement footage uses the <video> player.
-  const canPlayAnim =
-    (media.kind === "filmed_instructor" || media.kind === "reviewed_3d") &&
-    Boolean(media.videoMp4 || media.videoWebm);
+  const reviewedClip = INSTRUCTOR_CLIP_MANIFEST.find((clip) => clip.clipId === media.clipId);
+  const canPlayAnim = Boolean(
+    reviewedClip && isMovementDemonstration(reviewedClip) &&
+    media.showsMovement &&
+    (media.videoHls || media.videoMp4 || media.videoWebm) &&
+    (media.videoHls ?? null) === (reviewedClip.sources.hls ?? null) &&
+    (media.videoMp4 ?? null) === (reviewedClip.sources.mp4 ?? null) &&
+    (media.videoWebm ?? null) === (reviewedClip.sources.webm ?? null)
+  );
   const showUnavailable = media.kind === "missing" || (!canPlayAnim && !media.poster);
 
   const resolvedSlug = useMemo(() => {
@@ -98,7 +106,14 @@ export function InstructorStage({
   // "loading", so the session must not stall waiting for one.
   useEffect(() => {
     report(canPlayAnim ? "loading" : "idle");
-  }, [canPlayAnim, media.videoMp4, media.videoWebm, attempt, report]);
+  }, [canPlayAnim, media.videoHls, media.videoMp4, media.videoWebm, attempt, report]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !canPlayAnim || !media.videoHls) return;
+    const handle = attachHls(video, media.videoHls, { onError: () => report("error") });
+    return () => handle.destroy();
+  }, [canPlayAnim, media.videoHls, attempt, report]);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -148,7 +163,7 @@ export function InstructorStage({
     >
       {canPlayAnim && state !== "error" ? (
         <video
-          key={`${media.videoMp4 ?? media.videoWebm ?? "clip"}-${attempt}`}
+          key={`${media.videoHls ?? media.videoMp4 ?? media.videoWebm ?? "clip"}-${attempt}`}
           ref={videoRef}
           className="h-full w-full object-contain"
           playsInline
@@ -166,8 +181,8 @@ export function InstructorStage({
           onStalled={() => report("buffering")}
           onError={() => report("error")}
         >
-          {media.videoWebm ? <source src={media.videoWebm} type="video/webm" /> : null}
-          {media.videoMp4 ? <source src={media.videoMp4} type="video/mp4" /> : null}
+          {!media.videoHls && media.videoWebm ? <source src={media.videoWebm} type="video/webm" /> : null}
+          {!media.videoHls && media.videoMp4 ? <source src={media.videoMp4} type="video/mp4" /> : null}
         </video>
       ) : showUnavailable || state === "error" ? (
         <div

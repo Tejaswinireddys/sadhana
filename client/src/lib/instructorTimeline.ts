@@ -12,7 +12,7 @@ import type {
 } from "@/data/instructorPilot";
 import { resolveTeachingVariant } from "@/data/instructorPilot";
 import { asanaBySlug } from "@/data/content";
-import { exactExitCueFor } from "@/lib/poseLesson";
+import { exactExitCueFor, mirrorCue, namedSideIn } from "@/lib/poseLesson";
 import type { AdaptationId } from "@/lib/restrictionAdaptations";
 
 export type PoseTimeline = {
@@ -91,7 +91,6 @@ function buildSideSegments(opts: {
   const title = variant.displayName ?? pose.english;
 
   const prepSec = (learn ? 12 : 5) + Math.max(0, prepExtraSec);
-  const entrySec = learn ? 18 : 8;
   const holdSec = Math.max(
     learn ? 12 : 8,
     Math.round(variant.holdSeconds * (learn ? 1 : 0.85)),
@@ -115,19 +114,27 @@ function buildSideSegments(opts: {
     mediaWindow: anim ? { start: 0, end: 0.35 } : null,
   });
 
-  const entryCue = learn
-    ? variant.steps[0] ?? `Move carefully into ${title}.`
-    : `Enter ${title}${sideLabel(side)}.`;
-
-  pushSeg(out, cursor, {
-    id: `${pose.slug}${suffix}-entry`,
-    phase: "entry",
-    durationSec: entrySec,
-    cue: entryCue,
-    caption: learn ? variant.steps.slice(0, 2).join(" ") : entryCue,
-    breathCue: pose.breathing,
-    side: sideTag,
-    mediaWindow: anim ? { start: 0, end: 1 } : null,
+  // Teach every authored action, one at a time. Previously only steps[0]
+  // was spoken and the rest of the entry was skipped straight into a hold.
+  const originalSide = namedSideIn(variant.steps.map((text) => ({ text })));
+  const forSide = (text: string) =>
+    side !== "both" && side !== originalSide ? mirrorCue(text) : text;
+  const entrySteps = variant.steps.length ? variant.steps : [`Move carefully into ${title}.`];
+  const taughtSteps = learn ? entrySteps : [entrySteps.join(" ")];
+  taughtSteps.forEach((text, step) => {
+    const cue = forSide(text);
+    pushSeg(out, cursor, {
+      id: `${pose.slug}${suffix}-entry-${step + 1}`,
+      phase: "entry",
+      // Allow time to hear/read and perform the action; never squeeze a long
+      // instruction into the old fixed eight-second Flow entry.
+      durationSec: Math.max(learn ? 6 : 8, Math.ceil(cue.split(/\s+/).length / 2.5) + 2),
+      cue,
+      caption: cue,
+      breathCue: pose.breathing,
+      side: sideTag,
+      mediaWindow: null,
+    });
   });
 
   // The hold is its own segment (or pair of segments) so that extending it
@@ -143,8 +150,8 @@ function buildSideSegments(opts: {
       id: `${pose.slug}${suffix}-hold-cue`,
       phase: "hold",
       durationSec: tipSec,
-      cue: `Watch for: ${variant.commonMistakes[0]}.`,
-      caption: variant.cues[0] ?? variant.commonMistakes[0],
+      cue: forSide(`Watch for: ${variant.commonMistakes[0]}.`),
+      caption: forSide(variant.cues[0] ?? variant.commonMistakes[0]),
       breathCue: "Keep breathing evenly.",
       side: sideTag,
       quiet: false,
@@ -155,7 +162,7 @@ function buildSideSegments(opts: {
       id: `${pose.slug}${suffix}-hold`,
       phase: "hold",
       durationSec: Math.max(6, holdSec - tipSec) + extraHold,
-      cue: variant.cues[1] ?? "Hold with soft, even breath.",
+      cue: forSide(variant.cues[1] ?? "Hold with soft, even breath."),
       caption: "Hold",
       breathCue: pose.breathing,
       side: sideTag,
@@ -169,7 +176,7 @@ function buildSideSegments(opts: {
       id: `${pose.slug}${suffix}-hold`,
       phase: "hold",
       durationSec: holdSec + extraHold,
-      cue: learn ? variant.cues[0] ?? "Hold steadily." : "Hold. Soft breath.",
+      cue: forSide(learn ? variant.cues[0] ?? "Hold steadily." : "Hold. Soft breath."),
       caption: "Hold",
       breathCue: pose.breathing,
       side: sideTag,

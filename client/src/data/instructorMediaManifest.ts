@@ -147,7 +147,8 @@ export function isMovementDemonstration(clip: InstructorClipManifest): boolean {
     Boolean(clip.review.reviewedOn) &&
     MOVEMENT_SOURCE_KINDS.has(clip.provenance.sourceKind) &&
     hasPlayableSource(clip) &&
-    clip.segments.length > 0
+    coversRequiredPhases(clip) &&
+    manifestViolations(clip).length === 0
   );
 }
 
@@ -196,7 +197,7 @@ export function manifestViolations(clip: InstructorClipManifest): string[] {
   }
 
   for (const seg of clip.segments) {
-    if (seg.endSec <= seg.startSec) {
+    if (!Number.isFinite(seg.startSec) || !Number.isFinite(seg.endSec) || seg.startSec < 0 || seg.endSec <= seg.startSec) {
       out.push(`${clip.clipId}: ${seg.phase} segment ends before it starts`);
     }
     if (clip.durationSec != null && seg.endSec > clip.durationSec + 0.001) {

@@ -157,6 +157,25 @@ describe("isMovementDemonstration", () => {
     assert.equal(coversRequiredPhases(clip), false);
   });
 
+  it("rejects partial phase coverage even when published", () => {
+    const clip = publishedClip();
+    for (const phase of ["preparation", "entry", "hold", "exit"]) {
+      assert.equal(isMovementDemonstration({
+        ...clip, segments: clip.segments.filter((segment) => segment.phase !== phase),
+      }), false, `missing ${phase} passed as instruction`);
+    }
+  });
+
+  it("rejects invalid and out-of-bounds video windows", () => {
+    const clip = publishedClip();
+    for (const startSec of [-1, NaN, Infinity]) {
+      assert.equal(isMovementDemonstration({ ...clip, segments: [
+        { ...clip.segments[0], startSec }, ...clip.segments.slice(1),
+      ] }), false);
+    }
+    assert.equal(isMovementDemonstration(publishedClip({ durationSec: 20 })), false);
+  });
+
   it("rejects a published clip with no media source", () => {
     const clip = publishedClip({ sources: { hls: null, mp4: null, webm: null } });
     assert.equal(isMovementDemonstration(clip), false);

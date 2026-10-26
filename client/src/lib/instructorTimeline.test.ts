@@ -8,7 +8,7 @@ import {
   segmentAtTime,
   type FlatSegment,
 } from "./instructorTimeline";
-import { INSTRUCTOR_PILOT_POSES, instructorPoseBySlug } from "@/data/instructorPilot";
+import { INSTRUCTOR_PILOT_POSES, instructorPoseBySlug, resolveTeachingVariant } from "@/data/instructorPilot";
 import type { InstructorMode } from "@/data/instructorPilot";
 
 const MODES: InstructorMode[] = ["learn", "flow"];
@@ -207,11 +207,15 @@ describe("changing the variation", () => {
       harder.flat.map((s) => s.cue),
       "variation change did not recue",
     );
-    // The phase spine is the same shape either way.
-    assert.deepEqual(
-      easier.flat.map((s) => s.phase),
-      harder.flat.map((s) => s.phase),
-    );
+    // Variations may need different numbers of entry steps. Their phase
+    // order is shared, but each must teach its own complete set of actions.
+    const phaseOrder = (flat: FlatSegment[]) => flat.map((s) => s.phase)
+      .filter((phase, i, phases) => i === 0 || phase !== phases[i - 1]);
+    assert.deepEqual(phaseOrder(easier.flat), phaseOrder(harder.flat));
+    assert.equal(easier.flat.filter((s) => s.phase === "entry").length,
+      resolveTeachingVariant(poses[0], "beginner").steps.length);
+    assert.equal(harder.flat.filter((s) => s.phase === "entry").length,
+      resolveTeachingVariant(poses[0], "advanced").steps.length);
   });
 
   it("keeps the remaining sequence coherent after the switch", () => {
@@ -262,5 +266,18 @@ describe("session totals", () => {
   it("reports the extension it applied", () => {
     const t = build({ slugs: ["tadasana"], holdExtraByKey: { [holdKeyFor("tadasana", "both")]: 15 } });
     assert.equal(t.poses[0].holdExtraSec, 15);
+  });
+});
+
+describe("trainer teaches the complete entry", () => {
+  it("gives every authored step its own cue before holding", () => {
+    const pose = instructorPoseBySlug("tadasana")!;
+    const timeline = buildSessionTimeline({ poses: [pose], mode: "learn", level: "intermediate" });
+    const entries = timeline.flat.filter((segment) => segment.phase === "entry");
+    assert.ok(entries.length > 1, "entry skipped straight from setup to hold");
+    assert.ok(entries.every((segment) => segment.caption === segment.cue));
+    assert.ok(entries.every((segment) => segment.durationSec >= 6));
+    const hold = timeline.flat.find((segment) => segment.phase === "hold")!;
+    assert.ok(entries.every((segment) => segment.absStartSec + segment.durationSec <= hold.absStartSec));
   });
 });

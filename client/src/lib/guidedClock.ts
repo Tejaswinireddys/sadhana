@@ -15,8 +15,8 @@ export type GuidedClockSnapshot = {
   audioCurrentTime: number;
 };
 
-export function guidedClockFrozen(paused: boolean, leaveDialogOpen: boolean): boolean {
-  return paused || leaveDialogOpen;
+export function guidedClockFrozen(paused: boolean, leaveDialogOpen: boolean, coachingOpen = false): boolean {
+  return paused || leaveDialogOpen || coachingOpen;
 }
 
 /**

@@ -9,8 +9,8 @@
 // State machine per pose:
 //   transitionIn (5s, chime; optional robot "Next: …")  →
 //   instruction (cue list + voice, halo tracks steps)   →
-//   sideSwitch (2s, only when sides === "each") → instruction (side 2) →
 //   hold (breath-synced countdown + form cues) →
+//   sideSwitch (2s, when sides === "each") → instruction + hold (side 2) →
 //   next pose transitionIn … → complete.
 //
 // Narration priority per pose:
@@ -60,6 +60,7 @@ import {
   shouldFireBackgroundSave,
 } from "@/lib/guidedCompletion";
 import { setImmersivePlayerActive } from "@/lib/legal";
+import { afterGuidedHold, coachingCues } from "@/lib/guidedCoaching";
 import { guidedClockFrozen } from "@/lib/guidedClock";
 import {
   GUIDED_SR,
@@ -100,7 +101,7 @@ import { momentumClass } from "@/lib/poseMomentum";
 import { PoseImage } from "@/components/PoseImage";
 import { PoseTipsSheet, PoseTipsTrigger } from "@/components/PoseTipsSheet";
 import { practiceHoldCues } from "@/lib/poseExplanation";
-import { exactExitCueFor, exactSideChangeCueFor, namedSideIn } from "@/lib/poseLesson";
+import { exactExitCueFor, exactSideChangeCueFor, namedSideIn, mirrorCue } from "@/lib/poseLesson";
 import {
   fetchPoseMedia,
   invalidatePoseMedia,
@@ -421,8 +422,8 @@ export default function GuidedSession() {
   const [cueIndex, setCueIndex] = useState(0);
   const [tipsOpen, setTipsOpen] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
-  /** Pause button *or* the leave dialog — both freeze countdown, voice, and advance. */
-  const clockFrozen = guidedClockFrozen(paused, confirmExit);
+  /** Pause, leave confirmation, and coaching help freeze countdown, voice, and advance. */
+  const clockFrozen = guidedClockFrozen(paused, confirmExit, tipsOpen);
   const holdSecondsRef = useRef(0);
   const finishedBreaths = useRef(0);
   const exitTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -558,8 +559,9 @@ export default function GuidedSession() {
     setShowPreMood(shouldAskPreMood(known));
   }, [meta.preMood, meta.label, started]);
   const holdCues = useMemo(
-    () => (current ? practiceHoldCues(current) : FALLBACK_HOLD_CUES),
-    [current],
+    () => (current ? practiceHoldCues(current) : FALLBACK_HOLD_CUES)
+      .map((cue) => side === 2 ? mirrorCue(cue) : cue),
+    [current, side],
   );
   const stepTexts = useMemo(() => (current?.steps ?? []).map((s) => s.text), [current]);
 
@@ -667,7 +669,14 @@ export default function GuidedSession() {
   const voiceTeaching = teachingFull && instructionMode === "guided";
 
   const src = playback?.kind === "human" || playback?.kind === "neural" ? playback.url : "";
-  const activeCues: NarrationCue[] = playback?.cues ?? [];
+  const useRecordedCueTiming = voiceTeaching && voiceEnabled && Boolean(src) && !audioBrokenRef.current && side === 1;
+  const activeCues: NarrationCue[] = useMemo(() => coachingCues({
+    recorded: playback?.cues ?? [],
+    steps: stepTexts,
+    recordedTiming: useRecordedCueTiming,
+    duration: SILENT_INSTRUCTION_SECONDS,
+    side,
+  }), [playback, stepTexts, useRecordedCueTiming, side]);
   const srPoseLine = poseAndCueAnnouncement(
     current?.english ?? "",
     cueTextForGuidedPhase({
@@ -1101,6 +1110,10 @@ export default function GuidedSession() {
 
   const startInstruction = useCallback(
     (whichSide: 1 | 2, opts?: { full?: boolean }) => {
+      const fallbackCues = coachingCues({
+        recorded: [], steps: stepTexts, recordedTiming: false,
+        duration: SILENT_INSTRUCTION_SECONDS, side: whichSide,
+      });
       const full =
         opts?.full ?? teachesFully(instructionMode, { repeat: isRepeatPose, side: whichSide });
       setTeachingFull(full);
@@ -1118,9 +1131,9 @@ export default function GuidedSession() {
       const mode =
         !voiceEnabled || instructionMode !== "guided" || !full
           ? "silent"
-          : src && !audioBrokenRef.current
+          : src && !audioBrokenRef.current && whichSide === 1
             ? "mp3"
-            : allowRobotVoice && activeCues.length > 0
+            : allowRobotVoice && fallbackCues.length > 0
               ? "speech"
               : "silent";
       instructionModeRef.current = mode;
@@ -1130,9 +1143,9 @@ export default function GuidedSession() {
         if (!a) {
           instructionModeRef.current = allowRobotVoice ? "speech" : "silent";
           setPhaseRemaining(SILENT_INSTRUCTION);
-          if (allowRobotVoice && activeCues.length) {
+          if (allowRobotVoice && fallbackCues.length) {
             speechPlayerRef.current = createSpeechCuePlayer({
-              cues: activeCues,
+              cues: fallbackCues,
               pace,
               muted,
               onCue: (i) => {
@@ -1151,10 +1164,10 @@ export default function GuidedSession() {
             if ((err as DOMException)?.name === "AbortError") return;
             audioBrokenRef.current = true;
             // Fall through cleanly: robot voice or silent captions.
-            if (allowRobotVoice && activeCues.length) {
+            if (allowRobotVoice && fallbackCues.length) {
               instructionModeRef.current = "speech";
               speechPlayerRef.current = createSpeechCuePlayer({
-                cues: activeCues,
+                cues: fallbackCues,
                 pace,
                 muted,
                 onCue: (i) => setStepIndex(i),
@@ -1173,7 +1186,7 @@ export default function GuidedSession() {
       setPhaseRemaining(SILENT_INSTRUCTION);
       if (mode === "speech") {
         speechPlayerRef.current = createSpeechCuePlayer({
-          cues: activeCues,
+          cues: fallbackCues,
           pace,
           muted,
           onCue: (i) => setStepIndex(i),
@@ -1181,7 +1194,7 @@ export default function GuidedSession() {
         speechPlayerRef.current.tick(0);
       }
     },
-    [voiceEnabled, instructionMode, isRepeatPose, pace, src, allowRobotVoice, activeCues, muted],
+    [voiceEnabled, instructionMode, isRepeatPose, pace, src, allowRobotVoice, stepTexts, muted],
   );
 
   const enterHold = useCallback(() => {
@@ -1207,17 +1220,11 @@ export default function GuidedSession() {
     setPhase("hold");
   }, [current, voiceDuration, voiceEnabled, voiceTeaching, stepCount, clearBankedExtension]);
 
-  // When narration audio ends → side switch (if "each" and on side 1) or hold.
+  // Instruction always leads to this side's hold. Switching before the hold
+  // skipped half of every bilateral practice despite charging both in previews.
   const onVoiceEnded = useCallback(() => {
-    if (isEach && side === 1) {
-      setPhase("sideSwitch");
-      setPhaseRemaining(SIDE_SWITCH_SECONDS);
-      playChime();
-      speak("Switch sides.");
-    } else {
-      enterHold();
-    }
-  }, [isEach, side, enterHold, speak]);
+    enterHold();
+  }, [enterHold]);
 
   // Keep narration rate in sync when the practitioner changes pace mid-pose.
   useEffect(() => {
@@ -1277,6 +1284,13 @@ export default function GuidedSession() {
             return 0;
           }
           if (phase === "hold") {
+            if (afterGuidedHold(Boolean(isEach), side) === "sideSwitch") {
+              setPhase("sideSwitch");
+              setPhaseRemaining(SIDE_SWITCH_SECONDS);
+              playChime();
+              speak("Release gently. We will practice the other side next.");
+              return SIDE_SWITCH_SECONDS;
+            }
             completedIndices.current.add(index);
             if (index + 1 >= todays.length) {
               finish();
@@ -1315,6 +1329,9 @@ export default function GuidedSession() {
     finish,
     resolveStep,
     holdCues.length,
+    isEach,
+    side,
+    speak,
   ]);
 
   // Reset breath clock when entering hold.
@@ -2070,10 +2087,8 @@ export default function GuidedSession() {
               phaseRemaining,
             });
 
-  const firstNamedSide = useMemo(
-    () => (current ? namedSideIn(current.steps) : "right"),
-    [current],
-  );
+  // This render is below the setup/completion returns: do not add hooks here.
+  const firstNamedSide = current ? namedSideIn(current.steps) : "right";
   const secondNamedSide = firstNamedSide === "right" ? "left" : "right";
   const currentSideName =
     !isEach ? "both" : side === 1 ? firstNamedSide : secondNamedSide;
@@ -2159,7 +2174,8 @@ export default function GuidedSession() {
             silentElapsedRef.current = 0;
             speechPlayerRef.current?.cancel();
             speechPlayerRef.current = createSpeechCuePlayer({
-              cues: activeCues,
+              cues: coachingCues({ recorded: [], steps: stepTexts, recordedTiming: false,
+                duration: SILENT_INSTRUCTION_SECONDS, side }),
               pace,
               muted,
               onCue: (i) => setStepIndex(i),
@@ -2470,6 +2486,16 @@ export default function GuidedSession() {
             {activeCaption}
           </p>
 
+          <div className="flex flex-wrap items-center justify-center gap-2" data-testid="guided-coaching-help">
+            <Button variant="secondary" className="min-h-11" onClick={() => setTipsOpen(true)}>
+              Help me adjust
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {isEach ? `Side ${side} of 2 · ` : ""}
+              {next ? `Next: ${next.english}` : "Final pose · finish at your own pace"}
+            </span>
+          </div>
+
           {/*
             Pause and Skip are the controls someone reaches for mid-pose, often
             lying down. Capping the panel to give the demonstration more room
@@ -2603,6 +2629,8 @@ export default function GuidedSession() {
         asana={current}
         open={tipsOpen}
         onOpenChange={setTipsOpen}
+        practicePaused
+        side={side}
       />
 
       {/* Exit confirmation — unmount content when closed so copy leaves the a11y tree. */}

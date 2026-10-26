@@ -65,10 +65,46 @@ describe("leave-dialog freeze", () => {
 describe("GuidedSession wiring", () => {
   it("freezes the master tick, narration, and pose video while the leave dialog is open", () => {
     const src = readFileSync(resolve("client/src/pages/GuidedSession.tsx"), "utf8");
-    assert.match(src, /guidedClockFrozen\(paused,\s*confirmExit\)/);
+    assert.match(src, /guidedClockFrozen\(paused,\s*confirmExit,\s*tipsOpen\)/);
     assert.match(src, /if \(!started \|\| clockFrozen \|\| finished\) return/);
     assert.match(src, /if \(clockFrozen\) \{/);
     assert.match(src, /speechPlayerRef\.current\?\.setPaused\(clockFrozen\)/);
     assert.match(src, /live && !clockFrozen && \(phase === "instruction" \|\| phase === "hold"\)/);
   });
+});
+
+it("pauses the clock while coaching help is open without changing manual pause", () => {
+  assert.equal(guidedClockFrozen(false, false, true), true);
+  assert.equal(guidedClockFrozen(false, false, false), false);
+  assert.equal(guidedClockFrozen(true, false, false), true);
+});
+
+import { afterGuidedHold, coachingCues } from "./guidedCoaching";
+import { cueIndexAt } from "./narrationCues";
+
+describe("trainer coaching flow", () => {
+  it("holds both sides before advancing a bilateral pose", () => {
+    assert.equal(afterGuidedHold(true, 1), "sideSwitch");
+    assert.equal(afterGuidedHold(true, 2), "next");
+    assert.equal(afterGuidedHold(false, 1), "next");
+  });
+
+  it("fits every silent instruction into its actual window", () => {
+    const steps = ["Stand tall.", "Step the right foot forward.", "Bend the right knee.", "Extend both arms."];
+    const recorded = steps.map((text, i) => ({ t: i * 18, text }));
+    const short = coachingCues({ recorded, steps, recordedTiming: false, duration: 12, side: 1 });
+    assert.equal(cueIndexAt(short, 11.9), steps.length - 1);
+    assert.ok(short.every((cue) => cue.t >= 0 && cue.t < 12));
+    assert.deepEqual(coachingCues({ recorded, steps, recordedTiming: true, duration: 12, side: 1 }), recorded);
+  });
+
+  it("gives the other side its own instructions", () => {
+    const cues = coachingCues({ recorded: [], steps: ["Bend your right knee; keep the left leg straight."], recordedTiming: false, duration: 12, side: 2 });
+    assert.equal(cues[0].text, "Bend your left knee; keep the right leg straight.");
+  });
+});
+
+it("does not add a side-selection hook only after Begin", () => {
+  const src = readFileSync(resolve("client/src/pages/GuidedSession.tsx"), "utf8");
+  assert.doesNotMatch(src, /const firstNamedSide = useMemo/);
 });

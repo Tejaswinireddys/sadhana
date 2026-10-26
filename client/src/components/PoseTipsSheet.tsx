@@ -7,6 +7,7 @@
  */
 import { useMemo, useState } from "react";
 import type { Asana } from "@/data/content";
+import { mirrorCue } from "@/lib/poseLesson";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -33,10 +34,12 @@ const TABS: { id: TipTab; label: string; icon: typeof Target }[] = [
 type PoseTipsSheetProps = {
   asana: Asana | null | undefined;
   open: boolean;
+  practicePaused?: boolean;
+  side?: 1 | 2;
   onOpenChange: (open: boolean) => void;
 };
 
-export function PoseTipsSheet({ asana, open, onOpenChange }: PoseTipsSheetProps) {
+export function PoseTipsSheet({ asana, open, onOpenChange, practicePaused = false, side = 1 }: PoseTipsSheetProps) {
   const [tab, setTab] = useState<TipTab>("form");
   const expl = useMemo(
     () => (asana ? buildPoseExplanation(asana) : null),
@@ -89,6 +92,14 @@ export function PoseTipsSheet({ asana, open, onOpenChange }: PoseTipsSheetProps)
           </button>
         </div>
 
+        {practicePaused && (
+          <div className="mb-4 space-y-3 rounded-xl bg-muted p-3" data-testid="guided-adjustment">
+            <p className="text-sm font-medium">Practice paused — take the time you need.</p>
+            <p className="text-sm">{side === 2 ? mirrorCue(asana.modifications) : asana.modifications}</p>
+            <Button className="min-h-11" onClick={() => onOpenChange(false)}>Back to practice</Button>
+          </div>
+        )}
+
         <div className="flex gap-1 overflow-x-auto pb-2" role="tablist">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
@@ -118,7 +129,7 @@ export function PoseTipsSheet({ asana, open, onOpenChange }: PoseTipsSheetProps)
                 className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
                 aria-hidden
               />
-              {line}
+              {side === 2 ? mirrorCue(line) : line}
             </li>
           ))}
         </ul>
