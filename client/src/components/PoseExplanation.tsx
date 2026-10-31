@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 
 type TeachTab = "form" | "breath" | "align" | "watch" | "feel";
+type LessonLevel = "beginner" | "intermediate" | "advanced";
 
 const TABS: { id: TeachTab; label: string; icon: typeof Target }[] = [
   { id: "form", label: "Form", icon: Target },
@@ -56,16 +57,110 @@ const TABS: { id: TeachTab; label: string; icon: typeof Target }[] = [
   { id: "feel", label: "Feel it", icon: Heart },
 ];
 
+/**
+ * Teaching topics for one pose. Owns its own tab so the detail page can place
+ * it in the Cues panel without the lesson stage. Watch-outs are omitted when
+ * the page shows them under Cautions.
+ */
+export function PoseTeachRail({
+  slug,
+  level = "intermediate",
+  includeWatch = true,
+}: {
+  slug: string;
+  level?: LessonLevel;
+  includeWatch?: boolean;
+}) {
+  const asana = asanaBySlug(slug);
+  const [tab, setTab] = useState<TeachTab>("form");
+  const difficulty =
+    level === "beginner" ? "Beginner" : level === "advanced" ? "Advanced" : "Intermediate";
+  const expl = useMemo(
+    () => (asana ? buildPoseExplanation(asana, difficulty) : null),
+    [asana, difficulty],
+  );
+  const tabs = includeWatch ? TABS : TABS.filter((item) => item.id !== "watch");
+
+  useEffect(() => {
+    setTab("form");
+  }, [slug, level]);
+
+  if (!asana || !expl) return null;
+
+  const lines = (() => {
+    switch (tab) {
+      case "form":
+        return expl.formCues;
+      case "breath":
+        return [expl.breathCue];
+      case "align":
+        return expl.alignmentTips;
+      case "watch":
+        return expl.watchOuts;
+      case "feel":
+        return expl.feelIt;
+    }
+  })();
+
+  return (
+    <div
+      className="flex flex-col rounded-2xl border border-border/70 bg-accent/20 p-2.5"
+      data-testid={`pose-teach-rail-${asana.slug}`}
+    >
+      <div className="flex gap-1 overflow-x-auto pb-1" role="tablist" aria-label="Teaching topics">
+        {tabs.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={cn(
+              "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
+              tab === id
+                ? "bg-primary text-primary-foreground"
+                : "bg-background/70 text-muted-foreground hover:text-foreground",
+            )}
+            data-testid={`pose-teach-tab-${id}`}
+          >
+            <Icon className="h-3.5 w-3.5" aria-hidden />
+            {label}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" className="space-y-2 pt-1" data-testid={`pose-teach-panel-${tab}`}>
+        <ul className="space-y-2">
+          {lines.map((line, i) => (
+            <li key={`${tab}-${i}`} className="flex gap-2 text-xs leading-snug text-foreground/90">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 export function PoseExplanation({
   slug,
   level = "intermediate",
   onTrainingChange,
+  hero = false,
+  showRail = true,
+  hideSteps = false,
 }: {
   slug: string;
   /** Difficulty path from AsanaDetail — updates steps, timing, props and copy. */
-  level?: "beginner" | "intermediate" | "advanced";
+  level?: LessonLevel;
   /** Lets the page hide competing actions (sticky "Practice now") while teaching. */
   onTrainingChange?: (active: boolean) => void;
+  /** Shorter idle stage for the detail-page media slot. Training size stays put. */
+  hero?: boolean;
+  /** The detail page renders the rail inside its Cues tab instead. */
+  showRail?: boolean;
+  /** The detail page owns the single numbered step list. */
+  hideSteps?: boolean;
 }) {
   const asana = asanaBySlug(slug);
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
@@ -83,7 +178,6 @@ export function PoseExplanation({
   const [timeSec, setTimeSec] = useState(0);
   const [restartToken, setRestartToken] = useState(0);
   const [mediaState, setMediaState] = useState<LessonStageMediaState>("idle");
-  const [tab, setTab] = useState<TeachTab>("form");
   /** Bumped whenever the teaching block must be brought back into view. */
   const [keepInView, setKeepInView] = useState(0);
 
@@ -148,7 +242,6 @@ export function PoseExplanation({
     setCompleted(false);
     setTimeSec(0);
     setMediaState("idle");
-    setTab("form");
   }, [slug, level, stopMedia]);
 
   // Leaving the page must not leave audio running.
@@ -239,21 +332,6 @@ export function PoseExplanation({
     setTimeSec(0);
   };
 
-  const tabBody = (() => {
-    switch (tab) {
-      case "form":
-        return expl.formCues;
-      case "breath":
-        return [expl.breathCue];
-      case "align":
-        return expl.alignmentTips;
-      case "watch":
-        return expl.watchOuts;
-      case "feel":
-        return expl.feelIt;
-    }
-  })();
-
   const training = started && !completed;
   const activeStepNumber = current?.stepNumber ?? null;
   const firstSide = useMemo(
@@ -336,18 +414,26 @@ export function PoseExplanation({
         />
       </div>
 
-      <div className="space-y-4 p-4 sm:p-6">
+      <div className={cn("space-y-4 p-4 sm:p-6", hero && "space-y-1.5 p-2 sm:p-4")}>
         <div className="flex flex-col gap-1.5">
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
-            <Sparkles className="h-3.5 w-3.5" />
-            Pose lesson
-            {!voiceEnabled ? " · Voice off" : null}
-          </span>
-          <h2 className="font-serif text-2xl font-semibold tracking-tight">
-            Learn {asana.english}
-          </h2>
+          {hero ? (
+            <span className="sr-only">
+              Pose lesson{!voiceEnabled ? ", voice off" : ""}
+            </span>
+          ) : (
+            <>
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Pose lesson
+                {!voiceEnabled ? " · Voice off" : null}
+              </span>
+              <h2 className="font-serif text-2xl font-semibold tracking-tight">
+                Learn {asana.english}
+              </h2>
+            </>
+          )}
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>{asana.sanskrit}</span>
+            {hero ? null : <span>{asana.sanskrit}</span>}
             <Badge variant="outline" className="capitalize" data-testid="lesson-variation">
               {level}
             </Badge>
@@ -370,7 +456,8 @@ export function PoseExplanation({
         <div
           className={cn(
             "grid min-w-0 grid-cols-1 gap-4",
-            training ? "" : "lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)] lg:items-start",
+            !training && showRail && "lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)] lg:items-start",
+            hero && !training && "gap-1.5",
           )}
         >
           {/*
@@ -378,7 +465,10 @@ export function PoseExplanation({
             scroll-into-view above parks the top of the demonstration — and the
             media-availability label sitting on it — behind the header.
           */}
-          <div className="flex min-w-0 scroll-mt-20 flex-col gap-3" ref={stageRef}>
+          <div
+            className={cn("flex min-w-0 scroll-mt-20 flex-col gap-3", hero && !training && "gap-1.5")}
+            ref={stageRef}
+          >
             <PoseLessonStage
               demo={lesson.demo}
               english={asana.english}
@@ -405,12 +495,16 @@ export function PoseExplanation({
               training={training}
               onMediaStateChange={setMediaState}
               className={cn(
-                "aspect-[3/4] w-full sm:aspect-video",
+                "w-full",
                 // While teaching, the picture shares a short screen with the
-                // cue and the controls, so it yields height to them.
+                // cue and the controls, so it yields height to them. That cap
+                // stays the same in the hero slot. Idle hero is shorter so the
+                // detail page can keep the written pose underneath.
                 training
-                  ? "max-h-[min(38vh,18rem)] landscape:max-h-[min(46vh,14rem)]"
-                  : "max-h-[min(46vh,26rem)]",
+                  ? "aspect-[3/4] max-h-[min(38vh,18rem)] landscape:max-h-[min(46vh,14rem)] sm:aspect-video"
+                  : hero
+                    ? "h-40 w-full sm:aspect-video sm:h-auto sm:max-h-[min(40vh,20rem)]"
+                    : "aspect-[3/4] max-h-[min(46vh,26rem)] sm:aspect-video",
               )}
               data-testid={`demo-hero-${asana.slug}`}
             />
@@ -450,7 +544,10 @@ export function PoseExplanation({
 
             {lesson.demo.kind !== "movement" ? (
               <p
-                className="rounded-lg bg-muted/50 p-2.5 text-xs text-muted-foreground"
+                className={cn(
+                  "rounded-lg bg-muted/50 text-xs text-muted-foreground",
+                  hero ? "p-1.5 leading-tight" : "p-2.5",
+                )}
                 data-testid="lesson-media-disclosure"
               >
                 No reviewed movement demonstration exists for {asana.english} yet, so this lesson
@@ -461,7 +558,10 @@ export function PoseExplanation({
 
             {lesson.variationVisualMismatch ? (
               <p
-                className="rounded-lg bg-muted/50 p-2.5 text-xs text-muted-foreground"
+                className={cn(
+                  "rounded-lg bg-muted/50 text-xs text-muted-foreground",
+                  hero ? "p-1.5 leading-tight" : "p-2.5",
+                )}
                 data-testid="lesson-variation-mismatch"
               >
                 {lesson.variationVisualMismatch}
@@ -469,59 +569,8 @@ export function PoseExplanation({
             ) : null}
           </div>
 
-          {!training ? (
-            <div
-              className="flex min-h-[14rem] flex-col rounded-2xl border border-border/70 bg-accent/20 p-3 sm:p-4"
-              data-testid={`pose-teach-rail-${asana.slug}`}
-            >
-              <div
-                className="flex gap-1 overflow-x-auto pb-2"
-                role="tablist"
-                aria-label="Teaching topics"
-              >
-                {TABS.map(({ id, label, icon: Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === id}
-                    onClick={() => setTab(id)}
-                    className={cn(
-                      "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
-                      tab === id
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background/70 text-muted-foreground hover:text-foreground",
-                    )}
-                    data-testid={`pose-teach-tab-${id}`}
-                  >
-                    <Icon className="h-3.5 w-3.5" aria-hidden />
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              <div
-                key={tab}
-                role="tabpanel"
-                className="flex-1 space-y-2.5 pt-1"
-                data-testid={`pose-teach-panel-${tab}`}
-              >
-                <ul className="space-y-2.5">
-                  {tabBody.map((line, i) => (
-                    <li
-                      key={`${tab}-${i}`}
-                      className="flex gap-2 text-sm leading-relaxed text-foreground/90"
-                    >
-                      <span
-                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
-                        aria-hidden
-                      />
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+          {!training && showRail ? (
+            <PoseTeachRail slug={asana.slug} level={level} />
           ) : null}
         </div>
 
@@ -531,7 +580,10 @@ export function PoseExplanation({
             onClick={start}
             data-testid={`button-watch-demo-${asana.slug}`}
             aria-label={`Start the ${asana.english} lesson`}
-            className="min-h-12 w-full gap-2 rounded-full py-6 text-base font-medium"
+            className={cn(
+              "w-full gap-2 rounded-full text-base font-medium",
+              hero ? "min-h-11 py-2.5" : "min-h-12 py-6",
+            )}
           >
             <Play className="h-5 w-5 fill-current" /> Start pose lesson
           </Button>
@@ -551,6 +603,7 @@ export function PoseExplanation({
           </div>
         ) : null}
 
+        {hideSteps ? null : (
         <ol className="space-y-2" data-testid={`demo-steps-${asana.slug}`}>
           {lesson.steps.map((step) => {
             const isActive = training && step.number === activeStepNumber;
@@ -576,6 +629,7 @@ export function PoseExplanation({
             );
           })}
         </ol>
+        )}
 
         <audio
           ref={audioRef}

@@ -186,6 +186,7 @@ export function PoseLessonStage({
               data-trainer-level={effectiveLevel}
             >
               <HumanPoseTrainerMovie
+                captionMode="sr-only"
                 slug={demo.slug}
                 english={english}
                 posterSrc={demo.poster}

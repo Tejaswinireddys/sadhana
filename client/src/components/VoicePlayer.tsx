@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useToast } from "@/hooks/use-toast";
 import type { Preferences } from "@shared/schema";
 import { Volume2, Pause } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const RATES = [0.75, 1, 1.25, 1.5] as const;
 
@@ -28,10 +29,13 @@ export function VoicePlayer({
   src,
   slug,
   label,
+  compact = false,
 }: {
   src: string;
   slug: string;
   label?: string;
+  /** Tighter padding for pages that already show the pose above the player. */
+  compact?: boolean;
 }) {
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
   // Treat undefined/loading prefs as voice-enabled (default true) so a click is
@@ -110,10 +114,13 @@ export function VoicePlayer({
 
   const playerBody = (
     <div
-      className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-soft"
+      className={cn(
+        "flex flex-col rounded-xl border border-border bg-card shadow-soft",
+        compact ? "gap-1.5 p-2.5" : "gap-3 p-4",
+      )}
       data-testid={`audio-player-${slug}`}
     >
-      {label && <p className="text-sm font-medium">{label}</p>}
+      {label && <p className={compact ? "text-xs font-medium" : "text-sm font-medium"}>{label}</p>}
       <div className="flex items-center gap-3">
         <Button
           size="icon"
@@ -157,16 +164,20 @@ export function VoicePlayer({
         </Button>
       </div>
 
-      <div className="flex items-center justify-between">
-        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-          Calm guided voice
-        </span>
-        {!hasSrc ? (
-          <span className="text-[11px] text-muted-foreground">Narration unavailable</span>
-        ) : !voiceEnabled ? (
-          <span className="text-[11px] text-muted-foreground">Voice disabled</span>
-        ) : null}
-      </div>
+      {!compact || !hasSrc || !voiceEnabled ? (
+        <div className="flex items-center justify-between">
+          {compact ? null : (
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              Calm guided voice
+            </span>
+          )}
+          {!hasSrc ? (
+            <span className="text-[11px] text-muted-foreground">Narration unavailable</span>
+          ) : !voiceEnabled ? (
+            <span className="text-[11px] text-muted-foreground">Voice disabled</span>
+          ) : null}
+        </div>
+      ) : null}
 
       {hasSrc && (
         <audio

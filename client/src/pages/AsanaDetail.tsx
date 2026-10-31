@@ -2,17 +2,25 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tag } from "@/components/ds/Tag";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ds/Tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { type Level } from "@/components/AnimatedAsana";
 import { StepMotion } from "@/components/StepMotion";
 import { VoicePlayer } from "@/components/VoicePlayer";
-import { PoseExplanation } from "@/components/PoseExplanation";
-import { asanaBySlug, type Difficulty, type Severity } from "@/data/content";
+import { PoseExplanation, PoseTeachRail } from "@/components/PoseExplanation";
+import { PoseImage } from "@/components/PoseImage";
+import { ScrollRow } from "@/components/ScrollRow";
+import {
+  ASANAS,
+  asanaBySlug,
+  type Asana,
+  type Difficulty,
+  type Severity,
+} from "@/data/content";
 import { BENEFIT_REVIEW_NOTE, poseHasUnreviewedClaims } from "@/lib/benefitClaims";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
 import { stepsForVariation } from "@/lib/poseLesson";
@@ -25,13 +33,11 @@ import { KEYS, poseLevelFromExperience, readString } from "@/lib/localPrefs";
 import { QUICK_SESSIONS, quickSessionMeta } from "@/data/quickSessions";
 import { catalogSessionMinutes } from "@/lib/pathwayTiming";
 import { usePractice } from "@/context/PracticeContext";
-import { EmptyState } from "@/components/EmptyState";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   ArrowLeft,
   Plus,
   Check,
-  Wind,
   Clock,
   Sparkles,
   Settings2,
@@ -43,6 +49,7 @@ import {
   Check as CheckIcon,
   Heart,
   Play,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PoseNote } from "@shared/schema";
@@ -93,10 +100,10 @@ function PersonalNotes({ slug }: { slug: string }) {
 
   return (
     <Card className="shadow-soft" data-testid="card-pose-notes">
-      <CardContent className="space-y-3 p-5">
+      <CardContent className="space-y-2 p-3">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="flex items-center gap-2 font-serif text-lg">
-            <NotebookPen className="h-5 w-5 text-secondary" aria-hidden />{" "}
+          <h3 className="flex items-center gap-2 font-serif text-base">
+            <NotebookPen className="h-4 w-4 text-secondary" aria-hidden />{" "}
             <label htmlFor="pose-notes">My notes</label>
           </h3>
           {saved && (
@@ -115,7 +122,8 @@ function PersonalNotes({ slug }: { slug: string }) {
           placeholder="What works for me / what hurts / props I like…"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          rows={4}
+          rows={1}
+          className="min-h-11 py-2"
           aria-describedby="pose-notes-help"
           data-testid="input-pose-notes"
         />
@@ -144,6 +152,14 @@ const SEVERITY_META: Record<
 };
 
 const SEVERITY_ORDER: Severity[] = ["avoid", "modify", "caution"];
+
+/** Same category, same difficulty first, never the pose itself. */
+function relatedPoses(asana: Asana, limit = 8): Asana[] {
+  const others = ASANAS.filter((a) => a.slug !== asana.slug && a.category === asana.category);
+  const sameDifficulty = others.filter((a) => a.difficulty === asana.difficulty);
+  const rest = others.filter((a) => a.difficulty !== asana.difficulty);
+  return [...sameDifficulty, ...rest].slice(0, limit);
+}
 
 export default function AsanaDetail() {
   const { slug } = useParams();
@@ -187,6 +203,18 @@ export default function AsanaDetail() {
     stepMotion: variation.steps?.length ? (undefined as undefined) : asana.steps[idx]?.stepMotion,
   }));
   const usages = usagesForAsana(asana.slug);
+  const related = relatedPoses(asana);
+  const difficulty: Difficulty =
+    level === "beginner" ? "Beginner" : level === "advanced" ? "Advanced" : "Intermediate";
+  const teaching = buildPoseExplanation(asana, difficulty);
+  const primaryRegion =
+    asana.stretchZones.find((z) => z.primary)?.region ?? asana.stretchZones[0]?.region;
+  const focus = primaryRegion ? `${primaryRegion} · ${asana.category}` : asana.category;
+  const durationLabel =
+    level === "intermediate" && !variation.steps
+      ? asana.hold
+      : `About ${variation.holdSeconds} seconds (${level})`;
+  const propList = variation.props.filter((p) => p !== "none");
 
   const addToday = () => {
     add(asana);
@@ -228,219 +256,379 @@ export default function AsanaDetail() {
   })).filter((g) => g.rows.length > 0);
 
   return (
-    <article className="animate-fade-in space-y-8">
+    <article className="animate-fade-in space-y-1">
       <button
         type="button"
         onClick={() => navigate("/asanas")}
-        className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-md px-2 py-2 text-sm text-muted-foreground transition-colors duration-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-1 text-sm text-muted-foreground transition-colors duration-200 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="Back to Poses"
         data-testid="link-back-asanas"
       >
         <ArrowLeft className="h-4 w-4" /> Poses
       </button>
 
-      <div className="space-y-2" data-testid="pose-path-selector">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Practice path for studio how-to
-        </p>
-        <div
-          className="flex flex-wrap gap-2"
-          role="radiogroup"
-          aria-label="Difficulty path for pose training"
-        >
-          {(["beginner", "intermediate", "advanced"] as Level[]).map((lv) => {
-            const selected = level === lv;
-            return (
-              <button
-                key={lv}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                aria-label={`${lv} path${selected ? ", selected" : ""}`}
-                onClick={() => setLevel(lv)}
-                className={cn(
-                  "min-h-11 rounded-full px-4 text-sm font-medium capitalize transition-colors",
-                  selected
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:text-foreground",
-                )}
-                data-testid={`path-chip-${lv}`}
-              >
-                {lv}
-              </button>
-            );
-          })}
-        </div>
+      {/*
+        Media slot. Today this is the still reference inside the lesson.
+        A reviewed movement demo mounts in the same slot later; generated
+        crossfade clips stay out of teaching.
+      */}
+      <div data-testid="pose-media-slot" data-media-kind="image">
+        <PoseExplanation slug={asana.slug} level={level} onTrainingChange={setTraining} hero showRail={false} hideSteps />
       </div>
 
-      {/* Premium pose explanation — follows the selected difficulty path */}
-      <PoseExplanation slug={asana.slug} level={level} onTrainingChange={setTraining} />
-
-      <header className="space-y-4">
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{asana.category}</Badge>
-            <Badge variant="outline" className={difficultyBadgeClass(asana.difficulty)}>
-              {asana.difficulty}
-            </Badge>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-primary">What it is</p>
-            <h1 className="font-serif text-3xl font-semibold tracking-tight" data-testid="text-asana-english">
-              {asana.english}
-            </h1>
-            <p className="text-lg italic text-muted-foreground" data-testid="text-asana-sanskrit">
-              {asana.sanskrit}
-            </p>
-            {(() => {
-              if (!shouldShowPronunciation(asana.english, asana.sanskrit)) return null;
-              const pron = pronunciationFor(asana.slug, asana.sanskrit);
-              return (
-                <p className="text-sm text-muted-foreground" data-testid="text-asana-pronunciation">
-                  <span className="not-italic">Pronounce:</span>{" "}
-                  <span className="font-medium text-foreground">{pron.approx}</span>
-                  <span className="mx-1.5 text-border">·</span>
-                  <span className="not-italic">{pron.transliteration}</span>
-                  <span className="mt-1 block text-xs">{pron.tip}</span>
-                </p>
-              );
-            })()}
-          </div>
-          <p className="max-w-2xl text-base leading-relaxed text-foreground/90">{asana.summary}</p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <Button
-              size="lg"
-              onClick={practiceNow}
-              className="min-h-[48px] w-full cursor-pointer sm:w-auto"
-              data-testid="button-practice-now"
-            >
-              <Play className="mr-1.5 h-4 w-4" />
-              Practice now
-            </Button>
-            <Button
-              onClick={addToday}
-              disabled={inToday}
-              variant="outline"
-              className="min-h-[44px] w-full cursor-pointer sm:w-auto"
-              data-testid="button-add-today"
-            >
-              {inToday ? <Check className="mr-1.5 h-4 w-4" /> : <Plus className="mr-1.5 h-4 w-4" />}
-              {inToday ? "In today's practice" : "Add to today's practice"}
-            </Button>
-          </div>
+      <header className="space-y-2">
+        <div>
+          <h1
+            className="font-serif text-2xl font-semibold tracking-tight sm:text-3xl"
+            data-testid="text-asana-english"
+          >
+            {asana.english}
+          </h1>
+          <p className="text-base italic text-muted-foreground" data-testid="text-asana-sanskrit">
+            {asana.sanskrit}
+          </p>
+          {(() => {
+            if (!shouldShowPronunciation(asana.english, asana.sanskrit)) return null;
+            const pron = pronunciationFor(asana.slug, asana.sanskrit);
+            return (
+              <p className="text-sm text-muted-foreground" data-testid="text-asana-pronunciation">
+                <span className="not-italic">Pronounce:</span>{" "}
+                <span className="font-medium text-foreground">{pron.approx}</span>
+                <span className="mx-1.5 text-border">·</span>
+                <span className="not-italic">{pron.transliteration}</span>
+                <span className="mt-0.5 block text-xs">{pron.tip}</span>
+              </p>
+            );
+          })()}
         </div>
-        {/* Quick "listen again" affordance below the headline */}
-        <VoicePlayer
-          src={manifestAudioUrl(asana.slug, poseMedia)}
-          slug={asana.slug}
-          label="Listen again — guided audio"
-        />
+        <p className="text-sm leading-snug text-foreground/90">{asana.summary}</p>
+        <div className="hidden gap-2 lg:flex">
+          <Button
+            size="lg"
+            onClick={practiceNow}
+            className="min-h-11 w-full cursor-pointer sm:w-auto"
+            data-testid="button-practice-now"
+          >
+            <Play className="mr-1.5 h-4 w-4" />
+            Practice now
+          </Button>
+          <Button
+            onClick={addToday}
+            disabled={inToday}
+            variant="outline"
+            className="min-h-11 w-full cursor-pointer sm:w-auto"
+            data-testid="button-add-today"
+          >
+            {inToday ? <Check className="mr-1.5 h-4 w-4" /> : <Plus className="mr-1.5 h-4 w-4" />}
+            {inToday ? "In today's practice" : "Add to today's practice"}
+          </Button>
+        </div>
+        <details className="rounded-xl border border-border bg-card px-3 py-1">
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">
+            Listen again — calm guided audio
+          </summary>
+          <div className="pb-2">
+            <VoicePlayer
+              src={manifestAudioUrl(asana.slug, poseMedia)}
+              slug={asana.slug}
+              compact
+            />
+          </div>
+        </details>
       </header>
 
-      {/* Why — when to reach for this pose */}
-      {asana.bestFor.length > 0 && (
-        <Card className="border-primary/20 shadow-soft" data-testid="card-best-for">
-          <CardContent className="space-y-3 p-5">
-            <h2 className="flex items-center gap-2 font-serif text-lg">
-              <Heart className="h-5 w-5 text-primary" />
-              Why practice it
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Reach for {asana.english} when you want:
-            </p>
-            <ul className="flex flex-wrap gap-2">
-              {asana.bestFor.map((item, i) => (
-                <li key={i}>
-                  <Link href={`/search?q=${encodeURIComponent(item)}`}>
-                    <Badge
-                      variant="secondary"
-                      className="min-h-[36px] cursor-pointer rounded-full px-3 py-2 text-sm font-normal transition-colors duration-200 hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      data-testid={`best-for-${i}`}
+      <section aria-label="Quick facts" data-testid="pose-quick-facts">
+        <Card className="shadow-soft">
+          <CardContent className="space-y-2 p-3">
+            <div className="space-y-1.5" data-testid="pose-path-selector">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Level
+                </p>
+                <Tag className={cn("capitalize", difficultyBadgeClass(asana.difficulty))}>
+                  {asana.difficulty}
+                </Tag>
+              </div>
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="radiogroup"
+                aria-label="Difficulty path for pose training"
+              >
+                {(["beginner", "intermediate", "advanced"] as Level[]).map((lv) => {
+                  const selected = level === lv;
+                  return (
+                    <button
+                      key={lv}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      aria-label={`${lv} path${selected ? ", selected" : ""}`}
+                      onClick={() => setLevel(lv)}
+                      className={cn(
+                        "min-h-11 rounded-full px-3 text-xs font-medium capitalize transition-colors",
+                        selected
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:text-foreground",
+                      )}
+                      data-testid={`path-chip-${lv}`}
                     >
-                      {item}
-                    </Badge>
-                  </Link>
-                </li>
+                      {lv}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 border-t border-border/70 pt-2">
+              <div>
+                <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" aria-hidden /> Duration
+                </p>
+                <p className="mt-0.5 text-sm leading-snug" data-testid="pose-fact-duration">
+                  {durationLabel}
+                </p>
+              </div>
+              <div>
+                <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <Target className="h-3.5 w-3.5" aria-hidden /> Focus
+                </p>
+                <p className="mt-0.5 text-sm leading-snug" data-testid="pose-fact-focus">
+                  {focus}
+                </p>
+              </div>
+            </div>
+            <div className="border-t border-border/70 pt-2">
+              <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden /> Benefits
+              </p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-snug text-foreground/90">
+                {asana.benefits.map((b, i) => (
+                  <li key={i}>{b}</li>
+                ))}
+              </ul>
+              {poseHasUnreviewedClaims(asana) && (
+                <p className="mt-1 text-xs leading-snug text-muted-foreground" data-testid="benefit-review-note">
+                  {BENEFIT_REVIEW_NOTE}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-2" aria-labelledby="how-heading">
+        <h2 id="how-heading" className="font-serif text-lg">
+          How to practice
+          {variation.steps && variation.steps.length > 0 ? (
+            <span className="ml-2 text-sm font-sans font-normal text-muted-foreground">
+              ({level} variation)
+            </span>
+          ) : null}
+        </h2>
+        <ol className="space-y-1.5">
+          {howToSteps.map((step, i) => (
+            <li
+              key={i}
+              className="flex items-start gap-2.5"
+              data-testid={`step-${asana.slug}-${i}`}
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary font-serif text-sm text-primary-foreground">
+                {i + 1}
+              </span>
+              {step.stepMotion && (
+                <span
+                  className="hidden shrink-0 rounded-lg bg-accent/40 p-1 text-foreground/75 sm:block"
+                  data-testid={`step-motion-${asana.slug}-${i}`}
+                  aria-hidden
+                >
+                  <StepMotion motion={step.stepMotion} size={64} decorative label={step.text} />
+                </span>
+              )}
+              <p className="pt-0.5 text-xs leading-snug">{step.text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <Tabs defaultValue="cues">
+        <TabsList className="grid w-full grid-cols-2" aria-label="Cues and cautions">
+          <TabsTrigger value="cues" data-testid="tab-cues">
+            Cues
+          </TabsTrigger>
+          <TabsTrigger value="cautions" data-testid="tab-cautions">
+            Cautions
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="cues" className="space-y-2" data-testid="panel-cues">
+          {variation.description.trim() !== asana.summary.trim() ? (
+            <p className="text-sm leading-snug" data-testid={`variation-${level}`}>
+              {variation.description}
+            </p>
+          ) : (
+            <p className="sr-only" data-testid={`variation-${level}`}>
+              {variation.description}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {propList.length > 0 ? (
+              propList.map((p) => (
+                <Tag key={p} tone="outline" className="capitalize">
+                  {p}
+                </Tag>
+              ))
+            ) : (
+              <Tag tone="outline">No props needed</Tag>
+            )}
+          </div>
+          <PoseTeachRail slug={asana.slug} level={level} includeWatch={false} />
+        </TabsContent>
+        <TabsContent value="cautions" className="space-y-3" data-testid="panel-cautions">
+          {grouped.length > 0 && (
+            <Card className="surface-banner-soft border-primary/20 shadow-none" data-testid="callout-avoid-if">
+              <CardContent className="space-y-3 p-3">
+                <h2 className="font-serif text-base">Care & caution</h2>
+                <div className="space-y-3">
+                  {grouped.map(({ sev, rows }) => {
+                    const meta = SEVERITY_META[sev];
+                    const Icon = meta.icon;
+                    return (
+                      <div key={sev} className="space-y-1" data-testid={`avoid-group-${sev}`}>
+                        <p className={`flex items-center gap-1.5 text-sm font-medium ${meta.tone}`}>
+                          <Icon className="h-4 w-4" /> {meta.label}
+                        </p>
+                        <ul className="space-y-1 pl-6 text-sm text-muted-foreground">
+                          {rows.map((r, i) => (
+                            <li key={i} className="list-disc">
+                              {r.condition}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          <div className="space-y-1.5" data-testid="pose-watch-outs">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-primary">
+              <AlertTriangle className="h-4 w-4" aria-hidden /> Watch outs
+            </p>
+            <ul className="list-disc space-y-1 pl-5 text-sm leading-snug text-muted-foreground">
+              {teaching.watchOuts.map((line, i) => (
+                <li key={i}>{line}</li>
               ))}
             </ul>
-            <p className="text-xs text-muted-foreground">Tap a chip to search related poses and practices.</p>
+          </div>
+          <Card className="bg-accent/40 shadow-none">
+            <CardContent className="flex items-start gap-2 p-3">
+              <Settings2 className="mt-0.5 h-4 w-4 shrink-0 text-secondary" aria-hidden />
+              <div>
+                <h3 className="font-serif text-base">Modifications</h3>
+                <p className="text-sm leading-snug text-muted-foreground">{asana.modifications}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <p className="text-xs leading-tight text-muted-foreground" data-testid="content-review-note">
+            Safety guidance version {CONTENT_REVIEW.version} · reviewed {CONTENT_REVIEW.reviewedAt}.{" "}
+            {CONTENT_REVIEW.note}{" "}
+            <Link href="/health-disclaimer" className="underline underline-offset-2">
+              Health disclaimer
+            </Link>
+            .
+          </p>
+        </TabsContent>
+      </Tabs>
+
+      {asana.bestFor.length > 0 && (
+        <Card className="border-primary/20 shadow-soft" data-testid="card-best-for">
+          <CardContent className="space-y-2 p-3">
+            <h2 className="flex items-center gap-2 font-serif text-base">
+              <Heart className="h-4 w-4 text-primary" aria-hidden />
+              Why practice it
+            </h2>
+            <ScrollRow label={`Why practice ${asana.english}`} testId="best-for-row">
+              {asana.bestFor.map((item, i) => (
+                <Link
+                  key={i}
+                  href={`/search?q=${encodeURIComponent(item)}`}
+                  className="inline-flex min-h-11 shrink-0 items-center"
+                >
+                  <Tag
+                    tone="leaf"
+                    className="cursor-pointer px-3 py-2 text-sm font-normal"
+                    data-testid={`best-for-${i}`}
+                  >
+                    {item}
+                  </Tag>
+                </Link>
+              ))}
+            </ScrollRow>
           </CardContent>
         </Card>
       )}
 
-      {/* Where this pose shows up in real practice */}
       {usages.length > 0 && (
         <Card className="shadow-soft" data-testid="card-practice-it-in">
-          <CardContent className="space-y-3 p-5">
-            <h2 className="flex items-center gap-2 font-serif text-lg">
-              <Play className="h-5 w-5 text-secondary" />
+          <CardContent className="space-y-2 p-3">
+            <h2 className="flex items-center gap-2 font-serif text-base">
+              <Play className="h-4 w-4 text-secondary" aria-hidden />
               Practice it in
             </h2>
-            <p className="text-sm text-muted-foreground">
-              This pose is waiting for you in these sessions — tap to begin.
-            </p>
-            <ul className="flex flex-col gap-2">
+            <ScrollRow label="Sessions that include this pose" testId="practice-it-in-row">
               {usages.map((u, i) => {
                 if (u.kind === "mood") {
                   return (
-                    <li key={`mood-${u.id}-${i}`}>
-                      <Button
-                        variant="outline"
-                        className="h-auto w-full justify-start gap-2 whitespace-normal py-3 text-left"
-                        onClick={() => startMood(u.id)}
-                        data-testid={`usage-mood-${u.id}`}
-                      >
-                        <span className="font-medium">{u.label}</span>
-                        <span className="text-muted-foreground">· {u.time} mood session</span>
-                      </Button>
-                    </li>
+                    <Button
+                      key={`mood-${u.id}-${i}`}
+                      variant="outline"
+                      className="h-auto min-h-11 shrink-0 whitespace-nowrap px-3"
+                      onClick={() => startMood(u.id)}
+                      data-testid={`usage-mood-${u.id}`}
+                    >
+                      <span className="font-medium">{u.label}</span>
+                      <span className="text-muted-foreground">· {u.time} mood session</span>
+                    </Button>
                   );
                 }
                 if (u.kind === "flow") {
                   return (
-                    <li key={`flow-${u.slug}-${i}`}>
-                      <Button
-                        variant="outline"
-                        className="h-auto w-full justify-start gap-2 whitespace-normal py-3 text-left"
-                        asChild
-                      >
-                        <Link href={`/pathways/${u.slug}`} data-testid={`usage-flow-${u.slug}`}>
-                          <span className="font-medium">{u.name}</span>
-                          <span className="text-muted-foreground">· {u.minutes} min flow</span>
-                        </Link>
-                      </Button>
-                    </li>
+                    <Button
+                      key={`flow-${u.slug}-${i}`}
+                      variant="outline"
+                      className="h-auto min-h-11 shrink-0 whitespace-nowrap px-3"
+                      asChild
+                    >
+                      <Link href={`/pathways/${u.slug}`} data-testid={`usage-flow-${u.slug}`}>
+                        <span className="font-medium">{u.name}</span>
+                        <span className="text-muted-foreground">· {u.minutes} min flow</span>
+                      </Link>
+                    </Button>
                   );
                 }
-                if (u.kind === "profile") {
-                  return (
-                    <li key={`profile-${u.id}-${i}`}>
-                      <Button
-                        variant="outline"
-                        className="h-auto w-full justify-start gap-2 whitespace-normal py-3 text-left"
-                        asChild
-                      >
-                        <Link href="/profiles" data-testid={`usage-profile-${u.id}`}>
-                          <span className="font-medium">{u.name}</span>
-                          <span className="text-muted-foreground">· practice profile</span>
-                        </Link>
-                      </Button>
-                    </li>
-                  );
-                }
-                return null;
+                return (
+                  <Button
+                    key={`profile-${u.id}-${i}`}
+                    variant="outline"
+                    className="h-auto min-h-11 shrink-0 whitespace-nowrap px-3"
+                    asChild
+                  >
+                    <Link href="/profiles" data-testid={`usage-profile-${u.id}`}>
+                      <span className="font-medium">{u.name}</span>
+                      <span className="text-muted-foreground">· practice profile</span>
+                    </Link>
+                  </Button>
+                );
               })}
-            </ul>
+            </ScrollRow>
           </CardContent>
         </Card>
       )}
 
-      {/* "You'll feel this in..." — body regions this pose stretches. */}
       {asana.stretchZones.length > 0 && (
         <Card className="border-secondary/30 shadow-soft" data-testid="card-stretch-zones">
-          <CardContent className="space-y-4 p-5">
-            <h2 className="flex items-center gap-2 font-serif text-lg">
-              <Activity className="h-5 w-5 text-secondary" />
+          <CardContent className="space-y-2 p-3">
+            <h2 className="flex items-center gap-2 font-serif text-base">
+              <Activity className="h-4 w-4 text-secondary" aria-hidden />
               You'll feel this in…
             </h2>
             <ul className="divide-y divide-border/60">
@@ -450,28 +638,27 @@ export default function AsanaDetail() {
                 return (
                   <li
                     key={i}
-                    className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                    className="flex items-start justify-between gap-3 py-1 first:pt-0 last:pb-0"
                     data-testid={`stretch-zone-${i}`}
                   >
-                    <div className="flex items-start gap-3 min-w-0">
+                    <div className="flex min-w-0 items-start gap-2">
                       <span
                         className={cn(
-                          "mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full",
+                          "mt-1.5 h-2 w-2 shrink-0 rounded-full",
                           z.primary ? "bg-primary" : "bg-secondary",
                         )}
                         aria-hidden
                       />
                       <div className="min-w-0">
-                        <p className="font-medium leading-snug" data-testid={`stretch-zone-region-${i}`}>
+                        <p className="text-sm font-medium leading-snug" data-testid={`stretch-zone-region-${i}`}>
                           {z.region}
                           <span className="ml-2 align-middle text-[11px] font-normal uppercase tracking-wide text-muted-foreground">
                             {z.primary ? "Primary" : "Secondary"}
                           </span>
                         </p>
-                        <p className="text-sm text-muted-foreground">{z.sensation}</p>
+                        <p className="text-[11px] leading-tight text-muted-foreground">{z.sensation}</p>
                       </div>
                     </div>
-                    {/* Intensity dots: 3 dots, filled by intensity. */}
                     <div
                       className="mt-1 flex shrink-0 items-center gap-1"
                       title={`Intensity: ${z.intensity}`}
@@ -480,10 +667,7 @@ export default function AsanaDetail() {
                       {[0, 1, 2].map((d) => (
                         <span
                           key={d}
-                          className={cn(
-                            "h-2 w-2 rounded-full",
-                            d < filled ? dotColor : "bg-muted",
-                          )}
+                          className={cn("h-2 w-2 rounded-full", d < filled ? dotColor : "bg-muted")}
                         />
                       ))}
                     </div>
@@ -495,208 +679,37 @@ export default function AsanaDetail() {
         </Card>
       )}
 
-      {/* Difficulty paths */}
-      <section className="space-y-4">
-        <h2 className="font-serif text-xl">Choose your path</h2>
-        <Tabs value={level} onValueChange={(v) => setLevel(v as Level)}>
-          <TabsList className="flex h-auto w-full flex-wrap gap-1" data-testid="tabs-level">
-            <TabsTrigger value="beginner" className="min-h-11 flex-1" data-testid="tab-beginner">
-              Beginner
-            </TabsTrigger>
-            <TabsTrigger value="intermediate" className="min-h-11 flex-1" data-testid="tab-intermediate">
-              Intermediate
-            </TabsTrigger>
-            <TabsTrigger value="advanced" className="min-h-11 flex-1" data-testid="tab-advanced">
-              Advanced
-            </TabsTrigger>
-          </TabsList>
-          {(["beginner", "intermediate", "advanced"] as Level[]).map((lv) => {
-            const v = asana.variations[lv];
-            const difficulty: Difficulty =
-              lv === "beginner" ? "Beginner" : lv === "advanced" ? "Advanced" : "Intermediate";
-            const formCues = buildPoseExplanation(asana, difficulty).formCues;
-            return (
-              <TabsContent key={lv} value={lv} className="mt-4">
-                <Card className="shadow-soft" data-testid={`variation-${lv}`}>
-                  <CardContent className="space-y-4 p-5">
-                    <p className="text-sm">{v.description}</p>
-                    <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            Cues
-                          </p>
-                          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                            {formCues.map((c, i) => (
-                              <li key={i}>{c}</li>
-                            ))}
-                          </ul>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {v.props
-                            .filter((p) => p !== "none")
-                            .map((p) => (
-                              <Badge key={p} variant="outline" className="capitalize">
-                                {p}
-                              </Badge>
-                            ))}
-                          {v.props.every((p) => p === "none") && (
-                            <Badge variant="outline">No props needed</Badge>
-                          )}
-                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" /> Hold ~{v.holdSeconds}s
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            );
-          })}
-        </Tabs>
-      </section>
-
-      {/* Quick facts */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Card className="shadow-soft">
-          <CardContent className="flex items-start gap-3 p-4">
-            <Wind className="mt-0.5 h-5 w-5 text-secondary" />
-            <div>
-              <p className="text-sm font-medium">Breathing cue</p>
-              <p className="text-sm text-muted-foreground">{asana.breathing}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-soft">
-          <CardContent className="flex items-start gap-3 p-4">
-            <Clock className="mt-0.5 h-5 w-5 text-secondary" />
-            <div>
-              <p className="text-sm font-medium">Hold time</p>
-              <p className="text-sm text-muted-foreground">
-                {level === "intermediate" && !variation.steps
-                  ? asana.hold
-                  : `About ${variation.holdSeconds} seconds (${level})`}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* How — steps */}
-      <section className="space-y-4" aria-labelledby="how-heading">
-        <h2 id="how-heading" className="font-serif text-xl">
-          How to practice — step by step
-          {variation.steps && variation.steps.length > 0 ? (
-            <span className="ml-2 text-sm font-sans font-normal text-muted-foreground">
-              ({level} variation)
-            </span>
-          ) : null}
-        </h2>
-        <ol className="space-y-3">
-          {howToSteps.map((step, i) => (
-            <li key={i}>
-              <Card className="shadow-soft" data-testid={`step-${asana.slug}-${i}`}>
-                <CardContent className="flex items-center gap-4 p-4">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary font-serif text-primary-foreground">
-                    {i + 1}
-                  </span>
-                  {step.stepMotion && (
-                    <span
-                      className="hidden shrink-0 rounded-lg bg-accent/40 p-1 text-foreground/75 sm:block"
-                      data-testid={`step-motion-${asana.slug}-${i}`}
-                      aria-hidden
-                    >
-                      <StepMotion motion={step.stepMotion} size={64} decorative label={step.text} />
-                    </span>
-                  )}
-                  <p className="text-sm">{step.text}</p>
-                </CardContent>
-              </Card>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      {/* Benefits */}
-      <Card className="shadow-soft">
-        <CardContent className="space-y-2 p-5">
-          <h3 className="flex items-center gap-2 font-serif text-lg">
-            <Sparkles className="h-5 w-5 text-secondary" /> Benefits
-          </h3>
-          <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-            {asana.benefits.map((b, i) => (
-              <li key={i}>{b}</li>
-            ))}
-          </ul>
-          {/*
-            Some of these name a condition ("eases mild anxiety and insomnia")
-            and assert an effect on it. Until a qualified reviewer has been
-            through them, say what they are rather than letting them read as
-            findings. See client/src/lib/benefitClaims.ts.
-          */}
-          {poseHasUnreviewedClaims(asana) && (
-            <p className="text-xs text-muted-foreground" data-testid="benefit-review-note">
-              {BENEFIT_REVIEW_NOTE}
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Who should approach with care — soft callout, grouped by severity */}
-      {grouped.length > 0 && (
-        <Card
-          className="surface-banner-soft border-primary/20"
-          data-testid="callout-avoid-if"
-        >
-          <CardContent className="space-y-4 p-5">
-            <h2 className="font-serif text-lg">Care & caution</h2>
-            <div className="space-y-4">
-              {grouped.map(({ sev, rows }) => {
-                const meta = SEVERITY_META[sev];
-                const Icon = meta.icon;
-                return (
-                  <div key={sev} className="space-y-1.5" data-testid={`avoid-group-${sev}`}>
-                    <p className={`flex items-center gap-1.5 text-sm font-medium ${meta.tone}`}>
-                      <Icon className="h-4 w-4" /> {meta.label}
-                    </p>
-                    <ul className="space-y-1 pl-6 text-sm text-muted-foreground">
-                      {rows.map((r, i) => (
-                        <li key={i} className="list-disc">
-                          {r.condition}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Modifications */}
-      <Card className="bg-accent/40 shadow-soft">
-        <CardContent className="flex items-start gap-3 p-5">
-          <Settings2 className="mt-0.5 h-5 w-5 text-secondary" />
-          <div>
-            <h3 className="font-serif text-lg">Modifications</h3>
-            <p className="text-sm text-muted-foreground">{asana.modifications}</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <p className="text-xs text-muted-foreground" data-testid="content-review-note">
-        Safety guidance version {CONTENT_REVIEW.version} · reviewed {CONTENT_REVIEW.reviewedAt}.{" "}
-        {CONTENT_REVIEW.note}{" "}
-        <Link href="/health-disclaimer" className="underline underline-offset-2">
-          Health disclaimer
-        </Link>
-        .
-      </p>
-
-      {/* Personal notes (v3.4) */}
       <PersonalNotes slug={asana.slug} />
+
+      {related.length > 0 && (
+        <section className="space-y-2" aria-labelledby="related-poses-heading">
+          <h2 id="related-poses-heading" className="font-serif text-base">
+            Related poses
+          </h2>
+          <ScrollRow label={`More ${asana.category} poses`} testId="related-poses">
+            {related.map((rel) => (
+              <Link
+                key={rel.slug}
+                href={`/asanas/${rel.slug}`}
+                className="w-16 shrink-0 snap-start"
+                data-testid={`related-pose-${rel.slug}`}
+              >
+                <PoseImage
+                  slug={rel.slug}
+                  thumb
+                  breath={false}
+                  shadow={false}
+                  rounded="rounded-xl"
+                  fit="cover"
+                  aspect="aspect-[4/3]"
+                  sizes="64px"
+                />
+                <span className="mt-1 line-clamp-2 text-xs leading-snug">{rel.english}</span>
+              </Link>
+            ))}
+          </ScrollRow>
+        </section>
+      )}
 
       {/*
         Mobile sticky practice actions — stays above bottom nav, and stays out
@@ -733,7 +746,7 @@ export default function AsanaDetail() {
           </Button>
         </div>
       </div>
-      <div className="h-20 lg:hidden" aria-hidden />
+      <div className="h-6 lg:hidden" aria-hidden />
     </article>
   );
 }

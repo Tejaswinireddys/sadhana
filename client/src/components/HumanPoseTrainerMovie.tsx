@@ -46,12 +46,14 @@ export type HumanPoseTrainerMovieProps = {
   coachBadge?: string | null;
   cameraView?: TrainerCameraShot;
   className?: string;
+  /** The lesson stage already shows this label, so the duplicate bar can stay for assistive tech only. */
+  captionMode?: "visible" | "sr-only";
   "data-testid"?: string;
 };
 
 /** Legacy name retained for callers; this is explicitly a still, never a movie. */
 export function HumanPoseTrainerMovie({
-  slug, english, posterSrc, className, "data-testid": testId,
+  slug, english, posterSrc, className, captionMode = "visible", "data-testid": testId,
 }: HumanPoseTrainerMovieProps) {
   const [failedSource, setFailedSource] = useState<string | null>(null);
   if (poseImageWithheld(slug)) {
@@ -70,7 +72,13 @@ export function HumanPoseTrainerMovie({
           onError={() => setFailedSource(posterSrc)}
           className="h-full w-full object-contain" />
       )}
-      <p className="absolute inset-x-0 bottom-0 bg-background/90 p-2 text-center text-xs text-muted-foreground">
+      <p
+        className={
+          captionMode === "sr-only"
+            ? "sr-only"
+            : "absolute inset-x-0 bottom-0 truncate bg-background/90 px-2 py-1 text-center text-xs text-muted-foreground"
+        }
+      >
         {STATIC_REFERENCE_LABEL}
       </p>
     </div>
