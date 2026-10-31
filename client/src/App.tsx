@@ -18,6 +18,7 @@ import { ConnectivityBanner } from "@/components/ConnectivityBanner";
 import { LegalConsentBanner } from "@/components/LegalConsentBanner";
 import { Onboarding } from "@/components/Onboarding";
 import { KEYS, readString, writeString } from "@/lib/localPrefs";
+import { welcomeRedirectTarget } from "@/lib/welcomeGate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageFade } from "@/components/motion";
 
@@ -99,9 +100,13 @@ function WelcomeRedirect() {
       writeString(KEYS.welcomeSeen, "1");
       return;
     }
-    if (!MARKETING_PATHS.has(location)) {
-      navigate("/welcome");
-    }
+    // Only the bare home page introduces the product; a deep link renders as asked.
+    // `replace` so Back from /welcome does not land on `/` and redirect again.
+    const target = welcomeRedirectTarget(location, window.location.search, {
+      welcomeSeen: !!readString(KEYS.welcomeSeen),
+      onboardingDone: !!readString(KEYS.onboardingDone),
+    });
+    if (target) navigate(target, { replace: true });
   }, [location, navigate]);
   return null;
 }
