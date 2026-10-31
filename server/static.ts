@@ -6,6 +6,27 @@ import { brandPublicHtml, publicAppOrigin, robotsTxt } from "./publicUrl";
 import { sendJson404 } from "./json404";
 import { mountStaticMedia } from "./mountStaticMedia";
 
+const ONE_YEAR_SECONDS = 31_536_000;
+const FONT_EXT = /\.(woff2?|ttf|otf|eot)$/i;
+
+/**
+ * Cache-Control for a file served from dist/public, given its path relative to
+ * that directory, or undefined to keep express.static's default (revalidate
+ * via ETag).
+ *
+ * Vite emits every JS/CSS/font/image it bundles to `assets/` with a content
+ * hash in the name, so a changed file is a new URL and the old one can be
+ * cached forever. Self-hosted fonts get the same year-long lifetime but not
+ * `immutable` unless hashed — a font in public/ keeps its name when replaced.
+ */
+export function staticCacheControl(relativePath: string): string | undefined {
+  const normalized = relativePath.split(path.sep).join("/").replace(/^\/+/, "");
+  if (normalized === "robots.txt") return "no-store";
+  if (normalized.startsWith("assets/")) return `public, max-age=${ONE_YEAR_SECONDS}, immutable`;
+  if (FONT_EXT.test(normalized)) return `public, max-age=${ONE_YEAR_SECONDS}`;
+  return undefined;
+}
+
 function sendBrandedHtml(res: express.Response, filePath: string, status = 200) {
   const html = brandPublicHtml(fs.readFileSync(filePath, "utf-8"));
   res.status(status).setHeader("Content-Type", "text/html; charset=utf-8").send(html);
@@ -102,9 +123,8 @@ export function serveStatic(app: Express) {
       index: false,
       fallthrough: true,
       setHeaders(res, filePath) {
-        if (filePath.endsWith("robots.txt")) {
-          res.setHeader("Cache-Control", "no-store");
-        }
+        const cacheControl = staticCacheControl(path.relative(distPath, filePath));
+        if (cacheControl) res.setHeader("Cache-Control", cacheControl);
       },
     }),
   );

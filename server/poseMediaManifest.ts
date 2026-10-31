@@ -98,8 +98,9 @@ function readCues(slug: string, root: string): NarrationCue[] | null {
 function posterFor(slug: string, root: string): string {
   const posterPng = join(root, "poses", `${slug}.png`);
   const posterWebp = join(root, "poses", `${slug}.webp`);
-  if (nonEmpty(posterPng)) return `/poses/${slug}.png`;
+  // WebP first: the same illustration at ~3% of the PNG master's bytes.
   if (nonEmpty(posterWebp)) return `/poses/${slug}.webp`;
+  if (nonEmpty(posterPng)) return `/poses/${slug}.png`;
   return `/poses/${slug}.png`;
 }
 

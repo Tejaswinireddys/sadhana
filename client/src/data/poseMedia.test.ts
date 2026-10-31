@@ -69,7 +69,7 @@ describe("pose trainer demo media", () => {
     const media = poseMediaFor("tadasana");
     assert.match(media.webm, /videos\/poses\/tadasana\.webm$/);
     assert.match(media.mp4, /videos\/poses\/tadasana\.mp4$/);
-    assert.match(media.poster, /poses\/tadasana\.png$/);
+    assert.match(media.poster, /poses\/tadasana\.webp$/);
     if (media.captions) {
       assert.match(media.captions, /captions\/poses\/tadasana\.vtt$/);
     }

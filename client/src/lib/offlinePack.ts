@@ -24,11 +24,11 @@ export function defaultOfflineManifest(): OfflineManifest {
       join("manifest.webmanifest"),
       join("favicon.svg"),
       join("icon-192.png"),
-      join("poses/tadasana.png"),
-      join("poses/balasana.png"),
-      join("poses/sukhasana.png"),
-      join("poses/savasana.png"),
-      join("poses/adho-mukha-svanasana.png"),
+      join("poses/tadasana.webp"),
+      join("poses/balasana.webp"),
+      join("poses/sukhasana.webp"),
+      join("poses/savasana.webp"),
+      join("poses/adho-mukha-svanasana.webp"),
     ],
   };
 }

@@ -93,7 +93,7 @@ function matchesPathAudience(
   return !["mens-strength", "womens-wellness", "pregnancy"].includes(profile.id);
 }
 
-const HERO_SRC = `${import.meta.env.BASE_URL}poses/adho-mukha-svanasana.png`;
+const HERO_SRC = `${import.meta.env.BASE_URL}poses/adho-mukha-svanasana.webp`;
 const TOTAL_STEPS = 6; // 0 welcome … 5 confirm
 const DEFAULT_REMINDER: ReminderPrefs = { enabled: true, hour: 18, notifications: false };
 

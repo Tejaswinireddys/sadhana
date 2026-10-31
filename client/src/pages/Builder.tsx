@@ -115,7 +115,7 @@ function FlowCard({
                 <WithheldPoseImage slug={p.slug} compact />
               ) : (
                 <img width={600} height={1200}
-                src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
+                src={`${import.meta.env.BASE_URL}poses/${p.slug}.webp`}
                 alt={asanaBySlug(p.slug)?.imageAlt ?? p.slug}
                 className="h-full w-full object-contain"
                 loading="lazy"
@@ -365,7 +365,7 @@ function BuilderView({
                     <WithheldPoseImage slug={a.slug} compact />
                   ) : (
                     <img width={600} height={1200}
-                    src={`${import.meta.env.BASE_URL}poses/${a.slug}.png`}
+                    src={`${import.meta.env.BASE_URL}poses/${a.slug}.webp`}
                     alt={a.imageAlt}
                     className="h-full w-full object-contain"
                     loading="lazy"
@@ -451,7 +451,7 @@ function BuilderView({
                         <WithheldPoseImage slug={p.slug} compact />
                       ) : (
                         <img width={600} height={1200}
-                        src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
+                        src={`${import.meta.env.BASE_URL}poses/${p.slug}.webp`}
                         alt={asana?.imageAlt ?? p.slug}
                         className="h-full w-full object-contain"
                         loading="lazy"

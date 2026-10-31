@@ -62,6 +62,25 @@ async function main() {
     await mkdir(thumbDir, { recursive: true });
   }
 
+  // Kids illustrations and video posters are served as WebP too. The PNGs stay
+  // as masters for gen-kids-pose-videos / encode-product-demo. These are
+  // denser and more saturated than the pose art (or, for the poster, small UI
+  // text), so q78 visibly softened them; q90 with smart chroma subsampling
+  // matches the pose WebPs' fidelity (~40 dB PSNR) at ~14% of the PNG bytes.
+  for (const dir of ["client/public/kids", "client/public/images"]) {
+    const abs = resolve(dir);
+    if (!existsSync(abs)) continue;
+    for (const file of (await readdir(abs)).filter((f) => f.endsWith(".png"))) {
+      const name = basename(file, ".png");
+      if (only && name !== only) continue;
+      const webp = join(abs, `${name}.webp`);
+      if (!existsSync(webp)) {
+        await sharp(join(abs, file)).webp({ quality: 90, smartSubsample: true, effort: 5 }).toFile(webp);
+        done++;
+      }
+    }
+  }
+
   console.log(`Wrote/ensured WebP variants (${done} new files).`);
 }
 

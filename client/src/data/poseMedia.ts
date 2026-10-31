@@ -6,7 +6,7 @@
  *   client/public/videos/poses/{slug}.mp4
  *   client/public/captions/poses/{slug}.vtt
  *   client/public/voice/pose-{slug}.mp3   (served at /audio/ and /voice/)
- * Poster falls back to the existing illustration: /poses/{slug}.png
+ * Poster falls back to the existing illustration: /poses/{slug}.webp
  *
  * Prefer GET /api/poses/:slug/media (see poseMediaApi.ts) so the client does
  * not guess paths. These helpers remain as offline / test fallbacks.
@@ -100,7 +100,7 @@ export function poseMediaFor(slug: string): PoseMediaSources {
     hls: override.hls ?? null,
     webm: override.webm ?? `${base}videos/poses/${slug}.webm`,
     mp4: override.mp4 ?? `${base}videos/poses/${slug}.mp4`,
-    poster: override.poster ?? `${base}poses/${slug}.png`,
+    poster: override.poster ?? `${base}poses/${slug}.webp`,
     playbackId: override.playbackId ?? null,
     provider: override.provider ?? "local",
     ...(hasCaptions
