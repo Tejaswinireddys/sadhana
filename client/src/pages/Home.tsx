@@ -23,9 +23,8 @@ import { BILLING_ENABLED } from "@/lib/publicConfig";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ds";
+import { Button } from "@/components/ds";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Heatmap } from "@/components/Heatmap";
 import { usePractice } from "@/context/PracticeContext";
@@ -33,6 +32,7 @@ import {
   asanaBySlug,
   breathBySlug,
   breathOfTheDay,
+  PATHWAYS,
   pathwayBySlug,
 } from "@/data/content";
 import { SAMPLE_PRACTICE } from "@/data/samplePractice";
@@ -49,7 +49,11 @@ import { readQuizPlan } from "@/data/quizPlan";
 import { readHabitPlan } from "@/lib/habitPlan";
 import type { UserProfile, Enrollment, Journal, Session, CustomFlow } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
-import { catalogSessionMinutes } from "@/lib/pathwayTiming";
+import { catalogSessionMinutes, flowPoses, pathwaySessionRangeLabel, queueCatalogPoses } from "@/lib/pathwayTiming";
+import { isPlusClass } from "@/lib/classCatalog";
+import { ScrollRow } from "@/components/ScrollRow";
+import { PlusLock } from "@/components/PlusLock";
+import { countOf } from "@/lib/plural";
 import {
   adjustedPractice,
   adjustRegenerates,
@@ -279,6 +283,26 @@ export default function Home() {
     [bootstrapping, recommendation?.id, adjust.minutes, adjust.need, intent],
   );
 
+  const shortSessions = useMemo(
+    () =>
+      PATHWAYS.filter((p) => p.kind === "flow")
+        .map((p) => ({ p, minutes: catalogSessionMinutes(flowPoses(p)) }))
+        .sort((a, b) => a.minutes - b.minutes)
+        .slice(0, 8),
+    [],
+  );
+
+  const programShelf = useMemo(() => {
+    const programs = PATHWAYS.filter((p) => p.kind !== "flow");
+    // Plus programs lead the row so the lock is on the first card. 7-day
+    // challenges follow; they stay unmarked.
+    const ordered = [
+      ...programs.filter((p) => isPlusClass(p)),
+      ...programs.filter((p) => p.section === "seven-day"),
+    ];
+    return ordered.slice(0, 8);
+  }, []);
+
   const startRecommendation = (
     rec: PracticeRecommendation,
     instructionMode?: "guided" | "brief" | "timer",
@@ -315,6 +339,20 @@ export default function Home() {
         mode: instructionMode ?? "guided",
       }).minutes,
       ...(instructionMode ? { instructionMode } : {}),
+    });
+    navigate("/guided");
+  };
+
+  const startCatalogFlow = (flow: (typeof PATHWAYS)[number]) => {
+    const poses = queueCatalogPoses(flowPoses(flow));
+    if (!poses.length) {
+      navigate("/pathways");
+      return;
+    }
+    loadSession(poses, {
+      label: flow.name,
+      pathwaySlug: flow.slug,
+      plannedMinutes: catalogSessionMinutes(flowPoses(flow)),
     });
     navigate("/guided");
   };
@@ -523,50 +561,181 @@ export default function Home() {
         )}
       </Reveal>
 
-      {/* ── 2. The program you're following, when today's card is something else ── */}
-      {programDay && recommendation?.source !== "program" && (
-        <Link
-          href={`/pathways/${programDay.pathwaySlug}`}
-          className="flex min-h-14 min-w-0 cursor-pointer items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          data-testid={`home-program-${programDay.pathwaySlug}`}
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <CalendarDays className="h-5 w-5" aria-hidden />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate font-medium">Continue Day {programDay.day}</span>
-            <span className="block text-xs text-muted-foreground">
-              {programDay.pathwayName} · {programDay.minutes} min, including guidance
-            </span>
-          </span>
-          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-        </Link>
+      {/* ── Continue practice ───────────────────────────────────────────── */}
+      <section className="space-y-3" aria-labelledby="continue-heading" data-testid="home-row-continue">
+        <h2 id="continue-heading" className="font-serif text-xl">
+          Continue practice
+        </h2>
+        {showResume ||
+        (programDay && recommendation?.source !== "program") ||
+        savedFlows.length > 0 ? (
+          <ScrollRow label="Continue practice" testId="home-continue-scroll">
+            {showResume && (
+              <button
+                type="button"
+                onClick={() => navigate(progress?.mode === "practice" ? "/practice" : "/guided")}
+                className="flex w-64 shrink-0 snap-start items-center gap-3 rounded-2xl border border-primary/30 bg-card px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="home-continue-resume"
+              >
+                <Play className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                <span className="min-w-0">
+                  <span className="block font-medium">Unfinished session</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {countOf(todays.length, "pose")} queued
+                  </span>
+                </span>
+              </button>
+            )}
+            {programDay && recommendation?.source !== "program" && (
+              <Link
+                href={`/pathways/${programDay.pathwaySlug}`}
+                className="flex w-72 shrink-0 snap-start items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid={`home-program-${programDay.pathwaySlug}`}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <CalendarDays className="h-5 w-5" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">Continue Day {programDay.day}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {programDay.pathwayName} · {programDay.minutes} min, including guidance
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              </Link>
+            )}
+            {savedFlows.slice(0, 4).map((flow) => (
+              <button
+                key={`flow-${flow.id}`}
+                type="button"
+                onClick={() => startSavedFlow(flow)}
+                className="flex w-64 shrink-0 snap-start items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 text-left transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid={`home-saved-${flow.id}`}
+              >
+                <Bookmark className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{flow.name}</span>
+                  <span className="block text-xs text-muted-foreground">Saved sequence · Start</span>
+                </span>
+                <Play className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              </button>
+            ))}
+          </ScrollRow>
+        ) : (
+          <p className="text-sm text-muted-foreground" data-testid="home-continue-empty">
+            Nothing in progress. A short session below is a good place to start.
+          </p>
+        )}
+      </section>
+
+      {/* ── Recommended ─────────────────────────────────────────────────── */}
+      {alternatives.length > 0 && (
+        <section className="space-y-3" aria-labelledby="recommended-heading" data-testid="home-row-recommended">
+          <div className="flex items-center justify-between gap-2">
+            <h2 id="recommended-heading" className="font-serif text-xl">
+              Recommended
+            </h2>
+            <Link
+              href="/guided"
+              className="text-sm text-primary hover:underline"
+              data-testid="link-browse-practice"
+            >
+              Browse all
+            </Link>
+          </div>
+          <ScrollRow label="Recommended" testId="home-recommended-scroll">
+            {alternatives.map((alt) => (
+              <div key={alt.id} className="w-72 shrink-0 snap-start">
+                <AlternativeCard alt={alt} onStart={startRecommendation} />
+              </div>
+            ))}
+          </ScrollRow>
+        </section>
       )}
 
+      {/* ── Short sessions ───────────────────────────────────────────────── */}
+      <section className="space-y-3" aria-labelledby="short-heading" data-testid="home-row-short">
+        <div className="flex items-center justify-between gap-2">
+          <h2 id="short-heading" className="font-serif text-xl">
+            Short sessions
+          </h2>
+          <Link href="/pathways" className="text-sm text-primary hover:underline" data-testid="home-short-see-all">
+            See all
+          </Link>
+        </div>
+        <ScrollRow label="Short sessions" testId="home-short-scroll">
+          {shortSessions.map(({ p, minutes }) => (
+            <Card key={p.slug} className="flex w-56 shrink-0 snap-start flex-col overflow-hidden" data-testid={`home-short-${p.slug}`}>
+              <PoseImage
+                slug={p.targetImgSlug}
+                rounded="rounded-none"
+                aspect="aspect-[4/3]"
+                shadow={false}
+                className="w-full"
+              />
+              <CardContent className="flex flex-1 flex-col gap-2 p-3">
+                <p className="font-serif text-base leading-tight">{p.name}</p>
+                <p className="text-xs text-muted-foreground">{minutes} min, including guidance</p>
+                <Button
+                  size="sm"
+                  className="mt-auto w-full"
+                  onClick={() => startCatalogFlow(p)}
+                  data-testid={`home-short-start-${p.slug}`}
+                >
+                  <Play className="h-4 w-4" /> Start
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </ScrollRow>
+      </section>
+
+      {/* ── Programs ─────────────────────────────────────────────────────── */}
+      <section className="space-y-3" aria-labelledby="programs-heading" data-testid="home-row-programs">
+        <div className="flex items-center justify-between gap-2">
+          <h2 id="programs-heading" className="font-serif text-xl">
+            Programs
+          </h2>
+          <Link href="/pathways" className="text-sm text-primary hover:underline" data-testid="home-programs-see-all">
+            See all
+          </Link>
+        </div>
+        <ScrollRow label="Programs" testId="home-programs-scroll">
+          {programShelf.map((p) => (
+            <Link
+              key={p.slug}
+              href={`/pathways/${p.slug}`}
+              className="block w-56 shrink-0 snap-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              data-testid={`home-program-card-${p.slug}`}
+            >
+              <Card className="flex h-full flex-col overflow-hidden">
+                <PoseImage
+                  slug={p.targetImgSlug}
+                  rounded="rounded-none"
+                  aspect="aspect-[4/3]"
+                  shadow={false}
+                  className="w-full"
+                />
+                <CardContent className="flex flex-1 flex-col gap-2 p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="font-serif text-base leading-tight">{p.name}</p>
+                    {isPlusClass(p) && <PlusLock slug={p.slug} />}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{pathwaySessionRangeLabel(p)}</p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </ScrollRow>
+      </section>
+
       {/* ── 3. Saved and recent ─────────────────────────────────────────── */}
-      {(savedFlows.length > 0 || recentSessions.length > 0) && (
+      {recentSessions.length > 0 && (
         <section className="space-y-3" aria-labelledby="recent-heading" data-testid="home-recent-saved">
           <h2 id="recent-heading" className="font-serif text-xl">
             Saved and recent
           </h2>
           <ul className="grid gap-2 sm:grid-cols-2">
-            {savedFlows.slice(0, 2).map((flow) => (
-              <li key={`flow-${flow.id}`}>
-                <button
-                  type="button"
-                  onClick={() => startSavedFlow(flow)}
-                  className="flex min-h-14 w-full min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-card/60 px-4 py-3 text-left transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  data-testid={`home-saved-${flow.id}`}
-                >
-                  <Bookmark className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{flow.name}</span>
-                    <span className="block text-xs text-muted-foreground">Saved sequence · Start</span>
-                  </span>
-                  <Play className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                </button>
-              </li>
-            ))}
             {recentSessions.map((row) => {
               let names: string[] = [];
               try {
@@ -755,28 +924,6 @@ export default function Home() {
       </section>
 
 
-      {/* ── 5. Three alternatives ────────────────────────────────────────── */}
-      {alternatives.length > 0 && (
-        <section className="space-y-3" aria-labelledby="alternatives-heading">
-          <div className="flex items-center justify-between gap-2">
-            <h2 id="alternatives-heading" className="font-serif text-xl">
-              Or something else
-            </h2>
-            <Link
-              href="/guided"
-              className="text-sm text-primary hover:underline"
-              data-testid="link-browse-practice"
-            >
-              Browse all
-            </Link>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {alternatives.map((alt) => (
-              <AlternativeCard key={alt.id} alt={alt} onStart={startRecommendation} />
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* ── 6. The three ways in, plus breathing ─────────────────────────── */}
       <section className="space-y-3" aria-labelledby="home-discover-heading" data-testid="home-discover">
