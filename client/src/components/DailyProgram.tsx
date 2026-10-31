@@ -73,7 +73,7 @@ function PoseRow({ p }: { p: DailyPlan["poses"][number] }) {
           <WithheldPoseImage slug={p.asanaSlug} compact />
         ) : (
           <img width={600} height={1200}
-          src={`${import.meta.env.BASE_URL}poses/${p.asanaSlug}.png`}
+          src={`${import.meta.env.BASE_URL}poses/${p.asanaSlug}.webp`}
           alt={asana?.imageAlt ?? p.asanaSlug}
           className="h-full w-full object-contain"
           loading="lazy"
@@ -184,7 +184,7 @@ export function DailyProgram({
                 <div className="flex items-start gap-4">
                   <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background">
                     <img loading="lazy" width={600} height={1200}
-                      src={`${import.meta.env.BASE_URL}poses/balasana.png`}
+                      src={`${import.meta.env.BASE_URL}poses/balasana.webp`}
                       alt={asanaBySlug("balasana")?.imageAlt ?? "Child's pose"}
                       className="h-full w-full object-contain"
                     />

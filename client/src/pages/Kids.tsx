@@ -53,8 +53,9 @@ export default function Kids() {
                 </Link>
               </Button>
             </div>
-            <img loading="lazy" width={600} height={1200}
-              src={`${import.meta.env.BASE_URL}kids/_hero.png`}
+            {/* Intrinsic size of _hero (900x600) so the box is reserved before it loads. */}
+            <img loading="lazy" width={900} height={600}
+              src={`${import.meta.env.BASE_URL}kids/_hero.webp`}
               alt="A cheerful child practicing yoga"
               className="kids-bob mx-auto w-full max-w-sm rounded-2xl object-contain"
               draggable={false}
@@ -77,7 +78,7 @@ export default function Kids() {
                 >
                   <div className="flex items-center justify-center bg-accent/50 p-4">
                     <img width={600} height={1200}
-                      src={`${import.meta.env.BASE_URL}kids/${p.image}.png`}
+                      src={`${import.meta.env.BASE_URL}kids/${p.image}.webp`}
                       alt={p.poseName}
                       className="h-40 w-40 object-contain"
                       draggable={false}
@@ -119,7 +120,7 @@ export default function Kids() {
                 >
                   <div className="flex items-center justify-center bg-secondary/15 p-4">
                     <img loading="lazy" width={600} height={1200}
-                      src={`${import.meta.env.BASE_URL}kids/${b.image}.png`}
+                      src={`${import.meta.env.BASE_URL}kids/${b.image}.webp`}
                       alt={b.techniqueName}
                       className="h-32 w-32 object-contain"
                       draggable={false}

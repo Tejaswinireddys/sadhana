@@ -446,7 +446,7 @@ export default function StartQuiz() {
                           <WithheldPoseImage slug={p.slug} compact />
                         ) : (
                           <img width={600} height={1200}
-                          src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
+                          src={`${import.meta.env.BASE_URL}poses/${p.slug}.webp`}
                           alt={a.imageAlt}
                           className="h-full w-full object-cover object-center"
                           loading="lazy"

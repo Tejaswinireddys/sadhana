@@ -142,10 +142,12 @@ export function PoseImage({
             )}
           />
           {/* LQIP-style blur layer from the same asset at tiny intrinsic size.
-              Skipped for thumbs — a blur pass costs more than it buys at 64px. */}
+              Skipped for thumbs — a blur pass costs more than it buys at 64px.
+              WebP, not the PNG fallback: a plain <img> here downloaded the
+              full ~750KB master next to the ~20KB WebP the <picture> picked. */}
           {!thumb && (
             <img
-              src={src}
+              src={webpSrc}
               alt=""
               aria-hidden
               width={600}

@@ -100,7 +100,7 @@ export function HomeWelcomeHeader({
                 key={slug}
                 ref={depth === 0 ? markReady : undefined}
                 onLoad={depth === 0 ? () => setHeroReady(true) : undefined}
-                src={`${base}poses/${slug}.png`}
+                src={`${base}poses/${slug}.webp`}
                 alt=""
                 width={600}
                 height={1200}
