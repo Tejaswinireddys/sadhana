@@ -1,12 +1,16 @@
 /**
  * Tap 2 of cancel: one confirmation screen stating access-until, then done.
  * No retention copy, no survey, no chat, no multi-step confirmation chain.
+ * While billing is off there is nothing to preview: cancel-preview can only
+ * answer 404, so it is not requested and the page says Plus is waitlist-only.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Button } from "@/components/ui/button";
 import { FadeIn } from "@/components/motion";
+import { BILLING_ENABLED } from "@/lib/publicConfig";
+import { PlusWaitlistNotice } from "@/components/PlusWaitlistNotice";
 
 type Preview = {
   plan: string;
@@ -35,6 +39,7 @@ export default function CancelConfirm() {
 
   const { data, error, isLoading } = useQuery<Preview>({
     queryKey: ["/api/billing/cancel-preview"],
+    enabled: BILLING_ENABLED,
   });
 
   const cancel = useMutation({
@@ -62,6 +67,7 @@ export default function CancelConfirm() {
         </p>
       </header>
 
+      {!BILLING_ENABLED && <PlusWaitlistNotice />}
       {isLoading && <p className="text-sm text-muted-foreground">Loading your plan…</p>}
       {error && (
         <div className="space-y-3 rounded-2xl border border-border p-4 text-sm">
@@ -86,7 +92,7 @@ export default function CancelConfirm() {
                 void fetch("/api/billing/demo-subscribe", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ plan: "plus", email: "demo@sadhana.app" }),
+                  body: JSON.stringify({ plan: "plus", email: "demo@example.com" }),
                 }).then(() => window.location.reload());
               }}
             >

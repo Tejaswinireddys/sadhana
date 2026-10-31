@@ -476,7 +476,9 @@ export function registerBillingRoutes(app: Express) {
     const interval = String(req.body?.interval || "month") === "year" ? "year" : "month";
     const amount = catalogAmount(plan, interval);
     const renewsAt = new Date(Date.now() + (interval === "year" ? 365 : 30) * 86_400_000).toISOString();
-    const email = String(req.body?.email || "demo@sadhana.app").trim().toLowerCase();
+    // example.com is reserved and undeliverable — renewal/cancel emails for a
+    // demo entitlement must never reach a real mailbox.
+    const email = String(req.body?.email || "demo@example.com").trim().toLowerCase();
     const { hash } = issueCancelToken();
     setEntitlement(ownerId, {
       plan,

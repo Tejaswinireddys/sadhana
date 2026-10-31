@@ -36,6 +36,10 @@ export default function Privacy() {
             path selection, mobility check-ins, and children’s sticker progress.
           </li>
           <li>
+            <strong className="text-foreground">Waitlists:</strong> the email you enter to join the
+            Plus or teachers waitlist, used only to tell you when that opens.
+          </li>
+          <li>
             <strong className="text-foreground">Technical:</strong> basic request logs (method, path,
             status, duration). Sensitive fields are redacted.
           </li>

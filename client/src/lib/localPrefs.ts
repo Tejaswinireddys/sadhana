@@ -64,6 +64,7 @@ export const KEYS = {
   practiceBuddy: "sadhana.practiceBuddy",
   quizPlan: "sadhana.quiz.plan",
   teachersWaitlist: "sadhana.teachersWaitlist.email",
+  plusWaitlist: "sadhana.plusWaitlist.email",
 } as const;
 
 /** Map quiz/register experience to the pose-detail variation tab. */

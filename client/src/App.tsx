@@ -1,4 +1,3 @@
-import { BILLING_ENABLED } from "@/lib/publicConfig";
 import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import { Switch, Route, Router, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -146,8 +145,8 @@ function AppRouter() {
           <Route path="/health-disclaimer" component={HealthDisclaimer} />
           <Route path="/help" component={Help} />
           <Route path="/plus" component={Plus} />
-          {BILLING_ENABLED && <Route path="/cancel/confirm" component={CancelConfirm} />}
-          {BILLING_ENABLED && <Route path="/cancel" component={Cancel} />}
+          <Route path="/cancel/confirm" component={CancelConfirm} />
+          <Route path="/cancel" component={Cancel} />
           <Route path="/challenges" component={Challenges} />
           <Route path="/adaptive" component={AdaptivePlan} />
           <Route path="/pose-coach" component={PoseCoach} />

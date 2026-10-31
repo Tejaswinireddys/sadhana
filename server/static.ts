@@ -148,11 +148,15 @@ export function serveStatic(app: Express) {
 
   app.use("/{*path}", (req, res) => {
     const pathname = requestPathname(req);
-    if (pathname === "/design-system" || pathname.startsWith("/analytics/") ||
-        (!billingEnabled() && (pathname === "/cancel" || pathname.startsWith("/cancel/")))) {
+    if (pathname === "/design-system" || pathname.startsWith("/analytics/")) {
       res.setHeader("X-Robots-Tag", "noindex");
       sendSpaHtml(req, res, pathname, 404);
       return;
+    }
+    // /cancel stays reachable (renewal emails, bookmarks) and explains that Plus
+    // is waitlist-only while billing is off — just not indexed until it is sold.
+    if (!billingEnabled() && (pathname === "/cancel" || pathname.startsWith("/cancel/"))) {
+      res.setHeader("X-Robots-Tag", "noindex");
     }
     if (isNonSpaPrefix(pathname)) {
       sendJson404(res);

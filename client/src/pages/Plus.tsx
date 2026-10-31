@@ -5,7 +5,9 @@ import { FadeIn } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PLANS, readPreferredPlan, writePreferredPlan, type PlanId } from "@/lib/plans";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Input } from "@/components/ui/input";
+import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
@@ -48,9 +50,100 @@ export default function Plus() {
       <h1 className="font-serif text-3xl">Practice for free</h1>
       <p>Paid subscriptions are not available yet. You can use guest practice without a payment card.</p>
       <Button asChild><Link href="/start">Find my practice</Link></Button>
+      <PlusWaitlistSignup />
     </div>
   );
   return <LivePlus />;
+}
+
+/**
+ * The Plus waitlist while payments are off. Linked as /plus#waitlist from the
+ * /cancel pages, so it scrolls itself into view when that is the hash.
+ * A failed request says so — "you're on the list" is only shown once the
+ * server has the address.
+ */
+function PlusWaitlistSignup() {
+  const { toast } = useToast();
+  const sectionRef = useRef<HTMLElement>(null);
+  const [email, setEmail] = useState("");
+  const [joined, setJoined] = useState(() => !!readString(KEYS.plusWaitlist));
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (window.location.hash === "#waitlist") sectionRef.current?.scrollIntoView({ block: "start" });
+  }, []);
+
+  const join = async (event: FormEvent) => {
+    event.preventDefault();
+    const value = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      toast({ title: "Enter a valid email", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/plus-waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: value }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) {
+        toast({ title: "Could not join", description: data.error, variant: "destructive" });
+        return;
+      }
+      writeString(KEYS.plusWaitlist, value);
+      setJoined(true);
+    } catch {
+      toast({
+        title: "Could not join",
+        description: "Check your connection and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section
+      ref={sectionRef}
+      id="waitlist"
+      className="scroll-mt-20 space-y-3 rounded-3xl border border-border bg-card p-5 shadow-soft"
+      data-testid="plus-waitlist"
+    >
+      <h2 className="font-serif text-xl">Sadhana Plus waitlist</h2>
+      {joined ? (
+        <p className="text-sm" data-testid="plus-waitlist-success">
+          You&apos;re on the Plus waitlist. We&apos;ll email you once when Plus opens. Nothing is
+          charged.
+        </p>
+      ) : (
+        <>
+          <p className="text-sm text-muted-foreground">
+            Plus isn&apos;t on sale yet. Leave your email and we&apos;ll tell you when it is — that
+            is the only thing we use it for.
+          </p>
+          <form className="flex flex-col gap-3 sm:flex-row" onSubmit={join}>
+            <Input
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="you@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="min-h-11"
+              aria-label="Email for the Plus waitlist"
+              data-testid="plus-waitlist-email"
+            />
+            <Button type="submit" className="min-h-11" disabled={busy} data-testid="plus-waitlist-join">
+              {busy ? "Joining…" : "Join waitlist"}
+            </Button>
+          </form>
+        </>
+      )}
+    </section>
+  );
 }
 
 function LivePlus() {
