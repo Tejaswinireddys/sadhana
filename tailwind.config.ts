@@ -7,10 +7,42 @@ export default {
     extend: {
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 4px)",
+        md: "var(--radius-md)",
         sm: "var(--radius-sm)",
         xl: "var(--radius)",
         "2xl": "var(--radius-lg)",
+        full: "var(--radius-full)",
+      },
+      fontSize: {
+        "2xs": ["var(--text-2xs)", { lineHeight: "var(--leading-2xs)" }],
+        xs: ["var(--text-xs)", { lineHeight: "var(--leading-xs)" }],
+        sm: ["var(--text-sm)", { lineHeight: "var(--leading-sm)" }],
+        base: ["var(--text-base)", { lineHeight: "var(--leading-base)" }],
+        lg: ["var(--text-lg)", { lineHeight: "var(--leading-lg)" }],
+        xl: ["var(--text-xl)", { lineHeight: "var(--leading-xl)" }],
+        "2xl": ["var(--text-2xl)", { lineHeight: "var(--leading-2xl)" }],
+        "3xl": ["var(--text-3xl)", { lineHeight: "var(--leading-3xl)" }],
+        "4xl": ["var(--text-4xl)", { lineHeight: "var(--leading-4xl)" }],
+      },
+      fontWeight: {
+        normal: "var(--font-weight-regular)",
+        medium: "var(--font-weight-medium)",
+        semibold: "var(--font-weight-semibold)",
+      },
+      spacing: {
+        "0": "var(--space-0)",
+        "1": "var(--space-1)",
+        "2": "var(--space-2)",
+        "3": "var(--space-3)",
+        "4": "var(--space-4)",
+        "5": "var(--space-5)",
+        "6": "var(--space-6)",
+        "8": "var(--space-8)",
+        "10": "var(--space-10)",
+        "11": "var(--control-height)",
+        "12": "var(--space-12)",
+        "14": "var(--nav-item-min-height)",
+        "16": "var(--space-16)",
       },
       colors: {
         // Flat / base colors (regular buttons)
@@ -91,8 +123,8 @@ export default {
         mono: ["var(--font-mono)"],
       },
       boxShadow: {
-        soft: "var(--surface-shadow)",
-        "soft-lg": "var(--surface-shadow-lg)",
+        soft: "var(--shadow-md)",
+        "soft-lg": "var(--shadow-lg)",
       },
       keyframes: {
         "accordion-down": {

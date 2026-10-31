@@ -5,12 +5,12 @@ import path from "node:path";
 import { AA_NORMAL, contrastRatio } from "./contrast";
 
 /**
- * Reads the real tokens out of index.css, so the palette can't drift back below
+ * Reads the real tokens out of theme.css, so the palette can't drift back below
  * AA without a test failing. The Search page alone had 24 AA failures because
  * brand colours doubled as text colours and nothing checked them.
  */
 function readTokens(): { light: Record<string, string>; dark: Record<string, string> } {
-  const css = readFileSync(path.resolve("client/src/index.css"), "utf8");
+  const css = readFileSync(path.resolve("client/src/theme.css"), "utf8");
   const darkStart = css.indexOf(".dark");
   const parse = (block: string) => {
     const out: Record<string, string> = {};

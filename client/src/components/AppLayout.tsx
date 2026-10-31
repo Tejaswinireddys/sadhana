@@ -19,6 +19,7 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { BottomNav } from "@/components/ds/BottomNav";
 import { Input } from "@/components/ui/input";
 import { Logo } from "./Logo";
 import { useTheme } from "./ThemeProvider";
@@ -26,7 +27,6 @@ import { APP_SHELL_ID } from "./FullScreenOverlay";
 import { useAuth } from "@/lib/auth";
 import { useRecentSearches } from "@/context/RecentSearchesContext";
 import { searchSidebarSuggestions } from "@/lib/globalSearch";
-import { cn } from "@/lib/utils";
 import {
   Home,
   LayoutGrid,
@@ -374,34 +374,15 @@ function NavMenu() {
 function MobileBottomNav() {
   const [location] = useLocation();
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
-      aria-label="Primary"
-      data-testid="mobile-bottom-nav"
-    >
-      <ul className="mx-auto grid max-w-lg grid-cols-5">
-        {PRIMARY_NAV.map((item) => {
-          const Icon = item.icon;
-          const active = isNavActive(item, location);
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className={cn(
-                  "flex min-h-14 cursor-pointer flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  active ? "text-primary" : "text-muted-foreground hover:text-foreground",
-                )}
-                aria-current={active ? "page" : undefined}
-                data-testid={`mobile-nav-${item.label.toLowerCase()}`}
-              >
-                <Icon className={cn("h-5 w-5", active && "stroke-[2.25]")} />
-                {item.label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <BottomNav
+      items={PRIMARY_NAV.map((item) => ({
+        href: item.href,
+        label: item.label,
+        icon: item.icon,
+        active: isNavActive(item, location),
+        testId: `mobile-nav-${item.label.toLowerCase()}`,
+      }))}
+    />
   );
 }
 

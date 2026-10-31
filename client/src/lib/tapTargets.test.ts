@@ -11,10 +11,13 @@ const read = (rel: string) => readFileSync(resolve(rel), "utf8");
 
 describe("button primitives meet 44px", () => {
   it("keeps every Button size at min-h-11", () => {
-    const src = read("client/src/components/ui/button.tsx");
+    const src = read("client/src/components/ds/Button.tsx");
     assert.match(src, /default: "min-h-11 /);
     assert.match(src, /sm: "min-h-11 /);
     assert.match(src, /icon: "h-11 w-11 min-h-11 min-w-11"/);
+    assert.match(read("client/src/components/ui/button.tsx"), /from "@\/components\/ds\/Button"/);
+    assert.match(read("client/src/theme.css"), /--control-height: var\(--space-11\)/);
+    assert.match(read("client/src/theme.css"), /--space-11: 2\.75rem/);
   });
 });
 
