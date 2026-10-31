@@ -1,5 +1,193 @@
 # AGENTS.md
 
+Guidance for AI agents and contributors working in this repo. The first half
+describes the project; the second half ("Cursor Cloud specific instructions")
+holds the domain invariants that tests pin — read both before changing code.
+
+## Ground rules
+
+- **One small, focused change per PR.** One concern per PR — no drive-by
+  refactors, renames, reformatting or dependency bumps mixed into a feature or
+  fix. If you notice something else, open a separate PR.
+- **Never break existing routes.** Every client path in `client/src/App.tsx`
+  and every `/api/*` endpoint is public surface (bookmarks, emails, shared
+  links, the PWA, tests). Do not remove, rename or change the meaning of one.
+  If a path must move, keep the old one working (redirect or alias) — the
+  legacy `/#/…` → `/…` rewrite in `client/src/main.tsx` and the `/voice/` →
+  `/audio/` alias are the pattern. Adding a client route means also updating
+  `KNOWN_TOP_LEVEL_SEGMENTS` in `server/static.ts` (otherwise it is served
+  with HTTP 404) and, if public, `server/pageMetadata.ts` (sitemap/meta).
+- Run `npm run check` and `npm test` before opening a PR; run
+  `npm run test:e2e` when you touch routing, auth, or the guided player.
+- Surfaces in `docs/architecture-invariants.md` (practice queue, guided timing,
+  device ownership, account sessions, catalogs, ParentGate, theme/motion) are
+  logic-stable: restyle freely, but don't rewrite their behaviour without an
+  explicit product decision.
+
+## Tech stack
+
+- **Language:** TypeScript everywhere (`strict`), ESM (`"type": "module"`), Node 20.
+- **Client:** React 18 + Vite 7, wouter (routing), TanStack Query v5 (server
+  state), shadcn/ui (Radix primitives, "new-york" style) + Tailwind CSS 3,
+  lucide-react icons, framer-motion, react-hook-form + zod, recharts, three.js
+  (pose stages), hls.js (adaptive video).
+- **Server:** Express 5 on `node:http`, Drizzle ORM over `pg` (Postgres) with an
+  in-memory fallback store, zod validation, `node:crypto` for auth (no auth
+  library), Stripe (billing, behind `BILLING_ENABLED`), web-push, Resend email.
+- **Shared:** Drizzle table definitions + drizzle-zod insert schemas
+  (`shared/schema.ts`), zod request schemas (`shared/validation.ts`), pure
+  practice-stats math (`shared/practiceStats.ts`).
+- **Observability:** Sentry (`@sentry/node`, `@sentry/react`), PostHog product
+  analytics (`funnel/` taxonomy).
+- **Testing:** `node:test` + `node:assert/strict` run through `tsx`; Playwright
+  for E2E.
+- **Hosting:** Render (`render.yaml`, `/healthz` health check) + managed Postgres.
+
+## Folder structure
+
+```
+client/
+  index.html, welcome.html   Vite entry HTML (app shell + lightweight landing)
+  public/                    Static assets: poses/ (PNG+WebP), videos/, voice/
+                             (narration MP3 + timings), captions/, kids/, sw.js
+  src/
+    main.tsx                 App bootstrap (hash-route redirect, SW, telemetry)
+    LaunchApp.tsx            Picks Landing vs. the lazy-loaded workspace
+    App.tsx                  Providers + the wouter <Switch> (all routes)
+    welcome.tsx              Entry for welcome.html
+    pages/                   One component per route (PascalCase.tsx)
+    components/              Feature components; ui/ = shadcn primitives
+    context/                 React contexts (Practice, KidsGate, RecentSearches)
+    hooks/                   Reusable hooks (use-*.ts / useX.ts)
+    lib/                     Domain logic + helpers, colocated *.test.ts
+    data/                    Pose catalog, programs, media manifests;
+                             *.generated.* files are script output — don't hand-edit
+    index.css                Tailwind layers + design tokens (CSS variables)
+server/
+  index.ts                   Express app, middleware order, boot sequence
+  routes.ts                  Core /api routes (auth, sessions, journal, …)
+  platformApi.ts, push.ts, billing.ts, buddy.ts, teachersWaitlist.ts
+                             Feature route modules (register*Routes(app))
+  auth.ts, owner.ts          Password/session crypto; device/user ownership
+  security.ts                Helmet-style headers, CSP, rate limits
+  storage.ts                 IStorage + DatabaseStorage + MemoryStorage
+  static.ts, vite.ts         Production static serving / dev Vite middleware
+  *.test.ts                  Server unit tests (colocated)
+shared/                      Code imported by both client and server
+funnel/                      Analytics event taxonomy + funnel metrics
+drizzle/schema.sql           Idempotent schema auto-applied on boot
+script/                      Build script + content pipelines (TS/Python)
+e2e/                         Playwright specs
+docs/                        Design/production docs referenced below
+```
+
+Path aliases (tsconfig + Vite): `@/` → `client/src/`, `@shared/` → `shared/`,
+`@funnel/` → `funnel/`.
+
+## Run, build and test locally
+
+```bash
+npm install
+npm run dev          # Express API + Vite HMR on http://localhost:5000
+npm run check        # tsc --noEmit (the closest thing to a linter)
+npm test             # node:test unit suite via tsx (explicit file list)
+npm run test:e2e     # Playwright; boots `npm run dev` itself
+npm run build        # Vite client → dist/public, esbuild server → dist/index.cjs
+npm start            # serve the production build (NODE_ENV=production)
+```
+
+- No `.env` is needed for local dev: without `DATABASE_URL` the server uses an
+  in-memory store. Copy `.env.example` to `.env` only for Postgres, email,
+  billing, TTS, Sentry or PostHog.
+- On macOS, AirPlay Receiver may hold port 5000 (returns 403). Use
+  `PORT=5055 npm run dev` / `E2E_PORT=5055 npx playwright test`.
+- **`npm test` does not glob.** A new `*.test.ts` file must be added to the
+  `test` script in `package.json` or it never runs (in CI either).
+- CI (`.github/workflows/ci.yml`): `npm ci` → `npm run check` → `npm test`, plus
+  a separate Playwright job.
+
+## Routing
+
+**Client** — wouter, real paths (no hash routing). All routes live in
+`AppRouter` in `client/src/App.tsx`; every page except Home/Landing/Register is
+`lazy()`-loaded and wrapped in `Suspense` + a per-route `ErrorBoundary`.
+Dynamic segments use `:slug` (`/asanas/:slug`, `/pathways/:slug`, `/kids/:slug`,
+`/kids/breath/:slug`). Some routes are conditional: `/analytics/funnel` and
+`/design-system` are dev-only (`import.meta.env.DEV`); `/cancel` and
+`/cancel/confirm` exist only when `BILLING_ENABLED`. Marketing paths
+(`MARKETING_PATHS`) render without the app chrome. First-time visitors to `/`
+are sent to `/welcome`. Navigate with wouter's `useLocation` / `<Link>`.
+
+**Server** — Express. Middleware order in `server/index.ts` matters:
+security → body parsers → `/healthz`, `/sitemap.xml` → request logging →
+`registerRoutes` (mounts `ownerMiddleware` on `/api`) and the feature
+`register*Routes(app)` modules → JSON 404 for unknown `/api/*` → error handler
+→ Vite (dev) or `serveStatic` (prod) SPA fallback. New API routes must be
+registered before the `/api` JSON-404 catch-all.
+
+## Auth and data ownership
+
+- Accounts are **optional**. Every request gets an owner: a guest device id
+  (signed HttpOnly `sadhana_device` cookie, echoed via `X-Device-Id` /
+  `X-Device-Proof`) or, with a valid `sadhana_session` cookie, `user:<id>`.
+  `ownerMiddleware` (`server/owner.ts`) sets `req.ownerId`, `req.deviceOwnerId`
+  and `req.userId`; route handlers scope all reads/writes by `req.ownerId`.
+- Passwords are scrypt-hashed and sessions are opaque random tokens stored
+  server-side (`server/auth.ts`) so logout/wipe revokes immediately. Reset,
+  verify and recovery tokens are stored hashed.
+- Client: `useAuth()` in `client/src/lib/auth.ts` (query key `/api/auth/me`).
+  Sign in/out calls `queryClient.resetQueries()` because every cached query
+  belongs to the previous owner.
+- All client API calls go through `apiRequest` / the default `queryFn` in
+  `client/src/lib/queryClient.ts` (adds device headers, `credentials: "include"`,
+  timeout). Query keys are the URL path, e.g. `["/api/sessions"]`.
+- Signup/verification/recovery behaviour is detailed in the section below.
+
+## Styling
+
+- Tailwind CSS 3 (`tailwind.config.ts`, PostCSS) with `darkMode: ["class"]`.
+- Design tokens are HSL CSS variables in `client/src/index.css` (`:root` and
+  `.dark`) exposed as Tailwind colors (`bg-background`, `text-foreground`,
+  `bg-primary`, `border-card-border`, …). Use tokens, not hard-coded colours.
+  Fonts: Raleway (sans) and Lora (serif) via `--font-*`.
+- shadcn/ui primitives live in `client/src/components/ui/`; compose and restyle
+  them rather than swapping libraries. Merge classes with `cn()` from
+  `@/lib/utils`; variants use `class-variance-authority`.
+- Theme is managed by `client/src/components/ThemeProvider.tsx`
+  (light/dark/system, persisted). Motion must honour `prefers-reduced-motion`
+  and `html.motion-off` (`MotionToggle`).
+- Accessibility is tested: contrast (`lib/contrast.test.ts`) and tap-target
+  sizes (`lib/tapTargets.test.ts`).
+
+## Coding conventions
+
+- 2-space indent, double quotes, semicolons, trailing commas; named exports for
+  lib/server modules, `export default` for page components.
+- Files: pages/components `PascalCase.tsx`; lib/data modules `camelCase.ts`;
+  shadcn primitives and some hooks `kebab-case`. Tests are colocated as
+  `name.test.ts` next to the module.
+- Keep domain logic in pure functions under `client/src/lib` or `shared/` with
+  unit tests; pages/components wire it to UI. Derive values (session length,
+  equipment, preflight) from the catalog — don't author them per screen.
+- Validate every request body with zod (`shared/validation.ts`,
+  drizzle-zod insert schemas) via `safeParse`; respond `{ error: string }` with
+  a proper status. Unknown `/api/*` and media paths return JSON 404, never HTML.
+- Storage changes go through the `IStorage` interface and must be implemented
+  in **both** `DatabaseStorage` and `MemoryStorage`; schema changes go in
+  `shared/schema.ts` **and** the idempotent `drizzle/schema.sql`.
+- Interactive and asserted elements carry `data-testid` (used by Playwright).
+- Browser storage goes through `client/src/lib/localPrefs.ts` (`KEYS`,
+  `readString`/`writeJson`, all try/catch-guarded).
+- Counted nouns use `client/src/lib/plural.ts`; page titles use
+  `useDocumentTitle`.
+- Comments explain *why* (often the bug that motivated the code), in JSDoc
+  `/** … */` on exported functions. Match that density.
+- Telemetry and optional integrations must never break the app: lazy-import
+  them and swallow failures.
+- Never invent media, reviewers, citations or provenance in code — see the
+  media/benefit rules below.
+
+
 ## Cursor Cloud specific instructions
 
 Sadhana is a single full-stack app (no monorepo): a React + Vite client, an
