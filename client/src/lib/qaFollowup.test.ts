@@ -95,7 +95,9 @@ describe("reset-password copy", () => {
     const src = readFileSync(resolve("client/src/pages/Account.tsx"), "utf8");
     assert.equal(/server logs/i.test(src), false);
     assert.match(src, /emailEnabled/);
-    assert.match(src, /privacy@sadhana\.app/);
+    // Support goes through the configured SUPPORT_EMAIL, never a hard-coded placeholder mailbox.
+    assert.match(src, /<SupportContact \/>/);
+    assert.equal(/mailto:[a-z]+@sadhana\.app/.test(src), false);
     assert.match(src, /\/api\/auth\/mail-status/);
   });
 });

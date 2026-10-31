@@ -46,7 +46,7 @@ export type PoseHumanStageProps = {
 };
 
 const BASE = import.meta.env.BASE_URL;
-const imgUrl = (slug: string) => `${BASE}poses/${slug}.png`;
+const imgUrl = (slug: string) => `${BASE}poses/${slug}.webp`;
 
 export function PoseHumanStage({
   slug,

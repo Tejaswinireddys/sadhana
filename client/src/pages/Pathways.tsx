@@ -144,7 +144,7 @@ function PathwayCard({ p, enrolled }: { p: Pathway; enrolled: boolean }) {
                     <WithheldPoseImage slug={slug} compact />
                   ) : (
                     <img width={600} height={1200}
-                    src={`${import.meta.env.BASE_URL}poses/${slug}.png`}
+                    src={`${import.meta.env.BASE_URL}poses/${slug}.webp`}
                     alt={poseImageAlt(slug)}
                     decoding="async"
                     className="h-full w-full object-contain"

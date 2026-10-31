@@ -44,7 +44,7 @@ export function ProductDemoVideo({
 }: ProductDemoVideoProps) {
   const base = import.meta.env.BASE_URL;
   // PNG is the shipped poster (WebP optional). Prefer real PNG over a missing .webp.
-  const poster = posterSrc ?? `${base}images/${name}-poster.png`;
+  const poster = posterSrc ?? `${base}images/${name}-poster.webp`;
   const webm = webmSrc ?? `${base}videos/${name}.webm`;
   const mp4 = mp4Src ?? `${base}videos/${name}.mp4`;
   const captions = captionsSrc ?? `${base}captions/${name}.vtt`;

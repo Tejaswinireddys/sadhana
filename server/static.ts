@@ -7,6 +7,33 @@ import { brandPublicHtml, publicAppOrigin, robotsTxt } from "./publicUrl";
 import { sendJson404 } from "./json404";
 import { mountStaticMedia } from "./mountStaticMedia";
 
+const ONE_YEAR_SECONDS = 31_536_000;
+const ONE_DAY_SECONDS = 86_400;
+const FONT_EXT = /\.(woff2?|ttf|otf|eot)$/i;
+const IMAGE_EXT = /\.(webp|png|jpe?g|svg)$/i;
+
+/**
+ * Cache-Control for a file served from dist/public, given its path relative to
+ * that directory, or undefined to keep express.static's default (revalidate
+ * via ETag).
+ *
+ * Vite emits every JS/CSS/font/image it bundles to `assets/` with a content
+ * hash in the name, so a changed file is a new URL and the old one can be
+ * cached forever. Self-hosted fonts get the same year-long lifetime but not
+ * `immutable` unless hashed — a font in public/ keeps its name when replaced.
+ * Unhashed public images (poses, kids, posters) keep their names when an
+ * illustration is corrected, so they get a day rather than a year. The
+ * service worker must always be fresh or a broken one can pin a release.
+ */
+export function staticCacheControl(relativePath: string): string | undefined {
+  const normalized = relativePath.split(path.sep).join("/").replace(/^\/+/, "");
+  if (normalized === "robots.txt" || normalized === "sw.js") return "no-store";
+  if (normalized.startsWith("assets/")) return `public, max-age=${ONE_YEAR_SECONDS}, immutable`;
+  if (FONT_EXT.test(normalized)) return `public, max-age=${ONE_YEAR_SECONDS}`;
+  if (IMAGE_EXT.test(normalized)) return `public, max-age=${ONE_DAY_SECONDS}`;
+  return undefined;
+}
+
 function sendBrandedHtml(res: express.Response, filePath: string, status = 200, pathname = "/") {
   const html = brandPublicHtml(fs.readFileSync(filePath, "utf-8"), publicAppOrigin(), pathname);
   res.setHeader("Cache-Control", "no-cache");
@@ -110,14 +137,8 @@ export function serveStatic(app: Express) {
       index: false,
       fallthrough: true,
       setHeaders(res, filePath) {
-        if (filePath.includes(`${path.sep}assets${path.sep}`)) {
-          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-        } else if (/\.(webp|png|jpg|jpeg|svg|woff2)$/.test(filePath)) {
-          res.setHeader("Cache-Control", "public, max-age=86400");
-        }
-        if (filePath.endsWith("sw.js") || filePath.endsWith("robots.txt")) {
-          res.setHeader("Cache-Control", "no-store");
-        }
+        const cacheControl = staticCacheControl(path.relative(distPath, filePath));
+        if (cacheControl) res.setHeader("Cache-Control", cacheControl);
       },
     }),
   );

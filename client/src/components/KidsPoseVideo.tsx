@@ -23,7 +23,7 @@ export function KidsPoseVideo({
   const [failed, setFailed] = useState(false);
   const hasVideo = kidsPoseHasVideo(slug);
   const media = kidsPoseMediaFor(slug);
-  const stillSrc = `${import.meta.env.BASE_URL}kids/${kidsPoseBySlug(slug)?.image ?? `kids_${slug}`}.png`;
+  const stillSrc = `${import.meta.env.BASE_URL}kids/${kidsPoseBySlug(slug)?.image ?? `kids_${slug}`}.webp`;
 
   useEffect(() => {
     setReady(false);

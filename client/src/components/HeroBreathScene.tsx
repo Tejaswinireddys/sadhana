@@ -16,7 +16,7 @@ type HeroBreathSceneProps = {
 
 export default function HeroBreathScene({
   className,
-  fallbackSrc = `${import.meta.env.BASE_URL}poses/tadasana.png`,
+  fallbackSrc = `${import.meta.env.BASE_URL}poses/tadasana.webp`,
   fallbackAlt = poseImageAlt("tadasana"),
 }: HeroBreathSceneProps) {
   const rootRef = useRef<HTMLDivElement>(null);

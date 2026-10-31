@@ -2259,7 +2259,7 @@ export default function GuidedSession() {
               <WithheldPoseImage slug={prev.slug} compact />
             ) : (
               <img width={80} height={160}
-              src={`${import.meta.env.BASE_URL}poses/${prev.slug}.png`}
+              src={`${import.meta.env.BASE_URL}poses/${prev.slug}.webp`}
               alt={accurateImageAlt(prev.slug, prev.imageAlt)}
               className="h-20 w-20 rounded-xl object-contain"
               loading="lazy"
@@ -2287,7 +2287,7 @@ export default function GuidedSession() {
               <WithheldPoseImage slug={next.slug} compact />
             ) : (
               <img width={80} height={160}
-              src={`${import.meta.env.BASE_URL}poses/${next.slug}.png`}
+              src={`${import.meta.env.BASE_URL}poses/${next.slug}.webp`}
               alt={accurateImageAlt(next.slug, next.imageAlt)}
               className="h-20 w-20 rounded-xl object-contain"
               loading="lazy"

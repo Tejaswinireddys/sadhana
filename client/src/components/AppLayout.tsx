@@ -269,7 +269,7 @@ function SidebarSearch() {
                         <WithheldPoseImage slug={s.pose.slug} compact />
                       ) : (
                         <PoseReferenceImage
-                        src={`${import.meta.env.BASE_URL}poses/${s.pose.slug}.png`}
+                        src={`${import.meta.env.BASE_URL}poses/${s.pose.slug}.webp`}
                         alt={s.pose.imageAlt}
                         width={96}
                         height={192}

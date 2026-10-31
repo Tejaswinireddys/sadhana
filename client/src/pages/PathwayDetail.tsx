@@ -327,7 +327,7 @@ export default function PathwayDetail() {
                                 <WithheldPoseImage slug={p.asanaSlug} compact />
                               ) : (
                                 <img width={600} height={1200}
-                                src={`${import.meta.env.BASE_URL}poses/${p.asanaSlug}.png`}
+                                src={`${import.meta.env.BASE_URL}poses/${p.asanaSlug}.webp`}
                                 alt={asana?.imageAlt ?? p.asanaSlug}
                                 className="h-full w-full object-cover"
                                 loading="lazy"

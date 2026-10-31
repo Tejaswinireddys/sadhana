@@ -305,7 +305,7 @@ export function Onboarding({
                         <WithheldPoseImage slug={p.slug} compact />
                       ) : (
                         <img loading="lazy" width={600} height={1200}
-                        src={`${import.meta.env.BASE_URL}poses/${p.slug}.png`}
+                        src={`${import.meta.env.BASE_URL}poses/${p.slug}.webp`}
                         alt=""
                         className="h-full w-full object-cover object-top"
                       />

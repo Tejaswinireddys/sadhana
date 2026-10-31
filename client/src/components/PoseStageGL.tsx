@@ -61,7 +61,7 @@ export function PoseStageGL(props: PoseStageGLProps) {
     [stepMotion, stepIndex, stepCount],
   );
 
-  const resolvedPoster = posterSrc || `${BASE}poses/${slug}.png`;
+  const resolvedPoster = posterSrc || `${BASE}poses/${slug}.webp`;
 
   return (
     <div

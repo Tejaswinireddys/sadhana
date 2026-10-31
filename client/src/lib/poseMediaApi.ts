@@ -69,7 +69,7 @@ export function manifestToVideoSources(
       hls,
       mp4,
       webm: webm || undefined,
-      poster: manifest.video.poster || `/poses/${slug}.png`,
+      poster: manifest.video.poster || `/poses/${slug}.webp`,
       playbackId: manifest.video.playbackId ?? null,
       provider: manifest.video.provider ?? null,
       ...(manifest.video.captions || convention?.captions

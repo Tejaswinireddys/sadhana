@@ -4,7 +4,7 @@
  * Convention:
  *   client/public/videos/kids/{slug}.webm
  *   client/public/videos/kids/{slug}.mp4
- * Poster: client/public/kids/{image}.png from kids.ts
+ * Poster: client/public/kids/{image}.webp from kids.ts
  *
  * Regenerate with: npx tsx script/gen-kids-pose-videos.ts
  */
@@ -35,6 +35,6 @@ export function kidsPoseMediaFor(slug: string): {
   return {
     webm: `${base}videos/kids/${slug}.webm`,
     mp4: `${base}videos/kids/${slug}.mp4`,
-    poster: `${base}kids/${pose?.image ?? `kids_${slug}`}.png`,
+    poster: `${base}kids/${pose?.image ?? `kids_${slug}`}.webp`,
   };
 }
