@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /design-system
+Disallow: /analytics/
 
-# Sitemap URL is served dynamically from PUBLIC_APP_URL (see server/static.ts / vite.ts).
-Sitemap: https://sadhana-ou9m.onrender.com/sitemap.xml
+# The running server writes the absolute Sitemap URL from PUBLIC_APP_URL.

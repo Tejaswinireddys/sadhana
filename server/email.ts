@@ -1,3 +1,4 @@
+import { publicAppOrigin } from "./publicUrl";
 /**
  * Transactional email — Resend when RESEND_API_KEY is set, else optional
  * EMAIL_WEBHOOK_URL POST, else structured console log (dev / demos).
@@ -64,12 +65,7 @@ export function emailDeliveryConfigured(): boolean {
 }
 
 export function appBaseUrl(): string {
-  if (process.env.PUBLIC_APP_URL?.trim()) {
-    return process.env.PUBLIC_APP_URL.trim().replace(/\/$/, "");
-  }
-  return process.env.NODE_ENV === "production"
-    ? "https://sadhana-ou9m.onrender.com"
-    : "http://localhost:5000";
+  return publicAppOrigin();
 }
 
 export function formatMoney(amount: number, currency: string): string {

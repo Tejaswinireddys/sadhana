@@ -1,3 +1,4 @@
+import { publicSitemapPaths } from "./pageMetadata";
 import "dotenv/config";
 import express, { Response, NextFunction } from "express";
 import type { Request } from "express";
@@ -62,16 +63,7 @@ const PUBLIC_ORIGIN = publicAppOrigin();
 
 /** Real XML sitemap (not the SPA shell) for marketing / SEO crawlers. */
 app.get("/sitemap.xml", (_req, res) => {
-  const paths = [
-    "/",
-    "/welcome",
-    "/start",
-    "/register",
-    "/cancel",
-    "/privacy",
-    "/terms",
-    "/health-disclaimer",
-  ];
+  const paths = publicSitemapPaths();
   const urls = paths
     .map(
       (p) =>

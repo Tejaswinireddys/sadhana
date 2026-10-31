@@ -462,22 +462,18 @@ export class DatabaseStorage implements IStorage {
       .where(eq(preferences.ownerId, ownerId))
       .limit(1);
     if (existing) return existing;
-    const [created] = await this.orm
-      .insert(preferences)
-      .values({ ownerId, motionEnabled: 1, voiceEnabled: 1, allowRobotVoice: 0 })
-      .returning();
-    return created;
+    return { id: 0, ownerId, motionEnabled: 1, voiceEnabled: 1, allowRobotVoice: 0 };
   }
-  async updatePreferences(
-    ownerId: string,
-    data: Partial<InsertPreferences>,
-  ): Promise<Preferences> {
+  async updatePreferences(ownerId: string, data: Partial<InsertPreferences>): Promise<Preferences> {
     const current = await this.getPreferences(ownerId);
-    const [row] = await this.orm
-      .update(preferences)
-      .set(data)
-      .where(and(eq(preferences.id, current.id), eq(preferences.ownerId, ownerId)))
-      .returning();
+    if (!current.id) {
+      const [created] = await this.orm.insert(preferences)
+        .values({ ownerId, motionEnabled: 1, voiceEnabled: 1, allowRobotVoice: 0, ...data })
+        .returning();
+      return created;
+    }
+    const [row] = await this.orm.update(preferences).set(data)
+      .where(and(eq(preferences.id, current.id), eq(preferences.ownerId, ownerId))).returning();
     return row;
   }
 
@@ -966,17 +962,13 @@ export class MemoryStorage implements IStorage {
   }
 
   async getPreferences(ownerId: string) {
-    let p = this.prefs.get(ownerId);
-    if (!p) {
-      p = { id: this.nextId(), ownerId, motionEnabled: 1, voiceEnabled: 1, allowRobotVoice: 0 };
-      this.prefs.set(ownerId, p);
-    }
-    return p;
+    return this.prefs.get(ownerId) ?? { id: 0, ownerId, motionEnabled: 1, voiceEnabled: 1, allowRobotVoice: 0 };
   }
   async updatePreferences(ownerId: string, data: Partial<InsertPreferences>) {
     const current = await this.getPreferences(ownerId);
-    Object.assign(current, data);
-    return current;
+    const updated = { ...current, ...data, id: current.id || this.nextId(), ownerId };
+    this.prefs.set(ownerId, updated);
+    return updated;
   }
 
   async getActiveProfile(ownerId: string) {

@@ -1,3 +1,4 @@
+import { SupportContact } from "@/components/SupportContact";
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -23,7 +24,7 @@ import {
 } from "@/lib/auth";
 import { writeLegalAck } from "@/lib/legal";
 import { formatDate } from "@/lib/sadhana";
-import { credentialsSchema } from "@shared/schema";
+import { credentialsSchema } from "@shared/validation";
 import { ArrowRight, LogOut, MailCheck, Merge, ShieldCheck, Trash2, UserRound } from "lucide-react";
 
 function FieldError({ id, message }: { id: string; message: string | null }) {
@@ -815,13 +816,8 @@ export default function Account() {
                         >
                           see how to get back in
                         </Link>{" "}
-                        or email{" "}
-                        <a
-                          className="underline underline-offset-2"
-                          href="mailto:privacy@sadhana.app"
-                        >
-                          privacy@sadhana.app
-                        </a>
+                        or contact{" "}
+                        <SupportContact />
                         .
                       </p>
                       <div className="space-y-2">

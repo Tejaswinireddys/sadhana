@@ -14,6 +14,22 @@ services:
         value: production
       - key: DATABASE_URL
         sync: false # set manually in Render dashboard (Neon connection string)
+      - key: PUBLIC_APP_URL
+        sync: false
+      - key: SUPPORT_EMAIL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: VITE_SENTRY_DSN
+        sync: false
+      - key: VITE_PUBLIC_POSTHOG_KEY
+        sync: false
+      - key: BILLING_ENABLED
+        value: "false"
       - key: PORT
         value: 10000
     healthCheckPath: /healthz

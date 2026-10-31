@@ -1,3 +1,4 @@
+import { BILLING_ENABLED } from "@/lib/publicConfig";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { FadeIn } from "@/components/motion";
@@ -42,6 +43,17 @@ function priceDisplayed(id: PlanId, interval: "month" | "year"): string {
 }
 
 export default function Plus() {
+  if (!BILLING_ENABLED) return (
+    <div className="space-y-4 py-8">
+      <h1 className="font-serif text-3xl">Practice for free</h1>
+      <p>Paid subscriptions are not available yet. You can use guest practice without a payment card.</p>
+      <Button asChild><Link href="/start">Find my practice</Link></Button>
+    </div>
+  );
+  return <LivePlus />;
+}
+
+function LivePlus() {
   useDocumentTitle("Sadhana Plus · Plans");
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -218,13 +230,13 @@ export default function Plus() {
                 : "Free forever here — paid plans are on a waitlist.")}
           </p>
           <p className="text-sm">
-            <Link
+            {BILLING_ENABLED && (<Link
               href="/cancel"
               className="font-medium underline underline-offset-2"
               data-testid="paywall-cancel-link"
             >
               How to cancel
-            </Link>
+            </Link>)}
             {" · "}
             no chat, no phone, no retention screens.
           </p>
@@ -318,7 +330,7 @@ export default function Plus() {
         {/* Only someone with a subscription is offered "Cancel subscription". */}
         {hasPaidPlan ? (
           <Button asChild variant="default" className="min-h-11" data-testid="plus-cancel-cta">
-            <Link href="/cancel/confirm">Cancel subscription</Link>
+            {BILLING_ENABLED && (<Link href="/cancel/confirm">Cancel subscription</Link>)}
           </Button>
         ) : (
           <p className="text-sm text-muted-foreground" data-testid="plus-no-subscription">
@@ -365,9 +377,9 @@ export default function Plus() {
           Terms
         </Link>
         , and{" "}
-        <Link href="/cancel" className="underline underline-offset-2">
+        {BILLING_ENABLED && (<Link href="/cancel" className="underline underline-offset-2">
           Cancel
-        </Link>
+        </Link>)}
         .
       </p>
     </FadeIn>

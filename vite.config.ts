@@ -19,27 +19,12 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    manifest: true,
     chunkSizeWarningLimit: 700,
     rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes("node_modules/framer-motion")) return "motion";
-          if (id.includes("node_modules/recharts")) return "charts";
-          if (id.includes("node_modules/@tanstack")) return "query";
-          if (id.includes("node_modules/lucide-react")) return "icons";
-          if (id.includes("node_modules/@radix-ui") || id.includes("node_modules/zod")) {
-            return "ui-vendor";
-          }
-          if (
-            id.includes("/client/src/data/content") ||
-            id.includes("/client/src/data/poseKeyframes") ||
-            id.includes("/client/src/lib/poseRig")
-          ) {
-            return "catalog-content";
-          }
-          if (id.includes("/client/src/data/kids")) return "catalog-kids";
-          if (id.includes("/client/src/data/profiles")) return "catalog-profiles";
-        },
+      input: {
+        app: path.resolve(import.meta.dirname, "client/index.html"),
+        welcome: path.resolve(import.meta.dirname, "client/welcome.html"),
       },
     },
   },

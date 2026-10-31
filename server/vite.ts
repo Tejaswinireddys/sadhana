@@ -56,6 +56,15 @@ export async function setupVite(server: Server, app: Express) {
   // Serve /audio before Vite so missing narrations are JSON 404, not HTML.
   mountStaticMedia(app);
 
+  app.get(["/", "/welcome"], async (req, res, next) => {
+    try {
+      const welcome = req.path === "/welcome" || !/(?:^|;\s*)sadhana_welcome_seen=1(?:;|$)/.test(req.headers.cookie || "");
+      const clientTemplate = path.resolve(import.meta.dirname, "..", "client", welcome ? "welcome.html" : "index.html");
+      const template = await fs.promises.readFile(clientTemplate, "utf-8");
+      res.status(200).set({ "Content-Type": "text/html" }).end(await vite.transformIndexHtml(req.originalUrl, brandPublicHtml(template, publicAppOrigin(), req.path)));
+    } catch (error) { next(error); }
+  });
+
   app.use(vite.middlewares);
 
   app.use("/{*path}", async (req, res, next) => {
@@ -81,7 +90,7 @@ export async function setupVite(server: Server, app: Express) {
       );
 
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = brandPublicHtml(template);
+      template = brandPublicHtml(template, publicAppOrigin(), pathname);
       template = template.replace(
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,

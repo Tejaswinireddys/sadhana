@@ -1,3 +1,4 @@
+import { SupportContact } from "@/components/SupportContact";
 import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { FadeIn } from "@/components/motion";
@@ -82,7 +83,7 @@ export default function Privacy() {
           Guest data lives with your device identity until you clear it or the store resets. Account
           data remains until you delete the account. You may request export or deletion in-product.
           Where applicable law grants access, correction, or erasure rights, use those in-app
-          controls or email privacy@sadhana.app.
+          controls or contact <SupportContact />.
         </p>
       </section>
 

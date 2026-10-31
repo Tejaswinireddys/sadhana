@@ -1,3 +1,4 @@
+import { BILLING_ENABLED } from "@/lib/publicConfig";
 /**
  * Today — one decision, then the things that support it.
  *
@@ -106,7 +107,7 @@ function HomeCancelSubscriptionCta() {
     data.plan !== "free" &&
     data.status !== "refunded" &&
     (data.status === "active" || data.status === "trialing" || data.cancelAtPeriodEnd);
-  if (!paid) return null;
+  if (!BILLING_ENABLED || !paid) return null;
   return (
     <div
       className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3"
@@ -118,9 +119,9 @@ function HomeCancelSubscriptionCta() {
           : "Need to leave? Cancel in one more tap. No chat, phone, or retention screen."}
       </p>
       <Button asChild variant="outline" className="min-h-11 shrink-0" data-testid="button-home-cancel">
-        <Link href="/cancel/confirm">
+        {BILLING_ENABLED && (<Link href="/cancel/confirm">
           {data.cancelAtPeriodEnd ? "Cancellation details" : "Cancel subscription"}
-        </Link>
+        </Link>)}
       </Button>
     </div>
   );

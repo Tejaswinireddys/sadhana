@@ -1,3 +1,4 @@
+import { PoseReferenceImage } from "./PoseReferenceImage";
 /**
  * Instructor demo stage.
  *
@@ -221,7 +222,7 @@ export function InstructorStage({
         </div>
       ) : (
         <>
-          <img
+          <PoseReferenceImage
             src={media.poster!}
             alt="Static pose reference"
             className="h-full w-full object-contain"

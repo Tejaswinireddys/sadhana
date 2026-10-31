@@ -1,3 +1,4 @@
+import { PoseReferenceImage } from "./PoseReferenceImage";
 /**
  * PoseHumanStage — clear HUMAN teaching figure (not a bobbing Ken Burns clip).
  *
@@ -108,7 +109,7 @@ export function PoseHumanStage({
         {!poseImageWithheld(slug) && layers.map((layer, i) => {
           const isTop = i === layers.length - 1;
           return (
-            <img loading="lazy" width={600} height={1200}
+            <PoseReferenceImage loading="lazy" width={600} height={1200}
               key={layer.id}
               src={imgUrl(layer.slug)}
               // Describe what is drawn. For a pose whose illustration does not

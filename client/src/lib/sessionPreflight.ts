@@ -276,14 +276,7 @@ export function buildSessionPreflight(opts: {
  * "11 min, including guidance" — the length in the words a card uses. Only
  * Learn and Flow have guidance to include; Timer only is just the length.
  */
-export function durationPhrase(p: Pick<SessionPreflight, "timeLabel" | "mode">): string {
-  return p.mode === "timer" ? p.timeLabel : `${p.timeLabel}, including guidance`;
-}
-
-/** "No props" or "Needs a chair and a bolster (or a pillow)". */
-export function propsPhrase(p: Pick<SessionPreflight, "equipmentSentence">): string {
-  return p.equipmentSentence ? `Needs ${p.equipmentSentence}` : "No props";
-}
+export { durationPhrase, propsPhrase } from "./sessionSpecCopy";
 
 /** "10 min · Beginner · Gentle" — the one-line spec used on cards. */
 export function preflightSpecLine(p: SessionPreflight): string {

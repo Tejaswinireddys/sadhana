@@ -1,3 +1,5 @@
+import { SupportContact } from "@/components/SupportContact";
+import { BILLING_ENABLED } from "@/lib/publicConfig";
 /**
  * Public homepage (/welcome).
  *
@@ -14,7 +16,7 @@ import { Link, useLocation } from "wouter";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LotusMark } from "@/components/Logo";
-import { PoseImage } from "@/components/PoseImage";
+import { MarketingPoseImage as PoseImage } from "@/components/MarketingPoseImage";
 import { SessionSpec } from "@/components/SessionSpec";
 import { KEYS, writeString } from "@/lib/localPrefs";
 import { FadeIn, Reveal } from "@/components/motion";
@@ -32,15 +34,22 @@ import {
   Volume2,
 } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { ASANAS, asanaBySlug } from "@/data/content";
-import { QUICK_SESSIONS } from "@/data/quickSessions";
-import { REPRESENTATIVE_SESSIONS, SAMPLE_PRACTICE } from "@/data/samplePractice";
-import { buildQuizPlan } from "@/data/quizPlan";
+import snapshot from "@/data/landing.generated.json";
+import type { buildLandingContent } from "../../../script/landingContent";
+type SessionStartPose = { slug: string; holdSeconds: number; sides?: "once" | "each" };
+type LandingPose = SessionStartPose & { english: string; sanskrit: string; imageAlt: string; modifications: string; steps: Array<{ text: string }> };
+type LandingContent = Omit<ReturnType<typeof buildLandingContent>, "samplePoses" | "sessions"> & {
+  samplePoses: LandingPose[];
+  sessions: Array<Omit<ReturnType<typeof buildLandingContent>["sessions"][number], "poses"> & { poses: LandingPose[] }>;
+};
+const landing = snapshot as unknown as LandingContent;
+
+import { SAMPLE_PRACTICE } from "@/data/samplePractice";
+
 import { CONTENT_REVIEW } from "@/data/contentProvenance";
-import { benefitClaimsNeedingReview } from "@/lib/benefitClaims";
-import { buildSessionPreflight, type PreflightPose } from "@/lib/sessionPreflight";
+
 import { formatDuration } from "@/lib/formatDuration";
-import { usePractice } from "@/context/PracticeContext";
+import { savePersistedPractice } from "@/lib/practicePersist";
 
 const ProductDemoVideo = lazy(() =>
   import("@/components/ProductDemoVideo").then((m) => ({ default: m.ProductDemoVideo })),
@@ -48,14 +57,14 @@ const ProductDemoVideo = lazy(() =>
 
 /** Where to report a problem. The repository is public and has issues enabled. */
 export const ISSUE_TRACKER_URL = "https://github.com/Tejaswinireddys/sadhana/issues";
-export const SUPPORT_EMAIL = "privacy@sadhana.app";
+
 
 /** How the app teaches, stated plainly. Each line is checkable in the product. */
 const FORMAT = [
   {
     icon: ImageIcon,
     title: "Illustrated poses",
-    body: `All ${ASANAS.length} poses are drawn, with the body shape described in text for screen readers. There is no filmed teacher — each pose shows a still.`,
+    body: `All ${landing.poseCount} poses are drawn, with the body shape described in text for screen readers. There is no filmed teacher — each pose shows a still.`,
   },
   {
     icon: Volume2,
@@ -101,95 +110,33 @@ const FAQ = [
   },
 ];
 
-/** Resolve a landing tile into the queue it will actually start. */
-function tilePoses(tile: (typeof REPRESENTATIVE_SESSIONS)[number]) {
-  const raw =
-    tile.poses ??
-    QUICK_SESSIONS.find((q) => q.id === tile.quickSessionId)?.poses ??
-    [];
-  return raw
-    .map((p) => {
-      const asana = asanaBySlug(p.slug);
-      return asana ? ({ ...asana, holdSeconds: p.holdSeconds } as PreflightPose) : null;
-    })
-    .filter((x): x is PreflightPose => x != null);
-}
-
-/** Two sets of real quiz answers, to show what personalisation changes. */
-export const PERSONALISATION_EXAMPLE = [
-  {
-    id: "new-10",
-    who: "New to yoga · 10 minutes",
-    answers: { goal: "calm", body: "full", experience: "new", time: "10" },
-  },
-  {
-    id: "some-20",
-    who: "Some experience · 20 minutes",
-    answers: { goal: "calm", body: "full", experience: "some", time: "20" },
-  },
-] as const;
-
 export default function Landing() {
   useDocumentTitle("Welcome · Sadhana");
   const [, navigate] = useLocation();
-  const { loadSession } = usePractice();
   const [previewOpen, setPreviewOpen] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Sadhana — A daily yoga practice that fits your day";
   }, []);
 
-  const enterApp = () => writeString(KEYS.welcomeSeen, "1");
+  const enterApp = () => {
+    writeString(KEYS.welcomeSeen, "1");
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `sadhana_welcome_seen=1; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+  };
 
-  /** Duration, level, intensity and props, derived from each real queue. */
-  const sessions = useMemo(
-    () =>
-      REPRESENTATIVE_SESSIONS.map((tile) => {
-        const poses = tilePoses(tile);
-        return { tile, poses, preflight: buildSessionPreflight({ poses }) };
-      }).filter((s) => s.poses.length > 0),
-    [],
-  );
-
-  const samplePoses = useMemo(
-    () =>
-      SAMPLE_PRACTICE.poses
-        .map((p) => {
-          const asana = asanaBySlug(p.slug);
-          return asana ? { ...asana, holdSeconds: p.holdSeconds } : null;
-        })
-        .filter((x): x is PreflightPose => x != null),
-    [],
-  );
-  const samplePreflight = useMemo(() => buildSessionPreflight({ poses: samplePoses }), [samplePoses]);
+  const { sessions, samplePoses, samplePreflight, personalisation, flaggedBenefitLines } = landing;
   const firstPose = samplePoses[0];
 
-  const personalisation = useMemo(
-    () =>
-      PERSONALISATION_EXAMPLE.map((ex) => {
-        const plan = buildQuizPlan({ ...ex.answers });
-        const poses = plan.poses
-          .map((p) => {
-            const a = asanaBySlug(p.slug);
-            return a ? ({ ...a, holdSeconds: p.holdSeconds, sides: p.sides } as PreflightPose) : null;
-          })
-          .filter((x): x is PreflightPose => x != null);
-        return { ex, plan, preflight: buildSessionPreflight({ poses }) };
-      }),
-    [],
-  );
-
-  const flaggedBenefitLines = useMemo(() => benefitClaimsNeedingReview().length, []);
-
   /** Start a queue in the real player, via its preparation screen. */
-  const startPoses = (poses: PreflightPose[], label: string, minutes: number) => {
+  const startPoses = (poses: SessionStartPose[], label: string, minutes: number) => {
     if (!poses.length) return;
     enterApp();
     writeString(KEYS.onboardingDone, "1");
-    loadSession(
-      poses.map((p) => ({ asana: p, holdSeconds: p.holdSeconds, ...(p.sides ? { sides: p.sides } : {}) })),
-      { label, introPoseSlug: poses[0]!.slug, plannedMinutes: minutes },
-    );
+    savePersistedPractice({
+      poses: poses.map((p) => ({ slug: p.slug, holdSeconds: p.holdSeconds, ...(p.sides ? { sides: p.sides } : {}) })),
+      meta: { label, pathwaySlug: null, introPoseSlug: poses[0]!.slug, plannedMinutes: minutes },
+    });
     navigate("/guided");
   };
   const startSample = () => startPoses(samplePoses, SAMPLE_PRACTICE.title, samplePreflight.minutes);
@@ -287,7 +234,7 @@ export default function Landing() {
                     <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">How to</span>
                   </div>
                   <div className="mx-auto w-40 py-2">
-                    <PoseImage slug={firstPose.slug} breath={false} shadow={false} priority />
+                    <PoseImage slug={firstPose.slug} alt={firstPose.imageAlt || firstPose.english} breath={false} shadow={false} priority />
                   </div>
                   <div className="space-y-2 px-4 pb-4">
                     <p className="font-serif text-xl">{firstPose.english}</p>
@@ -395,6 +342,7 @@ export default function Landing() {
                           <li key={`${p.slug}-${i}`} className="flex items-center gap-3 text-sm">
                             <PoseImage
                               slug={p.slug}
+                              alt={p.imageAlt || p.english}
                               thumb
                               breath={false}
                               shadow={false}
@@ -445,7 +393,7 @@ export default function Landing() {
                   <ol className="list-decimal space-y-0.5 pl-5 text-sm">
                     {plan.poses.map((p, i) => (
                       <li key={`${p.slug}-${i}`}>
-                        {asanaBySlug(p.slug)?.english}{" "}
+                        {p.english}{" "}
                         <span className="text-muted-foreground">· {formatDuration(p.holdSeconds)}</span>
                       </li>
                     ))}
@@ -475,7 +423,7 @@ export default function Landing() {
             <div className="space-y-2 rounded-2xl border border-border/60 bg-card p-5" data-testid="landing-free-list">
               <h2 className="font-serif text-xl font-semibold">Free today</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Everything described here is free: all {ASANAS.length} illustrated poses, guided
+                Everything described here is free: all {landing.poseCount} illustrated poses, guided
                 sessions, programs, breathing, the quiz, your history and journal. A paid plan is
                 planned but not on sale — there is a waitlist and nothing can be charged.
               </p>
@@ -488,7 +436,7 @@ export default function Landing() {
                 <LifeBuoy className="h-5 w-5 text-primary" aria-hidden /> Help and issues
               </h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Questions about your data or account: {SUPPORT_EMAIL}. Something wrong in a pose or a
+                Questions about your data or account: <SupportContact />. Something wrong in a pose or a
                 session? Report it publicly so it can be fixed.
               </p>
               <div className="flex flex-wrap gap-x-4">
@@ -578,7 +526,7 @@ export default function Landing() {
               { href: "/", label: "App home", enter: true },
               { href: "/privacy", label: "Privacy" },
               { href: "/terms", label: "Terms" },
-              { href: "/cancel", label: "Cancel" },
+              ...(BILLING_ENABLED ? [{ href: "/cancel", label: "Cancel" }] : []),
               { href: "/health-disclaimer", label: "Health disclaimer" },
             ].map((l) => (
               <Link

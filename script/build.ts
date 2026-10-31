@@ -1,3 +1,4 @@
+import { writeLandingContent } from "./landingContent";
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, readFile } from "node:fs/promises";
@@ -19,6 +20,7 @@ const allowlist = [
 async function buildAll() {
   await rm("dist", { recursive: true, force: true });
 
+  await writeLandingContent();
   console.log("building client...");
   await viteBuild();
 

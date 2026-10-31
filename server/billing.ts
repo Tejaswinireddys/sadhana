@@ -1,3 +1,5 @@
+import { publicAppOrigin } from "./publicUrl";
+import { billingEnabled } from "./publicConfig";
 /**
  * Stripe Checkout + subscription compliance (stricter than FTC/state ARL).
  * Two-tap cancel, renewal reminders, first-charge auto-refund, consent audit.
@@ -189,9 +191,9 @@ async function performCancel(
 export function registerBillingRoutes(app: Express) {
   app.get("/api/billing/config", (_req, res) => {
     res.json({
-      enabled: Boolean(stripe),
+      enabled: Boolean(stripe) && billingEnabled(),
       plans: ["free", "plus", "coach"],
-      portalAvailable: Boolean(stripe),
+      portalAvailable: Boolean(stripe) && billingEnabled(),
       cancelTwoTap: true,
       firstChargeRefundDays: 14,
       renewalReminderDays: 3,
@@ -318,7 +320,7 @@ export function registerBillingRoutes(app: Express) {
   });
 
   app.post("/api/billing/checkout", billLimit, async (req: Request, res: Response) => {
-    if (!stripe) {
+    if (!stripe || !billingEnabled()) {
       return res.status(503).json({
         error: "Billing is not configured on this deployment",
         hint: "Free practice stays available. Paid plans are on a waitlist — no surprise charges.",
@@ -384,7 +386,7 @@ export function registerBillingRoutes(app: Express) {
 
   /** Stripe Customer Portal — payment method updates only; cancel is in-app. */
   app.post("/api/billing/portal", billLimit, async (req: Request, res: Response) => {
-    if (!stripe) {
+    if (!stripe || !billingEnabled()) {
       return res.status(503).json({ error: "Billing is not configured on this deployment" });
     }
     const ownerId = req.ownerId || "";
@@ -826,7 +828,7 @@ export async function dispatchRenewalReminders(origin: string): Promise<number> 
 export function startBillingScheduler() {
   const tick = () => {
     const origin =
-      process.env.PUBLIC_APP_URL?.replace(/\/$/, "") || "https://sadhana-ou9m.onrender.com";
+      publicAppOrigin();
     void dispatchRenewalReminders(origin).then((n) => {
       if (n > 0) console.info(`[billing] sent ${n} renewal reminder(s)`);
     });

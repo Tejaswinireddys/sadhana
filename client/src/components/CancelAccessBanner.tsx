@@ -1,3 +1,4 @@
+import { BILLING_ENABLED } from "@/lib/publicConfig";
 /**
  * In-app banner after cancellation — shows the date access ends.
  */
@@ -43,9 +44,9 @@ export function CancelAccessBanner() {
         <p className="text-muted-foreground">
           You keep access until <strong className="text-foreground">{formatUntil(data.accessUntil)}</strong>.
           No further charges.{" "}
-          <Link href="/cancel" className="underline underline-offset-2">
+          {BILLING_ENABLED && (<Link href="/cancel" className="underline underline-offset-2">
             Details
-          </Link>
+          </Link>)}
         </p>
       </div>
       <button

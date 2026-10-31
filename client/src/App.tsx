@@ -1,3 +1,4 @@
+import { BILLING_ENABLED } from "@/lib/publicConfig";
 import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import { Switch, Route, Router, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -16,15 +17,14 @@ import { AppLayout } from "@/components/AppLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ConnectivityBanner } from "@/components/ConnectivityBanner";
 import { LegalConsentBanner } from "@/components/LegalConsentBanner";
-import { Onboarding } from "@/components/Onboarding";
 import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageFade } from "@/components/motion";
 
 /** Eager: first paint + marketing / registration entry. Everything else is route-split. */
-import Home from "@/pages/Home";
-import Landing from "@/pages/Landing";
-import Register from "@/pages/Register";
+const Home = lazy(() => import("@/pages/Home"));
+const Landing = lazy(() => import("@/pages/Landing"));
+const Register = lazy(() => import("@/pages/Register"));
 
 const MARKETING_PATHS = new Set([
   "/welcome",
@@ -99,8 +99,8 @@ function WelcomeRedirect() {
       writeString(KEYS.welcomeSeen, "1");
       return;
     }
-    if (!MARKETING_PATHS.has(location)) {
-      navigate("/welcome");
+    if (location === "/") {
+      navigate("/welcome", { replace: true });
     }
   }, [location, navigate]);
   return null;
@@ -115,7 +115,7 @@ function AppRouter() {
           <Route path="/register" component={Register} />
           <Route path="/welcome" component={Landing} />
           <Route path="/start" component={StartQuiz} />
-          <Route path="/analytics/funnel" component={FunnelDashboard} />
+          {import.meta.env.DEV && <Route path="/analytics/funnel" component={FunnelDashboard} />}
           <Route path="/" component={Home} />
           <Route path="/asanas" component={Asanas} />
           <Route path="/asanas/:slug" component={AsanaDetail} />
@@ -141,8 +141,8 @@ function AppRouter() {
           <Route path="/health-disclaimer" component={HealthDisclaimer} />
           <Route path="/help" component={Help} />
           <Route path="/plus" component={Plus} />
-          <Route path="/cancel/confirm" component={CancelConfirm} />
-          <Route path="/cancel" component={Cancel} />
+          {BILLING_ENABLED && <Route path="/cancel/confirm" component={CancelConfirm} />}
+          {BILLING_ENABLED && <Route path="/cancel" component={Cancel} />}
           <Route path="/challenges" component={Challenges} />
           <Route path="/adaptive" component={AdaptivePlan} />
           <Route path="/pose-coach" component={PoseCoach} />
@@ -151,7 +151,7 @@ function AppRouter() {
           <Route path="/teachers" component={Instructors} />
           <Route path="/household" component={Household} />
           <Route path="/corporate" component={Corporate} />
-          <Route path="/design-system" component={DesignSystem} />
+          {import.meta.env.DEV && <Route path="/design-system" component={DesignSystem} />}
           <Route component={NotFound} />
         </Switch>
       </Suspense>
@@ -168,25 +168,11 @@ function AppShell() {
       }
     });
   }, []);
-  const welcomeSeen = !!readString(KEYS.welcomeSeen);
-  const routePath = location.split("?")[0] || "/";
-  const onMarketing = MARKETING_PATHS.has(routePath);
-  const onDirectPractice =
-    routePath === "/guided" || routePath === "/practice" || routePath === "/instructor";
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
-  useEffect(() => {
-    if (welcomeSeen && !onMarketing && !onDirectPractice && !readString(KEYS.onboardingDone)) {
-      setShowOnboarding(true);
-    }
-  }, [welcomeSeen, onMarketing, onDirectPractice]);
 
   return (
     <>
       <WelcomeRedirect />
-      {welcomeSeen && !onMarketing && (
-        <Onboarding open={showOnboarding} onDone={() => setShowOnboarding(false)} />
-      )}
+
       <AppLayout>
         {/* Key by route so a page crash does not trap every subsequent nav click. */}
         <ErrorBoundary key={location.split("?")[0] || "/"}>

@@ -1,3 +1,4 @@
+import { PoseReferenceImage } from "./PoseReferenceImage";
 /**
  * The picture shown during a pose lesson.
  *
@@ -167,7 +168,7 @@ export function PoseLessonStage({
         />
       ) : demo.poster ? (
         <>
-          <img
+          <PoseReferenceImage
             src={demo.poster}
             alt={`${english} — still reference`}
             className="h-full w-full object-contain"
@@ -210,9 +211,9 @@ export function PoseLessonStage({
           data-testid="pose-lesson-no-media"
         >
           <ImageOff className="h-5 w-5 text-muted-foreground" aria-hidden />
-          <p className="text-sm font-medium">Demonstration unavailable</p>
+          <p className="text-sm font-medium">Movement demonstration not available</p>
           <p className="max-w-sm text-xs text-muted-foreground">
-            Follow the written cue below for this pose.
+            No reviewed video is available for this pose yet. Follow the written cue below.
           </p>
         </div>
       )}

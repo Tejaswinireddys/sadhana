@@ -6,7 +6,7 @@ import {
   clampHoldSeconds,
   MAX_HOLD_SECONDS,
   MIN_HOLD_SECONDS,
-} from "@shared/schema";
+} from "@shared/validation";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";

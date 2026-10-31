@@ -4,7 +4,7 @@
  * derived from the queue by `buildSessionPreflight` — nothing authored.
  */
 import type { SessionPreflight } from "@/lib/sessionPreflight";
-import { durationPhrase, propsPhrase } from "@/lib/sessionPreflight";
+import { durationPhrase, propsPhrase } from "@/lib/sessionSpecCopy";
 import { countOf } from "@/lib/plural";
 import { cn } from "@/lib/utils";
 import { Clock, Package } from "lucide-react";

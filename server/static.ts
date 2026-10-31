@@ -1,3 +1,4 @@
+import { billingEnabled } from "./publicConfig";
 import express from "express";
 import type { Express } from "express";
 import fs from "node:fs";
@@ -6,8 +7,9 @@ import { brandPublicHtml, publicAppOrigin, robotsTxt } from "./publicUrl";
 import { sendJson404 } from "./json404";
 import { mountStaticMedia } from "./mountStaticMedia";
 
-function sendBrandedHtml(res: express.Response, filePath: string, status = 200) {
-  const html = brandPublicHtml(fs.readFileSync(filePath, "utf-8"));
+function sendBrandedHtml(res: express.Response, filePath: string, status = 200, pathname = "/") {
+  const html = brandPublicHtml(fs.readFileSync(filePath, "utf-8"), publicAppOrigin(), pathname);
+  res.setHeader("Cache-Control", "no-cache");
   res.status(status).setHeader("Content-Type", "text/html; charset=utf-8").send(html);
 }
 
@@ -89,6 +91,12 @@ export function serveStatic(app: Express) {
   }
 
   const indexPath = path.resolve(distPath, "index.html");
+  const welcomePath = path.resolve(distPath, "welcome.html");
+  const hasWelcomeCookie = (req: express.Request) => /(?:^|;\s*)sadhana_welcome_seen=1(?:;|$)/.test(req.headers.cookie || "");
+  const sendSpaHtml = (req: express.Request, res: express.Response, pathname: string, status = 200) => {
+    const isWelcome = pathname === "/welcome" || (pathname === "/" && !hasWelcomeCookie(req));
+    sendBrandedHtml(res, isWelcome ? welcomePath : indexPath, status, pathname);
+  };
 
   app.get("/robots.txt", (_req, res) => {
     res.status(200).type("text/plain").send(robotsTxt(publicAppOrigin()));
@@ -102,19 +110,29 @@ export function serveStatic(app: Express) {
       index: false,
       fallthrough: true,
       setHeaders(res, filePath) {
-        if (filePath.endsWith("robots.txt")) {
+        if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else if (/\.(webp|png|jpg|jpeg|svg|woff2)$/.test(filePath)) {
+          res.setHeader("Cache-Control", "public, max-age=86400");
+        }
+        if (filePath.endsWith("sw.js") || filePath.endsWith("robots.txt")) {
           res.setHeader("Cache-Control", "no-store");
         }
       },
     }),
   );
 
-  app.get("/", (_req, res) => {
-    sendBrandedHtml(res, indexPath);
-  });
+  app.get("/welcome", (req, res) => sendSpaHtml(req, res, "/welcome"));
+  app.get("/", (req, res) => sendSpaHtml(req, res, "/"));
 
   app.use("/{*path}", (req, res) => {
     const pathname = requestPathname(req);
+    if (pathname === "/design-system" || pathname.startsWith("/analytics/") ||
+        (!billingEnabled() && (pathname === "/cancel" || pathname.startsWith("/cancel/")))) {
+      res.setHeader("X-Robots-Tag", "noindex");
+      sendSpaHtml(req, res, pathname, 404);
+      return;
+    }
     if (isNonSpaPrefix(pathname)) {
       sendJson404(res);
       return;
@@ -124,6 +142,6 @@ export function serveStatic(app: Express) {
       res.status(404).end();
       return;
     }
-    sendBrandedHtml(res, indexPath, isKnownAppRoute(pathname) ? 200 : 404);
+    sendSpaHtml(req, res, pathname, isKnownAppRoute(pathname) ? 200 : 404);
   });
 }

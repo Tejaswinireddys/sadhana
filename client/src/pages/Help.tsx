@@ -1,3 +1,5 @@
+import { SupportContact } from "@/components/SupportContact";
+import { BILLING_ENABLED } from "@/lib/publicConfig";
 /**
  * Help — the page error states point at.
  *
@@ -91,11 +93,9 @@ export default function Help() {
                   as a guest and nothing is lost.
                 </li>
                 <li>
-                  For data held under a locked account, email{" "}
-                  <a href="mailto:privacy@sadhana.app" className="underline underline-offset-2">
-                    privacy@sadhana.app
-                  </a>{" "}
-                  and ask for an export.
+                  For private account requests: {" "}
+                  <SupportContact />{" "}
+
                 </li>
                 <li>
                   If you run this deployment: set <code className="text-xs">RESEND_API_KEY</code> or{" "}
@@ -163,10 +163,8 @@ export default function Help() {
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p>
-            Email{" "}
-            <a href="mailto:privacy@sadhana.app" className="underline underline-offset-2">
-              privacy@sadhana.app
-            </a>
+            Contact: {" "}
+            <SupportContact />
             . Include the page you were on and what you expected to happen.
           </p>
           <p>
@@ -179,9 +177,9 @@ export default function Help() {
               Terms
             </Link>{" "}
             and{" "}
-            <Link href="/cancel" className="underline underline-offset-2">
+            {BILLING_ENABLED && (<Link href="/cancel" className="underline underline-offset-2">
               how to cancel
-            </Link>
+            </Link>)}
             .
           </p>
         </CardContent>

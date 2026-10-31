@@ -1,3 +1,4 @@
+import { BILLING_ENABLED } from "@/lib/publicConfig";
 import { useRef, useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -334,9 +335,9 @@ export default function Settings() {
             {import.meta.env.DEV && (
               <>
                 <span aria-hidden>·</span>
-                <Link href="/design-system" className="underline underline-offset-2" data-testid="settings-design-system">
+                {import.meta.env.DEV && (<Link href="/design-system" className="underline underline-offset-2" data-testid="settings-design-system">
                   Design system
-                </Link>
+                </Link>)}
                 <span aria-hidden>·</span>
                 <Link href="/corporate" className="underline underline-offset-2" data-testid="settings-corporate">
                   Workplace prototype
@@ -680,7 +681,7 @@ export default function Settings() {
           </p>
           {import.meta.env.DEV && (
             <Button variant="outline" className="min-h-11 w-full justify-start" asChild>
-              <Link href="/analytics/funnel">Open funnel analytics dashboard</Link>
+              {import.meta.env.DEV && (<Link href="/analytics/funnel">Open funnel analytics dashboard</Link>)}
             </Button>
           )}
           <div className="flex items-center justify-between gap-3">

@@ -1,3 +1,5 @@
+import { PoseReferenceImage } from "./PoseReferenceImage";
+import { BILLING_ENABLED } from "@/lib/publicConfig";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { WithheldPoseImage } from "@/components/WithheldPoseImage";
 import { poseImageWithheld } from "@/data/poseImageAccuracy";
@@ -266,7 +268,7 @@ function SidebarSearch() {
                       {poseImageWithheld(s.pose.slug) ? (
                         <WithheldPoseImage slug={s.pose.slug} compact />
                       ) : (
-                        <img
+                        <PoseReferenceImage
                         src={`${import.meta.env.BASE_URL}poses/${s.pose.slug}.png`}
                         alt={s.pose.imageAlt}
                         width={96}
@@ -484,9 +486,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               Terms
             </Link>
             {" · "}
-            <Link href="/cancel" className="underline-offset-2 hover:underline" data-testid="footer-cancel">
+            {BILLING_ENABLED && (<Link href="/cancel" className="underline-offset-2 hover:underline" data-testid="footer-cancel">
               Cancel
-            </Link>
+            </Link>)}
             {" · "}
             <Link href="/health-disclaimer" className="underline-offset-2 hover:underline">
               Health

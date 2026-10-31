@@ -1,3 +1,4 @@
+import { PoseReferenceImage } from "./PoseReferenceImage";
 /** Static fallback shared by all training surfaces. Never fabricate body movement. */
 import { useState } from "react";
 import { poseImageAlt } from "@/data/poseImageAlts";
@@ -64,7 +65,7 @@ export function HumanPoseTrainerMovie({
           Pose reference unavailable. Follow the written instructions.
         </div>
       ) : (
-        <img src={posterSrc} alt={accurateImageAlt(slug, poseImageAlt(slug) || english)}
+        <PoseReferenceImage src={posterSrc} alt={accurateImageAlt(slug, poseImageAlt(slug) || english)}
           width={600} height={1200} loading="lazy" draggable={false}
           onError={() => setFailedSource(posterSrc)}
           className="h-full w-full object-contain" />

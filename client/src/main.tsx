@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import App from "./App";
+import App from "./LaunchApp";
 import "./index.css";
 
 /**
@@ -42,7 +42,7 @@ import("./lib/posthogClient")
   .then(({ initPostHog }) => initPostHog())
   .catch(() => undefined);
 
-import("./lib/sentryClient")
+if (import.meta.env.VITE_SENTRY_DSN) import("./lib/sentryClient")
   .then(({ initSentry }) => initSentry())
   .catch(() => undefined);
 

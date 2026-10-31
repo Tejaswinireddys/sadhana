@@ -5,7 +5,7 @@
 import { asanaBySlug } from "./content";
 import { sessionMinutes, sessionSeconds, sessionTimeLabel } from "./quickSessions";
 import { TRANSITION_SECONDS } from "@/lib/guidedDuration";
-import { MAX_HOLD_SECONDS as SCHEMA_MAX_HOLD_SECONDS } from "@shared/schema";
+import { MAX_HOLD_SECONDS as SCHEMA_MAX_HOLD_SECONDS } from "@shared/validation";
 import {
   evaluateSessionFit,
   holdBudgetSeconds,
