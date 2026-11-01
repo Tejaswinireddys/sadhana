@@ -139,6 +139,10 @@ async function ensureSchema() {
     }
   } else {
     await ensureSchema();
+    // Opt-in: seed the placeholder class library on boot (idempotent upsert by slug).
+    if (process.env.SEED_PLACEHOLDER_CLASSES === "true") {
+      log(`seeded ${await seedPlaceholderClasses(storage)} placeholder classes (postgres)`);
+    }
   }
 
   await registerRoutes(httpServer, app);
