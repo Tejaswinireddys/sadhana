@@ -4,6 +4,7 @@ export { passwordSchema, credentialsSchema, loginSchema, forgotPasswordSchema, r
 export type { Credentials, LoginCredentials, PosePlan } from "./validation";
 import { pgTable, text, integer, serial, boolean, uniqueIndex, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
+import { CLASS_LEVELS, CLASS_TIERS } from "./classLibrary";
 import { z } from "zod";
 
 // Optional accounts. Practice data stays keyed by ownerId — an anonymous device
@@ -387,3 +388,42 @@ export const stripeEvents = pgTable("stripe_events", {
   processedAt: text("processed_at").notNull(),
 });
 export type StripeEventRecord = typeof stripeEvents.$inferSelect;
+
+// Guided video classes (Mux). The library catalogue is data, not code, so new
+// classes ship without a deploy; `published` keeps drafts off the API.
+export const classes = pgTable(
+  "classes",
+  {
+    id: serial("id").primaryKey(),
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    instructorName: text("instructor_name").notNull(),
+    level: text("level", { enum: CLASS_LEVELS }).notNull(),
+    durationMinutes: integer("duration_minutes").notNull(),
+    focusTags: jsonb("focus_tags").$type<string[]>().notNull().default([]),
+    muxPlaybackId: text("mux_playback_id"),
+    thumbnailUrl: text("thumbnail_url"),
+    tier: text("tier", { enum: CLASS_TIERS }).notNull().default("free"),
+    published: boolean("published").notNull().default(false),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("classes_slug_idx").on(t.slug)],
+);
+export type ClassRow = typeof classes.$inferSelect;
+export type InsertClass = Omit<typeof classes.$inferInsert, "id">;
+
+// Watch progress per owner (guest device id or `user:<id>`), one row per class.
+export const classProgress = pgTable(
+  "class_progress",
+  {
+    id: serial("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    classId: integer("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+    secondsWatched: integer("seconds_watched").notNull().default(0),
+    completed: boolean("completed").notNull().default(false),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("class_progress_owner_class_idx").on(t.ownerId, t.classId)],
+);
+export type ClassProgressRow = typeof classProgress.$inferSelect;

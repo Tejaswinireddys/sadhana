@@ -56,6 +56,7 @@ const KNOWN_TOP_LEVEL_SEGMENTS = new Set([
   "analytics",
   "asanas",
   "pathways",
+  "classes",
   "practice",
   "guided",
   "trainer",

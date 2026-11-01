@@ -1,5 +1,6 @@
 /**
- * Primary nav IA: five items, matching page titles, Teachers off the chrome.
+ * Primary nav IA: six items (Classes added for the video library), matching
+ * page titles, Teachers off the chrome.
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
@@ -16,11 +17,12 @@ function labelsInPrimaryNav(src: string): string[] {
 }
 
 describe("primary navigation IA", () => {
-  it("collapses the shell to Today · Practice · Poses · Progress · You", () => {
+  it("collapses the shell to Today · Practice · Poses · Classes · Progress · You", () => {
     assert.deepEqual(labelsInPrimaryNav(layout), [
       "Today",
       "Practice",
       "Poses",
+      "Classes",
       "Progress",
       "You",
     ]);

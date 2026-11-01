@@ -213,7 +213,7 @@ test.describe("Today adjusts without losing the plot", () => {
   test("mobile navigation has labelled controls", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    for (const name of ["Today", "Practice", "Poses", "Progress", "You"]) {
+    for (const name of ["Today", "Practice", "Poses", "Classes", "Progress", "You"]) {
       await expect(page.getByRole("link", { name }).first()).toBeVisible();
     }
   });

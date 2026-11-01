@@ -471,6 +471,13 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
     const poseNotes = (
       await Promise.all([...noteSlugs].map((slug) => storage.getPoseNote(ownerId, slug)))
     ).filter(Boolean);
+    const classSlugs = new Map((await storage.listClasses()).map((row) => [row.id, row.slug]));
+    const classProgress = (await storage.getClassProgress(ownerId)).map((row) => ({
+      classSlug: classSlugs.get(row.classId) ?? null,
+      secondsWatched: row.secondsWatched,
+      completed: row.completed,
+      updatedAt: row.updatedAt,
+    }));
 
     res.setHeader(
       "Content-Disposition",
@@ -490,6 +497,7 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
       milestones,
       stickers,
       poseNotes,
+      classProgress,
       activeProfileId: activeProfile?.profileId ?? null,
     });
   });

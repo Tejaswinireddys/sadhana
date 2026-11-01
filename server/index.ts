@@ -18,6 +18,8 @@ import {
 import { registerBuddyRoutes } from "./buddy";
 import { registerTeachersWaitlistRoutes } from "./teachersWaitlist";
 import { registerPlusWaitlistRoutes } from "./plusWaitlist";
+import { registerClassRoutes } from "./classLibrary";
+import { seedPlaceholderClasses } from "./classSeed";
 import { publicAppOrigin } from "./publicUrl";
 import { captureServerException, initServerSentry } from "./sentry";
 import { sendJson404 } from "./json404";
@@ -130,6 +132,11 @@ async function ensureSchema() {
   const { usingMemory } = initStorage();
   if (usingMemory) {
     log("DATABASE_URL unset — using in-memory store (data resets on restart)");
+    // The in-memory store starts empty; give local dev and E2E a class library.
+    // Postgres deployments seed explicitly with `npm run seed:classes`.
+    if (process.env.NODE_ENV !== "production") {
+      log(`seeded ${await seedPlaceholderClasses(storage)} placeholder classes (in-memory)`);
+    }
   } else {
     await ensureSchema();
   }
@@ -141,6 +148,7 @@ async function ensureSchema() {
   registerBuddyRoutes(app);
   registerTeachersWaitlistRoutes(app);
   registerPlusWaitlistRoutes(app);
+  registerClassRoutes(app);
   startPushScheduler();
   startBillingScheduler();
 

@@ -39,6 +39,7 @@ import {
   Smile,
   UserRound,
   Info,
+  Clapperboard,
 } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: typeof Home; prefixes?: string[] };
@@ -66,6 +67,7 @@ const PRIMARY_NAV: NavItem[] = [
     ],
   },
   { href: "/asanas", label: "Poses", icon: LayoutGrid, prefixes: ["/asanas"] },
+  { href: "/classes", label: "Classes", icon: Clapperboard, prefixes: ["/classes"] },
   {
     href: "/journal",
     label: "Progress",

@@ -60,7 +60,7 @@ describe("home discoverability", () => {
     assert.match(home, /(testId: |data-testid=)"home-discover-kids"/);
   });
 
-  it("keeps primary nav to five items while Home names the secondary doors", () => {
+  it("keeps primary nav small while Home names the secondary doors", () => {
     const layout = readFileSync(resolve("client/src/components/AppLayout.tsx"), "utf8");
     assert.match(layout, /searchSidebarSuggestions/);
     assert.match(layout, /Breathing/);

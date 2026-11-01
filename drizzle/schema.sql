@@ -297,3 +297,30 @@ CREATE TABLE IF NOT EXISTS stripe_events (
 
 ALTER TABLE pose_media ADD COLUMN IF NOT EXISTS asset_id TEXT;
 ALTER TABLE pose_media ADD COLUMN IF NOT EXISTS playback_policy TEXT NOT NULL DEFAULT 'public';
+
+-- Guided video classes (Mux) and per-owner watch progress. Mirrors shared/schema.ts.
+CREATE TABLE IF NOT EXISTS classes (
+  id SERIAL PRIMARY KEY,
+  slug TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  instructor_name TEXT NOT NULL,
+  level TEXT NOT NULL CHECK (level IN ('beginner', 'intermediate', 'advanced')),
+  duration_minutes INTEGER NOT NULL CHECK (duration_minutes > 0),
+  focus_tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+  mux_playback_id TEXT,
+  thumbnail_url TEXT,
+  tier TEXT NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'plus')),
+  published BOOLEAN NOT NULL DEFAULT false,
+  created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS classes_slug_idx ON classes (slug);
+CREATE TABLE IF NOT EXISTS class_progress (
+  id SERIAL PRIMARY KEY,
+  owner_id TEXT NOT NULL,
+  class_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  seconds_watched INTEGER NOT NULL DEFAULT 0,
+  completed BOOLEAN NOT NULL DEFAULT false,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS class_progress_owner_class_idx ON class_progress (owner_id, class_id);

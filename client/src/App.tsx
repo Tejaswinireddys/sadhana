@@ -46,6 +46,8 @@ const NotFound = lazyPage(() => import("@/pages/not-found"));
 const Asanas = lazyPage(() => import("@/pages/Asanas"));
 const AsanaDetail = lazyPage(() => import("@/pages/AsanaDetail"));
 const Pathways = lazyPage(() => import("@/pages/Pathways"));
+const Classes = lazyPage(() => import("@/pages/Classes"));
+const ClassDetail = lazyPage(() => import("@/pages/ClassDetail"));
 const PathwayDetail = lazyPage(() => import("@/pages/PathwayDetail"));
 const Practice = lazyPage(() => import("@/pages/Practice"));
 const GuidedSession = lazyPage(() => import("@/pages/GuidedSession"));
@@ -126,6 +128,8 @@ function AppRouter() {
           <Route path="/asanas/:slug" component={AsanaDetail} />
           <Route path="/pathways" component={Pathways} />
           <Route path="/pathways/:slug" component={PathwayDetail} />
+          <Route path="/classes" component={Classes} />
+          <Route path="/classes/:slug" component={ClassDetail} />
           <Route path="/practice" component={Practice} />
           <Route path="/guided" component={GuidedSession} />
           <Route path="/trainer" component={Trainer} />

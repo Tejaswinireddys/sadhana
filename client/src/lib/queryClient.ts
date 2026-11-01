@@ -42,7 +42,8 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
-  opts?: { timeoutMs?: number },
+  /** `keepalive` lets a final save (e.g. leaving the class player) outlive the page. */
+  opts?: { timeoutMs?: number; keepalive?: boolean },
 ): Promise<Response> {
   const timeoutMs = opts?.timeoutMs ?? 20_000;
   const ctrl = new AbortController();
@@ -55,6 +56,7 @@ export async function apiRequest(
         body: data ? JSON.stringify(data) : undefined,
         credentials: "include",
         signal: ctrl.signal,
+        keepalive: opts?.keepalive,
       }),
     );
 

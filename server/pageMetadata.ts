@@ -6,6 +6,7 @@ const PAGES: Record<string, { title: string; description: string }> = {
   "/kids": { title: "Kids yoga · Sadhana", description: "Playful yoga poses and breathing activities for children with grown-up supervision." },
   "/asanas": { title: "Yoga pose library · Sadhana", description: "Explore pose instructions, breathing cues, modifications and practice notes." },
   "/pathways": { title: "Yoga pathways · Sadhana", description: "Explore structured yoga pathways and build a regular practice." },
+  "/classes": { title: "Yoga classes · Sadhana", description: "Follow-along yoga video classes by level, length and focus, with progress you can resume." },
   "/breathing": { title: "Breathing practices · Sadhana", description: "Explore guided breathing practices at your own pace." },
   "/privacy": { title: "Privacy · Sadhana", description: "How Sadhana stores practice data and how to export or delete it." },
   "/terms": { title: "Terms · Sadhana", description: "Terms for using Sadhana." },

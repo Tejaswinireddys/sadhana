@@ -76,8 +76,10 @@ import { CancelAccessBanner } from "@/components/CancelAccessBanner";
 import { dismissBanner, savePromptLevel, shouldShowSaveBanner } from "@/lib/savePracticePrompt";
 import { Reveal } from "@/components/motion";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { formatTimestamp, useContinueWatching } from "@/lib/classesApi";
 import {
   ArrowRight,
+  Clapperboard,
   BookOpen,
   Bookmark,
   CalendarDays,
@@ -174,6 +176,8 @@ export default function Home() {
     return { minutes: saved.minutes, need: saved.need, energy: null, noProps: false };
   });
   const { data: savedFlows = [] } = useQuery<CustomFlow[]>({ queryKey: ["/api/custom-flows"] });
+  /** The most recently watched, unfinished video class. */
+  const classInProgress = useContinueWatching().data?.items[0] ?? null;
 
   const profile = profileById(activeProfileRow?.profileId) ?? null;
   const practitionerName = readString(KEYS.practitionerName)?.trim() || null;
@@ -568,8 +572,27 @@ export default function Home() {
         </h2>
         {showResume ||
         (programDay && recommendation?.source !== "program") ||
-        savedFlows.length > 0 ? (
+        savedFlows.length > 0 ||
+        classInProgress ? (
           <ScrollRow label="Continue practice" testId="home-continue-scroll">
+            {classInProgress && (
+              <Link
+                href={`/classes/${classInProgress.slug}`}
+                className="flex w-72 shrink-0 snap-start items-center gap-3 rounded-2xl border border-primary/30 bg-card px-4 py-3 transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid="home-continue-class"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Clapperboard className="h-5 w-5" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">Continue your class</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {classInProgress.title} · from {formatTimestamp(classInProgress.progress?.secondsWatched ?? 0)}
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              </Link>
+            )}
             {showResume && (
               <button
                 type="button"

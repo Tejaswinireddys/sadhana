@@ -23,6 +23,8 @@ import {
   billingPurchases,
   billingConsentAudit,
   billingPaywallSnapshots,
+  classes,
+  classProgress,
 } from "@shared/schema";
 import type {
   Session,
@@ -42,6 +44,9 @@ import type {
   Milestone,
   InsertMilestone,
   PoseNote,
+  ClassRow,
+  InsertClass,
+  ClassProgressRow,
   MobilityCheckIn,
   InsertMobilityCheckIn,
   CustomFlow,
@@ -170,6 +175,17 @@ export interface IStorage {
   createMilestone(ownerId: string, data: InsertMilestone): Promise<Milestone>;
   getPoseNote(ownerId: string, slug: string): Promise<PoseNote | undefined>;
   upsertPoseNote(ownerId: string, slug: string, body: string): Promise<PoseNote>;
+  /** Every class row, published or not; routes decide what to show. */
+  listClasses(): Promise<ClassRow[]>;
+  getClassBySlug(slug: string): Promise<ClassRow | undefined>;
+  /** Insert or update by slug (seeding/admin); keeps id and created_at. */
+  upsertClassBySlug(data: InsertClass): Promise<ClassRow>;
+  getClassProgress(ownerId: string): Promise<ClassProgressRow[]>;
+  /**
+   * Atomic upsert of one owner's position in one class. `completed` is sticky:
+   * a later save without it never un-finishes a class.
+   */
+  saveClassProgress(ownerId: string, classId: number, data: { secondsWatched: number; completed: boolean }): Promise<ClassProgressRow>;
   getMobilityCheckIns(ownerId: string, pathwaySlug: string): Promise<MobilityCheckIn[]>;
   createMobilityCheckIn(ownerId: string, data: InsertMobilityCheckIn): Promise<MobilityCheckIn>;
   deleteMobilityCheckIn(ownerId: string, id: number): Promise<void>;
@@ -198,6 +214,7 @@ const OWNED_TABLES = [
   poseNotes,
   mobilityCheckIns,
   customFlows,
+  classProgress,
 ] as const;
 
 export class DatabaseStorage implements IStorage {
@@ -346,6 +363,7 @@ export class DatabaseStorage implements IStorage {
     // Claiming guest practice never transfers or overwrites account billing identity.
     await this.deleteOwnerBillingData(fromOwnerId);
     let moved = 0;
+    moved += await this.mergeClassProgress(fromOwnerId, toOwnerId);
     for (const table of OWNED_TABLES) {
       // Preferences and the active profile are single-row-per-owner, so drop the
       // account's existing row first rather than ending up with two.
@@ -414,7 +432,30 @@ export class DatabaseStorage implements IStorage {
       this.orm.delete(poseNotes).where(eq(poseNotes.ownerId, ownerId)),
       this.orm.delete(mobilityCheckIns).where(eq(mobilityCheckIns.ownerId, ownerId)),
       this.orm.delete(customFlows).where(eq(customFlows.ownerId, ownerId)),
+      this.orm.delete(classProgress).where(eq(classProgress.ownerId, ownerId)),
     ]);
+  }
+
+  /**
+   * A class watched both as a guest and on the account keeps one row: the
+   * most recent position, finished if either was. The guest row is removed
+   * here so the generic owner move cannot hit the (owner, class) unique index.
+   */
+  private async mergeClassProgress(fromOwnerId: string, toOwnerId: string): Promise<number> {
+    const incoming = await this.orm.select().from(classProgress).where(eq(classProgress.ownerId, fromOwnerId));
+    let merged = 0;
+    for (const row of incoming) {
+      const [existing] = await this.orm.select().from(classProgress)
+        .where(and(eq(classProgress.ownerId, toOwnerId), eq(classProgress.classId, row.classId)));
+      if (!existing) continue;
+      const newer = row.updatedAt > existing.updatedAt ? row : existing;
+      await this.orm.update(classProgress).set({
+        secondsWatched: newer.secondsWatched, updatedAt: newer.updatedAt, completed: existing.completed || row.completed,
+      }).where(eq(classProgress.id, existing.id));
+      await this.orm.delete(classProgress).where(eq(classProgress.id, row.id));
+      merged++;
+    }
+    return merged;
   }
 
   async getEnrollments(ownerId: string): Promise<Enrollment[]> {
@@ -755,6 +796,40 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
+  async listClasses(): Promise<ClassRow[]> {
+    return this.orm.select().from(classes).orderBy(asc(classes.id));
+  }
+  async getClassBySlug(slug: string): Promise<ClassRow | undefined> {
+    const [row] = await this.orm.select().from(classes).where(eq(classes.slug, slug)).limit(1);
+    return row;
+  }
+  async upsertClassBySlug(data: InsertClass): Promise<ClassRow> {
+    // created_at is the first-seen date; re-seeding must not reorder the library.
+    const { createdAt: _createdAt, ...rest } = data;
+    const [row] = await this.orm.insert(classes).values(data)
+      .onConflictDoUpdate({ target: classes.slug, set: rest })
+      .returning();
+    return row;
+  }
+  async getClassProgress(ownerId: string): Promise<ClassProgressRow[]> {
+    return this.orm.select().from(classProgress).where(eq(classProgress.ownerId, ownerId));
+  }
+  async saveClassProgress(ownerId: string, classId: number, data: { secondsWatched: number; completed: boolean }): Promise<ClassProgressRow> {
+    const updatedAt = new Date().toISOString();
+    const [row] = await this.orm.insert(classProgress)
+      .values({ ownerId, classId, secondsWatched: data.secondsWatched, completed: data.completed, updatedAt })
+      .onConflictDoUpdate({
+        target: [classProgress.ownerId, classProgress.classId],
+        set: {
+          secondsWatched: data.secondsWatched,
+          completed: sql`${classProgress.completed} OR ${data.completed}`,
+          updatedAt,
+        },
+      })
+      .returning();
+    return row;
+  }
+
   async getMobilityCheckIns(ownerId: string, pathwaySlug: string): Promise<MobilityCheckIn[]> {
     return this.orm
       .select()
@@ -836,6 +911,8 @@ export class MemoryStorage implements IStorage {
   private notes: PoseNote[] = [];
   private mobility: MobilityCheckIn[] = [];
   private flows: CustomFlow[] = [];
+  private classRows: ClassRow[] = [];
+  private classProgressRows: ClassProgressRow[] = [];
   private users: User[] = [];
   private authSessions: AuthSession[] = [];
   private resetTokens: PasswordResetToken[] = [];
@@ -859,6 +936,7 @@ export class MemoryStorage implements IStorage {
       this.notes,
       this.mobility,
       this.flows,
+      this.classProgressRows,
     ];
   }
 
@@ -1016,6 +1094,15 @@ export class MemoryStorage implements IStorage {
     if (this.profiles.some((p) => p.ownerId === fromOwnerId)) {
       this.profiles = this.profiles.filter((p) => p.ownerId !== toOwnerId);
     }
+    // One progress row per (owner, class): merge collisions like DatabaseStorage.
+    for (const row of this.classProgressRows.filter((r) => r.ownerId === fromOwnerId)) {
+      const existing = this.classProgressRows.find((r) => r.ownerId === toOwnerId && r.classId === row.classId);
+      if (!existing) continue;
+      const newer = row.updatedAt > existing.updatedAt ? row : existing;
+      Object.assign(existing, { secondsWatched: newer.secondsWatched, updatedAt: newer.updatedAt, completed: existing.completed || row.completed });
+      this.classProgressRows = this.classProgressRows.filter((r) => r !== row);
+      moved++;
+    }
 
     for (const list of this.ownedRows()) {
       for (const row of list) {
@@ -1070,6 +1157,7 @@ export class MemoryStorage implements IStorage {
     this.notes = this.notes.filter((n) => n.ownerId !== ownerId);
     this.mobility = this.mobility.filter((m) => m.ownerId !== ownerId);
     this.flows = this.flows.filter((f) => f.ownerId !== ownerId);
+    this.classProgressRows = this.classProgressRows.filter((r) => r.ownerId !== ownerId);
   }
 
   async getEnrollments(ownerId: string) {
@@ -1339,6 +1427,40 @@ export class MemoryStorage implements IStorage {
     const row: PoseNote = { id: this.nextId(), ownerId, slug, body, updatedAt: now };
     this.notes.push(row);
     return row;
+  }
+
+  async listClasses() {
+    return structuredClone([...this.classRows].sort((a, b) => a.id - b.id));
+  }
+  async getClassBySlug(slug: string) {
+    return structuredClone(this.classRows.find((row) => row.slug === slug));
+  }
+  async upsertClassBySlug(data: InsertClass) {
+    const existing = this.classRows.find((row) => row.slug === data.slug);
+    const defaults = { description: "", focusTags: [] as string[], muxPlaybackId: null, thumbnailUrl: null, tier: "free" as const, published: false };
+    if (existing) {
+      const { createdAt: _createdAt, ...rest } = data;
+      Object.assign(existing, rest);
+      return structuredClone(existing);
+    }
+    const row: ClassRow = { ...defaults, ...data, id: this.nextId() } as ClassRow;
+    this.classRows.push(row);
+    return structuredClone(row);
+  }
+  async getClassProgress(ownerId: string) {
+    return structuredClone(this.classProgressRows.filter((row) => row.ownerId === ownerId));
+  }
+  async saveClassProgress(ownerId: string, classId: number, data: { secondsWatched: number; completed: boolean }) {
+    if (!this.classRows.some((row) => row.id === classId)) throw new Error("Unknown class");
+    const updatedAt = new Date().toISOString();
+    const existing = this.classProgressRows.find((row) => row.ownerId === ownerId && row.classId === classId);
+    if (existing) {
+      Object.assign(existing, { secondsWatched: data.secondsWatched, completed: existing.completed || data.completed, updatedAt });
+      return structuredClone(existing);
+    }
+    const row: ClassProgressRow = { id: this.nextId(), ownerId, classId, ...data, updatedAt };
+    this.classProgressRows.push(row);
+    return structuredClone(row);
   }
 
   async getMobilityCheckIns(ownerId: string, pathwaySlug: string) {

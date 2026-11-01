@@ -83,10 +83,10 @@ test.describe("critical journeys", () => {
     await expect(page.getByRole("link", { name: "Today" }).first()).toBeVisible();
   });
 
-  test("primary nav is five items and Teachers stays off chrome", async ({ page }) => {
+  test("primary nav is six items and Teachers stays off chrome", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/");
-    for (const name of ["Today", "Practice", "Poses", "Progress", "You"] as const) {
+    for (const name of ["Today", "Practice", "Poses", "Classes", "Progress", "You"] as const) {
       await expect(page.getByTestId(`nav-${name.toLowerCase()}`)).toBeVisible();
     }
     await expect(page.getByRole("link", { name: "Teachers" })).toHaveCount(0);
