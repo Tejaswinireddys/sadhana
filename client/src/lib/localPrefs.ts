@@ -55,6 +55,8 @@ export const KEYS = {
   /** "light" | "dark" | "system" — read by the pre-paint script in index.html. */
   theme: "sadhana.theme",
   analytics: "sadhana.analytics",
+  /** Class player speed: "0.75" | "1" | "1.25", per device. */
+  classSpeed: "sadhana.class.speed",
   /** "personalized" | "non-personalized" — the ad cookie banner's answer. */
   adConsent: "sadhana.ads.consent",
   habitPlan: "sadhana.habitPlan",

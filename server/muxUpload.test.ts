@@ -14,7 +14,7 @@ test("Mux upload streams to signed URL, waits for readiness, and returns playbac
     onCreated: async (id) => { created = id; }, wait: async () => {},
     fetcher: (async (url, init) => { calls.push({ url: String(url), init }); return responses.shift()!; }) as typeof fetch,
   });
-  assert.deepEqual(result, { uploadId: "up_test", assetId: "asset_test", playbackId: "public_test", playbackPolicy: "public" });
+  assert.deepEqual(result, { uploadId: "up_test", assetId: "asset_test", playbackId: "public_test", playbackPolicy: "public", videoQuality: "basic" });
   assert.equal(created, "up_test");
   assert.equal(calls[1].init?.method, "PUT");
   assert.equal((calls[1].init?.headers as Record<string, string>).Authorization, undefined);
@@ -60,4 +60,25 @@ test("Plus uploads request signed playback and resumed public assets are rejecte
       fetcher: (async () => json(++call === 1 ? { asset_id: "asset_old" } : { status: "ready", playback_ids })) as typeof fetch,
     }), /public playback IDs/);
   }
+});
+
+test("video_quality plus is requested, and falls back to basic when the account refuses it", async () => {
+  const json = (data: unknown, status = 200) => new Response(JSON.stringify({ data }), { status });
+  const created: string[] = [];
+  const responses = [
+    new Response(JSON.stringify({ error: { messages: ["plus not available"] } }), { status: 400 }),
+    json({ id: "up_q", url: "https://upload.example/file" }), new Response(null, { status: 200 }),
+    json({ status: "asset_created", asset_id: "asset_q" }),
+    json({ id: "asset_q", status: "ready", video_quality: "basic", playback_ids: [{ id: "signed_q", policy: "signed" }] }),
+  ];
+  const result = await uploadToMux({
+    tokenId: "fixture-id", tokenSecret: "fixture-secret", body: "file", size: 4, isPlus: true, videoQuality: "plus", wait: async () => {},
+    fetcher: (async (url, init) => {
+      if (String(url).endsWith("/uploads")) created.push(JSON.parse(String(init?.body)).new_asset_settings.video_quality);
+      return responses.shift()!;
+    }) as typeof fetch,
+  });
+  assert.deepEqual(created, ["plus", "basic"]);
+  assert.equal(result.videoQuality, "basic");
+  assert.equal(result.playbackPolicy, "signed");
 });

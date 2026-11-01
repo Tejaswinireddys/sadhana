@@ -61,6 +61,7 @@ import {
   reflectionAction,
 } from "@/lib/guidedCompletion";
 import { setImmersivePlayerActive } from "@/lib/legal";
+import { EffortRating } from "@/components/EffortRating";
 import { afterGuidedHold, coachingCues } from "@/lib/guidedCoaching";
 import { guidedClockFrozen } from "@/lib/guidedClock";
 import {
@@ -1755,19 +1756,7 @@ export default function GuidedSession() {
               <p className="text-sm text-muted-foreground">
                 Rate of perceived exertion (1 easy – 10 maximal). Used only to ease tomorrow’s plan.
               </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                  <Button
-                    key={n}
-                    className="min-h-11 min-w-11"
-                    variant={rpe === n ? "default" : "outline"}
-                    onClick={() => setRpe(n)}
-                    data-testid={`rpe-${n}`}
-                  >
-                    {n}
-                  </Button>
-                ))}
-              </div>
+              <EffortRating value={rpe} onChange={setRpe} />
               <div className="flex justify-center gap-2">
                 <Button
                   className="min-h-11"

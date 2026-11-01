@@ -15,6 +15,7 @@ import {
   CLASS_LEVELS,
   CLASS_TIERS,
   classSlugSchema,
+  type ClassChapter,
   type ClassPlaybackPolicy,
 } from "../shared/classLibrary";
 import type { InsertClass } from "../shared/schema";
@@ -72,13 +73,18 @@ export function parseClassAddArgs(argv: string[]): ClassAddOptions {
 }
 
 export type MuxPlaybackIdRow = { id: string; policy: string };
-export type MuxAsset = { id: string; status: string; duration?: number; playback_ids?: MuxPlaybackIdRow[] };
+export type MuxTrack = { id: string; type: string; text_type?: string; language_code?: string; status?: string };
+export type MuxAsset = { id: string; status: string; duration?: number; playback_ids?: MuxPlaybackIdRow[]; tracks?: MuxTrack[] };
 
 /** The three Mux calls the command needs; `muxApi` implements them over HTTP. */
 export type MuxAssetApi = {
   getAsset(assetId: string): Promise<MuxAsset>;
   createPlaybackId(assetId: string, policy: ClassPlaybackPolicy): Promise<MuxPlaybackIdRow>;
   deletePlaybackId(assetId: string, playbackId: string): Promise<void>;
+  /** Add an English subtitle track that Mux fetches from a public https URL. */
+  addCaptionsTrack?(assetId: string, url: string): Promise<MuxTrack>;
+  /** Ask Mux to generate English subtitles from an audio track. */
+  generateSubtitles?(assetId: string, audioTrackId: string): Promise<unknown>;
 };
 
 export function muxApi(tokenId: string, tokenSecret: string, fetcher: typeof fetch = fetch): MuxAssetApi {
@@ -99,6 +105,12 @@ export function muxApi(tokenId: string, tokenSecret: string, fetcher: typeof fet
     deletePlaybackId: async (assetId, playbackId) => {
       await call("DELETE", `assets/${encodeURIComponent(assetId)}/playback-ids/${encodeURIComponent(playbackId)}`);
     },
+    addCaptionsTrack: (assetId, url) => call("POST", `assets/${encodeURIComponent(assetId)}/tracks`, {
+      url, type: "text", text_type: "subtitles", language_code: "en", name: "English", closed_captions: true,
+    }),
+    generateSubtitles: (assetId, audioTrackId) => call("POST", `assets/${encodeURIComponent(assetId)}/tracks/${encodeURIComponent(audioTrackId)}/generate-subtitles`, {
+      generated_subtitles: [{ language_code: "en", name: "English (generated)" }],
+    }),
   };
 }
 
@@ -153,11 +165,19 @@ export async function resolveClassPlayback(api: MuxAssetApi, options: Pick<Class
  * library cards do not carry (and `presentClass` drops thumbnails that embed
  * the id for locked viewers anyway).
  */
-export function buildClassRow(options: ClassAddOptions, playback: ResolvedPlayback, now = new Date()): InsertClass {
+export function buildClassRow(
+  options: ClassAddOptions,
+  playback: ResolvedPlayback,
+  now = new Date(),
+  extras: { chapters?: ClassChapter[]; thumbnailTimeSec?: number | null } = {},
+): InsertClass {
   const minutes = options.duration ?? (playback.durationSeconds ? Math.max(1, Math.ceil(playback.durationSeconds / 60)) : null);
   if (!minutes) throw new Error("--duration is required: the asset does not report its length");
+  const time = extras.thumbnailTimeSec ?? null;
   const thumbnail = options.thumbnail
-    ?? (playback.playbackPolicy === "public" ? `https://image.mux.com/${playback.playbackId}/thumbnail.webp` : null);
+    ?? (playback.playbackPolicy === "public"
+      ? `https://image.mux.com/${playback.playbackId}/thumbnail.webp${time !== null ? `?time=${time}` : ""}`
+      : null);
   return {
     slug: options.slug,
     title: options.title,
@@ -168,6 +188,8 @@ export function buildClassRow(options: ClassAddOptions, playback: ResolvedPlayba
     focusTags: options.focus,
     muxPlaybackId: playback.playbackId,
     playbackPolicy: playback.playbackPolicy,
+    chapters: extras.chapters ?? [],
+    thumbnailTimeSec: time,
     thumbnailUrl: thumbnail,
     tier: options.tier,
     published: !options.draft,

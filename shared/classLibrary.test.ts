@@ -4,6 +4,10 @@ import {
   classListQuerySchema,
   classPlayback,
   continueWatching,
+  currentChapterIndex,
+  muxChapters,
+  parseChapters,
+  storedChapters,
   durationRange,
   filterClasses,
   isClassLocked,
@@ -243,5 +247,59 @@ describe("withSavedProgress (Today, before the save lands)", () => {
     const done = withSavedProgress([older], older, { secondsWatched: 590, durationSeconds: 600 }, "2026-11-01T00:00:00Z");
     assert.deepEqual(done.map((item) => item.slug), [], "90% completes it");
     assert.deepEqual(withSavedProgress([], morning, { secondsWatched: 3 }, "2026-11-01T00:00:00Z"), []);
+  });
+});
+
+describe("chapters", () => {
+  const known = (slug: string) => ["tadasana", "adho-mukha-svanasana"].includes(slug);
+
+  it("accepts an ordered list, or { chapters: [...] }, keeping optional pose slugs", () => {
+    const list = [{ startSec: 0, title: "Arrive" }, { startSec: 95.5, title: "Down dog", poseSlug: "adho-mukha-svanasana" }];
+    assert.deepEqual(parseChapters(list, { knownPose: known }), { ok: true, chapters: list });
+    assert.deepEqual(parseChapters({ chapters: list }), { ok: true, chapters: list });
+    assert.deepEqual(parseChapters([]), { ok: true, chapters: [] });
+  });
+
+  it("reports every problem with its chapter number", () => {
+    const result = parseChapters([
+      { startSec: 10, title: "B" },
+      { startSec: 5, title: "A" },
+      { startSec: -1, title: "" },
+      { startSec: 20, title: "C", poseSlug: "not-a-pose" },
+      { startSec: 30, title: "D", extra: true },
+    ], { knownPose: known, durationSec: 25 });
+    assert.equal(result.ok, false);
+    const errors = (result as { errors: string[] }).errors.join("\n");
+    assert.match(errors, /chapter 2: startSec must be after chapter 1's \(10\)/);
+    assert.match(errors, /chapter 3 startSec: startSec cannot be negative/);
+    assert.match(errors, /chapter 3 title: title is required/);
+    assert.match(errors, /chapter 4: unknown poseSlug "not-a-pose"/);
+    assert.match(errors, /chapter 5: Unrecognized key/);
+    assert.equal(parseChapters("nope").ok, false);
+    assert.match((parseChapters([{ startSec: 30, title: "Late" }], { durationSec: 25 }) as { errors: string[] }).errors[0], /after the video ends/);
+  });
+
+  it("stored chapters read defensively: bad JSON in a row reads as none", () => {
+    assert.deepEqual(storedChapters(null), []);
+    assert.deepEqual(storedChapters([{ startSec: "x" }]), []);
+    assert.deepEqual(presentClass(row({ chapters: [{ startSec: 0, title: "Arrive" }] }), "free").chapters, [{ startSec: 0, title: "Arrive" }]);
+    assert.deepEqual(presentClass(row({}), "free").chapters, [], "existing rows without the column");
+  });
+
+  it("finds the current chapter, including before the first and at exact boundaries", () => {
+    const chapters = [{ startSec: 5, title: "A" }, { startSec: 60, title: "B" }, { startSec: 120, title: "C" }];
+    assert.equal(currentChapterIndex(chapters, 0), -1);
+    assert.equal(currentChapterIndex(chapters, 5), 0);
+    assert.equal(currentChapterIndex(chapters, 59.9), 0);
+    assert.equal(currentChapterIndex(chapters, 60), 1);
+    assert.equal(currentChapterIndex(chapters, 9999), 2);
+    assert.equal(currentChapterIndex(chapters, Number.NaN), -1);
+    assert.equal(currentChapterIndex([], 10), -1);
+  });
+
+  it("maps to Mux Player chapters, each ending where the next begins", () => {
+    assert.deepEqual(muxChapters([{ startSec: 0, title: "A" }, { startSec: 60, title: "B" }], 300), [
+      { startTime: 0, endTime: 60, value: "A" }, { startTime: 60, endTime: 300, value: "B" },
+    ]);
   });
 });

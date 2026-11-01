@@ -2,11 +2,23 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import MuxPlayer, { type MuxPlayerRefAttributes } from "@mux/mux-player-react";
 import { ArrowLeft, CheckCircle2, Clock, Lock } from "lucide-react";
-import { resumeFrom, type ClassPlayback, type ClassSummary } from "@shared/classLibrary";
+import { currentChapterIndex, muxChapters, resumeFrom, type ClassPlayback, type ClassSummary } from "@shared/classLibrary";
 import { Button } from "@/components/ui/button";
 import { FadeIn } from "@/components/motion";
 import { ClassCard } from "@/components/ClassCard";
 import { AdSlot } from "@/components/ads/AdSlot";
+import { ClassEndScreen } from "@/components/ClassEndScreen";
+import { asanaBySlug } from "@/data/content";
+import {
+  CLASS_SEEK_SECONDS,
+  CLASS_SPEEDS,
+  classKeyAction,
+  parseClassSpeed,
+  readClassSpeed,
+  watchedAfter,
+  writeClassSpeed,
+  type ClassSpeed,
+} from "@/lib/classPlayer";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { ClassProgressSaver } from "@/lib/classProgressSaver";
 import { restorePoint, tokenRefreshDelayMs, tokenRefreshDue, tokenRetryDelayMs } from "@/lib/classTokenRefresh";
@@ -88,10 +100,25 @@ function signedTokenAttributes(playback: ClassPlayback): Record<string, string> 
   };
 }
 
-function ClassVideo({ item, onCompleted, onPlayingChange }: {
-  item: ClassSummary; onCompleted: () => void; onPlayingChange: (playing: boolean) => void;
+/** Show the pose cue again on any pointer or key activity; hide it after this long idle in fullscreen. */
+const CUE_IDLE_MS = 3000;
+
+function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
+  item: ClassSummary; next: ClassSummary | null; onCompleted: () => void; onPlayingChange: (playing: boolean) => void;
 }) {
   const playerRef = useRef<MuxPlayerRefAttributes | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const stageId = `class-stage-${item.slug}`;
+  // `?? []`: a response from a server older than chapters (mid-deploy) has none.
+  const chapters = item.chapters ?? [];
+  const [chapterIndex, setChapterIndex] = useState(-1);
+  const [speed, setSpeed] = useState<ClassSpeed>(readClassSpeed);
+  const [playing, setPlaying] = useState(false);
+  const [ended, setEnded] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [idle, setIdle] = useState(false);
+  const watched = useRef<{ watched: number; last: number | null }>({ watched: 0, last: null });
+  const setPlayingBoth = (value: boolean) => { setPlaying(value); onPlayingChange(value); };
   const [initialStart] = useState(() => resumeFrom(item.progress));
   const [startTime, setStartTime] = useState(initialStart);
   const restoring = useRef<{ at: number; play: boolean } | null>(null);
@@ -122,6 +149,91 @@ function ClassVideo({ item, onCompleted, onPlayingChange }: {
     }
   };
 
+  /** Apply speed and chapters to the media; re-run after any (re)load. */
+  const applyToMedia = () => {
+    const el = playerRef.current;
+    if (!el) return;
+    el.playbackRate = speed;
+    if (chapters.length && typeof (el as unknown as { addChapters?: unknown }).addChapters === "function") {
+      try {
+        (el as unknown as { addChapters: (c: unknown[]) => void }).addChapters(
+          muxChapters(chapters, Number.isFinite(el.duration) ? el.duration : undefined));
+      } catch { /* chapters on the timeline are a nicety; the list below still works */ }
+    }
+  };
+
+  const chooseSpeed = (value: ClassSpeed) => {
+    setSpeed(value);
+    writeClassSpeed(value);
+    if (playerRef.current) playerRef.current.playbackRate = value;
+  };
+
+  const seekTo = (seconds: number) => {
+    const el = playerRef.current;
+    if (!el) return;
+    el.currentTime = Math.max(0, seconds);
+    setChapterIndex(currentChapterIndex(chapters, seconds));
+  };
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    else void stageRef.current?.requestFullscreen?.().catch(() => undefined);
+  };
+
+  const toggleCaptions = () => {
+    const el = playerRef.current as unknown as { textTracks?: TextTrackList; media?: { textTracks?: TextTrackList } } | null;
+    const tracks = el?.textTracks ?? el?.media?.textTracks;
+    if (!tracks) return;
+    for (let i = 0; i < tracks.length; i++) {
+      const track = tracks[i];
+      if (track.kind === "subtitles" || track.kind === "captions") {
+        track.mode = track.mode === "showing" ? "hidden" : "showing";
+        return;
+      }
+    }
+  };
+
+  // Page-level shortcuts (the player handles the same keys itself when focused).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (ended) return;
+      const action = classKeyAction({ ...event, key: event.key, target: event.target as HTMLElement | null });
+      const el = playerRef.current;
+      if (!action || !el) return;
+      event.preventDefault();
+      setIdle(false);
+      if (action === "toggle") { if (el.paused) void el.play()?.catch(() => undefined); else el.pause(); }
+      else if (action === "back") seekTo((el.currentTime ?? 0) - CLASS_SEEK_SECONDS);
+      else if (action === "forward") seekTo((el.currentTime ?? 0) + CLASS_SEEK_SECONDS);
+      else if (action === "fullscreen") toggleFullscreen();
+      else if (action === "captions") toggleCaptions();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+
+  // Fullscreen applies to the stage (player + pose cue), so the cue goes with it.
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement === stageRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  // In fullscreen, the cue hides after a few idle seconds and returns on activity.
+  useEffect(() => {
+    if (!fullscreen || !playing) { setIdle(false); return; }
+    let timer = setTimeout(() => setIdle(true), CUE_IDLE_MS);
+    const wake = () => { setIdle(false); clearTimeout(timer); timer = setTimeout(() => setIdle(true), CUE_IDLE_MS); };
+    const stage = stageRef.current;
+    stage?.addEventListener("pointermove", wake);
+    stage?.addEventListener("touchstart", wake);
+    return () => { clearTimeout(timer); stage?.removeEventListener("pointermove", wake); stage?.removeEventListener("touchstart", wake); };
+  }, [fullscreen, playing]);
+
+  const chapter = chapterIndex >= 0 ? chapters[chapterIndex] : undefined;
+  const cuePose = chapter?.poseSlug ? asanaBySlug(chapter.poseSlug) : undefined;
+  const showCue = playing && !!cuePose && !(fullscreen && idle);
+
   // Exit: route change (unmount), tab hidden, or page unload.
   useEffect(() => {
     const onHide = () => { if (document.visibilityState === "hidden") saver.flush(); };
@@ -136,9 +248,37 @@ function ClassVideo({ item, onCompleted, onPlayingChange }: {
     };
   }, [saver]);
 
+  if (ended) {
+    return (
+      <ClassEndScreen
+        item={item}
+        next={next}
+        watchedSeconds={watched.current.watched}
+        onWatchAgain={() => {
+          watched.current = { watched: 0, last: null };
+          setStartTime(0);
+          setEnded(false);
+          setChapterIndex(-1);
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="space-y-2">
-      <div className="overflow-hidden rounded-xl bg-black" data-testid="class-player">
+    <div className="space-y-3">
+      <div ref={stageRef} id={stageId} className="relative overflow-hidden rounded-xl bg-black" data-testid="class-player">
+        {showCue && cuePose && (
+          <a
+            href={`/asanas/${cuePose.slug}`}
+            target="_blank"
+            rel="noopener"
+            className="absolute left-3 top-3 z-10 max-w-[70%] truncate rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            aria-label={`Current pose: ${cuePose.english} (opens the pose page in a new tab)`}
+            data-testid="class-pose-cue"
+          >
+            {cuePose.english}
+          </a>
+        )}
         <MuxPlayer
           ref={(el) => {
             playerRef.current = el;
@@ -154,9 +294,15 @@ function ClassVideo({ item, onCompleted, onPlayingChange }: {
           metadata={{ video_title: item.title }}
           disableTracking
           defaultHiddenCaptions={false}
+          fullscreenElement={stageId}
+          forwardSeekOffset={CLASS_SEEK_SECONDS}
+          backwardSeekOffset={CLASS_SEEK_SECONDS}
+          playbackRates={[...CLASS_SPEEDS]}
+          {...(typeof item.thumbnailTimeSec === "number" ? { thumbnailTime: item.thumbnailTimeSec } : {})}
           accentColor="hsl(var(--primary))"
           style={{ aspectRatio: "16 / 9", width: "100%", display: "block" }}
           onLoadedMetadata={() => {
+            applyToMedia();
             const point = restoring.current;
             const el = playerRef.current;
             if (!point || !el) return;
@@ -164,10 +310,31 @@ function ClassVideo({ item, onCompleted, onPlayingChange }: {
             if (Math.abs((el.currentTime ?? 0) - point.at) > 1) el.currentTime = point.at;
             if (point.play) void el.play()?.catch(() => undefined);
           }}
-          onPlay={() => onPlayingChange(true)}
-          onTimeUpdate={() => { if (restoring.current) return; const p = position(); saver.tick(p.current, p.duration); afterSave(); }}
-          onPause={() => { onPlayingChange(false); if (restoring.current) return; const p = position(); saver.pause(p.current, p.duration); afterSave(); }}
-          onEnded={() => { onPlayingChange(false); if (restoring.current) return; saver.end(position().duration); afterSave(); }}
+          onPlay={() => setPlayingBoth(true)}
+          onRateChange={() => {
+            // The player's own speed menu: keep the buttons and the saved choice in step.
+            const rate = playerRef.current?.playbackRate;
+            const parsed = parseClassSpeed(String(rate));
+            if (rate === parsed && parsed !== speed) { setSpeed(parsed); writeClassSpeed(parsed); }
+          }}
+          onTimeUpdate={() => {
+            if (restoring.current) return;
+            const p = position();
+            watched.current = watchedAfter(watched.current, p.current);
+            const index = currentChapterIndex(chapters, p.current);
+            if (index !== chapterIndex) setChapterIndex(index);
+            saver.tick(p.current, p.duration);
+            afterSave();
+          }}
+          onPause={() => { setPlayingBoth(false); if (restoring.current) return; const p = position(); saver.pause(p.current, p.duration); afterSave(); }}
+          onEnded={() => {
+            setPlayingBoth(false);
+            if (restoring.current) return;
+            saver.end(position().duration);
+            afterSave();
+            if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+            setEnded(true);
+          }}
           data-testid="class-mux-player"
         />
       </div>
@@ -185,8 +352,58 @@ function ClassVideo({ item, onCompleted, onPlayingChange }: {
             </button>
           )}
         </p>
-        <p id="class-player-keys">Keyboard: Space plays or pauses, ← and → skip, C toggles captions, F goes full screen.</p>
+        <p id="class-player-keys">Keyboard: Space plays or pauses, ← and → skip 10 seconds, C toggles captions, F goes full screen.</p>
       </div>
+
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Playback speed" data-testid="class-speed">
+        <span className="text-sm font-medium">Speed</span>
+        {CLASS_SPEEDS.map((value) => (
+          <Button
+            key={value}
+            type="button"
+            size="sm"
+            variant={speed === value ? "default" : "outline"}
+            aria-pressed={speed === value}
+            className="min-h-11 min-w-14"
+            onClick={() => chooseSpeed(value)}
+            data-testid={`class-speed-${value}`}
+          >
+            {value}×
+          </Button>
+        ))}
+      </div>
+
+      {chapters.length > 0 && (
+        <nav aria-label="Chapters" data-testid="class-chapters">
+          <h2 className="mb-2 font-serif text-lg font-semibold">Chapters</h2>
+          <ol className="divide-y divide-border rounded-xl border border-card-border bg-card">
+            {chapters.map((c, i) => {
+              const pose = c.poseSlug ? asanaBySlug(c.poseSlug) : undefined;
+              const current = i === chapterIndex;
+              return (
+                <li key={`${c.startSec}-${i}`}>
+                  <button
+                    type="button"
+                    className={`flex min-h-11 w-full cursor-pointer items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${current ? "bg-primary/10 font-medium" : ""}`}
+                    aria-current={current ? "true" : undefined}
+                    aria-label={`${c.title}, at ${formatTimestamp(c.startSec)}${pose ? `, ${pose.english}` : ""}${current ? " (playing now)" : ""}`}
+                    onClick={() => {
+                      seekTo(c.startSec);
+                      if (playerRef.current?.paused) void playerRef.current.play()?.catch(() => undefined);
+                    }}
+                    data-testid={`class-chapter-${i}`}
+                    data-current={current ? "true" : "false"}
+                  >
+                    <span className="w-12 shrink-0 tabular-nums text-muted-foreground">{formatTimestamp(c.startSec)}</span>
+                    <span className="min-w-0 flex-1 truncate">{c.title}</span>
+                    {pose && <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">{pose.english}</span>}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+      )}
     </div>
   );
 }
@@ -218,8 +435,8 @@ export default function ClassDetailRoute() {
   return <ClassDetail key={slug} slug={slug} />;
 }
 
-function ClassVideoSection({ item, onCompleted, onPlayingChange }: {
-  item: ClassSummary; onCompleted: () => void; onPlayingChange: (playing: boolean) => void;
+function ClassVideoSection({ item, next, onCompleted, onPlayingChange }: {
+  item: ClassSummary; next: ClassSummary | null; onCompleted: () => void; onPlayingChange: (playing: boolean) => void;
 }) {
   if (item.locked) return <LockedClass item={item} />;
   if (!item.playback) {
@@ -229,7 +446,7 @@ function ClassVideoSection({ item, onCompleted, onPlayingChange }: {
       </p>
     );
   }
-  return <ClassVideo item={item} onCompleted={onCompleted} onPlayingChange={onPlayingChange} />;
+  return <ClassVideo item={item} next={next} onCompleted={onCompleted} onPlayingChange={onPlayingChange} />;
 }
 
 function ClassDetail({ slug }: { slug: string }) {
@@ -280,7 +497,7 @@ function ClassDetail({ slug }: { slug: string }) {
           </header>
 
           <section aria-label={`${item.title} video`} aria-describedby={item.locked ? undefined : "class-player-keys"}>
-            <ClassVideoSection item={item} onCompleted={() => setCompleted(true)} onPlayingChange={setPlaying} />
+            <ClassVideoSection item={item} next={next} onCompleted={() => setCompleted(true)} onPlayingChange={setPlaying} />
           </section>
 
           {isDone && (

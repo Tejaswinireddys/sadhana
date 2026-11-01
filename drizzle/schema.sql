@@ -318,6 +318,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS classes_slug_idx ON classes (slug);
 -- Additive: existing rows read as 'public' (what they were served as).
 ALTER TABLE classes ADD COLUMN IF NOT EXISTS playback_policy TEXT NOT NULL DEFAULT 'public'
   CHECK (playback_policy IN ('public', 'signed'));
+-- Additive: chapters (JSON list, empty for existing rows) and a poster frame.
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS chapters JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS thumbnail_time_sec INTEGER CHECK (thumbnail_time_sec IS NULL OR thumbnail_time_sec >= 0);
 CREATE TABLE IF NOT EXISTS class_progress (
   id SERIAL PRIMARY KEY,
   owner_id TEXT NOT NULL,

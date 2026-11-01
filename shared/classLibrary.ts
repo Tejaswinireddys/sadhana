@@ -43,6 +43,86 @@ export const CLASS_PROGRESS_SAVE_INTERVAL_MS = 15_000;
 export const CLASS_PAGE_SIZE_DEFAULT = 24;
 export const CLASS_PAGE_SIZE_MAX = 50;
 
+/**
+ * A chapter of a class: where it starts, what it is called, and optionally the
+ * catalog pose it teaches (shown as the on-screen pose cue). Authored in a
+ * chapters.json file (docs/classes.md) and stored on the class row.
+ */
+export type ClassChapter = { startSec: number; title: string; poseSlug?: string };
+
+export const CLASS_CHAPTERS_MAX = 100;
+
+const chapterSchema = z.object({
+  startSec: z.number({ invalid_type_error: "startSec must be a number of seconds" }).finite().min(0, "startSec cannot be negative"),
+  title: z.string().trim().min(1, "title is required").max(120, "title is longer than 120 characters"),
+  poseSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "poseSlug must be a catalog slug like adho-mukha-svanasana").optional(),
+}).strict();
+
+export type ChapterParseResult = { ok: true; chapters: ClassChapter[] } | { ok: false; errors: string[] };
+
+/**
+ * Validate chapters (already JSON-parsed). Chapters must be in time order
+ * with distinct starts, and — when the video length is known — start before
+ * it ends. `knownPose` rejects pose slugs that are not in the catalog.
+ */
+export function parseChapters(
+  value: unknown,
+  options: { durationSec?: number; knownPose?: (slug: string) => boolean } = {},
+): ChapterParseResult {
+  const list = Array.isArray(value) ? value : value && typeof value === "object" && Array.isArray((value as { chapters?: unknown }).chapters)
+    ? (value as { chapters: unknown[] }).chapters
+    : null;
+  if (!list) return { ok: false, errors: ["chapters must be an array (or { \"chapters\": [...] })"] };
+  if (list.length > CLASS_CHAPTERS_MAX) return { ok: false, errors: [`at most ${CLASS_CHAPTERS_MAX} chapters`] };
+  const errors: string[] = [];
+  const chapters: ClassChapter[] = [];
+  list.forEach((item, index) => {
+    const parsed = chapterSchema.safeParse(item);
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) errors.push(`chapter ${index + 1}${issue.path.length ? ` ${issue.path.join(".")}` : ""}: ${issue.message}`);
+      return;
+    }
+    const chapter: ClassChapter = { startSec: parsed.data.startSec, title: parsed.data.title };
+    if (parsed.data.poseSlug) {
+      if (options.knownPose && !options.knownPose(parsed.data.poseSlug)) errors.push(`chapter ${index + 1}: unknown poseSlug "${parsed.data.poseSlug}"`);
+      chapter.poseSlug = parsed.data.poseSlug;
+    }
+    const previous = chapters[chapters.length - 1];
+    if (previous && chapter.startSec <= previous.startSec) errors.push(`chapter ${index + 1}: startSec must be after chapter ${chapters.length}'s (${previous.startSec})`);
+    if (options.durationSec !== undefined && chapter.startSec >= options.durationSec) {
+      errors.push(`chapter ${index + 1}: starts at ${chapter.startSec}s, after the video ends (${Math.floor(options.durationSec)}s)`);
+    }
+    chapters.push(chapter);
+  });
+  return errors.length ? { ok: false, errors } : { ok: true, chapters };
+}
+
+/** Stored chapters, read defensively: anything invalid reads as no chapters. */
+export function storedChapters(value: unknown): ClassChapter[] {
+  const parsed = parseChapters(value ?? []);
+  return parsed.ok ? parsed.chapters : [];
+}
+
+/** Index of the chapter playing at `seconds`, or -1 before the first one. */
+export function currentChapterIndex(chapters: readonly ClassChapter[], seconds: number): number {
+  if (!Number.isFinite(seconds)) return -1;
+  let index = -1;
+  for (let i = 0; i < chapters.length; i++) {
+    if (chapters[i].startSec <= seconds) index = i;
+    else break;
+  }
+  return index;
+}
+
+/** Mux Player's chapter shape: each runs until the next starts (the last, to the end). */
+export function muxChapters(chapters: readonly ClassChapter[], durationSec?: number) {
+  return chapters.map((chapter, i) => ({
+    startTime: chapter.startSec,
+    endTime: chapters[i + 1]?.startSec ?? (durationSec && durationSec > chapter.startSec ? durationSec : undefined),
+    value: chapter.title,
+  }));
+}
+
 /** A row of the `classes` table (see shared/schema.ts). */
 export type ClassRecord = {
   id: number;
@@ -57,6 +137,10 @@ export type ClassRecord = {
   thumbnailUrl: string | null;
   tier: ClassTier;
   playbackPolicy: ClassPlaybackPolicy;
+  /** Stored JSON; read through `storedChapters`. */
+  chapters?: unknown;
+  /** Poster frame for public playback; null for the default. */
+  thumbnailTimeSec?: number | null;
   published: boolean;
   createdAt: string;
 };
@@ -80,6 +164,8 @@ export type ClassSummary = {
   focusTags: string[];
   thumbnailUrl: string | null;
   tier: ClassTier;
+  chapters: ClassChapter[];
+  thumbnailTimeSec: number | null;
   /** True when the class is Plus and the viewer is not. */
   locked: boolean;
   /** Present only when the viewer may watch, and only on the class detail for signed classes. */
@@ -223,6 +309,8 @@ export function presentClass(
     focusTags: [...row.focusTags],
     thumbnailUrl: locked && thumbnailLeaksPlayback ? null : row.thumbnailUrl,
     tier: row.tier,
+    chapters: storedChapters(row.chapters),
+    thumbnailTimeSec: typeof row.thumbnailTimeSec === "number" && row.thumbnailTimeSec >= 0 ? row.thumbnailTimeSec : null,
     locked,
     playback: classPlayback(row, viewerPlan, sign),
     progress: progress ? { secondsWatched: progress.secondsWatched, completed: progress.completed, updatedAt: progress.updatedAt } : null,
