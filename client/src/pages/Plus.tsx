@@ -13,6 +13,14 @@ import { AUTH_QUERY_KEY, authErrorMessage, type AuthState } from "@/lib/auth";
 import { Check } from "lucide-react";
 import { captureProduct, readRememberedFlowId } from "@/lib/productAnalytics";
 import { readUrlParam } from "@/lib/hashQuery";
+import {
+  CHECKOUT_POLL_WINDOW_MS,
+  checkoutPollInterval,
+  hasPaidPlan as paidPlan,
+  plusStatus,
+  plusStatusMessage,
+  type PlusEntitlementView,
+} from "@/lib/plusStatus";
 
 type BillingConfig = {
   enabled: boolean;
@@ -22,13 +30,12 @@ type BillingConfig = {
   termsVersion?: string;
 };
 
-type Entitlement = {
-  plan: string;
-  cancelAtPeriodEnd?: boolean;
-  accessUntil?: string | null;
+type Entitlement = PlusEntitlementView & {
   refundEligible?: boolean;
   refundedAt?: string | null;
 };
+
+const ENTITLEMENT_QUERY_KEY = ["/api/billing/entitlement"];
 
 const TERMS_DISPLAYED = [
   "Subscription renews automatically until you cancel.",
@@ -53,24 +60,62 @@ function LivePlus() {
   const [interval, setInterval] = useState<"month" | "year">("month");
   const [billing, setBilling] = useState<BillingConfig>({ enabled: false, note: "" });
   const [busy, setBusy] = useState(false);
-  const [confirmationDeadline] = useState(() => Date.now() + 60_000);
+  const [confirmationDeadline] = useState(() => Date.now() + CHECKOUT_POLL_WINDOW_MS);
   const returnedFromCheckout = readUrlParam("checkout") === "success";
-  const { data: auth, isLoading: authLoading } = useQuery<AuthState>({
+  // Returning from Stripe Checkout or the portal lands on a cached page, so
+  // session and subscription are always refetched on mount and on focus.
+  const { data: auth, isLoading: authLoading, isFetching: authFetching } = useQuery<AuthState>({
     queryKey: AUTH_QUERY_KEY,
-    refetchInterval: (query) => returnedFromCheckout && query.state.data?.user?.plan !== "plus" && Date.now() < confirmationDeadline ? 2000 : false,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) => checkoutPollInterval({
+      returnedFromCheckout, plan: query.state.data?.user?.plan, now: Date.now(), deadline: confirmationDeadline,
+    }),
   });
 
   const paywallTracked = useRef(false);
   const flowId = readRememberedFlowId() || "plus_page";
-  const { data: entitlement } = useQuery<Entitlement & { status?: string }>({
-    queryKey: ["/api/billing/entitlement"],
+  const { data: entitlement, isFetching: entitlementFetching } = useQuery<Entitlement>({
+    queryKey: ENTITLEMENT_QUERY_KEY,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: () => checkoutPollInterval({
+      returnedFromCheckout, plan: auth?.user?.plan, now: Date.now(), deadline: confirmationDeadline,
+    }),
   });
-  /** Same rule as Home's cancel shortcut: a live or ending paid plan. */
-  const hasPaidPlan =
-    auth?.user?.plan === "plus" || (!!entitlement &&
-    entitlement.plan !== "free" &&
-    entitlement.status !== "refunded" &&
-    (entitlement.status === "active" || entitlement.status === "trialing" || !!entitlement.cancelAtPeriodEnd));
+  const hasPaidPlan = paidPlan(auth?.user, entitlement);
+  const status = plusStatus({
+    user: auth === undefined ? undefined : auth.user ?? null,
+    authFetching,
+    entitlement,
+    entitlementFetching,
+    returnedFromCheckout,
+    awaitingConfirmation: checkoutPollInterval({
+      returnedFromCheckout, plan: auth?.user?.plan, now: Date.now(), deadline: confirmationDeadline,
+    }) !== false,
+  });
+  const canceling = status.kind === "plus-canceling";
+
+  // The entitlement poll may have landed just before the webhook committed;
+  // once polling sees Plus, read the subscription details once more.
+  const plusConfirmed = returnedFromCheckout && auth?.user?.plan === "plus";
+  useEffect(() => {
+    if (plusConfirmed) void qc.invalidateQueries({ queryKey: ENTITLEMENT_QUERY_KEY });
+  }, [plusConfirmed, qc]);
+
+  // A back/forward-cache restore (Back from Stripe) fires neither mount nor
+  // focus, so refetch explicitly.
+  useEffect(() => {
+    const onShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      void qc.invalidateQueries({ queryKey: AUTH_QUERY_KEY });
+      void qc.invalidateQueries({ queryKey: ENTITLEMENT_QUERY_KEY });
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, [qc]);
 
   useEffect(() => {
     void fetch("/api/billing/config")
@@ -196,7 +241,7 @@ function LivePlus() {
         });
         return;
       }
-      void qc.invalidateQueries({ queryKey: ["/api/billing/entitlement"] });
+      void qc.invalidateQueries({ queryKey: ENTITLEMENT_QUERY_KEY });
       toast({ title: "Refund auto-approved", description: data.message });
     } catch {
       toast({ title: "Network error", description: "Could not request refund." });
@@ -314,13 +359,20 @@ function LivePlus() {
         )}
       </div>
 
-      <p className="text-sm" data-testid="plus-account-status">
-        {auth?.user?.plan === "plus" ? "Your account has Plus access." : returnedFromCheckout ? "Waiting for subscription confirmation. Refresh if confirmation takes more than a minute." : "Stripe test mode only — no live payments."}
+      <p
+        className="text-sm"
+        role="status"
+        aria-busy={status.kind === "loading" || status.kind === "awaiting-confirmation"}
+        data-testid="plus-account-status"
+        data-status={status.kind}
+      >
+        {plusStatusMessage(status)}
       </p>
-      {!auth?.user && <Link href="/account" className="underline" data-testid="plus-sign-in">Sign in to subscribe</Link>}
+      {status.kind === "signed-out" && <Link href="/account" className="underline" data-testid="plus-sign-in">Sign in to subscribe</Link>}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Only someone with a subscription is offered "Cancel subscription". */}
-        {hasPaidPlan ? (
+        {/* Only someone with a subscription is offered "Cancel subscription";
+            one already ending is sent to the portal to manage it instead. */}
+        {status.kind === "loading" || status.kind === "awaiting-confirmation" || canceling ? null : hasPaidPlan ? (
           <Button asChild variant="default" className="min-h-11" data-testid="plus-cancel-cta">
             {BILLING_ENABLED && (<Link href="/cancel/confirm">Cancel subscription</Link>)}
           </Button>
@@ -337,7 +389,7 @@ function LivePlus() {
             onClick={() => void openPortal()}
             data-testid="billing-portal"
           >
-            Manage / cancel subscription
+            {canceling ? "Manage subscription" : "Manage / cancel subscription"}
           </Button>
         )}
         {entitlement?.refundEligible && (

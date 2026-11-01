@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,14 +11,15 @@ import {
   authErrorMessage,
   useAuth,
   useResendVerification,
-  useVerifyEmail,
+  verifyEmailAndSignIn,
 } from "@/lib/auth";
-import { ArrowRight, MailCheck } from "lucide-react";
+import { classifyVerifyError, forgetVerifyAttempt, verifyOnce, type VerifyPhase } from "@/lib/verifyEmailFlow";
+import { ArrowRight, CircleCheck, MailCheck } from "lucide-react";
 
 function FieldError({ id, message }: { id: string; message: string | null }) {
   if (!message) return null;
   return (
-    <p id={id} className="text-sm text-destructive" role="alert">
+    <p id={id} className="text-sm text-destructive" role="alert" data-testid="verify-error">
       {message}
     </p>
   );
@@ -28,60 +29,76 @@ function readQuery() {
   return new URLSearchParams(window.location.search);
 }
 
+const INVALID_FALLBACK = "This verification link is invalid or has expired. Send yourself a new one below.";
+const RETRY_MESSAGE = "We couldn't reach the server to verify your email. Check your connection and try again.";
+
 export default function VerifyEmail() {
   useDocumentTitle("Verify email · Sadhana");
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { user, isLoading } = useAuth();
-  const verify = useVerifyEmail();
   const resend = useResendVerification();
 
-  const initial = readQuery();
+  const [initial] = useState(() => readQuery());
+  const linkToken = initial.get("token") ?? "";
   const [email, setEmail] = useState(initial.get("email") ?? "");
-  const [token, setToken] = useState(initial.get("token") ?? "");
+  const [token, setToken] = useState(linkToken);
+  const [phase, setPhase] = useState<VerifyPhase>(linkToken ? "verifying" : "idle");
   const [error, setError] = useState<string | null>(null);
-  const [autoTried, setAutoTried] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  /** The token of the request whose outcome is on screen. */
+  const activeToken = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (user?.emailVerified) navigate("/account");
-  }, [user, navigate]);
-
-  useEffect(() => {
-    const params = readQuery();
-    const qToken = params.get("token");
-    const qEmail = params.get("email");
-    if (!qToken || autoTried || verify.isPending || user?.emailVerified) return;
-    setAutoTried(true);
-    void verify
-      .mutateAsync({ token: qToken, email: qEmail || undefined })
-      .then(({ user: signedIn }) => {
-        toast({
-          title: "Email verified",
-          description: `Welcome${signedIn.displayName ? `, ${signedIn.displayName}` : ""}. Your account is ready.`,
-        });
-        navigate("/account");
-      })
-      .catch((err) => {
-        setError(authErrorMessage(err, "Could not verify that link. Paste the code below."));
-      });
-  }, [autoTried, verify, user, toast, navigate]);
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
+  const run = useCallback((rawToken: string, rawEmail: string) => {
+    const t = rawToken.trim();
+    activeToken.current = t;
     setError(null);
-    try {
-      const { user: signedIn } = await verify.mutateAsync({
-        token: token.trim(),
-        email: email.trim() || undefined,
+    setPhase("verifying");
+    // verifyOnce shares one request per token, so a double effect or remount
+    // cannot send an already-consumed token and turn a success into a failure.
+    verifyOnce(t, () => verifyEmailAndSignIn({ token: t, email: rawEmail.trim() || undefined }))
+      .then(({ user: signedIn }) => {
+        if (activeToken.current !== t) return;
+        setDisplayName(signedIn.displayName ?? null);
+        setPhase("success");
+      })
+      .catch((err: unknown) => {
+        if (activeToken.current !== t) return;
+        const kind = classifyVerifyError(err);
+        setPhase(kind);
+        setError(kind === "invalid" ? authErrorMessage(err, INVALID_FALLBACK) : RETRY_MESSAGE);
       });
-      toast({
-        title: "Email verified",
-        description: `Welcome${signedIn.displayName ? `, ${signedIn.displayName}` : ""}. Your account is ready.`,
-      });
-      navigate("/account");
-    } catch (err) {
-      setError(authErrorMessage(err, "Could not verify. Check the code and try again."));
+  }, []);
+
+  // A bare /verify visit by someone already verified has nothing to do here.
+  useEffect(() => {
+    if (!linkToken && phase === "idle" && user?.emailVerified) navigate("/account");
+  }, [linkToken, phase, user, navigate]);
+
+  // Auto-verify from the emailed link once auth has loaded.
+  useEffect(() => {
+    if (!linkToken || isLoading || activeToken.current !== null) return;
+    // Reopening a used link (e.g. a reload after success) would only get
+    // "expired" back for a token already consumed; the account says it's done.
+    if (user?.emailVerified) {
+      activeToken.current = linkToken;
+      setDisplayName(user.displayName ?? null);
+      setPhase("success");
+      return;
     }
+    run(linkToken, initial.get("email") ?? "");
+  }, [linkToken, isLoading, user, initial, run]);
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!token.trim()) return;
+    run(token, email);
+  };
+
+  const retry = () => {
+    const t = activeToken.current ?? token;
+    forgetVerifyAttempt(t);
+    run(t, email);
   };
 
   const submitResend = async () => {
@@ -106,7 +123,37 @@ export default function VerifyEmail() {
     }
   };
 
-  if (isLoading) {
+  if (phase === "success") {
+    return (
+      <FadeIn className="mx-auto w-full max-w-md space-y-6" data-testid="verify-success">
+        <header className="space-y-2 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <CircleCheck className="h-6 w-6" aria-hidden />
+          </div>
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">Email verified</h1>
+          <p className="text-muted-foreground">
+            Welcome{displayName ? `, ${displayName}` : ""}. Your account is ready and you&apos;re signed in.
+          </p>
+        </header>
+        <Button asChild className="min-h-11 w-full cursor-pointer" data-testid="verify-continue">
+          <Link href="/account">
+            Continue to your account
+            <ArrowRight className="ml-1.5 h-4 w-4" />
+          </Link>
+        </Button>
+      </FadeIn>
+    );
+  }
+
+  if (phase === "verifying" && token.trim() === linkToken) {
+    return (
+      <div className="py-10 text-center text-muted-foreground" role="status" data-testid="verify-pending">
+        Verifying your email…
+      </div>
+    );
+  }
+
+  if (isLoading && phase === "idle") {
     return <div className="py-10 text-muted-foreground">Loading…</div>;
   }
 
@@ -122,6 +169,35 @@ export default function VerifyEmail() {
           account.
         </p>
       </header>
+
+      {phase === "retry" && (
+        <Card className="border-destructive/40" data-testid="verify-network-error">
+          <CardContent className="space-y-3 p-5">
+            <p className="text-sm" role="alert">{RETRY_MESSAGE}</p>
+            <Button type="button" className="min-h-11 w-full cursor-pointer" onClick={retry} data-testid="verify-retry">
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {phase === "invalid" && (
+        <Card className="border-destructive/40" data-testid="verify-invalid">
+          <CardContent className="space-y-3 p-5">
+            <p className="text-sm font-medium">This link didn&apos;t work</p>
+            <p className="text-sm text-muted-foreground" role="alert">{error}</p>
+            <Button
+              type="button"
+              className="min-h-11 w-full cursor-pointer"
+              disabled={resend.isPending}
+              onClick={() => void submitResend()}
+              data-testid="verify-invalid-resend"
+            >
+              {resend.isPending ? "Sending…" : "Resend verification email"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="space-y-4 p-5">
@@ -151,14 +227,14 @@ export default function VerifyEmail() {
                 data-testid="verify-token"
               />
             </div>
-            <FieldError id="verify-error" message={error} />
+            {phase !== "invalid" && phase !== "retry" && <FieldError id="verify-error" message={error} />}
             <Button
               type="submit"
               className="min-h-11 w-full cursor-pointer"
-              disabled={verify.isPending}
+              disabled={phase === "verifying"}
               data-testid="verify-submit"
             >
-              {verify.isPending ? "Verifying…" : "Verify and continue"}
+              {phase === "verifying" ? "Verifying…" : "Verify and continue"}
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           </form>

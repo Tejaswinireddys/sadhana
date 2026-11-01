@@ -227,3 +227,55 @@ test("unverified accounts cannot create Stripe customers or Checkout sessions", 
   assert.equal(f.calls.checkout, undefined);
   assert.equal(await store.getEntitlement(`user:${user.id}`), undefined);
 });
+
+test("customer.subscription.updated with cancel_at_period_end surfaces the end date on /api/billing/entitlement", async () => {
+  initStorage();
+  const user = await storage.createUser("pending-cancel@example.com", "hash");
+  await storage.markEmailVerified(user.id);
+  const ownerId = `user:${user.id}`;
+  const f = fixture(ownerId);
+  await storage.upsertEntitlement(ownerId, { plan: "free", status: "inactive", stripeCustomerId: "cus_test", stripeSubscriptionId: null });
+  const app = express();
+  app.use(express.json({ verify: (req, _res, body) => { (req as express.Request).rawBody = body; } }));
+  app.use((req, _res, next) => { req.userId = user.id; req.ownerId = ownerId; next(); });
+  registerBillingRoutes(app, f.stripe, { alert: () => undefined });
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  const sendEvent = (e: Stripe.Event) => {
+    const payload = JSON.stringify(e);
+    const signature = f.stripe.webhooks.generateTestHeaderString({ payload, secret: "whsec_fixture" });
+    return fetch(`${base}/api/billing/webhook`, { method: "POST", headers: { "Content-Type": "application/json", "stripe-signature": signature }, body: payload });
+  };
+  const entitlement = async () => (await fetch(`${base}/api/billing/entitlement`)).json() as Promise<{
+    plan: string; status: string; cancelAtPeriodEnd: boolean; accessUntil: string | null; renewsAt: string | null;
+  }>;
+  const periodEnd = new Date(2000000000 * 1000).toISOString();
+  try {
+    assert.equal((await sendEvent(event("checkout.session.completed", { id: "cs_pending", mode: "subscription", subscription: "sub_test", customer: "cus_test" }))).status, 200);
+    let body = await entitlement();
+    assert.equal(body.plan, "plus");
+    assert.equal(body.cancelAtPeriodEnd, false);
+    assert.equal(body.accessUntil, null);
+
+    // Cancel in the Stripe portal: access continues to the period end.
+    f.current.cancel_at_period_end = true;
+    assert.equal((await sendEvent(event("customer.subscription.updated", f.current))).status, 200);
+    body = await entitlement();
+    assert.equal(body.plan, "plus", "a pending cancellation keeps access");
+    assert.equal(body.status, "active");
+    assert.equal(body.cancelAtPeriodEnd, true);
+    assert.equal(body.accessUntil, periodEnd);
+    assert.equal(body.renewsAt, periodEnd);
+
+    // Resuming in the portal clears it again.
+    f.current.cancel_at_period_end = false;
+    assert.equal((await sendEvent(event("customer.subscription.updated", f.current))).status, 200);
+    body = await entitlement();
+    assert.equal(body.cancelAtPeriodEnd, false);
+    assert.equal(body.accessUntil, null);
+  } finally {
+    f.current.cancel_at_period_end = false;
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});

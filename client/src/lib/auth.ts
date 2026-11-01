@@ -73,19 +73,25 @@ export function useSignUp() {
   });
 }
 
-export function useVerifyEmail() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: { token: string; email?: string }) => {
-      const res = await apiRequest("POST", "/api/auth/verify-email", input, { timeoutMs: 20_000 });
-      return (await res.json()) as { user: PublicUser; claimed: number };
-    },
-    onSuccess: async ({ user }) => {
-      if (user.displayName) writeString(KEYS.practitionerName, user.displayName);
-      await resetOwnedCaches();
-      qc.setQueryData(AUTH_QUERY_KEY, { user, deviceRows: 0 } satisfies AuthState);
-    },
-  });
+/**
+ * Verify an email token; the server signs the user in on success.
+ *
+ * Not a `useMutation`: awaiting `resetQueries()` inside `onSuccess` held the
+ * mutation pending until every active query had refetched, which is how
+ * `/verify` sat on "Verifying…" after the sign-in had already happened. The
+ * signed-in user is seeded first so the header updates at once; the other
+ * owner-scoped caches reset in the background (auth is excluded so the fresh
+ * user is not wiped back to a loading state).
+ */
+export async function verifyEmailAndSignIn(input: { token: string; email?: string }) {
+  const res = await apiRequest("POST", "/api/auth/verify-email", input, { timeoutMs: 20_000 });
+  const result = (await res.json()) as { user: PublicUser; claimed: number };
+  if (result.user.displayName) writeString(KEYS.practitionerName, result.user.displayName);
+  queryClient.setQueryData(AUTH_QUERY_KEY, { user: result.user, deviceRows: 0 } satisfies AuthState);
+  void queryClient
+    .resetQueries({ predicate: (query) => query.queryKey[0] !== AUTH_QUERY_KEY[0] })
+    .catch(() => undefined);
+  return result;
 }
 
 export function useResendVerification() {

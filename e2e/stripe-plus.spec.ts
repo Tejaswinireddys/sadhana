@@ -81,3 +81,58 @@ for (const guest of [true, false]) {
     expect(billingWrites).toBe(0);
   });
 }
+
+const plusMe = { user: { id: 1, email: "test@example.com", emailVerified: true, plan: "plus" }, deviceRows: 0 };
+
+test("a cancel at period end shows the end date and offers Manage subscription", async ({ page }) => {
+  await page.route("**/api/auth/me", (route) => route.fulfill({ json: plusMe }));
+  await page.route("**/api/billing/entitlement", (route) => route.fulfill({ json: {
+    plan: "plus", status: "active", renewsAt: "2026-12-31T12:00:00.000Z",
+    cancelAtPeriodEnd: true, accessUntil: "2026-12-31T12:00:00.000Z", refundEligible: false,
+  } }));
+  await page.goto("/plus");
+  await expect(page.getByTestId("plus-account-status")).toHaveText(
+    /^Your Plus plan is set to cancel on .*2026\. You keep access until then\.$/,
+  );
+  await expect(page.getByTestId("billing-portal")).toHaveText("Manage subscription");
+  await expect(page.getByTestId("plus-cancel-cta")).toHaveCount(0);
+  await expect(page.getByTestId("plus-no-subscription")).toHaveCount(0);
+});
+
+test("an in-flight session fetch shows loading, never 'Sign in to subscribe'", async ({ page }) => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/auth/me", async (route) => {
+    await gate;
+    return route.fulfill({ json: plusMe });
+  });
+  await page.goto("/plus");
+  await expect(page.getByTestId("plus-account-status")).toHaveAttribute("data-status", "loading");
+  await expect(page.getByTestId("plus-sign-in")).toHaveCount(0);
+  await expect(page.getByTestId("plus-no-subscription")).toHaveCount(0);
+  release();
+  await expect(page.getByTestId("plus-account-status")).toHaveText("Your account has Plus access.");
+  await expect(page.getByTestId("plus-sign-in")).toHaveCount(0);
+});
+
+test("after Checkout, /plus polls until Plus is active and updates without a reload", async ({ page }) => {
+  let meCalls = 0;
+  let confirmed = false;
+  await page.route("**/api/auth/me", (route) => {
+    meCalls++;
+    // The webhook lands a few polls after the redirect back from Stripe.
+    if (meCalls >= 3) confirmed = true;
+    return route.fulfill({ json: { ...plusMe, user: { ...plusMe.user, plan: confirmed ? "plus" : "free" } } });
+  });
+  await page.route("**/api/billing/entitlement", (route) => route.fulfill({ json: confirmed
+    ? { plan: "plus", status: "active", renewsAt: "2026-12-31T12:00:00.000Z", cancelAtPeriodEnd: false, accessUntil: null }
+    : { plan: "free", status: "inactive", renewsAt: null, cancelAtPeriodEnd: false, accessUntil: null } }));
+  await page.goto("/plus?checkout=success");
+  await page.evaluate(() => { (window as unknown as { __noReload: boolean }).__noReload = true; });
+  await expect(page.getByTestId("plus-account-status")).toContainText("Waiting for subscription confirmation");
+  await expect(page.getByTestId("plus-account-status")).toHaveText("Your account has Plus access.", { timeout: 20_000 });
+  expect(await page.evaluate(() => (window as unknown as { __noReload?: boolean }).__noReload)).toBe(true);
+  const settled = meCalls;
+  await page.waitForTimeout(3_500);
+  expect(meCalls, "polling stops once Plus is active").toBe(settled);
+});
