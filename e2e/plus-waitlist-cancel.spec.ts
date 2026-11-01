@@ -56,18 +56,14 @@ test.describe("cancel pages while Plus is waitlist-only", () => {
     await expect(page.getByTestId("cancel-done")).toHaveCount(0);
   });
 
-  test("the waitlist link opens a working Plus waitlist sign-up", async ({ page }) => {
+  test("the legacy waitlist link now opens subscription choices", async ({ page }) => {
     await page.goto("/cancel");
     await page.getByTestId("link-plus-waitlist").click();
     await expect(page).toHaveURL(/\/plus#waitlist$/);
-    await expect(page.getByTestId("plus-waitlist")).toBeInViewport();
-
-    const email = `e2e-${Date.now()}@example.com`;
-    await page.getByTestId("plus-waitlist-email").fill(email);
-    const joined = page.waitForResponse((res) => res.url().endsWith("/api/plus-waitlist"));
-    await page.getByTestId("plus-waitlist-join").click();
-    expect((await joined).status()).toBe(200);
-    await expect(page.getByTestId("plus-waitlist-success")).toBeVisible();
+    await expect(page.getByTestId("plan-select-plus")).toHaveText("Subscribe");
+    await expect(page.getByTestId("plan-select-plus")).toBeDisabled();
+    await expect(page.getByTestId("plus-account-status")).toContainText("test mode");
+    await expect(page.getByTestId("plus-waitlist")).toHaveCount(0);
   });
 
   test("the waitlist rejects an address that is not one", async ({ request }) => {

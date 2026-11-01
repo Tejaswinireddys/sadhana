@@ -65,7 +65,7 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
     "'self'",
     ...(isProd ? [themeScriptHash] : ["'unsafe-inline'"]),
   ].join(" ");
-  const streamHosts = streamCspHosts();
+  const streamHosts = [...new Set([...streamCspHosts(), ...streamCspHosts("mux")])];
   const connect = [
     "'self'",
     "https://*.posthog.com",

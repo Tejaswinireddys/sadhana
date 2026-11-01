@@ -12,6 +12,7 @@ import { type Level } from "@/components/AnimatedAsana";
 import { StepMotion } from "@/components/StepMotion";
 import { VoicePlayer } from "@/components/VoicePlayer";
 import { PoseExplanation, PoseTeachRail } from "@/components/PoseExplanation";
+import { VideoPlayer } from "@/components/VideoPlayer";
 import { PoseImage } from "@/components/PoseImage";
 import { ScrollRow } from "@/components/ScrollRow";
 import {
@@ -272,8 +273,17 @@ export default function AsanaDetail() {
         A reviewed movement demo mounts in the same slot later; generated
         crossfade clips stay out of teaching.
       */}
-      <div data-testid="pose-media-slot" data-media-kind="image">
-        <PoseExplanation slug={asana.slug} level={level} onTrainingChange={setTraining} hero showRail={false} hideSteps />
+      <div data-testid="pose-media-slot">
+        <PoseExplanation slug={asana.slug} level={level} onTrainingChange={setTraining} hero showRail={false} hideSteps
+          idleMedia={(fallback) => <VideoPlayer
+            title={`${asana.english} video preview`}
+            videoUrl={asana.videoUrl || ((poseMedia?.video?.provider === "mux" || poseMedia?.video?.playbackId) ? poseMedia.video.hls || poseMedia.video.mp4 : undefined)}
+            playbackId={asana.playbackId || ((poseMedia?.video?.provider === "mux" || poseMedia?.video?.playbackId) ? poseMedia.video.playbackId : undefined)}
+            poster={`/poses/${asana.slug}.webp`}
+            captions={(poseMedia?.video?.provider === "mux" || poseMedia?.video?.playbackId) && poseMedia.video.captions ? [{ src: poseMedia.video.captions, srcLang: "en", label: "English", default: true }] : []}
+            fallback={fallback}
+          />}
+        />
       </div>
 
       <header className="space-y-2">

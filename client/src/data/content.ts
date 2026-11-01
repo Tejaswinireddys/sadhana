@@ -75,6 +75,9 @@ export type Variations = {
 };
 
 export type Asana = {
+  isPlus: boolean;
+  videoUrl?: string;
+  playbackId?: string;
   slug: string;
   sanskrit: string;
   english: string;
@@ -119,7 +122,7 @@ export type StretchZone = {
 
 // Raw asana literals (without the merged extras). The fully-typed ASANAS
 // array below is produced by merging EXTRAS into these at module load.
-type RawAsana = Omit<Asana, "avoidIf" | "variations" | "stretchZones" | "bestFor" | "arcSlot" | "imageAlt">;
+type RawAsana = Omit<Asana, "isPlus" | "avoidIf" | "variations" | "stretchZones" | "bestFor" | "arcSlot" | "imageAlt"> & { isPlus?: boolean };
 
 const RAW_ASANAS: RawAsana[] = [
   {
@@ -4809,6 +4812,7 @@ export const ASANAS: Asana[] = RAW_ASANAS.map((raw) => {
   const bestFor = bestForFor(raw.slug);
   return {
     ...raw,
+    isPlus: raw.isPlus ?? false,
     steps,
     bestFor,
     imageAlt: poseImageAlt(raw.slug),
@@ -4859,6 +4863,9 @@ export type DailyPlan = {
 };
 
 export type Pathway = {
+  isPlus: boolean;
+  videoUrl?: string;
+  playbackId?: string;
   slug: string;
   name: string;
   tagline?: string; // short "what this is" line for cards
@@ -4883,7 +4890,7 @@ export type Pathway = {
   section?: "quick-flow" | "salutation-goddess" | "seven-day" | "program";
 };
 
-const RAW_PATHWAYS: Pathway[] = [
+const RAW_PATHWAYS: (Omit<Pathway, "isPlus"> & { isPlus?: boolean })[] = [
   {
     slug: "front-splits",
     name: "Front Splits",
@@ -7543,7 +7550,7 @@ const RAW_PATHWAYS: Pathway[] = [
  * sessionPreparation.ts) — so every card, preview and the player count the
  * same queue. There is no separate warm-up to add on top.
  */
-export const PATHWAYS: Pathway[] = RAW_PATHWAYS.map((p) => withSessionPreparation(p, asanaBySlug));
+export const PATHWAYS: Pathway[] = RAW_PATHWAYS.map((p) => withSessionPreparation({ ...p, isPlus: p.isPlus ?? false }, asanaBySlug));
 
 /** Theme ids shown in Affirmations UI (and linked from profiles). */
 export const AFFIRMATION_THEMES = [

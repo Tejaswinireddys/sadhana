@@ -19,6 +19,7 @@ import { LegalConsentBanner } from "@/components/LegalConsentBanner";
 import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { welcomeRedirectTarget } from "@/lib/welcomeGate";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ContentAccessGate } from "@/components/ContentAccessGate";
 import { PageFade } from "@/components/motion";
 
 /** Eager: first paint + marketing / registration entry. Everything else is route-split. */
@@ -115,7 +116,7 @@ function AppRouter() {
   return (
     <PageFade routeKey={location.split("?")[0] || "/"}>
       <Suspense fallback={<RouteFallback />}>
-        <Switch>
+        <ContentAccessGate><Switch>
           <Route path="/register" component={Register} />
           <Route path="/welcome" component={Landing} />
           <Route path="/start" component={StartQuiz} />
@@ -157,7 +158,7 @@ function AppRouter() {
           <Route path="/corporate" component={Corporate} />
           {import.meta.env.DEV && <Route path="/design-system" component={DesignSystem} />}
           <Route component={NotFound} />
-        </Switch>
+        </Switch></ContentAccessGate>
       </Suspense>
     </PageFade>
   );

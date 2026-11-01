@@ -17,6 +17,7 @@ export const users = pgTable(
     displayName: text("display_name"),
     /** False until the user completes email verification after signup. */
     emailVerified: boolean("email_verified").notNull().default(false),
+    plan: text("plan", { enum: ["free", "plus"] }).notNull().default("free"),
     createdAt: text("created_at").notNull(),
   },
   (t) => [uniqueIndex("users_email_idx").on(t.email)],
@@ -24,7 +25,7 @@ export const users = pgTable(
 
 export type User = typeof users.$inferSelect;
 /** Never leaves the server with the hash attached. */
-export type PublicUser = Pick<User, "id" | "email" | "displayName" | "emailVerified" | "createdAt">;
+export type PublicUser = Pick<User, "id" | "email" | "displayName" | "emailVerified" | "createdAt" | "plan">;
 
 export const authSessions = pgTable(
   "auth_sessions",
@@ -252,6 +253,7 @@ export const poseMedia = pgTable(
     id: serial("id").primaryKey(),
     slug: text("slug").notNull(),
     playbackId: text("playback_id").notNull(),
+    captionsUrl: text("captions_url"),
     /** Optional per-row override; otherwise STREAM_PROVIDER env applies. */
     provider: text("provider"),
     updatedAt: text("updated_at").notNull(),

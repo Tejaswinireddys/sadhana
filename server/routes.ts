@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "node:http";
 import { storage } from "./storage";
+import { registerContentAccess } from "./contentAccess";
 import { ownerMiddleware } from "./owner";
 import {
   insertSessionSchema,
@@ -55,6 +56,8 @@ import { buildPoseMediaManifest, isSafeSlug } from "./poseMediaManifest";
 import { ensureNeuralTts, readCachedTts, ttsConfigured } from "./tts";
 import { upsertPosePlayback } from "./poseStreamStore";
 import { streamProvider, type StreamProvider } from "./streamConfig";
+import { PATHWAYS } from "../client/src/data/content";
+import { requireContentAccess } from "./contentAccess";
 import { computeStats } from "@shared/practiceStats";
 
 export { computeStats };
@@ -68,6 +71,7 @@ function publicUser(user: User): PublicUser {
     email: user.email,
     displayName: user.displayName,
     emailVerified: user.emailVerified,
+    plan: user.plan,
     createdAt: user.createdAt,
   };
 }
@@ -90,6 +94,7 @@ async function issueVerification(user: User): Promise<string> {
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   app.use("/api", ownerMiddleware);
+  registerContentAccess(app);
 
   // ---- Accounts (optional — guests keep practising on the device owner) ----
   const isSecure = (req: { protocol: string; get(name: string): string | undefined }) =>
@@ -864,8 +869,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!isSafeSlug(slug)) {
       return res.status(400).json({ error: "Invalid pose slug" });
     }
-    res.setHeader("Cache-Control", "public, max-age=60");
+    res.setHeader("Cache-Control", "private, max-age=60");
     res.json(await buildPoseMediaManifest(slug));
+  });
+
+  app.get("/api/classes/:slug/media", async (req, res, next) => {
+    const pathway = PATHWAYS.find((row) => row.slug === req.params.slug);
+    if (!pathway) return res.status(404).json({ error: "Class not found" });
+    return requireContentAccess(pathway)(req, res, async (error) => {
+      if (error) return next(error);
+      try {
+        const manifest = await buildPoseMediaManifest(`class-${pathway.slug}`);
+        res.setHeader("Cache-Control", "private, max-age=60");
+        res.json({ video: manifest.video ? { ...manifest.video, poster: `/poses/${pathway.targetImgSlug}.png` } : null });
+      } catch (error) { next(error); }
+    });
   });
 
   /**

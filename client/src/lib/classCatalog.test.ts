@@ -8,6 +8,7 @@ import {
   CLASS_LEVELS,
   CLASS_STYLES,
   classListings,
+  describeClass,
   durationBucket,
   filterClasses,
   isPlusClass,
@@ -35,17 +36,11 @@ describe("class catalog facets", () => {
     assert.equal(bySlug.get("foundations-beginner")?.style, "Program");
   });
 
-  it("marks only multi-week programs as Plus", () => {
-    const plus = PATHWAYS.filter(isPlusClass).map((p) => p.slug).sort();
-    const expected = PATHWAYS.filter((p) => p.kind !== "flow" && p.section !== "seven-day")
-      .map((p) => p.slug)
-      .sort();
-    assert.deepEqual(plus, expected);
-    assert.equal(isPlusClass(PATHWAYS.find((p) => p.slug === "front-splits")!), true);
-    assert.equal(isPlusClass(PATHWAYS.find((p) => p.slug === "foundations-beginner")!), false);
-    assert.equal(isPlusClass(PATHWAYS.find((p) => p.slug === "morning-wake-up")!), false);
-    assert.ok(plus.length > 0);
-    assert.ok(plus.length < PATHWAYS.length);
+  it("uses explicit access flags and defaults existing content to free", () => {
+    assert.deepEqual(PATHWAYS.filter(isPlusClass), []);
+    const program = PATHWAYS[0];
+    assert.equal(isPlusClass({ ...program, isPlus: true }), true);
+    assert.equal(describeClass({ ...program, isPlus: true }).isPlus, true);
   });
 
   it("filters by search, style, level, duration, and focus", () => {

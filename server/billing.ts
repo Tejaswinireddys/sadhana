@@ -1,3 +1,4 @@
+import { checkoutForUser, checkoutRequestSchema, isStripeTestKey, plusPrice, syncPlusEvent } from "./stripePlus";
 import { publicAppOrigin } from "./publicUrl";
 import { billingEnabled } from "./publicConfig";
 /**
@@ -47,12 +48,7 @@ import {
 
 const stripeKey = process.env.STRIPE_SECRET_KEY || "";
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
-const pricePlusMonth = process.env.STRIPE_PRICE_PLUS_MONTHLY || "";
-const pricePlusYear = process.env.STRIPE_PRICE_PLUS_YEARLY || "";
-const priceCoachMonth = process.env.STRIPE_PRICE_COACH_MONTHLY || "";
-const priceCoachYear = process.env.STRIPE_PRICE_COACH_YEARLY || "";
-
-const stripe = stripeKey ? new Stripe(stripeKey) : null;
+const stripe = isStripeTestKey(stripeKey) ? new Stripe(stripeKey) : null;
 
 if (stripe && !webhookSecret) {
   console.error(
@@ -69,14 +65,6 @@ function appOrigin(req: Request): string {
   const proto = req.get("x-forwarded-proto") || req.protocol || "http";
   const host = req.get("x-forwarded-host") || req.get("host") || "localhost:5000";
   return `${proto}://${host}`;
-}
-
-function priceId(plan: string, interval: string): string | null {
-  if (plan === "plus" && interval === "month") return pricePlusMonth || null;
-  if (plan === "plus" && interval === "year") return pricePlusYear || null;
-  if (plan === "coach" && interval === "month") return priceCoachMonth || null;
-  if (plan === "coach" && interval === "year") return priceCoachYear || null;
-  return null;
 }
 
 /** Stripe SDK moved period end onto subscription items — support both shapes. */
@@ -188,19 +176,26 @@ async function performCancel(
   return { ok: true, accessUntil };
 }
 
-export function registerBillingRoutes(app: Express) {
-  app.get("/api/billing/config", (_req, res) => {
+export function registerBillingRoutes(app: Express, stripeClient: Stripe | null = stripe) {
+  const stripe = stripeClient;
+  app.get("/api/billing/config", async (_req, res) => {
+    let prices;
+    try {
+      if (stripe && billingEnabled()) prices = { month: await plusPrice(stripe, "month"), year: await plusPrice(stripe, "year") };
+    } catch { /* Missing or invalid prices keep checkout disabled. */ }
     res.json({
-      enabled: Boolean(stripe) && billingEnabled(),
-      plans: ["free", "plus", "coach"],
+      enabled: Boolean(stripe) && billingEnabled() && Boolean(prices) && Boolean(webhookSecret),
+      testMode: true,
+      prices,
+      plans: ["free", "plus"],
       portalAvailable: Boolean(stripe) && billingEnabled(),
       cancelTwoTap: true,
       firstChargeRefundDays: 14,
       renewalReminderDays: 3,
       termsVersion: BILLING_TERMS_VERSION,
-      note: stripe
-        ? "Checkout is live. Cancel in two taps from Home — no dark patterns."
-        : "Core practice stays free. Paid plans are on a waitlist — you will never be charged silently.",
+      note: stripe && prices && webhookSecret
+        ? "Stripe test mode — use test cards only. Manage or cancel anytime."
+        : "Stripe test billing is not configured. Free practice stays available.",
     });
   });
 
@@ -320,27 +315,18 @@ export function registerBillingRoutes(app: Express) {
   });
 
   app.post("/api/billing/checkout", billLimit, async (req: Request, res: Response) => {
-    if (!stripe || !billingEnabled()) {
+    if (!stripe || !billingEnabled() || !webhookSecret) {
       return res.status(503).json({
         error: "Billing is not configured on this deployment",
-        hint: "Free practice stays available. Paid plans are on a waitlist — no surprise charges.",
+        hint: "Configure a Stripe test key, webhook signing secret, and Plus price IDs.",
       });
     }
-    const plan = String(req.body?.plan || "");
-    const interval = String(req.body?.interval || "month") === "year" ? "year" : "month";
-    if (plan !== "plus" && plan !== "coach") {
-      return res.status(400).json({ error: "Choose plus or coach" });
-    }
-    const price = priceId(plan, interval);
-    if (!price) {
-      return res.status(503).json({
-        error: "Price IDs not configured",
-        hint: `Set STRIPE_PRICE_${plan.toUpperCase()}_${interval === "year" ? "YEARLY" : "MONTHLY"}`,
-      });
-    }
-    const origin = appOrigin(req);
-    const ownerId = req.ownerId || "";
-    const existing = getEntitlement(ownerId);
+    if (!req.userId) return res.status(401).json({ error: "Sign in to subscribe" });
+    const parsed = checkoutRequestSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Choose Plus monthly or yearly" });
+    const { plan, interval } = parsed.data;
+    const origin = publicAppOrigin();
+    const ownerId = `user:${req.userId}`;
     const pending = getPendingConsent(ownerId);
 
     // Require a consent + paywall snapshot so every purchase has an audit trail.
@@ -352,31 +338,12 @@ export function registerBillingRoutes(app: Express) {
     }
 
     try {
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        line_items: [{ price, quantity: 1 }],
-        success_url: `${origin}/plus?checkout=success`,
-        cancel_url: `${origin}/plus?checkout=cancel`,
-        allow_promotion_codes: true,
-        billing_address_collection: "auto",
-        customer_email: pending.email || undefined,
-        customer: existing?.stripeCustomerId || undefined,
-        client_reference_id: ownerId || undefined,
-        subscription_data: {
-          metadata: {
-            sadhanaPlan: plan,
-            ownerId,
-            interval,
-            paywallSnapshotId: pending.paywallSnapshotId,
-          },
-        },
-        metadata: {
-          sadhanaPlan: plan,
-          ownerId,
-          interval,
-          paywallSnapshotId: pending.paywallSnapshotId,
-          termsVersion: pending.termsVersion,
-        },
+      const price = await plusPrice(stripe, interval);
+      if (pending.amount !== price.amount || pending.currency.toUpperCase() !== price.currency) {
+        return res.status(400).json({ error: "Price changed. Refresh the plans page and confirm again." });
+      }
+      const session = await checkoutForUser(stripe, storage, req.userId, interval, origin, {
+        paywallSnapshotId: pending.paywallSnapshotId, termsVersion: pending.termsVersion,
       });
       res.json({ url: session.url });
     } catch (e) {
@@ -384,13 +351,14 @@ export function registerBillingRoutes(app: Express) {
     }
   });
 
-  /** Stripe Customer Portal — payment method updates only; cancel is in-app. */
+  /** Stripe Customer Portal for subscription management and cancellation. */
   app.post("/api/billing/portal", billLimit, async (req: Request, res: Response) => {
     if (!stripe || !billingEnabled()) {
       return res.status(503).json({ error: "Billing is not configured on this deployment" });
     }
-    const ownerId = req.ownerId || "";
-    const row = getEntitlement(ownerId);
+    if (!req.userId) return res.status(401).json({ error: "Sign in to manage your subscription" });
+    const ownerId = `user:${req.userId}`;
+    const row = await storage.getEntitlement(ownerId);
     if (!row?.stripeCustomerId) {
       return res.status(404).json({
         error: "No Stripe customer on file",
@@ -400,7 +368,7 @@ export function registerBillingRoutes(app: Express) {
     try {
       const session = await stripe.billingPortal.sessions.create({
         customer: row.stripeCustomerId,
-        return_url: `${appOrigin(req)}/plus`,
+        return_url: `${publicAppOrigin()}/plus`,
       });
       res.json({ url: session.url });
     } catch (e) {
@@ -447,6 +415,7 @@ export function registerBillingRoutes(app: Express) {
       cancelAtPeriodEnd: false,
       accessUntil: now,
     });
+    if (req.userId) await storage.setUserPlan(req.userId, "free");
     const purchases = purchasesForOwner(ownerId).filter((p) => p.isFirstCharge && !p.refundedAt);
     for (const p of purchases) updatePurchase(p.id, { refundedAt: now });
 
@@ -522,6 +491,8 @@ export function registerBillingRoutes(app: Express) {
     } catch (e) {
       return res.status(400).send(`Webhook Error: ${(e as Error).message}`);
     }
+
+    if (event.livemode) return res.status(400).json({ error: "Only Stripe test-mode events are accepted" });
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
@@ -626,7 +597,7 @@ export function registerBillingRoutes(app: Express) {
           isFirstCharge: isFirst,
           refundedAt: null,
         });
-        void storage.upsertEntitlement(ownerId, {
+        await storage.upsertEntitlement(ownerId, {
           plan,
           status: "active",
           renewsAt,
@@ -769,7 +740,7 @@ export function registerBillingRoutes(app: Express) {
           paywallSnapshotId: prev?.paywallSnapshotId,
           consentAuditId: prev?.consentAuditId,
         });
-        void storage.upsertEntitlement(ownerId, {
+        await storage.upsertEntitlement(ownerId, {
           plan: "free",
           status: "canceled",
           renewsAt: null,
@@ -793,6 +764,7 @@ export function registerBillingRoutes(app: Express) {
       }
     }
 
+    await syncPlusEvent(stripe, storage, event);
     res.json({ received: true });
   });
 }

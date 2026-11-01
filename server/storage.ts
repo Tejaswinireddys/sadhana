@@ -62,6 +62,7 @@ export interface IStorage {
   createUser(email: string, passwordHash: string, displayName?: string): Promise<User>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(id: number): Promise<User | undefined>;
+  setUserPlan(userId: number, plan: "free" | "plus"): Promise<void>;
   updateUserPassword(userId: number, passwordHash: string): Promise<void>;
   markEmailVerified(userId: number): Promise<void>;
   deleteUser(userId: number): Promise<void>;
@@ -191,6 +192,10 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return row;
+  }
+  async setUserPlan(userId: number, plan: "free" | "plus"): Promise<void> {
+    if (plan !== "free" && plan !== "plus") throw new Error("Invalid plan");
+    await this.orm.update(users).set({ plan }).where(eq(users.id, userId));
   }
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [row] = await this.orm.select().from(users).where(eq(users.email, email)).limit(1);
@@ -750,10 +755,16 @@ export class MemoryStorage implements IStorage {
       passwordHash,
       displayName: displayName ?? null,
       emailVerified: false,
+      plan: "free",
       createdAt: new Date().toISOString(),
     };
     this.users.push(row);
     return row;
+  }
+  async setUserPlan(userId: number, plan: "free" | "plus"): Promise<void> {
+    if (plan !== "free" && plan !== "plus") throw new Error("Invalid plan");
+    const user = this.users.find((row) => row.id === userId);
+    if (user) user.plan = plan;
   }
   async getUserByEmail(email: string) {
     return this.users.find((u) => u.email === email);

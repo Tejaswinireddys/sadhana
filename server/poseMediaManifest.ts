@@ -127,7 +127,7 @@ export async function buildPoseMediaManifest(slug: string): Promise<PoseMediaMan
         mp4: urls.mp4,
         webm: null,
         poster,
-        captions,
+        captions: streamRow.captionsUrl || null,
         playbackId: urls.playbackId,
         provider: urls.provider,
       };

@@ -1,6 +1,7 @@
+import { isStripeTestKey } from "./stripePlus";
 /** Public, non-secret launch settings embedded into the HTML response. */
 export function billingEnabled(): boolean {
-  return process.env.BILLING_ENABLED === "true" && Boolean(process.env.STRIPE_SECRET_KEY);
+  return process.env.BILLING_ENABLED === "true" && isStripeTestKey(process.env.STRIPE_SECRET_KEY || "");
 }
 export function publicConfig() {
   const email = process.env.SUPPORT_EMAIL?.trim() ?? "";

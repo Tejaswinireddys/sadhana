@@ -5,17 +5,18 @@ import { FadeIn } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PLANS, readPreferredPlan, writePreferredPlan, type PlanId } from "@/lib/plans";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Input } from "@/components/ui/input";
-import { KEYS, readString, writeString } from "@/lib/localPrefs";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { AUTH_QUERY_KEY, authErrorMessage, type AuthState } from "@/lib/auth";
 import { Check } from "lucide-react";
 import { captureProduct, readRememberedFlowId } from "@/lib/productAnalytics";
 import { readUrlParam } from "@/lib/hashQuery";
 
 type BillingConfig = {
   enabled: boolean;
+  prices?: Record<"month" | "year", { amount: number; currency: string }>;
   note: string;
   portalAvailable?: boolean;
   termsVersion?: string;
@@ -38,112 +39,8 @@ const TERMS_DISPLAYED = [
   "No retention interstitials, countdown discounts, or dark patterns.",
 ].join(" ");
 
-function priceDisplayed(id: PlanId, interval: "month" | "year"): string {
-  const p = PLANS.find((x) => x.id === id);
-  if (!p || p.monthlyUsd === 0) return "Free";
-  return interval === "year" ? `$${p.yearlyUsd}/yr` : `$${p.monthlyUsd}/mo`;
-}
-
 export default function Plus() {
-  if (!BILLING_ENABLED) return (
-    <div className="space-y-4 py-8">
-      <h1 className="font-serif text-3xl">Practice for free</h1>
-      <p>Paid subscriptions are not available yet. You can use guest practice without a payment card.</p>
-      <Button asChild><Link href="/start">Find my practice</Link></Button>
-      <PlusWaitlistSignup />
-    </div>
-  );
   return <LivePlus />;
-}
-
-/**
- * The Plus waitlist while payments are off. Linked as /plus#waitlist from the
- * /cancel pages, so it scrolls itself into view when that is the hash.
- * A failed request says so — "you're on the list" is only shown once the
- * server has the address.
- */
-function PlusWaitlistSignup() {
-  const { toast } = useToast();
-  const sectionRef = useRef<HTMLElement>(null);
-  const [email, setEmail] = useState("");
-  const [joined, setJoined] = useState(() => !!readString(KEYS.plusWaitlist));
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (window.location.hash === "#waitlist") sectionRef.current?.scrollIntoView({ block: "start" });
-  }, []);
-
-  const join = async (event: FormEvent) => {
-    event.preventDefault();
-    const value = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-      toast({ title: "Enter a valid email", variant: "destructive" });
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await fetch("/api/plus-waitlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: value }),
-      });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok) {
-        toast({ title: "Could not join", description: data.error, variant: "destructive" });
-        return;
-      }
-      writeString(KEYS.plusWaitlist, value);
-      setJoined(true);
-    } catch {
-      toast({
-        title: "Could not join",
-        description: "Check your connection and try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <section
-      ref={sectionRef}
-      id="waitlist"
-      className="scroll-mt-20 space-y-3 rounded-3xl border border-border bg-card p-5 shadow-soft"
-      data-testid="plus-waitlist"
-    >
-      <h2 className="font-serif text-xl">Sadhana Plus waitlist</h2>
-      {joined ? (
-        <p className="text-sm" data-testid="plus-waitlist-success">
-          You&apos;re on the Plus waitlist. We&apos;ll email you once when Plus opens. Nothing is
-          charged.
-        </p>
-      ) : (
-        <>
-          <p className="text-sm text-muted-foreground">
-            Plus isn&apos;t on sale yet. Leave your email and we&apos;ll tell you when it is — that
-            is the only thing we use it for.
-          </p>
-          <form className="flex flex-col gap-3 sm:flex-row" onSubmit={join}>
-            <Input
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="you@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="min-h-11"
-              aria-label="Email for the Plus waitlist"
-              data-testid="plus-waitlist-email"
-            />
-            <Button type="submit" className="min-h-11" disabled={busy} data-testid="plus-waitlist-join">
-              {busy ? "Joining…" : "Join waitlist"}
-            </Button>
-          </form>
-        </>
-      )}
-    </section>
-  );
 }
 
 function LivePlus() {
@@ -155,6 +52,12 @@ function LivePlus() {
   const [interval, setInterval] = useState<"month" | "year">("month");
   const [billing, setBilling] = useState<BillingConfig>({ enabled: false, note: "" });
   const [busy, setBusy] = useState(false);
+  const [confirmationDeadline] = useState(() => Date.now() + 60_000);
+  const returnedFromCheckout = readUrlParam("checkout") === "success";
+  const { data: auth } = useQuery<AuthState>({
+    queryKey: AUTH_QUERY_KEY,
+    refetchInterval: (query) => returnedFromCheckout && query.state.data?.user?.plan !== "plus" && Date.now() < confirmationDeadline ? 2000 : false,
+  });
 
   const paywallTracked = useRef(false);
   const flowId = readRememberedFlowId() || "plus_page";
@@ -163,10 +66,10 @@ function LivePlus() {
   });
   /** Same rule as Home's cancel shortcut: a live or ending paid plan. */
   const hasPaidPlan =
-    !!entitlement &&
+    auth?.user?.plan === "plus" || (!!entitlement &&
     entitlement.plan !== "free" &&
     entitlement.status !== "refunded" &&
-    (entitlement.status === "active" || entitlement.status === "trialing" || !!entitlement.cancelAtPeriodEnd);
+    (entitlement.status === "active" || entitlement.status === "trialing" || !!entitlement.cancelAtPeriodEnd));
 
   useEffect(() => {
     void fetch("/api/billing/config")
@@ -187,8 +90,8 @@ function LivePlus() {
     const checkout = readUrlParam("checkout");
     if (checkout === "success") {
       toast({
-        title: "Welcome to Sadhana Plus",
-        description: "Your subscription is active. Cancel anytime from Manage subscription.",
+        title: "Checkout completed",
+        description: "Confirming your subscription. Plus access starts after Stripe confirms it.",
       });
     }
   }, [flowId, interval, plan, toast]);
@@ -203,33 +106,28 @@ function LivePlus() {
       });
       return;
     }
-    if (!billing.enabled) {
-      toast({
-        title: "You're on the waitlist",
-        description:
-          "Paid plans aren't open yet, so nothing was purchased and you won't be charged. We'll note your interest and keep your free practice going.",
-      });
+    if (!auth?.user) {
+      toast({ title: "Sign in to subscribe", description: "Your Plus subscription belongs to your account." });
+      return;
+    }
+    if (!billing.enabled || !billing.prices) {
+      toast({ title: "Checkout unavailable", description: "Stripe test billing is not configured." });
       return;
     }
     void captureProduct("checkout_started", { flow_id: flowId, plan: id });
     setBusy(true);
     try {
-      const p = PLANS.find((x) => x.id === id)!;
-      const amount = interval === "year" ? p.yearlyUsd : p.monthlyUsd;
+      const { amount, currency } = billing.prices[interval];
       const paywallHtml = paywallRef.current?.outerHTML || document.body.innerHTML;
-      const consentRes = await fetch("/api/billing/consent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const consentRes = await apiRequest("POST", "/api/billing/consent", {
           plan: id,
           interval,
           amount,
-          currency: "USD",
-          priceDisplayed: priceDisplayed(id, interval),
+          currency,
+          priceDisplayed: `${currency} ${amount}/${interval}`,
           termsDisplayed: TERMS_DISPLAYED,
           termsVersion: billing.termsVersion,
           paywallHtml,
-        }),
       });
       if (!consentRes.ok) {
         const c = (await consentRes.json()) as { error?: string };
@@ -241,11 +139,7 @@ function LivePlus() {
         return;
       }
 
-      const res = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: id, interval, flow_id: flowId }),
-      });
+      const res = await apiRequest("POST", "/api/billing/checkout", { plan: id, interval });
       const data = (await res.json()) as { url?: string; error?: string; hint?: string };
       if (!res.ok || !data.url) {
         toast({
@@ -256,8 +150,8 @@ function LivePlus() {
         return;
       }
       window.location.href = data.url;
-    } catch {
-      toast({ title: "Network error", description: "Could not start checkout.", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Checkout unavailable", description: authErrorMessage(error, "Could not start checkout."), variant: "destructive" });
     } finally {
       setBusy(false);
     }
@@ -266,7 +160,7 @@ function LivePlus() {
   const openPortal = async () => {
     setBusy(true);
     try {
-      const res = await fetch("/api/billing/portal", { method: "POST" });
+      const res = await apiRequest("POST", "/api/billing/portal");
       const data = (await res.json()) as { url?: string; error?: string; hint?: string };
       if (!res.ok || !data.url) {
         toast({
@@ -277,8 +171,8 @@ function LivePlus() {
         return;
       }
       window.location.href = data.url;
-    } catch {
-      toast({ title: "Network error", description: "Could not open the billing portal." });
+    } catch (error) {
+      toast({ title: "Portal unavailable", description: authErrorMessage(error, "Could not open the billing portal.") });
     } finally {
       setBusy(false);
     }
@@ -308,19 +202,19 @@ function LivePlus() {
 
   return (
     <FadeIn className="mx-auto max-w-3xl space-y-6 py-2">
-      <div ref={paywallRef} data-testid="paywall-root">
+      <div ref={paywallRef} id="waitlist" data-testid="paywall-root">
         <header className="space-y-2">
           <h1 className="font-serif text-3xl font-semibold tracking-tight">Plans</h1>
           <p className="text-muted-foreground" data-testid="plans-intro">
             {billing.enabled
               ? "Cancel in two taps from Home. Renewal reminder 3 days before every charge. First-charge refund within 14 days, auto-approved. The safety library stays free."
-              : "Everything in the app is free today. The paid plans below are planned, not on sale — join the waitlist to hear when they are. Nothing can be charged."}
+              : "Plus subscriptions use Stripe test mode. Checkout is unavailable until test billing is configured."}
           </p>
           <p className="text-xs text-muted-foreground" data-testid="billing-status">
             {billing.note ||
               (billing.enabled
                 ? "Checkout is live."
-                : "Free forever here — paid plans are on a waitlist.")}
+                : "Stripe test billing is not configured.")}
           </p>
           <p className="text-sm">
             {BILLING_ENABLED && (<Link
@@ -355,7 +249,7 @@ function LivePlus() {
         </div>
 
         <div className="mt-4 grid gap-4 md:grid-cols-3">
-          {PLANS.map((p) => (
+          {PLANS.filter((p) => p.id !== "coach").map((p) => (
             <Card
               key={p.id}
               className={plan === p.id ? "border-primary shadow-soft" : "shadow-soft"}
@@ -369,7 +263,7 @@ function LivePlus() {
                       className="rounded-full border border-border px-2 py-0.5 font-sans text-xs font-medium text-muted-foreground"
                       data-testid={`plan-planned-${p.id}`}
                     >
-                      Planned · waitlist
+                      Test subscriptions
                     </span>
                   )}
                 </CardTitle>
@@ -377,8 +271,8 @@ function LivePlus() {
                   {p.monthlyUsd === 0
                     ? "Free"
                     : interval === "year"
-                      ? `$${p.yearlyUsd}/yr`
-                      : `$${p.monthlyUsd}/mo`}
+                      ? `$${billing.prices?.year.amount ?? p.yearlyUsd}/yr`
+                      : `$${billing.prices?.month.amount ?? p.monthlyUsd}/mo`}
                 </p>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -393,7 +287,7 @@ function LivePlus() {
                 <Button
                   className="min-h-11 w-full"
                   variant={plan === p.id ? "default" : "outline"}
-                  disabled={busy}
+                  disabled={busy || (p.id !== "free" && (!billing.enabled || hasPaidPlan))}
                   onClick={() => void selectPlan(p.id)}
                   data-testid={`plan-select-${p.id}`}
                 >
@@ -401,11 +295,7 @@ function LivePlus() {
                     ? plan === "free"
                       ? "Selected"
                       : "Continue free"
-                    : billing.enabled
-                      ? `Subscribe · ${p.name}`
-                      : plan === p.id
-                        ? "On the waitlist"
-                        : "Join waitlist"}
+                    : "Subscribe"}
                 </Button>
               </CardContent>
             </Card>
@@ -419,6 +309,10 @@ function LivePlus() {
         )}
       </div>
 
+      <p className="text-sm" data-testid="plus-account-status">
+        {auth?.user?.plan === "plus" ? "Your account has Plus access." : returnedFromCheckout ? "Waiting for subscription confirmation. Refresh if confirmation takes more than a minute." : "Stripe test mode only — no live payments."}
+      </p>
+      {!auth?.user && <Link href="/account" className="underline" data-testid="plus-sign-in">Sign in to subscribe</Link>}
       <div className="flex flex-wrap items-center gap-3">
         {/* Only someone with a subscription is offered "Cancel subscription". */}
         {hasPaidPlan ? (
@@ -438,7 +332,7 @@ function LivePlus() {
             onClick={() => void openPortal()}
             data-testid="billing-portal"
           >
-            Update payment method
+            Manage / cancel subscription
           </Button>
         )}
         {entitlement?.refundEligible && (
@@ -455,8 +349,7 @@ function LivePlus() {
       </div>
       {billing.enabled && (
         <p className="text-sm text-muted-foreground">
-          Cancel is two taps from Home. Payment-method updates use Stripe&apos;s portal — cancellation
-          never requires it.
+          Cancel is two taps from Home. You can also manage or cancel your subscription in Stripe&apos;s test portal.
         </p>
       )}
 

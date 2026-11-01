@@ -9,7 +9,7 @@
  *
  * Honors voiceEnabled: with voice off the lesson clock still drives the guide.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -149,6 +149,7 @@ export function PoseExplanation({
   hero = false,
   showRail = true,
   hideSteps = false,
+  idleMedia,
 }: {
   slug: string;
   /** Difficulty path from AsanaDetail — updates steps, timing, props and copy. */
@@ -161,6 +162,8 @@ export function PoseExplanation({
   showRail?: boolean;
   /** The detail page owns the single numbered step list. */
   hideSteps?: boolean;
+  /** Uploaded previews are separate from the reviewed lesson demonstration. */
+  idleMedia?: (fallback: ReactNode) => ReactNode;
 }) {
   const asana = asanaBySlug(slug);
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
@@ -399,6 +402,48 @@ export function PoseExplanation({
     </div>
   );
 
+  const stage = (
+    <PoseLessonStage
+      demo={lesson.demo}
+      english={asana.english}
+      level={level}
+      playing={training && playing}
+      restartToken={restartToken}
+      focus={training ? current?.focus ?? null : null}
+      caption={
+        training && current
+          ? `${phaseLabelFor(current.phase)}${
+              current.side !== "both" ? ` · ${current.side} side` : ""
+            }`
+          : null
+      }
+      phase={training && current ? current.phase : undefined}
+      stepNumber={activeStepNumber}
+      stepCount={lesson.steps.length}
+      stepProgress={segmentProgress}
+      side={training && current ? current.side : "both"}
+      firstSide={firstSide}
+      breathMovement={training && current ? current.cycle?.movement ?? null : null}
+      breathCue={training && current ? current.breathCue : null}
+      cueText={training && current ? current.cue : null}
+      training={training}
+      onMediaStateChange={setMediaState}
+      className={cn(
+        "w-full",
+        // While teaching, the picture shares a short screen with the
+        // cue and the controls, so it yields height to them. That cap
+        // stays the same in the hero slot. Idle hero is shorter so the
+        // detail page can keep the written pose underneath.
+        training
+          ? "aspect-[3/4] max-h-[min(38vh,18rem)] landscape:max-h-[min(46vh,14rem)] sm:aspect-video"
+          : hero
+            ? "h-40 w-full sm:aspect-video sm:h-auto sm:max-h-[min(40vh,20rem)]"
+            : "aspect-[3/4] max-h-[min(46vh,26rem)] sm:aspect-video",
+      )}
+      data-testid={`demo-hero-${asana.slug}`}
+    />
+  );
+
   return (
     <section
       className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft"
@@ -469,45 +514,7 @@ export function PoseExplanation({
             className={cn("flex min-w-0 scroll-mt-20 flex-col gap-3", hero && !training && "gap-1.5")}
             ref={stageRef}
           >
-            <PoseLessonStage
-              demo={lesson.demo}
-              english={asana.english}
-              level={level}
-              playing={training && playing}
-              restartToken={restartToken}
-              focus={training ? current?.focus ?? null : null}
-              caption={
-                training && current
-                  ? `${phaseLabelFor(current.phase)}${
-                      current.side !== "both" ? ` · ${current.side} side` : ""
-                    }`
-                  : null
-              }
-              phase={training && current ? current.phase : undefined}
-              stepNumber={activeStepNumber}
-              stepCount={lesson.steps.length}
-              stepProgress={segmentProgress}
-              side={training && current ? current.side : "both"}
-              firstSide={firstSide}
-              breathMovement={training && current ? current.cycle?.movement ?? null : null}
-              breathCue={training && current ? current.breathCue : null}
-              cueText={training && current ? current.cue : null}
-              training={training}
-              onMediaStateChange={setMediaState}
-              className={cn(
-                "w-full",
-                // While teaching, the picture shares a short screen with the
-                // cue and the controls, so it yields height to them. That cap
-                // stays the same in the hero slot. Idle hero is shorter so the
-                // detail page can keep the written pose underneath.
-                training
-                  ? "aspect-[3/4] max-h-[min(38vh,18rem)] landscape:max-h-[min(46vh,14rem)] sm:aspect-video"
-                  : hero
-                    ? "h-40 w-full sm:aspect-video sm:h-auto sm:max-h-[min(40vh,20rem)]"
-                    : "aspect-[3/4] max-h-[min(46vh,26rem)] sm:aspect-video",
-              )}
-              data-testid={`demo-hero-${asana.slug}`}
-            />
+            {!training && idleMedia ? idleMedia(stage) : stage}
 
             {training && current ? (
               <div className="space-y-2" data-testid="lesson-live-cue">

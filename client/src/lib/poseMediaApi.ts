@@ -72,8 +72,8 @@ export function manifestToVideoSources(
       poster: manifest.video.poster || `/poses/${slug}.webp`,
       playbackId: manifest.video.playbackId ?? null,
       provider: manifest.video.provider ?? null,
-      ...(manifest.video.captions || convention?.captions
-        ? { captions: manifest.video.captions ?? convention?.captions }
+      ...(manifest.video.captions || (!manifest.video.playbackId && convention?.captions)
+        ? { captions: manifest.video.captions ?? (!manifest.video.playbackId ? convention?.captions : undefined) }
         : {}),
     };
   }

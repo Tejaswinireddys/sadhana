@@ -6,9 +6,7 @@
  * session's poses for level and focus, and catalogSessionMinutes for duration.
  * Nothing here is a second taxonomy written beside the catalog.
  *
- * Plus is a presentational mark on multi-week programs. Flows and 7-day
- * challenges stay unmarked. The badge does not read entitlements or start
- * checkout.
+ * Plus badges follow the explicit catalog access flag.
  */
 import { asanaBySlug, PATHWAYS, type Category, type Pathway } from "@/data/content";
 import {
@@ -80,6 +78,7 @@ export type ClassListing = {
   duration: DurationBucketId;
   focus: ClassFocus;
   plus: boolean;
+  isPlus: boolean;
 };
 
 export type ClassFilters = {
@@ -90,9 +89,9 @@ export type ClassFilters = {
   focus?: ClassFocus | "all";
 };
 
-/** Multi-week programs carry the Plus mark. 7-day challenges and flows do not. */
+/** Classes share the access flag of their underlying program. */
 export function isPlusClass(p: Pathway): boolean {
-  return p.kind !== "flow" && p.section !== "seven-day";
+  return p.isPlus;
 }
 
 export function classStyle(p: Pathway): ClassStyle {
@@ -176,6 +175,7 @@ export function describeClass(p: Pathway): ClassListing {
     duration: durationBucket(minutes),
     focus: focusFor(p, first),
     plus: isPlusClass(p),
+    isPlus: p.isPlus,
   };
 }
 

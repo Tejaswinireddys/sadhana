@@ -250,3 +250,9 @@ DO $$ BEGIN
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+-- Account content access defaults to free, independent of legacy billing rows.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'plus'));
+
+-- Uploaded caption tracks are tied to their own stream, never generated clips.
+ALTER TABLE pose_media ADD COLUMN IF NOT EXISTS captions_url TEXT;

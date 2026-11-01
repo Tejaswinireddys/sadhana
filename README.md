@@ -162,3 +162,148 @@ flow, or a new pathway, follow the pattern in `client/src/data/content.ts`.
 ## License
 
 MIT — see `LICENSE`.
+
+
+## Stripe Plus subscriptions (test mode only)
+
+Plus Checkout requires a signed-in account. Guests and new accounts remain
+`free`; a verified webhook sets `users.plan` to `plus`. This integration rejects
+live secret keys, live prices, and live webhook events. No live payments are
+supported.
+
+1. In Stripe **test mode**, create a Plus product with two active, fixed USD
+   recurring prices: one every month and one every year. Copy their `price_…`
+   IDs. The Plus page reads the amounts from Stripe; the consent snapshot must
+   match those amounts before Checkout can begin.
+2. Configure the following server environment variables (never put secrets in
+   `VITE_*` variables or commit them):
+
+   ```dotenv
+   BILLING_ENABLED=true
+   STRIPE_SECRET_KEY=sk_test_...
+   STRIPE_PRICE_MONTHLY=price_...
+   STRIPE_PRICE_YEARLY=price_...
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   PUBLIC_APP_URL=http://localhost:5055
+   PORT=5055
+   ```
+
+   Existing `STRIPE_PRICE_PLUS_MONTHLY` / `STRIPE_PRICE_PLUS_YEARLY` names are
+   supported as fallback aliases. Use Postgres (`DATABASE_URL`) for durable
+   accounts, plans, and Stripe customer/subscription associations. Without it,
+   local memory storage resets when the server restarts. Existing consent and
+   paywall audit files under `.data/` also need persistent storage if retained.
+3. In Stripe's **test Customer Portal settings**, save a configuration that
+   enables subscription management and cancellation at the end of the billing
+   period. Keep the product catalog limited to the configured Plus prices if
+   allowing plan changes. The in-app two-tap cancellation route also remains
+   available. See [Stripe's portal setup](https://docs.stripe.com/customer-management/integrate-customer-portal).
+4. Forward signed snapshot events locally with the Stripe CLI:
+
+   ```bash
+   stripe login
+   stripe listen --events checkout.session.completed,customer.subscription.updated,customer.subscription.deleted,invoice.paid,invoice.payment_failed --forward-to localhost:5055/api/billing/webhook
+   ```
+
+   Set `STRIPE_WEBHOOK_SECRET` to the `whsec_…` printed by that listener, then
+   restart `npm run dev`. For a hosted test deployment, register the HTTPS
+   `/api/billing/webhook` endpoint in Stripe test mode and use that endpoint's
+   signing secret. See [Stripe's webhook setup](https://docs.stripe.com/webhooks).
+5. Sign in, visit `/plus`, select Monthly or Yearly, and click **Subscribe**.
+   Use the test card `4242 4242 4242 4242` with a future expiry and any CVC.
+   After returning, the page polls the authenticated account for webhook
+   confirmation. A success URL alone does not grant access. Use **Manage /
+   cancel subscription** to open the portal; it derives the customer ID from
+   the signed-in account, not the request body.
+6. Verify `/api/auth/me` reports `plan: "plus"`. Schedule cancellation through
+   the portal: access remains Plus while the subscription is active/trialing.
+   After final cancellation/deletion it returns to free. Inactive, past-due,
+   unpaid, or unrecognised-price subscriptions do not grant Plus. Webhook
+   reconciliation reads current Stripe state, so repeated or delayed events
+   cannot re-enable a canceled subscription or revoke a newer active one.
+   Use a real test Checkout/Portal lifecycle to exercise the account mapping;
+   standalone `stripe trigger` fixtures usually lack app account metadata.
+
+Endpoints:
+
+- `GET /api/billing/config`: test availability and configured price amounts.
+- `POST /api/billing/consent`: existing consent/paywall snapshot capture.
+- `POST /api/billing/checkout`: authenticated `{ "plan": "plus", "interval": "month" | "year" }`;
+  returns `{ "url": "…" }` after matching consent and price validation.
+- `POST /api/billing/portal`: authenticated; returns the account's portal URL.
+- `POST /api/billing/webhook`: verifies `Stripe-Signature` against the original
+  raw body and handles the subscription lifecycle. Failed processing returns
+  a non-2xx response for Stripe to retry.
+
+Automated coverage uses a mocked Stripe API plus real SDK webhook signatures;
+no Stripe credentials or network payments are needed for `npm test`. A real
+Stripe-account end-to-end test requires your own test keys, price IDs and CLI
+listener. All existing catalog content remains free until explicitly marked
+`isPlus`; subscribing changes the account plan, not the catalog flags.
+
+
+## Mux video uploads and playback
+
+Create a Mux API access token with Video read/write permissions and put
+`MUX_TOKEN_ID` and `MUX_TOKEN_SECRET` in your local `.env` or server environment.
+These credentials are used only by the admin script; they are never bundled
+into the browser. The existing `hls.js` dependency supplies browser HLS playback
+(native HLS is used on Safari). No Mux SDK install is needed.
+
+Run from the repository root with a real catalog slug:
+
+```bash
+npm run upload:mux -- --kind pose --slug tadasana --file /path/to/pose.mp4 --captions /path/to/English.vtt
+npm run upload:mux -- --kind class --slug front-splits --file /path/to/class.mp4
+```
+
+The script creates a public-playback Mux Direct Upload, streams the file using
+the signed upload URL, polls until the asset is ready, and saves its playback ID
+with `provider: "mux"`. It does not load the whole video into memory. Failed
+uploads/processing never install a new playback ID. Processing times out after
+about 15 minutes; the upload and asset IDs are saved under `.data/mux-uploads/`.
+After an interrupted processing wait, resume without uploading a second copy:
+
+```bash
+npm run upload:mux -- --kind pose --slug tadasana --resume UPLOAD_ID --captions /path/to/English.vtt
+```
+
+`--resume` only resumes the readiness check; a failed file transfer must be
+uploaded again. Existing remote assets are not automatically deleted. See
+[Mux Direct Uploads](https://www.mux.com/docs/guides/upload-files-directly).
+
+Playback IDs use the existing Postgres `pose_media` table when `DATABASE_URL`
+is configured. Otherwise they persist in `.data/pose-stream-ids.json`; restart
+the app after an admin upload in memory mode so it reloads that seed file.
+Class records use the namespace `class-<pathway-slug>` and do not replace pose
+records. Refresh the page to clear cached media manifests. Keep `.data/` if
+using file-backed IDs across deployments, or use Postgres. Per-record Mux
+selection works with the existing default stream provider; no
+`STREAM_PROVIDER=mux` change is required.
+
+Optional `--captions` takes an English WebVTT file timed to the uploaded video.
+The script copies it to `client/public/captions/uploads/` and associates its URL
+with that specific playback ID. Include these files in the deployed static
+assets (rebuild after uploading captions for production). Existing generated
+pose-clip captions are never silently attached to an uploaded stream. Mux
+in-stream captions also work through native HLS/hls.js. Without captions,
+`VideoPlayer` still provides standard play, pause, volume and fullscreen
+controls. Playback is user-initiated, with no autoplay.
+
+The pose media slot displays uploaded media as an idle video preview, falling
+back to its current reference image when no source exists or playback fails.
+Starting the guided pose lesson unmounts/pauses that preview and retains the
+reviewed-media rules and existing timeline. `ClassPlayer` occupies the existing
+class/program hero slot on `/pathways/:slug`, using
+`GET /api/classes/:slug/media`; it similarly retains the current image until
+video metadata is ready and after load errors or a 15-second loading timeout.
+The pose-by-pose guided player and its timer are unchanged. Plus class media
+uses the account entitlement check, including access through the namespaced
+pose-media URL.
+
+For authored content, optional `videoUrl` or Mux `playbackId` fields on an asana
+or pathway can also drive the player; the admin script saves hosted IDs in the
+media store instead of editing the catalog or generated `data/poses.json`.
+Playback IDs in this integration are public. Uploading does not certify an
+asset as a reviewed teaching demonstration or change any review status in
+`instructorMediaManifest.ts`; that remains a separate human content workflow.

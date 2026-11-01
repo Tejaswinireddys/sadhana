@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { ClassPlayer } from "@/components/ClassPlayer";
 import { PoseImage } from "@/components/PoseImage";
 import { EmptyState } from "@/components/EmptyState";
 import { DailyProgram } from "@/components/DailyProgram";
@@ -160,12 +161,7 @@ export default function PathwayDetail() {
         </Link>
 
         <header className="grid gap-6 md:grid-cols-[200px_1fr] md:items-center">
-          <PoseImage
-            slug={pathway.targetImgSlug}
-            rounded="rounded-xl"
-            aspect="aspect-[4/3]"
-            testId={`pathway-detail-hero-${pathway.slug}`}
-          />
+          <ClassPlayer pathway={pathway} />
           <div className="space-y-3">
             <h1 className="font-serif text-3xl font-semibold tracking-tight">{pathway.name}</h1>
             <p className="text-muted-foreground">{pathway.tagline ?? pathway.summary}</p>
@@ -221,12 +217,7 @@ export default function PathwayDetail() {
       </Link>
 
       <header className="grid gap-6 md:grid-cols-[200px_1fr] md:items-center">
-        <PoseImage
-          slug={pathway.targetImgSlug}
-          rounded="rounded-xl"
-          aspect="aspect-[4/3]"
-          testId={`pathway-detail-hero-${pathway.slug}`}
-        />
+        <ClassPlayer pathway={pathway} />
         <div className="space-y-3">
           <h1 className="font-serif text-3xl font-semibold tracking-tight">{pathway.name}</h1>
           <p className="text-muted-foreground">{pathway.tagline ?? pathway.summary}</p>

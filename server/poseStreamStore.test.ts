@@ -34,3 +34,14 @@ describe("pose stream store + manifest", () => {
     assert.match(m.video!.poster, /\/poses\/stream-test-pose-xyz\.png$/);
   });
 });
+
+it("Mux captions belong to the uploaded clip and class keys do not overwrite pose IDs", async () => {
+  await upsertPosePlayback("mux-caption-fixture", "playbackFixture", "mux", "/captions/uploads/fixture.vtt");
+  const manifest = await buildPoseMediaManifest("mux-caption-fixture");
+  assert.equal(manifest.video?.hls, "https://stream.mux.com/playbackFixture.m3u8");
+  assert.equal(manifest.video?.captions, "/captions/uploads/fixture.vtt");
+  await upsertPosePlayback("class-mux-caption-fixture", "classFixture", "mux");
+  assert.equal((await getPosePlayback("mux-caption-fixture"))?.playbackId, "playbackFixture");
+  assert.equal((await getPosePlayback("class-mux-caption-fixture"))?.playbackId, "classFixture");
+  assert.equal((await buildPoseMediaManifest("class-mux-caption-fixture")).video?.captions, null);
+});
