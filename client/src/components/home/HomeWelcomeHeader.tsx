@@ -3,7 +3,7 @@
  *  soft gradient, depth, and gentle breath motion (reduced-motion / motion-off safe).
  */
 import { useCallback, useState } from "react";
-import { welcomeHeaderTitle } from "@/lib/welcomeTitle";
+import { welcomeHeaderSubtitle, welcomeHeaderTitle } from "@/lib/welcomeTitle";
 
 const HERO_POSES = ["vrksasana", "tadasana", "balasana"];
 
@@ -14,6 +14,7 @@ export function HomeWelcomeHeader({
   practicedToday = false,
   reminderHour = 18,
   loading = false,
+  signedIn = false,
 }: {
   /** True once the practitioner has ≥1 completed session (a returning visitor). */
   hasCompletedSessions: boolean;
@@ -26,6 +27,8 @@ export function HomeWelcomeHeader({
   reminderHour?: number;
   /** Saved practice has not arrived yet: say nothing about their history. */
   loading?: boolean;
+  /** An account whose practice syncs to the server (not browser-only). */
+  signedIn?: boolean;
 }) {
   const base = import.meta.env.BASE_URL;
   const title = welcomeHeaderTitle({ hasCompletedSessions, displayName, loading });
@@ -52,15 +55,14 @@ export function HomeWelcomeHeader({
           instead, or say nothing.
         */}
         <p className="max-w-xl text-muted-foreground" data-testid="text-home-subtitle">
-          {loading
-            ? "Reading your saved practice…"
-            : practicedToday
-            ? "You've already practised today. What follows is optional."
-            : hasCompletedSessions
-              ? new Date().getHours() >= reminderHour
-                ? "Evening — a shorter, quieter practice is below."
-                : "Your practice for today is below, with three other options."
-                : "Your first practice is below. Nothing is saved anywhere but this browser until you say so."}
+          {welcomeHeaderSubtitle({
+            loading,
+            practicedToday,
+            hasCompletedSessions,
+            hour: new Date().getHours(),
+            reminderHour,
+            signedIn,
+          })}
         </p>
       </div>
 

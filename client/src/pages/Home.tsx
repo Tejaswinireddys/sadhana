@@ -72,7 +72,9 @@ import {
 } from "@/components/home/TodayPracticeCard";
 import { PoseImage } from "@/components/PoseImage";
 import { SavePracticeBanner } from "@/components/SavePracticePrompt";
-import { CancelAccessBanner } from "@/components/CancelAccessBanner";
+import { CancelAccessBanner, useEntitlementView } from "@/components/CancelAccessBanner";
+import { subscriptionNotice } from "@/lib/subscriptionNotice";
+import { continueRowState } from "@/lib/homeContinue";
 import { dismissBanner, savePromptLevel, shouldShowSaveBanner } from "@/lib/savePracticePrompt";
 import { Reveal } from "@/components/motion";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -97,37 +99,24 @@ import {
 
 const MS_PER_DAY = 86400000;
 
-/** Tap 1 of cancel — always one hop from Home to the confirmation screen. */
+/**
+ * Tap 1 of cancel — always one hop from Home to the confirmation screen.
+ * Only for an active plan with no cancel scheduled; once one is, the single
+ * `CancelAccessBanner` notice takes over.
+ */
 function HomeCancelSubscriptionCta() {
-  const { data } = useQuery<{
-    plan: string;
-    cancelAtPeriodEnd?: boolean;
-    status?: string;
-  }>({
-    queryKey: ["/api/billing/entitlement"],
-    staleTime: 0,
-    refetchOnMount: "always",
-  });
-  const paid =
-    data &&
-    data.plan !== "free" &&
-    data.status !== "refunded" &&
-    (data.status === "active" || data.status === "trialing" || data.cancelAtPeriodEnd);
-  if (!BILLING_ENABLED || !paid) return null;
+  const { data } = useEntitlementView();
+  if (!BILLING_ENABLED || subscriptionNotice(data)?.kind !== "cancel-cta") return null;
   return (
     <div
       className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3"
       data-testid="home-cancel-cta"
     >
       <p className="text-sm text-muted-foreground">
-        {data.cancelAtPeriodEnd
-          ? "Subscription canceled — review your access end date."
-          : "Need to leave? Cancel in one more tap. No chat, phone, or retention screen."}
+        Need to leave? Cancel in one more tap. No chat, phone, or retention screen.
       </p>
       <Button asChild variant="outline" className="min-h-11 shrink-0" data-testid="button-home-cancel">
-        {BILLING_ENABLED && (<Link href="/cancel/confirm">
-          {data.cancelAtPeriodEnd ? "Cancellation details" : "Cancel subscription"}
-        </Link>)}
+        <Link href="/cancel/confirm">Cancel subscription</Link>
       </Button>
     </div>
   );
@@ -137,7 +126,7 @@ export default function Home() {
   useDocumentTitle("Today · Sadhana");
   const [, navigate] = useLocation();
   const { todays, loadSession, progress } = usePractice();
-  const { user, isSignedIn } = useAuth();
+  const { user, isSignedIn, isLoading: authLoading } = useAuth();
 
   const {
     data: stats,
@@ -175,9 +164,10 @@ export default function Home() {
     const saved = readPracticePreferences();
     return { minutes: saved.minutes, need: saved.need, energy: null, noProps: false };
   });
-  const { data: savedFlows = [] } = useQuery<CustomFlow[]>({ queryKey: ["/api/custom-flows"] });
+  const { data: savedFlows = [], isPending: savedFlowsPending } = useQuery<CustomFlow[]>({ queryKey: ["/api/custom-flows"] });
   /** The most recently watched, unfinished video class. */
-  const classInProgress = useContinueWatching().data?.items[0] ?? null;
+  const continueWatching = useContinueWatching();
+  const classInProgress = continueWatching.data?.items[0] ?? null;
 
   const profile = profileById(activeProfileRow?.profileId) ?? null;
   const practitionerName = readString(KEYS.practitionerName)?.trim() || null;
@@ -442,6 +432,14 @@ export default function Home() {
     navigate("/guided");
   };
 
+  // The program card depends on the recommendation, so it waits for the same
+  // queries (`bootstrapping`) plus saved sequences; class progress waits for auth.
+  const continueState = continueRowState({
+    classProgressPending: continueWatching.isPending,
+    programsPending: bootstrapping || savedFlowsPending,
+    hasItems: showResume || (!!programDay && recommendation?.source !== "program") || savedFlows.length > 0 || !!classInProgress,
+  });
+
   return (
     <div className="space-y-8">
       <HomeWelcomeHeader
@@ -450,7 +448,8 @@ export default function Home() {
         displayName={practitionerName}
         practicedToday={practicedToday}
         reminderHour={reminderPrefs.hour ?? 18}
-        loading={bootstrapping}
+        loading={bootstrapping || authLoading}
+        signedIn={isSignedIn}
       />
 
       <CancelAccessBanner />
@@ -570,10 +569,13 @@ export default function Home() {
         <h2 id="continue-heading" className="font-serif text-xl">
           Continue practice
         </h2>
-        {showResume ||
-        (programDay && recommendation?.source !== "program") ||
-        savedFlows.length > 0 ||
-        classInProgress ? (
+        {continueState === "loading" ? (
+          <div className="flex gap-3 overflow-hidden" role="status" aria-label="Loading what's in progress" data-testid="home-continue-loading">
+            {[0, 1].map((i) => (
+              <div key={i} className="h-16 w-64 shrink-0 rounded-2xl border border-border/60 bg-muted/60" aria-hidden />
+            ))}
+          </div>
+        ) : continueState === "items" ? (
           <ScrollRow label="Continue practice" testId="home-continue-scroll">
             {classInProgress && (
               <Link

@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { welcomeHeaderTitle, isDisplayableName } from "./welcomeTitle";
+import { welcomeHeaderSubtitle, welcomeHeaderTitle, isDisplayableName } from "./welcomeTitle";
 
 describe("welcomeHeaderTitle", () => {
   it("invites a first-ever visitor to start (no completed sessions)", () => {
@@ -57,5 +57,28 @@ describe("isDisplayableName", () => {
     assert.equal(isDisplayableName(""), false);
     assert.equal(isDisplayableName("   "), false);
     assert.equal(isDisplayableName("42"), false);
+  });
+});
+
+describe("welcomeHeaderSubtitle", () => {
+  const first = { loading: false, practicedToday: false, hasCompletedSessions: false, hour: 9, reminderHour: 18 };
+
+  it("tells a guest their practice stays in this browser", () => {
+    assert.match(welcomeHeaderSubtitle({ ...first, signedIn: false }), /Nothing is saved anywhere but this browser/);
+  });
+
+  it("never tells a signed-in account its practice is browser-only", () => {
+    const line = welcomeHeaderSubtitle({ ...first, signedIn: true });
+    assert.doesNotMatch(line, /this browser/);
+    assert.match(line, /saved to your account/);
+  });
+
+  it("keeps the loading, practised-today and returning lines for both", () => {
+    for (const signedIn of [true, false]) {
+      assert.equal(welcomeHeaderSubtitle({ ...first, signedIn, loading: true }), "Reading your saved practice…");
+      assert.match(welcomeHeaderSubtitle({ ...first, signedIn, practicedToday: true }), /already practised today/);
+      assert.match(welcomeHeaderSubtitle({ ...first, signedIn, hasCompletedSessions: true }), /three other options/);
+      assert.match(welcomeHeaderSubtitle({ ...first, signedIn, hasCompletedSessions: true, hour: 19 }), /Evening/);
+    }
   });
 });

@@ -42,3 +42,36 @@ export function welcomeHeaderTitle({
   if (isDisplayableName(displayName)) return `Welcome back, ${displayName.trim()}`;
   return "Welcome back";
 }
+
+/**
+ * The line under the Today title. Only says things that are true of this
+ * visitor: "nothing is saved anywhere but this browser" describes a guest,
+ * and was also shown to signed-in accounts whose practice syncs to the server.
+ */
+export function welcomeHeaderSubtitle({
+  loading,
+  practicedToday,
+  hasCompletedSessions,
+  hour,
+  reminderHour,
+  signedIn,
+}: {
+  loading: boolean;
+  practicedToday: boolean;
+  hasCompletedSessions: boolean;
+  /** Local hour now (0–23). */
+  hour: number;
+  reminderHour: number;
+  signedIn: boolean;
+}): string {
+  if (loading) return "Reading your saved practice…";
+  if (practicedToday) return "You've already practised today. What follows is optional.";
+  if (hasCompletedSessions) {
+    return hour >= reminderHour
+      ? "Evening — a shorter, quieter practice is below."
+      : "Your practice for today is below, with three other options.";
+  }
+  return signedIn
+    ? "Your first practice is below. It's saved to your account, so it's there on any device you sign in on."
+    : "Your first practice is below. Nothing is saved anywhere but this browser until you say so.";
+}
