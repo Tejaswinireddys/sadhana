@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import {
   canLeaveCompletion,
   completionLeavePath,
+  reflectionAction,
   shouldFireBackgroundSave,
 } from "./guidedCompletion.ts";
 
@@ -58,5 +59,23 @@ describe("guided completion leave", () => {
     const doneHandler = src.slice(src.indexOf("button-log-continue") - 400);
     assert.match(doneHandler, /leaveCompletedSession/);
     assert.equal(/if \(sessionLogged\.current \|\| !credited\) \{\s*clear\(\);\s*navigate\("\/"\)/.test(src), false);
+  });
+});
+
+describe("reflectionAction (a rating given around the auto-save)", () => {
+  it("queues a rating confirmed while the save is still in flight, instead of dropping it", () => {
+    assert.equal(reflectionAction({ sessionLogged: false, saveInFlight: true, counts: true }), "queue");
+  });
+
+  it("amends once saved, saves when nothing has been, and skips practice that did not count", () => {
+    assert.equal(reflectionAction({ sessionLogged: true, saveInFlight: false, counts: true }), "amend");
+    assert.equal(reflectionAction({ sessionLogged: false, saveInFlight: false, counts: true }), "save");
+    assert.equal(reflectionAction({ sessionLogged: true, saveInFlight: false, counts: false }), "skip");
+  });
+
+  it("the player applies the queued rating when the save lands", () => {
+    const page = readFileSync(resolve("client/src/pages/GuidedSession.tsx"), "utf8");
+    assert.match(page, /queuedReflection\.current = \{/);
+    assert.match(page, /const queued = queuedReflection\.current;/);
   });
 });

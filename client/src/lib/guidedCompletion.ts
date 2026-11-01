@@ -38,3 +38,23 @@ export function shouldFireBackgroundSave(opts: {
 }): boolean {
   return opts.credited && !opts.sessionLogged && !opts.saving;
 }
+
+export type ReflectionAction = "save" | "queue" | "amend" | "skip";
+
+/**
+ * What to do with a mood or effort rating given on the completion screen.
+ *
+ * The practice is saved ~1.2s after it ends, and that save (session, journal,
+ * then stats and milestones) takes a few round trips. A rating confirmed in
+ * between used to call the save again, hit its "already saving" guard, and
+ * vanish. It is now queued and applied as an amendment when the save lands.
+ *
+ * - `save`: nothing saved or in flight yet — save the practice with it.
+ * - `queue`: a save is in flight — hold it, amend once that save finishes.
+ * - `amend`: the practice is saved — amend the saved rows.
+ * - `skip`: the practice did not count, so there is nothing to amend.
+ */
+export function reflectionAction(opts: { sessionLogged: boolean; saveInFlight: boolean; counts: boolean }): ReflectionAction {
+  if (opts.sessionLogged) return opts.counts ? "amend" : "skip";
+  return opts.saveInFlight ? "queue" : "save";
+}

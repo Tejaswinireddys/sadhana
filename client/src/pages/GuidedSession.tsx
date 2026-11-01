@@ -58,6 +58,7 @@ import { sessionCredit, sessionExitCopy, sessionHeadline, type SessionCredit } f
 import {
   completionLeavePath,
   shouldFireBackgroundSave,
+  reflectionAction,
 } from "@/lib/guidedCompletion";
 import { setImmersivePlayerActive } from "@/lib/legal";
 import { afterGuidedHold, coachingCues } from "@/lib/guidedCoaching";
@@ -450,6 +451,10 @@ export default function GuidedSession() {
   const lastPostMood = useRef<Mood | null>(null);
   const finishedMinutes = useRef(1);
   const sessionLogged = useRef(false);
+  /** True from the start of the auto-save until it settles (state lags in callbacks). */
+  const saveInFlight = useRef(false);
+  /** A mood/effort rating given while the auto-save was in flight; applied when it lands. */
+  const queuedReflection = useRef<{ post: Mood | null; rpe: number | null } | null>(null);
   /** Journal row id from auto-save — Reflect edits this instead of creating a duplicate. */
   const journalEntryId = useRef<number | null>(null);
   const sessionRowId = useRef<number | null>(null);
@@ -938,6 +943,29 @@ export default function GuidedSession() {
     saveProgress,
   ]);
 
+  /** Amend the saved session and journal rows with a later mood/effort answer. */
+  const amendReflection = useCallback(
+    (resolvedPost: Mood | null, resolvedRpe: number | null) =>
+      amendLoggedSession({
+        sessionId: sessionRowId.current,
+        journalId: journalEntryId.current,
+        postMood: resolvedPost,
+        rpe: resolvedRpe,
+        journal: {
+          label: meta.label ?? "Guided session",
+          minutes: finishedMinutes.current,
+          plannedMinutes: meta.plannedMinutes ?? null,
+          poseNames: todays.map((a) => a.english),
+          posesCompleted: posesCompleted.current,
+          posesSkipped: skippedIndices.current.size,
+          preMood,
+          postMood: resolvedPost,
+          breathCount: finishedBreaths.current,
+        },
+      }),
+    [meta, todays, preMood],
+  );
+
   // ---- persist + auto-journal + milestone (mirrors Practice.tsx) ------------
   const finalizeSession = useCallback(
     async (resolvedPost: Mood | null, resolvedRpe: number | null = rpe) => {
@@ -949,6 +977,7 @@ export default function GuidedSession() {
         return;
       }
       setSaving(true);
+      saveInFlight.current = true;
       setSaveFailed(false);
       const minutes = finishedMinutes.current;
       const poseNames = todays.map((a) => a.english);
@@ -969,8 +998,11 @@ export default function GuidedSession() {
         journalTags: [sessionLabel, "guided"],
       });
       setSaving(false);
+      saveInFlight.current = false;
 
       if (!result.ok) {
+        // A retry saves with the latest mood and effort, so nothing stays queued.
+        queuedReflection.current = null;
         setSaveFailed(true);
         sessionLogged.current = false;
         toast({
@@ -986,6 +1018,9 @@ export default function GuidedSession() {
       sessionRowId.current = result.sessionId ?? null;
       setSaveFailed(false);
       saveProgress(null);
+      const queued = queuedReflection.current;
+      queuedReflection.current = null;
+      if (queued) void amendReflection(queued.post, queued.rpe);
       if (result.milestone) {
         setConfetti(true);
         setTimeout(() => setConfetti(false), 2600);
@@ -993,7 +1028,7 @@ export default function GuidedSession() {
         toast({ title: result.milestone.title, description: result.milestone.message });
       }
     },
-    [todays, meta, preMood, rpe, toast, saving, saveProgress],
+    [todays, meta, preMood, rpe, toast, saving, saveProgress, amendReflection],
   );
 
   /**
@@ -1006,30 +1041,16 @@ export default function GuidedSession() {
   const saveOrAmendReflection = useCallback(
     async (resolvedPost: Mood | null, resolvedRpe: number | null) => {
       lastPostMood.current = resolvedPost;
-      if (!sessionLogged.current) {
-        await finalizeSession(resolvedPost, resolvedRpe);
-        return;
-      }
-      if (!creditRef.current.counts) return;
-      await amendLoggedSession({
-        sessionId: sessionRowId.current,
-        journalId: journalEntryId.current,
-        postMood: resolvedPost,
-        rpe: resolvedRpe,
-        journal: {
-          label: meta.label ?? "Guided session",
-          minutes: finishedMinutes.current,
-          plannedMinutes: meta.plannedMinutes ?? null,
-          poseNames: todays.map((a) => a.english),
-          posesCompleted: posesCompleted.current,
-          posesSkipped: skippedIndices.current.size,
-          preMood,
-          postMood: resolvedPost,
-          breathCount: finishedBreaths.current,
-        },
+      const action = reflectionAction({
+        sessionLogged: sessionLogged.current,
+        saveInFlight: saveInFlight.current,
+        counts: creditRef.current.counts,
       });
+      if (action === "save") await finalizeSession(resolvedPost, resolvedRpe);
+      else if (action === "queue") queuedReflection.current = { post: resolvedPost, rpe: resolvedRpe };
+      else if (action === "amend") await amendReflection(resolvedPost, resolvedRpe);
     },
-    [finalizeSession, meta, todays, preMood],
+    [finalizeSession, amendReflection],
   );
 
   const creditNow = (): SessionCredit =>
