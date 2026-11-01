@@ -19,6 +19,7 @@ import { LegalConsentBanner } from "@/components/LegalConsentBanner";
 import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { welcomeRedirectTarget } from "@/lib/welcomeGate";
 import { markWelcomeSeen } from "@/lib/welcomeSeen";
+import { AdConsentBanner } from "@/components/ads/AdConsentBanner";
 import { useAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ContentAccessGate } from "@/components/ContentAccessGate";
@@ -192,6 +193,7 @@ function AppShell() {
   return (
     <>
       <WelcomeRedirect />
+      <AdConsentBanner />
 
       <AppLayout>
         {/* Key by route so a page crash does not trap every subsequent nav click. */}

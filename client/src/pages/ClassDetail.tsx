@@ -6,6 +6,7 @@ import { resumeFrom, type ClassPlayback, type ClassSummary } from "@shared/class
 import { Button } from "@/components/ui/button";
 import { FadeIn } from "@/components/motion";
 import { ClassCard } from "@/components/ClassCard";
+import { AdSlot } from "@/components/ads/AdSlot";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { ClassProgressSaver } from "@/lib/classProgressSaver";
 import { restorePoint, tokenRefreshDelayMs, tokenRefreshDue, tokenRetryDelayMs } from "@/lib/classTokenRefresh";
@@ -87,7 +88,9 @@ function signedTokenAttributes(playback: ClassPlayback): Record<string, string> 
   };
 }
 
-function ClassVideo({ item, onCompleted }: { item: ClassSummary; onCompleted: () => void }) {
+function ClassVideo({ item, onCompleted, onPlayingChange }: {
+  item: ClassSummary; onCompleted: () => void; onPlayingChange: (playing: boolean) => void;
+}) {
   const playerRef = useRef<MuxPlayerRefAttributes | null>(null);
   const [initialStart] = useState(() => resumeFrom(item.progress));
   const [startTime, setStartTime] = useState(initialStart);
@@ -161,9 +164,10 @@ function ClassVideo({ item, onCompleted }: { item: ClassSummary; onCompleted: ()
             if (Math.abs((el.currentTime ?? 0) - point.at) > 1) el.currentTime = point.at;
             if (point.play) void el.play()?.catch(() => undefined);
           }}
+          onPlay={() => onPlayingChange(true)}
           onTimeUpdate={() => { if (restoring.current) return; const p = position(); saver.tick(p.current, p.duration); afterSave(); }}
-          onPause={() => { if (restoring.current) return; const p = position(); saver.pause(p.current, p.duration); afterSave(); }}
-          onEnded={() => { if (restoring.current) return; saver.end(position().duration); afterSave(); }}
+          onPause={() => { onPlayingChange(false); if (restoring.current) return; const p = position(); saver.pause(p.current, p.duration); afterSave(); }}
+          onEnded={() => { onPlayingChange(false); if (restoring.current) return; saver.end(position().duration); afterSave(); }}
           data-testid="class-mux-player"
         />
       </div>
@@ -214,7 +218,9 @@ export default function ClassDetailRoute() {
   return <ClassDetail key={slug} slug={slug} />;
 }
 
-function ClassVideoSection({ item, onCompleted }: { item: ClassSummary; onCompleted: () => void }) {
+function ClassVideoSection({ item, onCompleted, onPlayingChange }: {
+  item: ClassSummary; onCompleted: () => void; onPlayingChange: (playing: boolean) => void;
+}) {
   if (item.locked) return <LockedClass item={item} />;
   if (!item.playback) {
     return (
@@ -223,7 +229,7 @@ function ClassVideoSection({ item, onCompleted }: { item: ClassSummary; onComple
       </p>
     );
   }
-  return <ClassVideo item={item} onCompleted={onCompleted} />;
+  return <ClassVideo item={item} onCompleted={onCompleted} onPlayingChange={onPlayingChange} />;
 }
 
 function ClassDetail({ slug }: { slug: string }) {
@@ -231,6 +237,7 @@ function ClassDetail({ slug }: { slug: string }) {
   const item = detail.data?.class;
   const next = detail.data?.next ?? null;
   const [completed, setCompleted] = useState(false);
+  const [playing, setPlaying] = useState(false);
   useDocumentTitle(item ? `${item.title} · Sadhana` : "Class · Sadhana");
 
   const notFound = detail.isError && /^404:/.test(detail.error instanceof Error ? detail.error.message : "");
@@ -273,7 +280,7 @@ function ClassDetail({ slug }: { slug: string }) {
           </header>
 
           <section aria-label={`${item.title} video`} aria-describedby={item.locked ? undefined : "class-player-keys"}>
-            <ClassVideoSection item={item} onCompleted={() => setCompleted(true)} />
+            <ClassVideoSection item={item} onCompleted={() => setCompleted(true)} onPlayingChange={setPlaying} />
           </section>
 
           {isDone && (
@@ -296,6 +303,10 @@ function ClassDetail({ slug }: { slug: string }) {
               </div>
             )}
           </section>
+
+          {/* Below the player and description, free classes only, and never while
+              the video plays: it unmounts on play and returns on pause or end. */}
+          {item.tier === "free" && !playing && <AdSlot placement="classDetail" />}
 
           {next && (
             <section className="space-y-3" aria-labelledby="class-next" data-testid="class-player-next">

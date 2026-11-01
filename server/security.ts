@@ -2,6 +2,7 @@
  * Platform hardening: security headers, auth rate limits, and CSRF origin checks.
  * Implemented without extra dependencies so free-tier deploys stay lean.
  */
+import { adsConfigFromEnv } from "../shared/adsConfig";
 import type { Express, NextFunction, Request, Response } from "express";
 import { streamCspHosts } from "./streamConfig";
 
@@ -41,6 +42,32 @@ export function redactForLog(value: unknown, depth = 0): unknown {
   return value;
 }
 
+/**
+ * Hosts AdSense loads from, per Google's CSP guidance. Added only when ads are
+ * on with a valid AdSense client id; with ads off or on the house provider the
+ * policy is exactly what it was.
+ */
+export function adsenseCspHosts(env: Record<string, string | undefined> = process.env) {
+  const ads = adsConfigFromEnv(env);
+  if (!ads.enabled || ads.provider !== "adsense") return { script: [], frame: [], connect: [] };
+  return {
+    script: [
+      "https://pagead2.googlesyndication.com",
+      "https://partner.googleadservices.com",
+      "https://tpc.googlesyndication.com",
+      "https://www.googletagservices.com",
+      "https://*.adtrafficquality.google",
+    ],
+    frame: [
+      "https://googleads.g.doubleclick.net",
+      "https://tpc.googlesyndication.com",
+      "https://www.google.com",
+      "https://*.adtrafficquality.google",
+    ],
+    connect: ["https://pagead2.googlesyndication.com", "https://*.adtrafficquality.google", "https://*.doubleclick.net"],
+  };
+}
+
 export function applySecurityHeaders(_req: Request, res: Response, next: NextFunction) {
   res.removeHeader("X-Powered-By");
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -60,10 +87,12 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
   // A CSP hash/nonce disables 'unsafe-inline' for scripts. In production we hash
   // the theme boot script; in development Vite injects an inline React-refresh
   // preamble that cannot share that hash — so drop the hash and allow inline.
+  const ads = adsenseCspHosts();
   const scriptSrc = [
     "script-src",
     "'self'",
     ...(isProd ? [themeScriptHash] : ["'unsafe-inline'"]),
+    ...ads.script,
   ].join(" ");
   const streamHosts = [...new Set([...streamCspHosts(), ...streamCspHosts("mux")])];
   const connect = [
@@ -74,6 +103,7 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
     "https://*.ingest.sentry.io",
     "https://*.ingest.us.sentry.io",
     ...streamHosts,
+    ...ads.connect,
   ];
   // `data:` is required for the silent-clip trick that unlocks autoplay on
   // iOS/WebKit before the first real narration clip plays (see audioUnlock.ts).
@@ -89,6 +119,7 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
       `media-src ${media.join(" ")}`,
       `connect-src ${connect.join(" ")}`,
       "worker-src 'self' blob:",
+      ...(ads.frame.length ? [`frame-src ${ads.frame.join(" ")}`] : []),
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

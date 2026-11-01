@@ -77,6 +77,7 @@ import { subscriptionNotice } from "@/lib/subscriptionNotice";
 import { continueRowState } from "@/lib/homeContinue";
 import { dismissBanner, savePromptLevel, shouldShowSaveBanner } from "@/lib/savePracticePrompt";
 import { Reveal } from "@/components/motion";
+import { AdSlot } from "@/components/ads/AdSlot";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { formatTimestamp, useContinueWatching } from "@/lib/classesApi";
 import {
@@ -563,6 +564,9 @@ export default function Home() {
           </p>
         )}
       </Reveal>
+
+      {/* Free tier only; renders nothing when ads are off or for Plus. */}
+      <AdSlot placement="today" />
 
       {/* ── Continue practice ───────────────────────────────────────────── */}
       <section className="space-y-3" aria-labelledby="continue-heading" data-testid="home-row-continue">

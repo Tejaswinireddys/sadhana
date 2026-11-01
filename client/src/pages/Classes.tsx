@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { FadeIn } from "@/components/motion";
 import { ClassCard } from "@/components/ClassCard";
+import { AdSlot } from "@/components/ads/AdSlot";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { levelLabel, useClassList, useContinueWatching, type LibraryFilters } from "@/lib/classesApi";
 import { countOf, plural } from "@/lib/plural";
@@ -144,6 +145,8 @@ export default function Classes() {
       {resumable.length > 0 && (
         <ClassRow title="Continue watching" items={resumable} testId="class-library-continue" />
       )}
+      {/* One slot, after the first row of classes (Continue watching when there is one). */}
+      {resumable.length > 0 && <AdSlot placement="classes" />}
 
       {!list.isLoading && !list.isError && (
         <>
@@ -151,6 +154,7 @@ export default function Classes() {
             title="Free classes" items={free} testId="class-library-free"
             empty={active ? "No free classes match these filters." : "No free classes yet."}
           />
+          {resumable.length === 0 && <AdSlot placement="classes" />}
           <ClassRow
             title="Sadhana Plus" items={plus} testId="class-library-plus"
             empty={active ? "No Plus classes match these filters." : "No Plus classes yet."}

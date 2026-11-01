@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { FadeIn } from "@/components/motion";
 import { LEGAL_VERSION, POLICY_UPDATED } from "@/lib/legal";
+import { clearAdConsent } from "@/lib/adsense";
 
 export default function Privacy() {
   useDocumentTitle("Privacy Policy · Sadhana");
@@ -52,6 +53,39 @@ export default function Privacy() {
           To provide practice features, sync optional accounts, personalize recommendations within
           our rule-based trainer, and keep the service reliable and secure. We do not sell personal
           data. We do not use journal or health-related text to train third-party models.
+        </p>
+      </section>
+
+      <section className="space-y-3 text-sm leading-relaxed" data-testid="privacy-ads">
+        <h2 className="font-serif text-xl">Ads and cookies on the free tier</h2>
+        <p className="text-muted-foreground">
+          Guests and free accounts may see a small, labelled ad on Today, the class library and free
+          class pages. Ads never appear during a class or guided practice, in the Kids area, or on
+          sign-in, account, billing or Plus pages. Sadhana Plus members see no ads.
+        </p>
+        <p className="text-muted-foreground">
+          Some of these ads are our own (for Sadhana Plus) and use no ad cookies. When ads are served
+          by Google AdSense, Google uses cookies and similar technologies to serve and measure them.
+          We ask Google for non-personalized ads unless you choose to allow personalized ads on the
+          cookie notice; your choice is stored in this browser.{" "}
+          <button
+            type="button"
+            className="min-h-11 cursor-pointer font-medium text-foreground underline underline-offset-2"
+            onClick={() => clearAdConsent()}
+            data-testid="privacy-ad-consent-reset"
+          >
+            Change my ad cookie choice
+          </button>
+          . We never share journal, mood or health information with ad providers. See{" "}
+          <a
+            href="https://policies.google.com/technologies/ads"
+            className="underline underline-offset-2"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            how Google uses information in ads
+          </a>
+          .
         </p>
       </section>
 

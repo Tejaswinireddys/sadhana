@@ -21,6 +21,7 @@ import { registerPlusWaitlistRoutes } from "./plusWaitlist";
 import { registerClassRoutes } from "./classLibrary";
 import { seedPlaceholderClasses, signedClassWarnings } from "./classSeed";
 import { muxSigningConfigured } from "./muxPlayback";
+import { registerAdsTxt } from "./adsTxt";
 import { publicAppOrigin } from "./publicUrl";
 import { captureServerException, initServerSentry } from "./sentry";
 import { sendJson404 } from "./json404";
@@ -61,6 +62,8 @@ app.get("/healthz", async (_req, res) => {
     res.status(503).json({ ok: false, error: "database unreachable" });
   }
 });
+
+registerAdsTxt(app);
 
 const PUBLIC_ORIGIN = publicAppOrigin();
 
