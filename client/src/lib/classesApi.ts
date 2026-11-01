@@ -5,8 +5,9 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import type { ClassLevel, ClassProgressBody, ClassSummary, ClassDurationRangeId, ViewerPlan } from "@shared/classLibrary";
-import { durationRange } from "@shared/classLibrary";
+import { durationRange, withSavedProgress } from "@shared/classLibrary";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/lib/auth";
 
 export type ClassListResponse = {
   items: ClassSummary[];
@@ -39,9 +40,57 @@ export function useClassList(filters: LibraryFilters) {
   return useQuery<ClassListResponse>({ queryKey: [classListUrl(filters)], staleTime: 30_000 });
 }
 
-/** Started, unfinished classes; always refetched so Today and the row are current. */
+type ContinueWatching = { items: ClassSummary[] };
+
+/**
+ * Started, unfinished classes, for Today's "Continue your class" and the
+ * library's Continue watching row.
+ *
+ * Keyed by who is asking and only fetched once `/api/auth/me` has answered,
+ * so a result fetched for the wrong owner (guest before sign-in) is never
+ * shown for the account, and an owner change always fetches afresh. Every key
+ * starts with `CLASS_PROGRESS_KEY`, so invalidating that prefix reaches them.
+ */
 export function useContinueWatching() {
-  return useQuery<{ items: ClassSummary[] }>({ queryKey: CLASS_PROGRESS_KEY, staleTime: 0, refetchOnMount: "always" });
+  const { user, isLoading } = useAuth();
+  const owner = isLoading ? null : user ? `user:${user.id}` : "guest";
+  return useQuery<ContinueWatching>({
+    queryKey: [...CLASS_PROGRESS_KEY, owner],
+    queryFn: async () => (await apiRequest("GET", CLASS_PROGRESS_KEY[0])).json() as Promise<ContinueWatching>,
+    enabled: owner !== null,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+}
+
+/**
+ * Put a save into the cached Continue watching list right away. Leaving a
+ * class used to race its own exit save: Today refetched while the save was
+ * still in flight, got the old (empty) list, and nothing refetched it again.
+ */
+export function noteClassProgress(item: ClassSummary, body: ClassProgressBody, now = new Date()) {
+  queryClient.setQueriesData<ContinueWatching>({ queryKey: CLASS_PROGRESS_KEY }, (old) =>
+    old ? { items: withSavedProgress(old.items, item, body, now.toISOString()) } : old);
+}
+
+/**
+ * Save progress, then refetch every list of classes once the server has it —
+ * Continue watching and the library pages, including a Today or library
+ * mounted while the save was in flight. Class details are left alone: they
+ * would re-mint signed tokens every 15 seconds for nothing.
+ */
+export async function saveAndNoteClassProgress(item: ClassSummary, body: ClassProgressBody, options: { keepalive: boolean }) {
+  noteClassProgress(item, body);
+  try {
+    await saveClassProgress(item.slug, body, options);
+  } finally {
+    void queryClient.invalidateQueries({
+      predicate: (query) => {
+        const key = String(query.queryKey[0]);
+        return key === CLASS_PROGRESS_KEY[0] || key.startsWith("/api/classes?");
+      },
+    });
+  }
 }
 
 export function useClassDetail(slug: string) {

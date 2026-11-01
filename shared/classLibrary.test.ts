@@ -14,6 +14,7 @@ import {
   presentClass,
   resumeFrom,
   sortClasses,
+  withSavedProgress,
   type ClassRecord,
   type ClassSummary,
 } from "./classLibrary";
@@ -217,5 +218,30 @@ describe("library order and paging", () => {
   it("paginates with totals", () => {
     assert.deepEqual(paginate([1, 2, 3, 4, 5], 2, 2), { items: [3, 4], page: 2, pageSize: 2, total: 5, pageCount: 3, hasMore: true });
     assert.deepEqual(paginate([], 1, 24).pageCount, 1);
+  });
+});
+
+describe("withSavedProgress (Today, before the save lands)", () => {
+  const morning = { ...presentClass(row({ slug: "gentle-morning-wake-up", durationMinutes: 10 }), "plus"), progress: null };
+  const older = { ...presentClass(row({ slug: "older" }), "plus"), progress: { secondsWatched: 300, completed: false, updatedAt: "2026-10-01T00:00:00Z" } };
+
+  it("a 12-second watch of a class with no progress appears at the front", () => {
+    const items = withSavedProgress([older], morning, { secondsWatched: 12, durationSeconds: 600 }, "2026-11-01T00:00:00Z");
+    assert.deepEqual(items.map((item) => item.slug), ["gentle-morning-wake-up", "older"]);
+    assert.deepEqual(items[0].progress, { secondsWatched: 12, completed: false, updatedAt: "2026-11-01T00:00:00Z" });
+    assert.equal(items[0].playback, null, "lists never carry playback");
+  });
+
+  it("replaces the class's earlier entry instead of duplicating it", () => {
+    const first = withSavedProgress([], morning, { secondsWatched: 12 }, "2026-11-01T00:00:00Z");
+    const again = withSavedProgress(first, first[0], { secondsWatched: 40 }, "2026-11-01T00:01:00Z");
+    assert.equal(again.length, 1);
+    assert.equal(again[0].progress?.secondsWatched, 40);
+  });
+
+  it("follows the server's rules: finished classes leave, a barely-started one never joins", () => {
+    const done = withSavedProgress([older], older, { secondsWatched: 590, durationSeconds: 600 }, "2026-11-01T00:00:00Z");
+    assert.deepEqual(done.map((item) => item.slug), [], "90% completes it");
+    assert.deepEqual(withSavedProgress([], morning, { secondsWatched: 3 }, "2026-11-01T00:00:00Z"), []);
   });
 });

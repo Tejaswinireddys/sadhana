@@ -15,7 +15,7 @@ import {
   formatTimestamp,
   levelLabel,
   refreshClassProgress,
-  saveClassProgress,
+  saveAndNoteClassProgress,
   useClassDetail,
 } from "@/lib/classesApi";
 
@@ -100,7 +100,7 @@ function ClassVideo({ item, onCompleted }: { item: ClassSummary; onCompleted: ()
   const saverRef = useRef<ClassProgressSaver | null>(null);
   if (!saverRef.current) {
     saverRef.current = new ClassProgressSaver(
-      (body, options) => saveClassProgress(item.slug, body, options),
+      (body, options) => saveAndNoteClassProgress(item, body, options),
       Date.now,
       !!item.progress?.completed,
     );

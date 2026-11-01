@@ -266,6 +266,23 @@ export function continueWatching(classes: readonly ClassSummary[], limit = 10): 
 }
 
 /**
+ * The Continue watching list after one save, before the server confirms it.
+ * Applies the same rules the server will (`nextProgress`, then
+ * `continueWatching`), so Today shows a class the moment it is left instead
+ * of waiting for — or racing — the save that records it.
+ */
+export function withSavedProgress(
+  items: readonly ClassSummary[],
+  saved: ClassSummary,
+  body: ClassProgressBody,
+  nowIso: string,
+): ClassSummary[] {
+  const progress = { ...nextProgress(saved.progress, body, saved.durationMinutes), updatedAt: nowIso };
+  const updated: ClassSummary = { ...saved, playback: null, progress };
+  return continueWatching([updated, ...items.filter((item) => item.slug !== saved.slug)]);
+}
+
+/**
  * "Next class": one the viewer can watch and hasn't finished, sharing the most
  * focus tags, then the same level, then library order. Falls back to a locked
  * class (its card leads to /plus) only when nothing open remains.
