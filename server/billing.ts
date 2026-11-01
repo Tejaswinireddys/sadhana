@@ -1,5 +1,6 @@
 import { CheckoutVerificationError, checkoutForUser, checkoutRequestSchema, isStripeTestKey, plusPrice } from "./stripePlus";
-import { processStripeWebhook, type StripeWebhookOptions } from "./stripeWebhook";
+import { processStripeWebhook, resyncStripeEntitlement, type StripeWebhookOptions } from "./stripeWebhook";
+import { entitlementNeedsResync, subscriptionPeriodEnd } from "./stripeSubscriptionState";
 import { publicAppOrigin } from "./publicUrl";
 import { billingEnabled } from "./publicConfig";
 /**
@@ -64,12 +65,27 @@ function appOrigin(req: Request): string {
   return `${proto}://${host}`;
 }
 
-/** Stripe SDK moved period end onto subscription items — support both shapes. */
-function subscriptionPeriodEnd(sub: Stripe.Subscription): number | null {
-  const itemEnd = sub.items?.data?.[0]?.current_period_end;
-  if (typeof itemEnd === "number") return itemEnd;
-  const legacy = sub as unknown as { current_period_end?: number };
-  return typeof legacy.current_period_end === "number" ? legacy.current_period_end : null;
+/** Owner → last on-read resync attempt, so a failing Stripe call is not retried on every focus refetch. */
+const resyncAttempts = new Map<string, number>();
+const RESYNC_RETRY_MS = 60_000;
+
+/**
+ * Correct a signed-in owner's entitlement from Stripe before it is read, when
+ * it is stale (see `entitlementNeedsResync`). Never fails the read.
+ */
+async function resyncIfStale(stripe: Stripe | null, ownerId: string) {
+  if (!stripe || !/^user:[1-9]\d*$/.test(ownerId)) return;
+  const now = Date.now();
+  if (now - (resyncAttempts.get(ownerId) ?? 0) < RESYNC_RETRY_MS) return;
+  if (!entitlementNeedsResync(await storage.getEntitlement(ownerId), now)) return;
+  resyncAttempts.set(ownerId, now);
+  try {
+    await resyncStripeEntitlement(stripe, storage, ownerId);
+  } catch (error) {
+    console.warn("[billing] Entitlement resync from Stripe failed; serving stored state", {
+      ownerId, error: error instanceof Error ? error.name : "unknown",
+    });
+  }
 }
 
 function invoicePaymentIntentId(inv: Stripe.Invoice): string | undefined {
@@ -190,6 +206,7 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
   });
 
   app.get("/api/billing/entitlement", async (req, res) => {
+    await resyncIfStale(stripe, req.ownerId || "");
     res.json(await publicEntitlement(req.ownerId || ""));
   });
 

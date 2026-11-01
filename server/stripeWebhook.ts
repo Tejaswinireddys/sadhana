@@ -2,7 +2,8 @@ import type Stripe from "stripe";
 import { randomBytes } from "node:crypto";
 import type { IStorage } from "./storage";
 import type { BillingEntitlement, ConsentAuditEntry } from "../shared/billing";
-import { syncPlusEvent, stripeEventReferences, UnmatchedStripeUserError } from "./stripePlus";
+import { reconcileStripeCustomer, syncPlusEvent, stripeEventReferences, UnmatchedStripeUserError } from "./stripePlus";
+import { subscriptionCancellation, subscriptionPeriodEnd } from "./stripeSubscriptionState";
 import { issueCancelToken } from "./billingStore";
 import { BILLING_TERMS_VERSION, DEFAULT_TERMS_DISPLAYED, priceLabel } from "./billingCompliance";
 import { reportError } from "./errorReporting";
@@ -22,27 +23,77 @@ export type StripeWebhookOptions = {
   alert?: (error: unknown, event: Stripe.Event) => void | Promise<void>;
 };
 
+type Reconciled = NonNullable<Awaited<ReturnType<typeof reconcileStripeCustomer>>>;
+
+/**
+ * Subscription-derived billing details, shared by webhooks and resync so both
+ * write identical state. Cancellation comes from `subscriptionCancellation`
+ * (`cancel_at_period_end` OR `cancel_at`); a subscription that has ended keeps
+ * the date it was cancelled even if Stripe's copy is gone.
+ */
+function subscriptionDetails({ stored, source, plan }: Reconciled): BillingEntitlement {
+  const previous = stored.billingDetails || { plan, status: stored.status, renewsAt: stored.renewsAt };
+  const periodEnd = subscriptionPeriodEnd(source);
+  const cancellation = subscriptionCancellation(source);
+  // Pending: Stripe's canceled_at, else when we first saw it. Ended: keep the
+  // date we had. Active and not cancelling (incl. un-cancelled): none.
+  const canceledAt = cancellation.canceledAt
+    ?? (cancellation.cancelAtPeriodEnd ? previous.canceledAt || new Date().toISOString()
+      : plan === "free" ? previous.canceledAt ?? null : null);
+  return {
+    ...previous, plan, status: source?.status || "inactive",
+    renewsAt: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+    stripeCustomerId: stored.stripeCustomerId || undefined,
+    stripeSubscriptionId: source?.id || stored.stripeSubscriptionId || undefined,
+    cancelAtPeriodEnd: cancellation.cancelAtPeriodEnd,
+    accessUntil: cancellation.accessUntil,
+    canceledAt,
+    stripeSyncedAt: new Date().toISOString(),
+  };
+}
+
+async function writeDetails(store: IStorage, ownerId: string, details: BillingEntitlement) {
+  await store.updateStripeEntitlement(ownerId, { status: details.status, renewsAt: details.renewsAt, stripeCustomerId: details.stripeCustomerId, stripeSubscriptionId: details.stripeSubscriptionId, billingDetails: details });
+}
+
+/**
+ * Rebuild one owner's entitlement from Stripe's current state. Corrects rows
+ * written before `cancel_at` was understood (and any missed webhook). Returns
+ * false when there is no Stripe customer to read from.
+ */
+export async function resyncStripeEntitlement(stripe: Stripe, store: IStorage, ownerId: string): Promise<boolean> {
+  const row = await store.getEntitlement(ownerId);
+  if (!row?.stripeCustomerId) return false;
+  return store.runInTransaction(async () => {
+    const matched = await reconcileStripeCustomer(stripe, store, {
+      customerId: row.stripeCustomerId || undefined, subscriptionId: row.stripeSubscriptionId || undefined,
+    });
+    if (matched.ownerId !== ownerId) throw new UnmatchedStripeUserError(row.stripeCustomerId || undefined);
+    await writeDetails(store, ownerId, subscriptionDetails(matched));
+    console.info("[billing] Resynced entitlement from Stripe", { ownerId, status: matched.source?.status || "none" });
+    return true;
+  });
+}
+
 /** Claim + all database effects commit together; external notifications run only after commit. */
 export async function processStripeWebhook(stripe: Stripe, store: IStorage, event: Stripe.Event, options: StripeWebhookOptions = {}) {
   if (event.livemode || !event.id || !event.type) throw new Error("Invalid test-mode Stripe event");
   const notifications: StripeWebhookNotification[] = [];
   try {
     const processed = await store.runInTransaction(async () => {
-      if (!await store.claimStripeEvent(event.id, event.type)) return false;
+      if (!await store.claimStripeEvent(event.id, event.type)) {
+        console.info("[billing] Ignored Stripe event: already processed", { eventId: event.id, eventType: event.type });
+        return false;
+      }
       const matched = await syncPlusEvent(stripe, store, event);
-      if (!matched) return true; // Unsupported event types are acknowledged once.
+      if (!matched) {
+        // Unsupported event types are acknowledged once.
+        console.info("[billing] Ignored Stripe event: unsupported type", { eventId: event.id, eventType: event.type });
+        return true;
+      }
       const { user, ownerId, stored, source, plan } = matched;
       const previous = stored.billingDetails || { plan, status: stored.status, renewsAt: stored.renewsAt };
-      const periodEnd = source?.items.data[0]?.current_period_end;
-      const renewsAt = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
-      let details: BillingEntitlement = {
-        ...previous, plan, status: source?.status || "inactive", renewsAt,
-        stripeCustomerId: stored.stripeCustomerId || undefined,
-        stripeSubscriptionId: source?.id || stored.stripeSubscriptionId || undefined,
-        cancelAtPeriodEnd: Boolean(source?.cancel_at_period_end),
-        accessUntil: source?.cancel_at_period_end ? renewsAt : null,
-        canceledAt: source?.cancel_at_period_end || plan === "free" ? previous.canceledAt || new Date().toISOString() : null,
-      };
+      let details: BillingEntitlement = subscriptionDetails(matched);
       const base = { ownerId, email: user.email, plan };
       if (event.type === "checkout.session.completed") {
         const session = event.data.object as Stripe.Checkout.Session;
@@ -102,7 +153,9 @@ export async function processStripeWebhook(stripe: Stripe, store: IStorage, even
           daysActive: Number.isFinite(started) ? Math.max(0, Math.floor((Date.now() - started) / 86400000)) : 0,
         });
       }
-      await store.updateStripeEntitlement(ownerId, { status: details.status, renewsAt: details.renewsAt, stripeCustomerId: details.stripeCustomerId, stripeSubscriptionId: details.stripeSubscriptionId, billingDetails: details });
+      await writeDetails(store, ownerId, details);
+      console.info("[billing] Applied Stripe event", { eventId: event.id, eventType: event.type, ownerId,
+        status: details.status, cancelAtPeriodEnd: details.cancelAtPeriodEnd, accessUntil: details.accessUntil });
       return true;
     });
     if (processed && options.notify) {

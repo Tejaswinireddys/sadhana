@@ -279,3 +279,79 @@ test("customer.subscription.updated with cancel_at_period_end surfaces the end d
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
+
+async function billingHarness(email: string) {
+  initStorage();
+  const user = await storage.createUser(email, "hash");
+  await storage.markEmailVerified(user.id);
+  const ownerId = `user:${user.id}`;
+  const f = fixture(ownerId);
+  await storage.upsertEntitlement(ownerId, { plan: "free", status: "inactive", stripeCustomerId: "cus_test", stripeSubscriptionId: null });
+  const app = express();
+  app.use(express.json({ verify: (req, _res, body) => { (req as express.Request).rawBody = body; } }));
+  app.use((req, _res, next) => { req.userId = user.id; req.ownerId = ownerId; next(); });
+  registerBillingRoutes(app, f.stripe, { alert: () => undefined });
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  return {
+    user, ownerId, f,
+    sendEvent: (e: Stripe.Event) => {
+      const payload = JSON.stringify(e);
+      const signature = f.stripe.webhooks.generateTestHeaderString({ payload, secret: "whsec_fixture" });
+      return fetch(`${base}/api/billing/webhook`, { method: "POST", headers: { "Content-Type": "application/json", "stripe-signature": signature }, body: payload });
+    },
+    entitlement: async () => (await fetch(`${base}/api/billing/entitlement`)).json() as Promise<{
+      plan: string; status: string; cancelAtPeriodEnd: boolean; accessUntil: string | null; canceledAt: string | null;
+    }>,
+    close: () => new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())),
+  };
+}
+
+test("a portal cancel that sets only cancel_at is a pending cancel; reactivating clears it", async () => {
+  const h = await billingHarness("cancel-at@example.com");
+  const sub = h.f.current as typeof h.f.current & { cancel_at: number | null; canceled_at: number | null };
+  sub.cancel_at = null; sub.canceled_at = null;
+  try {
+    assert.equal((await h.sendEvent(event("checkout.session.completed", { id: "cs_cancel_at", mode: "subscription", subscription: "sub_test", customer: "cus_test" }))).status, 200);
+    // Stripe: "Cancels Dec 1, 2026" — cancel_at set, cancel_at_period_end left false.
+    sub.cancel_at = 1_796_083_200; sub.canceled_at = 1_793_000_000;
+    assert.equal((await h.sendEvent(event("customer.subscription.updated", sub))).status, 200);
+    let body = await h.entitlement();
+    assert.equal(body.plan, "plus");
+    assert.equal(body.cancelAtPeriodEnd, true);
+    assert.equal(body.accessUntil, "2026-12-01T00:00:00.000Z");
+    assert.equal(body.canceledAt, new Date(1_793_000_000 * 1000).toISOString());
+
+    sub.cancel_at = null; sub.canceled_at = null;
+    assert.equal((await h.sendEvent(event("customer.subscription.updated", sub))).status, 200);
+    body = await h.entitlement();
+    assert.deepEqual([body.cancelAtPeriodEnd, body.accessUntil, body.canceledAt], [false, null, null]);
+  } finally {
+    sub.cancel_at = null; sub.canceled_at = null;
+    await h.close();
+  }
+});
+
+test("GET /api/billing/entitlement resyncs a stale row written before cancel_at was read", async () => {
+  const h = await billingHarness("resync@example.com");
+  const sub = h.f.current as typeof h.f.current & { cancel_at: number | null; canceled_at: number | null };
+  try {
+    // The production shape: Plus, cancel scheduled in Stripe, but the stored
+    // details say nothing is ending and carry no stripeSyncedAt.
+    await storage.setUserPlan(h.user.id, "plus");
+    await storage.updateStripeEntitlement(h.ownerId, { status: "active", stripeCustomerId: "cus_test", stripeSubscriptionId: "sub_test",
+      renewsAt: "2026-12-01T00:00:00.000Z",
+      billingDetails: { plan: "plus", status: "active", renewsAt: "2026-12-01T00:00:00.000Z", cancelAtPeriodEnd: false, accessUntil: null, canceledAt: null, amount: 9.99 } });
+    sub.cancel_at = 1_796_083_200; sub.canceled_at = 1_793_000_000;
+    const body = await h.entitlement();
+    assert.equal(body.cancelAtPeriodEnd, true);
+    assert.equal(body.accessUntil, "2026-12-01T00:00:00.000Z");
+    const stored = await storage.getEntitlement(h.ownerId);
+    assert.ok(stored?.billingDetails?.stripeSyncedAt, "resync stamps the row so it is not re-read on every request");
+    assert.equal(stored?.billingDetails?.amount, 9.99, "resync keeps purchase details");
+  } finally {
+    sub.cancel_at = null; sub.canceled_at = null;
+    await h.close();
+  }
+});

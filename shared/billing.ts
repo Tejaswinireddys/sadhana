@@ -11,7 +11,7 @@ export type BillingEntitlement = {
   /** Major units (e.g. 9.99), matching what was shown on the paywall. */
   amount?: number;
   currency?: string;
-  /** Access continues until this ISO timestamp when cancel_at_period_end. */
+  /** Access ends at this ISO timestamp when a cancel is pending (Stripe `cancel_at`, else period end). */
   accessUntil?: string | null;
   cancelAtPeriodEnd?: boolean;
   canceledAt?: string | null;
@@ -29,6 +29,8 @@ export type BillingEntitlement = {
   /** Id of paywall HTML snapshot captured at purchase. */
   paywallSnapshotId?: string | null;
   consentAuditId?: string | null;
+  /** Last time these details were rebuilt from Stripe (webhook or resync). */
+  stripeSyncedAt?: string | null;
 };
 
 export type ConsentAuditEntry = {

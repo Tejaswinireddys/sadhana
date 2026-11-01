@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { z } from "zod";
 import type { IStorage } from "./storage";
+import { subscriptionPeriodEnd } from "./stripeSubscriptionState";
 
 export const checkoutRequestSchema = z.object({
   plan: z.literal("plus").default("plus"),
@@ -122,6 +123,18 @@ export async function syncPlusEvent(stripe: Stripe, store: IStorage, event: Stri
     if (event.livemode) throw new Error("Live-mode events are not accepted");
     const references = stripeEventReferences(event);
     if (!references) return undefined;
+    return reconcileStripeCustomer(stripe, store, references);
+  });
+}
+
+/**
+ * Re-read one customer's subscriptions from Stripe and write plan, status and
+ * period end. Shared by webhooks and `resyncStripeEntitlement`, so a resync
+ * takes the same binding lock and ownership checks as an event.
+ */
+export async function reconcileStripeCustomer(stripe: Stripe, store: IStorage,
+  references: { customerId?: string; subscriptionId?: string }) {
+  return store.runInTransaction(async () => {
     let { customerId, subscriptionId } = references;
     if (!customerId && subscriptionId) {
       const sub = await stripe.subscriptions.retrieve(subscriptionId);
@@ -144,7 +157,7 @@ export async function syncPlusEvent(stripe: Stripe, store: IStorage, event: Stri
       (typeof sub.customer === "string" ? sub.customer : sub.customer.id) === customerId && sub.items.data.some((item) => prices.includes(item.price.id)));
     const source = active || current || subscriptions.find((sub) => sub.id === stored.stripeSubscriptionId);
     const plan = active ? "plus" : "free";
-    const periodEnd = source?.items.data[0]?.current_period_end;
+    const periodEnd = subscriptionPeriodEnd(source);
     await store.setUserPlan(user.id, plan);
     // entitlements.plan is retained for legacy/guest history, but webhook access
     // decisions and writes go only through users.plan.
