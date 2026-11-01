@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { KEYS, readString } from "@/lib/localPrefs";
+import { welcomeEntryTarget } from "@/lib/welcomeGate";
 import { createRoot } from "react-dom/client";
 import { Router, useLocation } from "wouter";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -8,11 +11,17 @@ import "./index.css";
 
 function WelcomeEntry() {
   const [path] = useLocation();
-  if (typeof window !== "undefined" && path !== "/" && path !== "/welcome") {
+  const target = welcomeEntryTarget({ pathname: path, search: window.location.search, hash: window.location.hash }, {
+    welcomeSeen: !!readString(KEYS.welcomeSeen),
+    onboardingDone: !!readString(KEYS.onboardingDone),
+  });
+  useEffect(() => {
+    if (target === null) return;
     const secure = window.location.protocol === "https:" ? "; Secure" : "";
     document.cookie = `sadhana_welcome_seen=1; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
-    window.location.replace(`${path}${window.location.search}`);
-  }
+    window.location.replace(target);
+  }, [target]);
+  if (target !== null) return <p role="status">Opening your practice…</p>;
   return <ThemeProvider><LegalConsentBanner /><Landing /></ThemeProvider>;
 }
 createRoot(document.getElementById("root")!).render(

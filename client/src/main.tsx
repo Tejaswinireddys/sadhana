@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./LaunchApp";
+import { legacyRouteTarget } from "./lib/welcomeGate";
 import "./index.css";
 
 /**
@@ -12,9 +13,9 @@ import "./index.css";
  * drops the hash URL from history, so it never resolves to content again (the
  * client-side equivalent of a 301).
  */
-if (window.location.hash.startsWith("#/")) {
-  const target = window.location.hash.slice(1); // "#/foo?x=1" -> "/foo?x=1"
-  window.history.replaceState(null, "", target || "/");
+const legacyTarget = legacyRouteTarget(window.location.hash);
+if (legacyTarget) {
+  window.history.replaceState(null, "", legacyTarget);
 } else if (window.location.hash === "#") {
   // Bare "#" left over from an old link — drop it.
   window.history.replaceState(null, "", window.location.pathname + window.location.search);

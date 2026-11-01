@@ -43,12 +43,11 @@ media through authenticated or signed delivery.
 ## Verification
 
 - `npm run check`: passed.
-- `npm test`: 771 tests passed, including account-plan middleware, spoofed plan
+- `npm test`: 783 tests passed, including account-plan middleware, spoofed plan
   headers, upgrade/downgrade, rendered free/Plus/loading states, trailing-slash
   routes, restored queues and program provenance.
-- `npm run test:e2e`: attempted on port 5056 (5000 is occupied by another service).
-  Signup, quiz-to-player, preparation, player controls and completion checks
-  passed. The run was stopped after repeated tests rendered the welcome page
-  where Home, Privacy or Account was expected. The root template selection in
-  `server/vite.ts` uses the welcome cookie; this unrelated welcome-routing
-  behavior was not changed. Full E2E validation remains incomplete.
+- `npm run build`: passed.
+- `npm run test:e2e`: all 161 browser tests passed on port 5071. Shared welcome
+  bootstrap logic now handles legacy hash bookmarks, returning users without
+  the welcome cookie, and the first-visit `/` → `/welcome` redirect. Regression
+  coverage verifies that destination queries and normal deep links survive.

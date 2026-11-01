@@ -21,3 +21,30 @@ export function welcomeRedirectTarget(
   const query = search && search !== "?" ? (search.startsWith("?") ? search : `?${search}`) : "";
   return `/welcome${query}`;
 }
+
+/** Both HTML entry points must canonicalize old bookmarks before selecting a page. */
+export function legacyRouteTarget(hash: string): string | null {
+  if (!hash.startsWith("#/")) return null;
+  try {
+    const base = "https://sadhana.invalid";
+    const target = new URL(hash.slice(1), base);
+    if (target.origin !== base) return null;
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch { return null; }
+}
+
+/** Recover the workspace when the server chose welcome.html without browser-only preferences. */
+export function welcomeEntryTarget(
+  location: { pathname: string; search: string; hash: string },
+  seen: { welcomeSeen: boolean; onboardingDone: boolean },
+): string | null {
+  const legacy = legacyRouteTarget(location.hash);
+  if (legacy) return legacy;
+  const { pathname, search, hash } = location;
+  if (pathname === "/welcome") return null;
+  const fragment = hash === "#" ? "" : hash;
+  if (pathname === "/" && !seen.welcomeSeen && !seen.onboardingDone) {
+    return `/welcome${search}${fragment}`;
+  }
+  return `${pathname}${search}${fragment}`;
+}

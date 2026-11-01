@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { LEGAL_VERSION } from "../client/src/lib/legal";
 
 // A logged-out, first-time visitor: no account, no welcome/onboarding flags,
 // nothing in localStorage at all. path-routing.spec.ts pre-sets those flags,
@@ -35,4 +36,24 @@ test.describe("first visit to a deep link", () => {
     await expect(page.getByTestId("text-asana-english")).toBeVisible();
     expect(new URL(page.url()).pathname).toBe("/asanas/marjaryasana-bitilasana");
   });
+});
+
+
+test("returning browser preferences recover Home when the welcome cookie is missing", async ({ page, context }) => {
+  expect((await context.cookies()).some((cookie) => cookie.name === "sadhana_welcome_seen")).toBe(false);
+  await page.addInitScript((version) => {
+    localStorage.setItem("sadhana.welcome.seen", "1");
+    localStorage.setItem("sadhana.onboarding.done", "1");
+    localStorage.setItem("sadhana.legalAck", JSON.stringify({ version, acceptedAt: new Date().toISOString() }));
+  }, LEGAL_VERSION);
+  await page.goto("/");
+  await expect(page.getByTestId("today-practice")).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe("/");
+});
+
+test("legacy first-visit bookmarks retain their destination and query", async ({ page }) => {
+  await page.goto("/#/account?tab=create");
+  await expect(page.getByTestId("signup-email")).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe("/account");
+  expect(new URL(page.url()).searchParams.get("tab")).toBe("create");
 });
