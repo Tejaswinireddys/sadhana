@@ -125,8 +125,10 @@ test("playing saves progress, resumes from it, surfaces Continue, and completes 
   await expect(page.getByTestId("class-player-complete")).toHaveText("Class complete");
 
   await page.getByTestId("class-player-back").click();
+  // Wait for the refetched library first: asserting "no Continue row" before
+  // it loads passed vacuously and then met the cached, pre-completion row.
+  await expect(page.getByTestId("class-library-free").getByTestId(`class-card-${slug}`)).toContainText("Completed");
   await expect(page.getByTestId("class-library-continue")).toHaveCount(0);
-  await expect(page.getByTestId(`class-card-${slug}`)).toContainText("Completed");
 });
 
 test("a free viewer's Plus class leads to /plus and never gets playback", async ({ page }) => {
@@ -152,4 +154,81 @@ test("a free viewer's Plus class leads to /plus and never gets playback", async 
 test("an unknown class says so instead of a blank player", async ({ page }) => {
   await page.goto("/classes/not-a-real-class");
   await expect(page.getByTestId("class-player-not-found")).toContainText("Class not found");
+});
+
+/** A Plus member's view of a signed class, as GET /api/classes/:slug returns it. */
+function signedDetail(slug: string, round: number, expiresAt: number) {
+  return {
+    class: {
+      id: 4, slug, title: "Steady strength flow", description: "Standing poses.", instructorName: "Sadhana team",
+      level: "intermediate", durationMinutes: 25, focusTags: ["strength"], thumbnailUrl: null, tier: "plus", locked: false,
+      progress: null,
+      playback: {
+        provider: "mux", policy: "signed", playbackId: "signedPlusPlaybackId",
+        tokens: { playback: `tok-v-${round}`, thumbnail: `tok-t-${round}`, storyboard: `tok-s-${round}` }, expiresAt,
+      },
+    },
+    next: null,
+    viewerPlan: "plus",
+  };
+}
+
+test("a signed Plus class gets its tokens, refreshes them before expiry, and keeps the viewer's place", async ({ page }) => {
+  const slug = PLUS[0];
+  let round = 0;
+  // First tokens expire 5m + 3s from now: the refresh (5 min early) is due in ~3s.
+  await page.route(new RegExp(`/api/classes/${slug}$`), async (route) => {
+    round += 1;
+    const now = Math.floor(Date.now() / 1000);
+    await route.fulfill({ json: signedDetail(slug, round, round === 1 ? now + 303 : now + 3600) });
+  });
+  const posts: unknown[] = [];
+  await page.route(new RegExp(`/api/classes/${slug}/progress$`), async (route) => {
+    posts.push(route.request().postDataJSON());
+    await route.fulfill({ json: { progress: { secondsWatched: 0, completed: false, updatedAt: new Date().toISOString() } } });
+  });
+
+  await page.goto(`/classes/${slug}`);
+  const player = page.locator("mux-player");
+  await expect(player).toHaveAttribute("playback-id", "signedPlusPlaybackId");
+  await expect(player).toHaveAttribute("playback-token", "tok-v-1");
+  await expect(player).toHaveAttribute("thumbnail-token", "tok-t-1");
+  await expect(player).toHaveAttribute("storyboard-token", "tok-s-1");
+  await expect(page.getByTestId("class-player-resume")).toHaveAttribute("data-policy", "signed");
+
+  // Watching at 2:00 when the refresh lands.
+  await playerEvent(page, "pause", 120, 1500);
+  await expect.poll(() => posts.length).toBe(1);
+  await expect(player).toHaveAttribute("playback-token", "tok-v-2", { timeout: 15_000 });
+  await expect(player).toHaveAttribute("thumbnail-token", "tok-t-2");
+  expect(round).toBe(2);
+  // The swap reloads the stream; it must start where the viewer was…
+  await expect(player).toHaveAttribute("start-time", "120");
+  // …and the reload's own "pause at 0:00" must not rewind saved progress.
+  await playerEvent(page, "pause", 0, 1500);
+  await page.waitForTimeout(500);
+  expect(posts).toEqual([{ secondsWatched: 120, durationSeconds: 1500 }]);
+});
+
+test("a Plus member on a class with no playable video sees 'not available', not the paywall", async ({ page }) => {
+  const slug = PLUS[1];
+  await page.route(new RegExp(`/api/classes/${slug}$`), (route) => {
+    const body = signedDetail(slug, 1, 0);
+    route.fulfill({ json: { ...body, class: { ...body.class, slug, playback: null } } });
+  });
+  await page.goto(`/classes/${slug}`);
+  await expect(page.getByTestId("class-player-unavailable")).toContainText("isn't available yet");
+  await expect(page.getByTestId("class-player-locked")).toHaveCount(0);
+  await expect(page.locator("mux-player")).toHaveCount(0);
+});
+
+test("the real API sends guests no playback, id or token for any Plus class", async ({ page }) => {
+  for (const slug of PLUS) {
+    const res = await page.request.get(`/api/classes/${slug}`);
+    const text = await res.text();
+    expect(JSON.parse(text).class).toMatchObject({ locked: true, playback: null });
+    expect(text).not.toMatch(/token|eyJ/);
+  }
+  const free = await (await page.request.get(`/api/classes/${FREE[0]}`)).json();
+  expect(free.class.playback).toEqual({ provider: "mux", policy: "public", playbackId: TEST_PLAYBACK_ID });
 });

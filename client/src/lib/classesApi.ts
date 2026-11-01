@@ -53,6 +53,16 @@ export function useClassDetail(slug: string) {
   });
 }
 
+/**
+ * Fresh playback for one class (new signed tokens), without touching the
+ * cached detail: the player swaps tokens itself so the page does not re-render.
+ */
+export async function fetchClassPlayback(slug: string): Promise<ClassSummary["playback"]> {
+  const res = await apiRequest("GET", `/api/classes/${encodeURIComponent(slug)}`, undefined, { timeoutMs: 15_000 });
+  const body = (await res.json()) as ClassDetailResponse;
+  return body.class.playback;
+}
+
 export async function saveClassProgress(slug: string, body: ClassProgressBody, options: { keepalive: boolean }) {
   await apiRequest("POST", `/api/classes/${encodeURIComponent(slug)}/progress`, body, { keepalive: options.keepalive, timeoutMs: 10_000 });
 }

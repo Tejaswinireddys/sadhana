@@ -1,9 +1,11 @@
 import type { Express, Request, Response } from "express";
 import { accountPlan } from "../shared/entitlement";
 import {
+  CLASS_TOKEN_SECONDS,
   classListQuerySchema,
   classProgressBodySchema,
   classSlugSchema,
+  classPlayback,
   continueWatching,
   filterClasses,
   nextClassSuggestion,
@@ -12,8 +14,10 @@ import {
   presentClass,
   sortClasses,
   type ClassRecord,
+  type ClassTokenSigner,
   type ViewerPlan,
 } from "../shared/classLibrary";
+import { signClassPlayback } from "./muxPlayback";
 import { createRateLimiter } from "./security";
 import { storage as defaultStore, type IStorage } from "./storage";
 
@@ -30,6 +34,10 @@ async function viewerPlan(store: IStorage, req: Request): Promise<ViewerPlan> {
   return accountPlan(await store.getUserById(req.userId));
 }
 
+/**
+ * Lists never carry a signer: tokens are minted only for the one class a
+ * viewer opens, so signed classes show `playback: null` in every listing.
+ */
 async function publishedWithProgress(store: IStorage, ownerId: string, plan: ViewerPlan) {
   const [rows, progress] = await Promise.all([store.listClasses(), store.getClassProgress(ownerId)]);
   const byClass = new Map(progress.map((row) => [row.classId, row]));
@@ -37,14 +45,17 @@ async function publishedWithProgress(store: IStorage, ownerId: string, plan: Vie
   return published.map((row) => ({ row, summary: presentClass(row, plan, byClass.get(row.id)) }));
 }
 
+const defaultSigner: ClassTokenSigner = (playbackId) => signClassPlayback(playbackId, CLASS_TOKEN_SECONDS);
+
 /** Responses depend on who is asking (plan + progress) and must not be shared. */
 function privateJson(res: Response, body: unknown, status = 200) {
   res.setHeader("Cache-Control", "private, no-store");
   res.status(status).json(body);
 }
 
-export function registerClassRoutes(app: Express, deps: { store?: IStorage } = {}) {
+export function registerClassRoutes(app: Express, deps: { store?: IStorage; sign?: ClassTokenSigner } = {}) {
   const store = () => deps.store ?? defaultStore;
+  const signer = deps.sign ?? defaultSigner;
 
   /** Library listing: filters, pagination, and the viewer's lock/progress. */
   app.get("/api/classes", async (req, res, next) => {
@@ -76,8 +87,11 @@ export function registerClassRoutes(app: Express, deps: { store?: IStorage } = {
       if (!slug.success) return privateJson(res, { error: "Class not found" }, 404);
       const plan = await viewerPlan(store(), req);
       const all = await publishedWithProgress(store(), req.ownerId, plan);
-      const current = all.find(({ row }) => row.slug === slug.data)?.summary;
-      if (!current) return privateJson(res, { error: "Class not found" }, 404);
+      const found = all.find(({ row }) => row.slug === slug.data);
+      if (!found) return privateJson(res, { error: "Class not found" }, 404);
+      // The class being opened is the only place tokens are minted, and only
+      // for a viewer `classPlayback` has already found entitled.
+      const current = { ...found.summary, playback: classPlayback(found.row, plan, signer) };
       // "Next class" is a card, not a player: it never needs a playback id,
       // so none is sent — a response stays free of any id it does not need.
       const next = nextClassSuggestion(current, all.map(({ summary }) => summary));

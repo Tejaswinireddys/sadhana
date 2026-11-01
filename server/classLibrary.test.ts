@@ -1,15 +1,53 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { generateKeyPairSync, verify } from "node:crypto";
 import express from "express";
 import { MemoryStorage } from "./storage";
 import { registerClassRoutes } from "./classLibrary";
-import { MUX_PUBLIC_TEST_PLAYBACK_ID, PLACEHOLDER_CLASSES, seedPlaceholderClasses } from "./classSeed";
+import {
+  MUX_PUBLIC_TEST_PLAYBACK_ID,
+  PLACEHOLDER_CLASSES,
+  isClaimedPlaceholder,
+  seedPlaceholderClasses,
+  signedClassWarnings,
+} from "./classSeed";
+import { CLASS_TOKEN_SECONDS } from "@shared/classLibrary";
+
+// A throwaway signing key, so the real signer (not a stub) mints the tokens.
+const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+const SIGNING_ENV = {
+  MUX_SIGNING_KEY_ID: "test-kid",
+  MUX_SIGNING_KEY_PRIVATE: Buffer.from(privateKey.export({ type: "pkcs8", format: "pem" }) as string).toString("base64"),
+};
+function withSigning(enabled: boolean) {
+  for (const [key, value] of Object.entries(SIGNING_ENV)) {
+    if (enabled) process.env[key] = value; else delete process.env[key];
+  }
+}
+const quietWarn = () => undefined;
+
+/** The ids `class:add` would attach: one signed id per Plus class. */
+const SIGNED_IDS: Record<string, string> = Object.fromEntries(
+  PLACEHOLDER_CLASSES.filter((row) => row.tier === "plus").map((row, i) => [row.slug, `signedPlusId0${i}abcdefghijklmnop`]),
+);
+
+function decodeJwt(token: string) {
+  const [header, payload, signature] = token.split(".");
+  const valid = verify("RSA-SHA256", Buffer.from(`${header}.${payload}`), publicKey, Buffer.from(signature, "base64url"));
+  return { header: JSON.parse(Buffer.from(header, "base64url").toString()), payload: JSON.parse(Buffer.from(payload, "base64url").toString()), valid };
+}
 
 type Summary = { slug: string; tier: string; locked: boolean; playback: { playbackId: string } | null; thumbnailUrl: string | null; progress: { secondsWatched: number; completed: boolean } | null };
 
-async function harness() {
+async function harness({ signing = true, attachSigned = true } = {}) {
+  withSigning(signing);
   const store = new MemoryStorage();
-  await seedPlaceholderClasses(store);
+  await seedPlaceholderClasses(store, Date.now(), quietWarn);
+  if (attachSigned) {
+    for (const row of PLACEHOLDER_CLASSES.filter((r) => r.tier === "plus")) {
+      await store.upsertClassBySlug({ ...row, muxPlaybackId: SIGNED_IDS[row.slug], createdAt: new Date().toISOString() });
+    }
+  }
   const free = await store.createUser("free@example.com", "hash");
   const plus = await store.createUser("plus@example.com", "hash");
   await store.setUserPlan(plus.id, "plus");
@@ -32,24 +70,56 @@ async function harness() {
   };
   const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
     fetch(`${base}${path}`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
-  return { store, get, post, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
+  return { store, get, post, close: () => new Promise<void>((resolve) => { withSigning(false); server.close(() => resolve()); }) };
 }
 
 const plusSlugs = PLACEHOLDER_CLASSES.filter((row) => row.tier === "plus").map((row) => row.slug);
 const freeSlugs = PLACEHOLDER_CLASSES.filter((row) => row.tier === "free").map((row) => row.slug);
 
-test("seed: six placeholders, three free and three Plus, idempotent", async () => {
+test("seed: six placeholders; free ones public, Plus ones signed with no public id", async () => {
   const store = new MemoryStorage();
-  await seedPlaceholderClasses(store);
-  await seedPlaceholderClasses(store);
+  await seedPlaceholderClasses(store, Date.now(), quietWarn);
+  await seedPlaceholderClasses(store, Date.now(), quietWarn);
   const rows = await store.listClasses();
   assert.equal(rows.length, 6);
-  assert.equal(rows.filter((row) => row.tier === "free").length, 3);
-  assert.ok(rows.every((row) => row.published && row.muxPlaybackId === MUX_PUBLIC_TEST_PLAYBACK_ID));
-  assert.ok(rows.every((row) => !row.thumbnailUrl?.includes(row.muxPlaybackId!)), "thumbnails never embed a playback id");
+  const free = rows.filter((row) => row.tier === "free");
+  const plus = rows.filter((row) => row.tier === "plus");
+  assert.equal(free.length, 3);
+  assert.ok(free.every((row) => row.published && row.playbackPolicy === "public" && row.muxPlaybackId === MUX_PUBLIC_TEST_PLAYBACK_ID));
+  assert.ok(plus.every((row) => row.published && row.playbackPolicy === "signed" && row.muxPlaybackId === null),
+    "Mux rejects tokens on a public id, so Plus placeholders carry none");
+  assert.ok(rows.every((row) => !row.muxPlaybackId || !row.thumbnailUrl?.includes(row.muxPlaybackId)), "thumbnails never embed a playback id");
 });
 
-test("Plus playback info never reaches a guest or a free account — list, detail or next", async () => {
+test("seed: a placeholder upgraded by class:add is not overwritten, and a pre-policy public Plus row is", async () => {
+  const store = new MemoryStorage();
+  await seedPlaceholderClasses(store, Date.now(), quietWarn);
+  const [first, second] = PLACEHOLDER_CLASSES.filter((row) => row.tier === "plus");
+  await store.upsertClassBySlug({ ...first, title: "Real filmed class", muxPlaybackId: "realSignedId", createdAt: "x" });
+  // What a live database held before this change: Plus on the public test id.
+  await store.upsertClassBySlug({ ...second, muxPlaybackId: MUX_PUBLIC_TEST_PLAYBACK_ID, playbackPolicy: "public", createdAt: "x" });
+  assert.equal(isClaimedPlaceholder(await store.getClassBySlug(first.slug)), true);
+  assert.equal(isClaimedPlaceholder(await store.getClassBySlug(second.slug)), false);
+  await seedPlaceholderClasses(store, Date.now(), quietWarn);
+  assert.equal((await store.getClassBySlug(first.slug))?.title, "Real filmed class");
+  assert.equal((await store.getClassBySlug(first.slug))?.muxPlaybackId, "realSignedId");
+  const migrated = await store.getClassBySlug(second.slug);
+  assert.equal(migrated?.playbackPolicy, "signed");
+  assert.equal(migrated?.muxPlaybackId, null);
+});
+
+test("seed warns, instead of leaking, when signing is not configured", async () => {
+  withSigning(false);
+  const warnings: string[] = [];
+  await seedPlaceholderClasses(new MemoryStorage(), Date.now(), (m) => warnings.push(m));
+  assert.ok(warnings.some((m) => /MUX_SIGNING_KEY_ID and MUX_SIGNING_KEY_PRIVATE/.test(m)), warnings.join("\n"));
+  assert.ok(warnings.some((m) => /no video yet/.test(m)));
+  assert.deepEqual(signedClassWarnings([{ slug: "a", tier: "plus", playbackPolicy: "public", muxPlaybackId: "x" }], true),
+    ["Plus class(es) on a public playback id are withheld until re-added as signed: a"]);
+  assert.deepEqual(signedClassWarnings([{ slug: "a", tier: "plus", playbackPolicy: "signed", muxPlaybackId: "x" }], true), []);
+});
+
+test("guests and free accounts get nothing playable for Plus — list, detail or next", async () => {
   const h = await harness();
   try {
     for (const viewer of [undefined, "free"]) {
@@ -62,7 +132,7 @@ test("Plus playback info never reaches a guest or a free account — list, detai
           assert.equal(row.playback, null);
         } else {
           assert.equal(row.locked, false);
-          assert.equal(row.playback?.playbackId, MUX_PUBLIC_TEST_PLAYBACK_ID);
+          assert.deepEqual(row.playback, { provider: "mux", policy: "public", playbackId: MUX_PUBLIC_TEST_PLAYBACK_ID }, "free classes unaffected");
         }
       }
       for (const slug of plusSlugs) {
@@ -70,25 +140,81 @@ test("Plus playback info never reaches a guest or a free account — list, detai
         assert.equal(detail.status, 200);
         assert.equal(detail.body.class.locked, true);
         assert.equal(detail.body.class.playback, null);
-        // The strongest check: the id appears nowhere in the payload.
-        assert.equal(detail.text.includes(MUX_PUBLIC_TEST_PLAYBACK_ID), false, `${slug} leaked playback to ${viewer ?? "guest"}`);
+        // The strongest checks: neither the id nor any token appears anywhere.
+        assert.equal(detail.text.includes(SIGNED_IDS[slug]), false, `${slug} leaked its id to ${viewer ?? "guest"}`);
+        assert.equal(/token|eyJ/.test(detail.text), false, `${slug} leaked a token to ${viewer ?? "guest"}`);
       }
-      const plusOnly = await h.get("/api/classes?tier=plus", viewer);
-      assert.equal(plusOnly.text.includes(MUX_PUBLIC_TEST_PLAYBACK_ID), false);
+      const free = await h.get(`/api/classes/${freeSlugs[0]}`, viewer);
+      assert.equal(free.body.class.playback.playbackId, MUX_PUBLIC_TEST_PLAYBACK_ID);
+      assert.equal(free.body.class.playback.policy, "public");
+      assert.equal("tokens" in free.body.class.playback, false);
     }
-    const asPlus = await h.get(`/api/classes/${plusSlugs[0]}`, "plus");
-    assert.equal(asPlus.body.class.locked, false);
-    assert.equal(asPlus.body.class.playback.playbackId, MUX_PUBLIC_TEST_PLAYBACK_ID);
+  } finally { await h.close(); }
+});
+
+test("Plus members get a signed id with 1h video, thumbnail and storyboard tokens — on the detail only", async () => {
+  const h = await harness();
+  try {
+    const before = Math.floor(Date.now() / 1000);
+    const slug = plusSlugs[0];
+    const res = await h.get(`/api/classes/${slug}`, "plus");
+    const after = Math.floor(Date.now() / 1000);
+    const playback = res.body.class.playback;
+    assert.equal(res.cache, "private, no-store");
+    assert.equal(playback.policy, "signed");
+    assert.equal(playback.playbackId, SIGNED_IDS[slug]);
+    assert.ok(playback.expiresAt >= before + CLASS_TOKEN_SECONDS && playback.expiresAt <= after + CLASS_TOKEN_SECONDS);
+    const audiences = { playback: "v", thumbnail: "t", storyboard: "s" } as const;
+    for (const [name, aud] of Object.entries(audiences)) {
+      const jwt = decodeJwt(playback.tokens[name]);
+      assert.equal(jwt.valid, true, `${name} token verifies against the signing key`);
+      assert.equal(jwt.header.kid, "test-kid");
+      assert.equal(jwt.payload.sub, SIGNED_IDS[slug]);
+      assert.equal(jwt.payload.aud, aud);
+      assert.equal(jwt.payload.exp, playback.expiresAt, "tokens expire");
+      assert.equal(jwt.payload.exp - jwt.payload.iat, CLASS_TOKEN_SECONDS);
+    }
+    // Lists and the "next" card never mint tokens or carry signed ids.
+    const list = await h.get("/api/classes", "plus");
+    assert.equal(/eyJ/.test(list.text), false);
+    for (const row of list.body.items as Summary[]) if (row.tier === "plus") assert.equal(row.playback, null);
+    assert.equal(res.body.next?.playback ?? null, null);
+    // A later request mints fresh tokens (what the player's refresh relies on).
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const again = await h.get(`/api/classes/${slug}`, "plus");
+    assert.ok(again.body.class.playback.expiresAt > playback.expiresAt);
+    assert.notEqual(again.body.class.playback.tokens.playback, playback.tokens.playback);
+  } finally { await h.close(); }
+});
+
+test("a Plus member gets nothing playable when signing is missing or the class is still public", async () => {
+  const unsigned = await harness({ signing: false });
+  try {
+    const res = await unsigned.get(`/api/classes/${plusSlugs[0]}`, "plus");
+    assert.equal(res.body.class.locked, false, "a member is not sent to the paywall");
+    assert.equal(res.body.class.playback, null);
+    assert.equal(res.text.includes(SIGNED_IDS[plusSlugs[0]]), false);
+    const free = await unsigned.get(`/api/classes/${freeSlugs[0]}`, "plus");
+    assert.equal(free.body.class.playback.playbackId, MUX_PUBLIC_TEST_PLAYBACK_ID, "free classes unaffected");
+  } finally { await unsigned.close(); }
+
+  const h = await harness();
+  try {
+    await h.store.upsertClassBySlug({ ...PLACEHOLDER_CLASSES[3], muxPlaybackId: MUX_PUBLIC_TEST_PLAYBACK_ID, playbackPolicy: "public", createdAt: "x" });
+    const res = await h.get(`/api/classes/${PLACEHOLDER_CLASSES[3].slug}`, "plus");
+    assert.equal(res.body.class.playback, null);
+    assert.equal(res.text.includes(MUX_PUBLIC_TEST_PLAYBACK_ID), false, "a Plus class never ships a public id");
   } finally { await h.close(); }
 });
 
 test("a locked class whose thumbnail embeds the playback id gets no thumbnail", async () => {
   const h = await harness();
   try {
-    await h.store.upsertClassBySlug({ ...PLACEHOLDER_CLASSES[3], thumbnailUrl: `https://image.mux.com/${MUX_PUBLIC_TEST_PLAYBACK_ID}/thumbnail.webp`, createdAt: new Date().toISOString() });
+    const id = SIGNED_IDS[PLACEHOLDER_CLASSES[3].slug];
+    await h.store.upsertClassBySlug({ ...PLACEHOLDER_CLASSES[3], muxPlaybackId: id, thumbnailUrl: `https://image.mux.com/${id}/thumbnail.webp`, createdAt: new Date().toISOString() });
     const detail = await h.get(`/api/classes/${PLACEHOLDER_CLASSES[3].slug}`, "free");
     assert.equal(detail.body.class.thumbnailUrl, null);
-    assert.equal(detail.text.includes(MUX_PUBLIC_TEST_PLAYBACK_ID), false);
+    assert.equal(detail.text.includes(id), false);
     const asPlus = await h.get(`/api/classes/${PLACEHOLDER_CLASSES[3].slug}`, "plus");
     assert.match(asPlus.body.class.thumbnailUrl, /image\.mux\.com/);
   } finally { await h.close(); }

@@ -14,6 +14,16 @@ export type ClassLevel = (typeof CLASS_LEVELS)[number];
 export const CLASS_TIERS = ["free", "plus"] as const;
 export type ClassTier = (typeof CLASS_TIERS)[number];
 
+/**
+ * Mux playback policy of a class's playback id. A public id streams on its
+ * own; a signed one only with a JWT minted by the server for that viewer.
+ */
+export const CLASS_PLAYBACK_POLICIES = ["public", "signed"] as const;
+export type ClassPlaybackPolicy = (typeof CLASS_PLAYBACK_POLICIES)[number];
+
+/** How long signed class tokens live. The player refreshes before this. */
+export const CLASS_TOKEN_SECONDS = 60 * 60;
+
 /** The focus chips offered on /classes. Classes may carry other tags too. */
 export const CLASS_FOCUS_TAGS = ["flexibility", "back pain", "morning", "stress", "strength", "sleep"] as const;
 
@@ -46,6 +56,7 @@ export type ClassRecord = {
   muxPlaybackId: string | null;
   thumbnailUrl: string | null;
   tier: ClassTier;
+  playbackPolicy: ClassPlaybackPolicy;
   published: boolean;
   createdAt: string;
 };
@@ -71,12 +82,25 @@ export type ClassSummary = {
   tier: ClassTier;
   /** True when the class is Plus and the viewer is not. */
   locked: boolean;
-  /** Present only when the viewer may watch. */
-  playback: { provider: "mux"; playbackId: string } | null;
+  /** Present only when the viewer may watch, and only on the class detail for signed classes. */
+  playback: ClassPlayback | null;
   progress: { secondsWatched: number; completed: boolean; updatedAt: string } | null;
 };
 
 export type ViewerPlan = "free" | "plus";
+
+/** Short-lived Mux JWTs for one signed playback id (audiences v, t and s). */
+export type ClassPlaybackTokens = { playback: string; thumbnail: string; storyboard: string };
+
+export type ClassPlayback =
+  | { provider: "mux"; policy: "public"; playbackId: string }
+  | { provider: "mux"; policy: "signed"; playbackId: string; tokens: ClassPlaybackTokens; expiresAt: number };
+
+/**
+ * Mints tokens for a signed playback id, or returns null when signing is not
+ * configured (or fails). Injected so the shared rules stay pure.
+ */
+export type ClassTokenSigner = (playbackId: string) => { tokens: ClassPlaybackTokens; expiresAt: number } | null;
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const classSlugSchema = z.string().min(1).max(120).regex(slugPattern, "Invalid class slug");
@@ -150,11 +174,41 @@ export function isClassLocked(row: Pick<ClassRecord, "tier">, viewerPlan: Viewer
 }
 
 /**
+ * What a viewer may play, if anything.
+ *
+ * - Locked, or no playback id: nothing.
+ * - A Plus class is only ever served signed. A Plus row still on a public id
+ *   (a pre-`playback_policy` row, or a mistake) is withheld from everyone,
+ *   Plus members included, because the id alone would stream for anyone it
+ *   was forwarded to.
+ * - Signed ids are only sent together with tokens, and only when a signer is
+ *   given (the class detail). With no signer, or signing unconfigured, the
+ *   class stays unplayable rather than falling back to anything public.
+ */
+export function classPlayback(
+  row: Pick<ClassRecord, "tier" | "muxPlaybackId" | "playbackPolicy">,
+  viewerPlan: ViewerPlan,
+  sign?: ClassTokenSigner,
+): ClassPlayback | null {
+  const playbackId = row.muxPlaybackId?.trim() || null;
+  if (!playbackId || isClassLocked(row, viewerPlan)) return null;
+  const policy: ClassPlaybackPolicy = row.playbackPolicy === "signed" ? "signed" : "public";
+  if (policy === "public") return row.tier === "plus" ? null : { provider: "mux", policy, playbackId };
+  const signed = sign?.(playbackId) ?? null;
+  return signed ? { provider: "mux", policy, playbackId, ...signed } : null;
+}
+
+/**
  * The viewer's view of a class. Locked classes carry no playback id, and a
  * thumbnail URL that embeds it (Mux's `image.mux.com/<id>/…`) is dropped too —
  * with a public playback policy, the id alone is enough to stream.
  */
-export function presentClass(row: ClassRecord, viewerPlan: ViewerPlan, progress?: ClassProgressRecord | null): ClassSummary {
+export function presentClass(
+  row: ClassRecord,
+  viewerPlan: ViewerPlan,
+  progress?: ClassProgressRecord | null,
+  sign?: ClassTokenSigner,
+): ClassSummary {
   const locked = isClassLocked(row, viewerPlan);
   const playbackId = row.muxPlaybackId?.trim() || null;
   const thumbnailLeaksPlayback = !!playbackId && !!row.thumbnailUrl?.includes(playbackId);
@@ -170,7 +224,7 @@ export function presentClass(row: ClassRecord, viewerPlan: ViewerPlan, progress?
     thumbnailUrl: locked && thumbnailLeaksPlayback ? null : row.thumbnailUrl,
     tier: row.tier,
     locked,
-    playback: !locked && playbackId ? { provider: "mux", playbackId } : null,
+    playback: classPlayback(row, viewerPlan, sign),
     progress: progress ? { secondsWatched: progress.secondsWatched, completed: progress.completed, updatedAt: progress.updatedAt } : null,
   };
 }

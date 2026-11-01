@@ -1437,7 +1437,7 @@ export class MemoryStorage implements IStorage {
   }
   async upsertClassBySlug(data: InsertClass) {
     const existing = this.classRows.find((row) => row.slug === data.slug);
-    const defaults = { description: "", focusTags: [] as string[], muxPlaybackId: null, thumbnailUrl: null, tier: "free" as const, published: false };
+    const defaults = { description: "", focusTags: [] as string[], muxPlaybackId: null, thumbnailUrl: null, tier: "free" as const, playbackPolicy: "public" as const, published: false };
     if (existing) {
       const { createdAt: _createdAt, ...rest } = data;
       Object.assign(existing, rest);

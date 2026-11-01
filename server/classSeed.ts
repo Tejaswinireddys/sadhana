@@ -1,5 +1,6 @@
 import type { IStorage } from "./storage";
 import type { InsertClass } from "@shared/schema";
+import { muxSigningConfigured } from "./muxPlayback";
 
 /**
  * Mux's public demo asset, used by every placeholder so the library and the
@@ -16,7 +17,7 @@ const PLACEHOLDER_NOTE = "Placeholder class: the video is Mux's public test clip
  * `image.mux.com/<playbackId>/…`: a Plus thumbnail must never carry the
  * playback id a free viewer could stream from.
  */
-type PlaceholderRow = Omit<InsertClass, "createdAt" | "muxPlaybackId" | "published">;
+type PlaceholderRow = Omit<InsertClass, "createdAt" | "muxPlaybackId" | "published" | "playbackPolicy">;
 const ROWS: PlaceholderRow[] = [
   {
     slug: "gentle-morning-wake-up", title: "Gentle morning wake-up",
@@ -56,18 +57,69 @@ const ROWS: PlaceholderRow[] = [
   },
 ];
 
-export const PLACEHOLDER_CLASSES: ReadonlyArray<Omit<InsertClass, "createdAt">> = ROWS.map((row) => ({
-  ...row, muxPlaybackId: MUX_PUBLIC_TEST_PLAYBACK_ID, published: true,
-}));
+/**
+ * Free placeholders stream the public test clip. Plus placeholders are
+ * `signed` with **no** playback id: Mux refuses a token on a public id (HTTP
+ * 400), so the test clip cannot be served signed, and serving it public would
+ * make a Plus class streamable by anyone holding the id. They show as Plus
+ * (locked for free viewers, "not available yet" for members) until a real
+ * signed asset is attached with `npm run class:add -- --slug <slug> …`.
+ */
+export const PLACEHOLDER_CLASSES: ReadonlyArray<Omit<InsertClass, "createdAt">> = ROWS.map((row) => (
+  row.tier === "plus"
+    ? { ...row, muxPlaybackId: null, playbackPolicy: "signed" as const, published: true }
+    : { ...row, muxPlaybackId: MUX_PUBLIC_TEST_PLAYBACK_ID, playbackPolicy: "public" as const, published: true }
+));
+
+/**
+ * A stored row now points at a real video (attached by `class:add`), so the
+ * seed must not put the placeholder back over it on the next boot.
+ */
+export function isClaimedPlaceholder(stored: { muxPlaybackId: string | null } | undefined): boolean {
+  const id = stored?.muxPlaybackId?.trim();
+  return !!id && id !== MUX_PUBLIC_TEST_PLAYBACK_ID;
+}
+
+/**
+ * Why signed classes will not play, for the boot log. Empty when every signed
+ * class can be served.
+ */
+export function signedClassWarnings(
+  rows: ReadonlyArray<{ slug: string; tier: string; playbackPolicy?: string | null; muxPlaybackId: string | null; published?: boolean | null }>,
+  signingConfigured: boolean,
+): string[] {
+  const live = rows.filter((row) => row.published !== false);
+  const signed = live.filter((row) => row.playbackPolicy === "signed");
+  const warnings: string[] = [];
+  if (signed.length && !signingConfigured) {
+    warnings.push(`${signed.length} signed class(es) stay locked: set MUX_SIGNING_KEY_ID and MUX_SIGNING_KEY_PRIVATE`);
+  }
+  const noVideo = signed.filter((row) => !row.muxPlaybackId?.trim()).map((row) => row.slug);
+  if (noVideo.length) warnings.push(`signed class(es) with no video yet (attach with npm run class:add): ${noVideo.join(", ")}`);
+  const publicPlus = live.filter((row) => row.tier === "plus" && row.playbackPolicy !== "signed").map((row) => row.slug);
+  if (publicPlus.length) warnings.push(`Plus class(es) on a public playback id are withheld until re-added as signed: ${publicPlus.join(", ")}`);
+  return warnings;
+}
 
 /**
  * Upsert the placeholders by slug. Idempotent; a created_at already stored is
- * kept, and the base time is staggered so library order matches this list.
+ * kept, the base time is staggered so library order matches this list, and a
+ * placeholder that has been replaced by a real video is left alone. Logs why
+ * any signed class will not play instead of falling back to a public id.
  */
-export async function seedPlaceholderClasses(store: IStorage, now = Date.now()): Promise<number> {
+export async function seedPlaceholderClasses(
+  store: IStorage,
+  now = Date.now(),
+  warn: (message: string) => void = (message) => console.warn(`[classes] ${message}`),
+): Promise<number> {
   let index = 0;
+  let written = 0;
   for (const row of PLACEHOLDER_CLASSES) {
-    await store.upsertClassBySlug({ ...row, createdAt: new Date(now + index++ * 1000).toISOString() });
+    const createdAt = new Date(now + index++ * 1000).toISOString();
+    if (isClaimedPlaceholder(await store.getClassBySlug(row.slug))) continue;
+    await store.upsertClassBySlug({ ...row, createdAt });
+    written += 1;
   }
-  return PLACEHOLDER_CLASSES.length;
+  for (const message of signedClassWarnings(await store.listClasses(), muxSigningConfigured())) warn(message);
+  return written;
 }

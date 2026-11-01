@@ -19,7 +19,8 @@ import { registerBuddyRoutes } from "./buddy";
 import { registerTeachersWaitlistRoutes } from "./teachersWaitlist";
 import { registerPlusWaitlistRoutes } from "./plusWaitlist";
 import { registerClassRoutes } from "./classLibrary";
-import { seedPlaceholderClasses } from "./classSeed";
+import { seedPlaceholderClasses, signedClassWarnings } from "./classSeed";
+import { muxSigningConfigured } from "./muxPlayback";
 import { publicAppOrigin } from "./publicUrl";
 import { captureServerException, initServerSentry } from "./sentry";
 import { sendJson404 } from "./json404";
@@ -142,6 +143,11 @@ async function ensureSchema() {
     // Opt-in: seed the placeholder class library on boot (idempotent upsert by slug).
     if (process.env.SEED_PLACEHOLDER_CLASSES === "true") {
       log(`seeded ${await seedPlaceholderClasses(storage)} placeholder classes (postgres)`);
+    } else {
+      // Say why a signed class will not play, rather than leaving it a mystery.
+      for (const message of signedClassWarnings(await storage.listClasses(), muxSigningConfigured())) {
+        console.warn(`[classes] ${message}`);
+      }
     }
   }
 

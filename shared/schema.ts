@@ -4,7 +4,7 @@ export { passwordSchema, credentialsSchema, loginSchema, forgotPasswordSchema, r
 export type { Credentials, LoginCredentials, PosePlan } from "./validation";
 import { pgTable, text, integer, serial, boolean, uniqueIndex, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
-import { CLASS_LEVELS, CLASS_TIERS } from "./classLibrary";
+import { CLASS_LEVELS, CLASS_PLAYBACK_POLICIES, CLASS_TIERS } from "./classLibrary";
 import { z } from "zod";
 
 // Optional accounts. Practice data stays keyed by ownerId — an anonymous device
@@ -405,6 +405,9 @@ export const classes = pgTable(
     muxPlaybackId: text("mux_playback_id"),
     thumbnailUrl: text("thumbnail_url"),
     tier: text("tier", { enum: CLASS_TIERS }).notNull().default("free"),
+    // "signed": the playback id streams only with a server-minted JWT. Plus
+    // classes must be signed; a public id is enough on its own to stream.
+    playbackPolicy: text("playback_policy", { enum: CLASS_PLAYBACK_POLICIES }).notNull().default("public"),
     published: boolean("published").notNull().default(false),
     createdAt: text("created_at").notNull(),
   },

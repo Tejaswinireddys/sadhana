@@ -315,6 +315,9 @@ CREATE TABLE IF NOT EXISTS classes (
   created_at TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS classes_slug_idx ON classes (slug);
+-- Additive: existing rows read as 'public' (what they were served as).
+ALTER TABLE classes ADD COLUMN IF NOT EXISTS playback_policy TEXT NOT NULL DEFAULT 'public'
+  CHECK (playback_policy IN ('public', 'signed'));
 CREATE TABLE IF NOT EXISTS class_progress (
   id SERIAL PRIMARY KEY,
   owner_id TEXT NOT NULL,

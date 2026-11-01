@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import MuxPlayer, { type MuxPlayerRefAttributes } from "@mux/mux-player-react";
 import { ArrowLeft, CheckCircle2, Clock, Lock } from "lucide-react";
-import { resumeFrom, type ClassSummary } from "@shared/classLibrary";
+import { resumeFrom, type ClassPlayback, type ClassSummary } from "@shared/classLibrary";
 import { Button } from "@/components/ui/button";
 import { FadeIn } from "@/components/motion";
 import { ClassCard } from "@/components/ClassCard";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { ClassProgressSaver } from "@/lib/classProgressSaver";
+import { restorePoint, tokenRefreshDelayMs, tokenRefreshDue, tokenRetryDelayMs } from "@/lib/classTokenRefresh";
 import {
+  fetchClassPlayback,
   formatClassMinutes,
   formatTimestamp,
   levelLabel,
@@ -26,10 +28,75 @@ import {
  * captions on the asset are shown by default (`defaultHiddenCaptions` false).
  * Viewer analytics are off (`disableTracking`) — nothing about who watches
  * what goes to Mux Data, and CSP does not allow its beacon host anyway.
+ *
+ * Signed (Plus) classes arrive with 1h tokens. `useSignedPlayback` fetches
+ * fresh ones before they lapse; swapping the token reloads the stream, so the
+ * position and play state are restored and progress saves are paused until
+ * the reload has landed (otherwise its "pause at 0:00" would rewind progress).
  */
+function useSignedPlayback(slug: string, initial: ClassPlayback, onSwap: () => void) {
+  const [playback, setPlayback] = useState(initial);
+  const onSwapRef = useRef(onSwap);
+  onSwapRef.current = onSwap;
+  useEffect(() => {
+    if (playback.policy !== "signed") return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
+    const refresh = async () => {
+      if (inFlight || cancelled) return;
+      inFlight = true;
+      const fresh = await fetchClassPlayback(slug).catch(() => null);
+      inFlight = false;
+      if (cancelled) return;
+      if (fresh?.policy === "signed" && fresh.playbackId === playback.playbackId) {
+        onSwapRef.current();
+        setPlayback(fresh);
+      } else {
+        // Offline, or membership ended (then the next load shows the lock).
+        timer = setTimeout(refresh, tokenRetryDelayMs(playback.expiresAt, Date.now()));
+      }
+    };
+    timer = setTimeout(refresh, tokenRefreshDelayMs(playback.expiresAt, Date.now()));
+    // Timers stall in a sleeping tab; catch up when it is visible again.
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && tokenRefreshDue(playback.expiresAt, Date.now())) void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [slug, playback]);
+  return playback;
+}
+
+/**
+ * Tokens go on as the `playback-token` / `thumbnail-token` / `storyboard-token`
+ * attributes, not the `tokens` prop: Mux Player's `tokens` setter only stores
+ * the object, so a refreshed token set that way never reached the stream.
+ * Attribute changes re-render the player with the new token.
+ */
+function signedTokenAttributes(playback: ClassPlayback): Record<string, string> {
+  if (playback.policy !== "signed") return {};
+  return {
+    playbackToken: playback.tokens.playback,
+    thumbnailToken: playback.tokens.thumbnail,
+    storyboardToken: playback.tokens.storyboard,
+  };
+}
+
 function ClassVideo({ item, onCompleted }: { item: ClassSummary; onCompleted: () => void }) {
   const playerRef = useRef<MuxPlayerRefAttributes | null>(null);
-  const [startTime] = useState(() => resumeFrom(item.progress));
+  const [initialStart] = useState(() => resumeFrom(item.progress));
+  const [startTime, setStartTime] = useState(initialStart);
+  const restoring = useRef<{ at: number; play: boolean } | null>(null);
+  const playback = useSignedPlayback(item.slug, item.playback!, () => {
+    const point = restorePoint(playerRef.current);
+    restoring.current = point;
+    setStartTime(point.at);
+  });
   const saverRef = useRef<ClassProgressSaver | null>(null);
   if (!saverRef.current) {
     saverRef.current = new ClassProgressSaver(
@@ -76,7 +143,8 @@ function ClassVideo({ item, onCompleted }: { item: ClassSummary; onCompleted: ()
             // blocks; opt the media element out instead of loading it.
             el?.media?.setAttribute("disableremoteplayback", "");
           }}
-          playbackId={item.playback!.playbackId}
+          playbackId={playback.playbackId}
+          {...signedTokenAttributes(playback)}
           streamType="on-demand"
           startTime={startTime}
           title={item.title}
@@ -85,16 +153,24 @@ function ClassVideo({ item, onCompleted }: { item: ClassSummary; onCompleted: ()
           defaultHiddenCaptions={false}
           accentColor="hsl(var(--primary))"
           style={{ aspectRatio: "16 / 9", width: "100%", display: "block" }}
-          onTimeUpdate={() => { const p = position(); saver.tick(p.current, p.duration); afterSave(); }}
-          onPause={() => { const p = position(); saver.pause(p.current, p.duration); afterSave(); }}
-          onEnded={() => { saver.end(position().duration); afterSave(); }}
+          onLoadedMetadata={() => {
+            const point = restoring.current;
+            const el = playerRef.current;
+            if (!point || !el) return;
+            restoring.current = null;
+            if (Math.abs((el.currentTime ?? 0) - point.at) > 1) el.currentTime = point.at;
+            if (point.play) void el.play()?.catch(() => undefined);
+          }}
+          onTimeUpdate={() => { if (restoring.current) return; const p = position(); saver.tick(p.current, p.duration); afterSave(); }}
+          onPause={() => { if (restoring.current) return; const p = position(); saver.pause(p.current, p.duration); afterSave(); }}
+          onEnded={() => { if (restoring.current) return; saver.end(position().duration); afterSave(); }}
           data-testid="class-mux-player"
         />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-        <p data-testid="class-player-resume" data-start={startTime}>
-          {startTime > 0 ? `Resuming from ${formatTimestamp(startTime)}.` : "Starting from the beginning."}
-          {startTime > 0 && (
+        <p data-testid="class-player-resume" data-start={initialStart} data-policy={playback.policy}>
+          {initialStart > 0 ? `Resuming from ${formatTimestamp(initialStart)}.` : "Starting from the beginning."}
+          {initialStart > 0 && (
             <button
               type="button"
               className="ml-2 min-h-11 cursor-pointer font-medium text-foreground underline underline-offset-2"
@@ -140,7 +216,13 @@ export default function ClassDetailRoute() {
 
 function ClassVideoSection({ item, onCompleted }: { item: ClassSummary; onCompleted: () => void }) {
   if (item.locked) return <LockedClass item={item} />;
-  if (!item.playback) return <p className="text-muted-foreground">This class has no video yet.</p>;
+  if (!item.playback) {
+    return (
+      <p className="rounded-xl border border-card-border bg-card p-6 text-muted-foreground" data-testid="class-player-unavailable">
+        This class&apos;s video isn&apos;t available yet. Please check back soon.
+      </p>
+    );
+  }
   return <ClassVideo item={item} onCompleted={onCompleted} />;
 }
 

@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   classListQuerySchema,
+  classPlayback,
   continueWatching,
   durationRange,
   filterClasses,
@@ -23,7 +24,7 @@ function row(overrides: Partial<ClassRecord> = {}): ClassRecord {
   return {
     id, slug: `class-${id}`, title: `Class ${id}`, description: "", instructorName: "Team",
     level: "beginner", durationMinutes: 20, focusTags: ["flexibility"], muxPlaybackId: `pb${id}`,
-    thumbnailUrl: `/poses/p${id}.webp`, tier: "free", published: true, createdAt: `2026-01-0${(id % 9) + 1}T00:00:00Z`,
+    thumbnailUrl: `/poses/p${id}.webp`, tier: "free", playbackPolicy: "public", published: true, createdAt: `2026-01-0${(id % 9) + 1}T00:00:00Z`,
     ...overrides,
   };
 }
@@ -96,10 +97,50 @@ describe("Plus lock", () => {
     assert.equal(presentClass(leaky, "plus").thumbnailUrl, leaky.thumbnailUrl);
   });
 
-  it("Plus viewers and free classes get playback", () => {
-    assert.deepEqual(presentClass(plus, "plus").playback, { provider: "mux", playbackId: "secretPlusId" });
-    assert.deepEqual(presentClass(free, "free").playback, { provider: "mux", playbackId: "freeId" });
+  it("free classes keep public playback for everyone", () => {
+    assert.deepEqual(presentClass(free, "free").playback, { provider: "mux", policy: "public", playbackId: "freeId" });
+    assert.deepEqual(presentClass(free, "plus").playback, { provider: "mux", policy: "public", playbackId: "freeId" });
     assert.equal(presentClass(row({ muxPlaybackId: null }), "plus").playback, null);
+  });
+});
+
+describe("classPlayback (signed Plus)", () => {
+  const tokens = { playback: "jwt-v", thumbnail: "jwt-t", storyboard: "jwt-s" };
+  const signer = (id: string) => ({ tokens: { ...tokens, playback: `jwt-v:${id}` }, expiresAt: 1_900_000_000 });
+  const signedPlus = row({ tier: "plus", muxPlaybackId: "signedPlusId", playbackPolicy: "signed" });
+  const plus = row({ tier: "plus", muxPlaybackId: "secretPlusId" });
+
+  it("a Plus viewer gets the signed id with its tokens", () => {
+    assert.deepEqual(classPlayback(signedPlus, "plus", signer), {
+      provider: "mux", policy: "signed", playbackId: "signedPlusId",
+      tokens: { ...tokens, playback: "jwt-v:signedPlusId" }, expiresAt: 1_900_000_000,
+    });
+  });
+
+  it("free viewers and guests get nothing, and no tokens are minted for them", () => {
+    let minted = 0;
+    const counting = (id: string) => { minted += 1; return signer(id); };
+    assert.equal(classPlayback(signedPlus, "free", counting), null);
+    assert.equal(minted, 0);
+    const view = presentClass(signedPlus, "free", null, counting);
+    assert.equal(view.locked, true);
+    assert.equal(JSON.stringify(view).includes("signedPlusId"), false);
+  });
+
+  it("a Plus class on a public id is never served, even to Plus", () => {
+    assert.equal(classPlayback(plus, "plus", signer), null);
+    assert.equal(JSON.stringify(presentClass(plus, "plus", null, signer)).includes("secretPlusId"), false);
+  });
+
+  it("without a signer (lists) or with signing unconfigured, a signed class is unplayable", () => {
+    assert.equal(classPlayback(signedPlus, "plus"), null);
+    assert.equal(classPlayback(signedPlus, "plus", () => null), null);
+    assert.equal(JSON.stringify(presentClass(signedPlus, "plus")).includes("signedPlusId"), false);
+  });
+
+  it("a signed free class plays with tokens for anyone", () => {
+    const signedFree = row({ tier: "free", muxPlaybackId: "signedFreeId", playbackPolicy: "signed" });
+    assert.equal(classPlayback(signedFree, "free", signer)?.policy, "signed");
   });
 });
 
