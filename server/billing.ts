@@ -70,22 +70,48 @@ const resyncAttempts = new Map<string, number>();
 const RESYNC_RETRY_MS = 60_000;
 
 /**
+ * Bounds on the on-read resync. A resync holds a database transaction (two
+ * pooled connections and the user's row lock) for as long as Stripe takes to
+ * answer — the SDK allows 80s. Unbounded, a handful of stale owners loading
+ * pages at once pinned the whole pool (pg's default is 10), and every other
+ * request, `/api/auth/me` included, queued behind Stripe.
+ *
+ * - `maxConcurrent`: resyncs running at once; past it, a read serves stored
+ *   state and the next read tries again (the attempt is not recorded).
+ * - `waitMs`: how long a read waits for its resync before answering with
+ *   stored state; the resync finishes in the background and the next read
+ *   sees its result.
+ *
+ * Mutable only so tests can shorten the wait.
+ */
+export const ENTITLEMENT_RESYNC_LIMITS = { maxConcurrent: 2, waitMs: 2_500 };
+let resyncsInFlight = 0;
+
+/**
  * Correct a signed-in owner's entitlement from Stripe before it is read, when
- * it is stale (see `entitlementNeedsResync`). Never fails the read.
+ * it is stale (see `entitlementNeedsResync`). Never fails the read, and never
+ * holds it longer than `ENTITLEMENT_RESYNC_LIMITS.waitMs`.
  */
 async function resyncIfStale(stripe: Stripe | null, ownerId: string) {
   if (!stripe || !/^user:[1-9]\d*$/.test(ownerId)) return;
   const now = Date.now();
   if (now - (resyncAttempts.get(ownerId) ?? 0) < RESYNC_RETRY_MS) return;
+  if (resyncsInFlight >= ENTITLEMENT_RESYNC_LIMITS.maxConcurrent) return;
   if (!entitlementNeedsResync(await storage.getEntitlement(ownerId), now)) return;
+  if (resyncsInFlight >= ENTITLEMENT_RESYNC_LIMITS.maxConcurrent) return;
   resyncAttempts.set(ownerId, now);
-  try {
-    await resyncStripeEntitlement(stripe, storage, ownerId);
-  } catch (error) {
-    console.warn("[billing] Entitlement resync from Stripe failed; serving stored state", {
-      ownerId, error: error instanceof Error ? error.name : "unknown",
-    });
-  }
+  resyncsInFlight += 1;
+  const run = resyncStripeEntitlement(stripe, storage, ownerId)
+    .catch((error) => {
+      console.warn("[billing] Entitlement resync from Stripe failed; serving stored state", {
+        ownerId, error: error instanceof Error ? error.name : "unknown",
+      });
+    })
+    .finally(() => { resyncsInFlight -= 1; });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const waited = new Promise<void>((resolve) => { timer = setTimeout(resolve, ENTITLEMENT_RESYNC_LIMITS.waitMs); });
+  await Promise.race([run, waited]);
+  clearTimeout(timer);
 }
 
 function invoicePaymentIntentId(inv: Stripe.Invoice): string | undefined {

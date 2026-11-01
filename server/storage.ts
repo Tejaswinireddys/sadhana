@@ -349,14 +349,16 @@ export class DatabaseStorage implements IStorage {
     if (this.transactions.getStore()) return fn();
     return this.db.transaction((tx) => this.transactions.run(tx as unknown as ReturnType<typeof drizzle>, fn));
   }
+  /**
+   * One statement on one connection. `GET /api/auth/me` calls this on every
+   * load; it used to run 13 `SELECT *` queries in parallel (downloading every
+   * row to count it), taking 13 of the pool's 10 connections at once and
+   * queueing behind anything else holding one.
+   */
   async countOwnerData(ownerId: string): Promise<number> {
-    const counts = await Promise.all(
-      OWNED_TABLES.map(async (table) => {
-        const rows = await this.orm.select().from(table).where(eq(table.ownerId, ownerId));
-        return rows.length;
-      }),
-    );
-    return counts.reduce((sum, n) => sum + n, 0);
+    const counts = OWNED_TABLES.map((table) => sql`(select count(*) from ${table} where ${table.ownerId} = ${ownerId})`);
+    const result = await this.orm.execute(sql`select (${sql.join(counts, sql` + `)})::int as total`);
+    return Number((result.rows[0] as { total?: number | string } | undefined)?.total ?? 0);
   }
   async transferOwnerData(fromOwnerId: string, toOwnerId: string): Promise<number> {
     if (fromOwnerId === toOwnerId) return 0;
