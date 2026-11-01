@@ -13,9 +13,11 @@
 export function welcomeRedirectTarget(
   path: string,
   search: string,
-  seen: { welcomeSeen: boolean; onboardingDone: boolean },
+  seen: { welcomeSeen: boolean; onboardingDone: boolean; signedIn?: boolean },
 ): string | null {
-  if (seen.welcomeSeen || seen.onboardingDone) return null;
+  // An account holder is not new, whether or not they did onboarding (or did
+  // it in another browser): they land on Today.
+  if (seen.welcomeSeen || seen.onboardingDone || seen.signedIn) return null;
   const pathname = path.split("?")[0] || "/";
   if (pathname !== "/") return null;
   const query = search && search !== "?" ? (search.startsWith("?") ? search : `?${search}`) : "";
@@ -47,4 +49,26 @@ export function welcomeEntryTarget(
     return `/welcome${search}${fragment}`;
   }
   return `${pathname}${search}${fragment}`;
+}
+
+export type HomeEntry = "landing" | "workspace" | "checking";
+
+/**
+ * What the app shell renders for a path, before the workspace loads.
+ *
+ * `/` is the welcome page only for a brand-new guest. With no local flags the
+ * shell cannot tell a new guest from an account holder on a fresh browser
+ * (the session cookie is HttpOnly), so it asks `/api/auth/me` first —
+ * `signedIn` is `undefined` while that is in flight — instead of flashing the
+ * landing page at someone who is signed in.
+ */
+export function homeEntry(
+  path: string,
+  seen: { welcomeSeen: boolean; onboardingDone: boolean; signedIn: boolean | undefined },
+): HomeEntry {
+  const pathname = path.split("?")[0] || "/";
+  if (pathname === "/welcome") return "landing";
+  if (pathname !== "/" || seen.welcomeSeen || seen.onboardingDone) return "workspace";
+  if (seen.signedIn === undefined) return "checking";
+  return seen.signedIn ? "workspace" : "landing";
 }

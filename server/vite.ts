@@ -8,6 +8,7 @@ import { nanoid } from "nanoid";
 import { brandPublicHtml, publicAppOrigin, robotsTxt } from "./publicUrl";
 import { sendJson404 } from "./json404";
 import { mountStaticMedia } from "./mountStaticMedia";
+import { servesWelcomeHtml } from "./welcomeEntry";
 
 const viteLogger = createLogger();
 
@@ -58,7 +59,7 @@ export async function setupVite(server: Server, app: Express) {
 
   app.get(["/", "/welcome"], async (req, res, next) => {
     try {
-      const welcome = req.path === "/welcome" || !/(?:^|;\s*)sadhana_welcome_seen=1(?:;|$)/.test(req.headers.cookie || "");
+      const welcome = servesWelcomeHtml(req.path, req.headers.cookie);
       const clientTemplate = path.resolve(import.meta.dirname, "..", "client", welcome ? "welcome.html" : "index.html");
       const template = await fs.promises.readFile(clientTemplate, "utf-8");
       res.status(200).set({ "Content-Type": "text/html" }).end(await vite.transformIndexHtml(req.originalUrl, brandPublicHtml(template, publicAppOrigin(), req.path)));

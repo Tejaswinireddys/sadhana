@@ -6,6 +6,7 @@ import path from "node:path";
 import { brandPublicHtml, publicAppOrigin, robotsTxt } from "./publicUrl";
 import { sendJson404 } from "./json404";
 import { mountStaticMedia } from "./mountStaticMedia";
+import { servesWelcomeHtml } from "./welcomeEntry";
 
 const ONE_YEAR_SECONDS = 31_536_000;
 const ONE_DAY_SECONDS = 86_400;
@@ -120,9 +121,8 @@ export function serveStatic(app: Express) {
 
   const indexPath = path.resolve(distPath, "index.html");
   const welcomePath = path.resolve(distPath, "welcome.html");
-  const hasWelcomeCookie = (req: express.Request) => /(?:^|;\s*)sadhana_welcome_seen=1(?:;|$)/.test(req.headers.cookie || "");
   const sendSpaHtml = (req: express.Request, res: express.Response, pathname: string, status = 200) => {
-    const isWelcome = pathname === "/welcome" || (pathname === "/" && !hasWelcomeCookie(req));
+    const isWelcome = servesWelcomeHtml(pathname, req.headers.cookie);
     sendBrandedHtml(res, isWelcome ? welcomePath : indexPath, status, pathname);
   };
 

@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { welcomeRedirectTarget, legacyRouteTarget, welcomeEntryTarget } from "./welcomeGate";
+import { homeEntry, welcomeRedirectTarget, legacyRouteTarget, welcomeEntryTarget } from "./welcomeGate";
 
 const firstVisit = { welcomeSeen: false, onboardingDone: false };
 
@@ -61,5 +61,27 @@ describe("lightweight welcome entry recovery", () => {
   });
   it("hands client navigation from the lightweight landing to the workspace", () => {
     assert.equal(welcomeEntryTarget({ pathname: "/start", search: "?ref=program-x", hash: "" }, firstVisit), "/start?ref=program-x");
+  });
+});
+
+describe("signed-in account holders land on Today", () => {
+  it("never redirects a signed-in user from / to /welcome, even if they skipped onboarding", () => {
+    assert.equal(welcomeRedirectTarget("/", "", { ...firstVisit, signedIn: true }), null);
+    assert.equal(welcomeRedirectTarget("/", "?ref=program-x", { ...firstVisit, signedIn: true }), null);
+    assert.equal(welcomeRedirectTarget("/", "", { ...firstVisit, signedIn: false }), "/welcome");
+  });
+
+  it("the shell checks the session before showing a flag-less visitor the landing page", () => {
+    assert.equal(homeEntry("/", { ...firstVisit, signedIn: undefined }), "checking");
+    assert.equal(homeEntry("/", { ...firstVisit, signedIn: true }), "workspace");
+    assert.equal(homeEntry("/", { ...firstVisit, signedIn: false }), "landing", "brand-new guests still get /welcome");
+  });
+
+  it("needs no check when local flags already decide, or off the home page", () => {
+    assert.equal(homeEntry("/", { welcomeSeen: true, onboardingDone: false, signedIn: undefined }), "workspace");
+    assert.equal(homeEntry("/", { welcomeSeen: false, onboardingDone: true, signedIn: undefined }), "workspace");
+    assert.equal(homeEntry("/classes", { ...firstVisit, signedIn: undefined }), "workspace");
+    assert.equal(homeEntry("/?ref=x", { ...firstVisit, signedIn: undefined }), "checking");
+    assert.equal(homeEntry("/welcome", { welcomeSeen: true, onboardingDone: true, signedIn: true }), "landing");
   });
 });

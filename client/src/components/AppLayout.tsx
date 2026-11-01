@@ -391,7 +391,7 @@ function MobileBottomNav() {
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
   const [location] = useLocation();
-  const { user, isSignedIn } = useAuth();
+  const { user, isSignedIn, isLoading: authLoading } = useAuth();
   const isChromeFree =
     location === "/welcome" ||
     location === "/register" ||
@@ -437,11 +437,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             asChild
             data-testid="sidebar-account"
           >
-            <Link href="/account">
+            <Link href="/account" aria-busy={authLoading || undefined}>
               <UserRound className="h-4 w-4" />
-              <span className="truncate">
-                {isSignedIn ? (user?.displayName || user?.email) : "Sign in"}
-              </span>
+              {/* Until /api/auth/me answers we don't know who this is: a neutral
+                  "Account" with a placeholder bar, never a "Sign in" that then
+                  flips to the user's name. */}
+              {authLoading ? (
+                <span className="flex min-w-0 flex-1 items-center gap-2" data-testid="sidebar-account-loading">
+                  <span className="sr-only">Account (loading)</span>
+                  <span aria-hidden className="h-3 w-24 rounded bg-muted" />
+                </span>
+              ) : (
+                <span className="truncate">
+                  {isSignedIn ? (user?.displayName || user?.email) : "Sign in"}
+                </span>
+              )}
             </Link>
           </Button>
           <Button

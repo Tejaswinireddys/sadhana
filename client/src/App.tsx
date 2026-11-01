@@ -18,6 +18,8 @@ import { ConnectivityBanner } from "@/components/ConnectivityBanner";
 import { LegalConsentBanner } from "@/components/LegalConsentBanner";
 import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { welcomeRedirectTarget } from "@/lib/welcomeGate";
+import { markWelcomeSeen } from "@/lib/welcomeSeen";
+import { useAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ContentAccessGate } from "@/components/ContentAccessGate";
 import { PageFade } from "@/components/motion";
@@ -95,8 +97,17 @@ function RouteFallback() {
 
 function WelcomeRedirect() {
   const [location, navigate] = useLocation();
+  const { isSignedIn, isLoading } = useAuth();
   useEffect(() => {
     if (readString(KEYS.welcomeSeen)) return;
+    // Account holders land on Today whether or not they did onboarding;
+    // remember it so the shell and the server skip /welcome next time too.
+    if (isSignedIn) {
+      markWelcomeSeen();
+      return;
+    }
+    // Wait for the session check rather than bouncing a signed-in user.
+    if (isLoading) return;
     // Existing users who already finished onboarding skip the marketing page.
     if (readString(KEYS.onboardingDone)) {
       writeString(KEYS.welcomeSeen, "1");
@@ -109,7 +120,7 @@ function WelcomeRedirect() {
       onboardingDone: !!readString(KEYS.onboardingDone),
     });
     if (target) navigate(target, { replace: true });
-  }, [location, navigate]);
+  }, [location, navigate, isSignedIn, isLoading]);
   return null;
 }
 
