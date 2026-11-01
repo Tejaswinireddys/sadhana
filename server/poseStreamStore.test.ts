@@ -45,3 +45,20 @@ it("Mux captions belong to the uploaded clip and class keys do not overwrite pos
   assert.equal((await getPosePlayback("class-mux-caption-fixture"))?.playbackId, "classFixture");
   assert.equal((await buildPoseMediaManifest("class-mux-caption-fixture")).video?.captions, null);
 });
+
+
+it("signed Mux metadata persists and manifests never manufacture public URLs or local fallbacks", async () => {
+  await upsertPosePlayback("signed-media-fixture", "signedPlayback", "mux", "/captions/uploads/signed.vtt", { assetId: "assetSigned", playbackPolicy: "signed" });
+  const row = await getPosePlayback("signed-media-fixture");
+  assert.equal(row?.assetId, "assetSigned");
+  assert.equal(row?.playbackPolicy, "signed");
+  const unsigned = await buildPoseMediaManifest("signed-media-fixture");
+  assert.equal(unsigned.video?.playbackPolicy, "signed");
+  assert.equal(unsigned.video?.hls, null);
+  assert.equal(unsigned.video?.mp4, null);
+  assert.equal(unsigned.video?.playbackId, null);
+  const signed = await buildPoseMediaManifest("signed-media-fixture", "jwt_fixture");
+  assert.equal(signed.video?.hls, "https://stream.mux.com/signedPlayback.m3u8?token=jwt_fixture");
+  assert.equal(signed.video?.captions, "/captions/uploads/signed.vtt");
+  assert.equal(signed.video?.mp4, null);
+});

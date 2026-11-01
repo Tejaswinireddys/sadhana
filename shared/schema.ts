@@ -1,7 +1,8 @@
+import type { BillingEntitlement, PendingConsent, PurchaseRecord, ConsentAuditEntry, AccountCancellation } from "./billing";
 import { passwordSchema, credentialsSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema, resendVerificationSchema, MIN_HOLD_SECONDS, MAX_HOLD_SECONDS, posePlanSchema, clampHoldSeconds } from "./validation";
 export { passwordSchema, credentialsSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema, resendVerificationSchema, MIN_HOLD_SECONDS, MAX_HOLD_SECONDS, posePlanSchema, clampHoldSeconds } from "./validation";
 export type { Credentials, LoginCredentials, PosePlan } from "./validation";
-import { pgTable, text, integer, serial, boolean, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, serial, boolean, uniqueIndex, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -196,10 +197,13 @@ export const entitlements = pgTable(
     renewsAt: text("renews_at"),
     stripeCustomerId: text("stripe_customer_id"),
     stripeSubscriptionId: text("stripe_subscription_id"),
+    billingDetails: jsonb("billing_details").$type<BillingEntitlement>(),
     updatedAt: text("updated_at").notNull(),
   },
   (t) => ({
     ownerUnique: uniqueIndex("entitlements_owner_id_unique").on(t.ownerId),
+    customerUnique: uniqueIndex("entitlements_stripe_customer_id_unique").on(t.stripeCustomerId),
+    subscriptionUnique: uniqueIndex("entitlements_stripe_subscription_id_unique").on(t.stripeSubscriptionId),
   }),
 );
 export type Entitlement = typeof entitlements.$inferSelect;
@@ -253,6 +257,8 @@ export const poseMedia = pgTable(
     id: serial("id").primaryKey(),
     slug: text("slug").notNull(),
     playbackId: text("playback_id").notNull(),
+    assetId: text("asset_id"),
+    playbackPolicy: text("playback_policy").notNull().default("public"),
     captionsUrl: text("captions_url"),
     /** Optional per-row override; otherwise STREAM_PROVIDER env applies. */
     provider: text("provider"),
@@ -348,3 +354,36 @@ export const insertCustomFlowSchema = createInsertSchema(customFlows)
   });
 export type InsertCustomFlow = z.infer<typeof insertCustomFlowSchema>;
 export type CustomFlow = typeof customFlows.$inferSelect;
+
+
+// JSONB preserves the exact captured billing payload, including monetary units and terms.
+export const billingPendingConsent = pgTable("billing_pending_consent", {
+  ownerId: text("owner_id").primaryKey(),
+  record: jsonb("record").$type<PendingConsent>().notNull(),
+});
+export const billingPurchases = pgTable("billing_purchases", {
+  sequence: serial("sequence").notNull(),
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id").notNull(),
+  chargedAt: text("charged_at").notNull(),
+  record: jsonb("record").$type<PurchaseRecord>().notNull(),
+}, (t) => [index("billing_purchases_owner_idx").on(t.ownerId)]);
+export const billingConsentAudit = pgTable("billing_consent_audit", {
+  id: text("id").primaryKey(),
+  sequence: serial("sequence").notNull(),
+  ownerId: text("owner_id"),
+  kind: text("kind", { enum: ["consent", "account_cancellation"] }).notNull(),
+  record: jsonb("record").$type<ConsentAuditEntry | AccountCancellation>().notNull(),
+}, (t) => [index("billing_consent_audit_owner_idx").on(t.ownerId)]);
+export const billingPaywallSnapshots = pgTable("billing_paywall_snapshots", {
+  id: text("id").primaryKey(),
+  html: text("html").notNull(),
+});
+
+
+export const stripeEvents = pgTable("stripe_events", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  processedAt: text("processed_at").notNull(),
+});
+export type StripeEventRecord = typeof stripeEvents.$inferSelect;

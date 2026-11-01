@@ -139,6 +139,11 @@ export function createRateLimiter(opts: {
   };
 }
 
+/** Exact webhook route only: retries are authenticated by Stripe signatures, not IP quotas. */
+export function isStripeWebhookRequest(req: Pick<Request, "originalUrl">): boolean {
+  return req.originalUrl.split("?")[0].replace(/\/+$/, "").toLowerCase() === "/api/billing/webhook";
+}
+
 /**
  * Reject cross-site state-changing requests that carry cookies.
  * SameSite=Lax helps; Origin/Referer checks close the remaining gap.
@@ -154,7 +159,7 @@ export function requireSameOrigin(req: Request, res: Response, next: NextFunctio
   // Stripe webhooks are signed; Origin is absent by design.
   // Stripe webhooks + emailed one-click cancel links are cross-origin by design.
   if (
-    req.originalUrl.startsWith("/api/billing/webhook") ||
+    isStripeWebhookRequest(req) ||
     req.originalUrl.startsWith("/api/billing/cancel-token") ||
     req.originalUrl.startsWith("/api/billing/dispatch-renewal-reminders")
   ) {
@@ -236,6 +241,7 @@ export function mountSecurity(app: Express) {
     if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
       return next();
     }
+    if (isStripeWebhookRequest(req)) return next();
     // Billing + auth already have tighter limiters; still count toward write budget.
     return apiWriteLimit(req, res, next);
   });

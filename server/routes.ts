@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import type { Server } from "node:http";
+import { cancelSubscriptionsForAccountDeletion, type AccountDeletionStripe } from "./accountDeletion";
 import { storage } from "./storage";
+import { buildAuthorizedMedia, registerMuxPlaybackRoutes } from "./muxPlayback";
 import { registerContentAccess } from "./contentAccess";
 import { ownerMiddleware } from "./owner";
 import {
@@ -56,7 +58,7 @@ import { buildPoseMediaManifest, isSafeSlug } from "./poseMediaManifest";
 import { ensureNeuralTts, readCachedTts, ttsConfigured } from "./tts";
 import { upsertPosePlayback } from "./poseStreamStore";
 import { streamProvider, type StreamProvider } from "./streamConfig";
-import { PATHWAYS } from "../client/src/data/content";
+import { ASANAS, PATHWAYS } from "../client/src/data/content";
 import { requireContentAccess } from "./contentAccess";
 import { computeStats } from "@shared/practiceStats";
 
@@ -92,9 +94,10 @@ async function issueVerification(user: User): Promise<string> {
   return token;
 }
 
-export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
+export async function registerRoutes(httpServer: Server, app: Express, options: { stripe?: AccountDeletionStripe | null } = {}): Promise<Server> {
   app.use("/api", ownerMiddleware);
   registerContentAccess(app);
+  registerMuxPlaybackRoutes(app);
 
   // ---- Accounts (optional — guests keep practising on the device owner) ----
   const isSecure = (req: { protocol: string; get(name: string): string | undefined }) =>
@@ -373,6 +376,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return res.status(401).json({ error: "Password is incorrect" });
     }
     const email = user.email;
+    try {
+      await cancelSubscriptionsForAccountDeletion(user.id, storage, options.stripe);
+    } catch {
+      return res.status(502).json({ error: "Could not confirm subscription cancellation. Your account was not deleted. Please try again.", code: "SUBSCRIPTION_CANCELLATION_FAILED" });
+    }
     await storage.deleteUser(user.id);
     void sendAccountDeletedEmail({ to: email });
     res.setHeader("Set-Cookie", clearedAuthCookie(isSecure(req)));
@@ -487,7 +495,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.delete("/api/account/data", async (req, res) => {
-    await storage.clearOwnerData(req.ownerId);
+    // A practice-history reset must not detach a still-billable Stripe customer.
+    await storage.clearOwnerData(req.ownerId, { preserveBilling: true });
     res.status(204).end();
   });
   app.post("/api/account/import", async (req, res) => {
@@ -869,8 +878,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!isSafeSlug(slug)) {
       return res.status(400).json({ error: "Invalid pose slug" });
     }
-    res.setHeader("Cache-Control", "private, max-age=60");
-    res.json(await buildPoseMediaManifest(slug));
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(await buildAuthorizedMedia(slug, req.userId));
   });
 
   app.get("/api/classes/:slug/media", async (req, res, next) => {
@@ -879,8 +888,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     return requireContentAccess(pathway)(req, res, async (error) => {
       if (error) return next(error);
       try {
-        const manifest = await buildPoseMediaManifest(`class-${pathway.slug}`);
-        res.setHeader("Cache-Control", "private, max-age=60");
+        const manifest = await buildAuthorizedMedia(`class-${pathway.slug}`, req.userId);
+        res.setHeader("Cache-Control", "private, no-store");
         res.json({ video: manifest.video ? { ...manifest.video, poster: `/poses/${pathway.targetImgSlug}.png` } : null });
       } catch (error) { next(error); }
     });
@@ -915,7 +924,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       rawProvider === "mux" || rawProvider === "cloudflare" || rawProvider === "bunny"
         ? rawProvider
         : streamProvider();
-    const row = await upsertPosePlayback(slug, playbackId, provider);
+    const playbackPolicy = req.body?.playbackPolicy || "public";
+    const assetId = req.body?.assetId || null;
+    if (!["public", "signed"].includes(playbackPolicy) || (assetId !== null && (typeof assetId !== "string" || !/^[a-zA-Z0-9_-]+$/.test(assetId)))) {
+      return res.status(400).json({ error: "Invalid assetId or playbackPolicy" });
+    }
+    const content = ASANAS.find((row) => row.slug === slug) || PATHWAYS.find((row) => `class-${row.slug}` === slug);
+    if (provider === "mux" && content?.isPlus && playbackPolicy !== "signed") return res.status(400).json({ error: "Plus Mux video requires signed playback" });
+    const row = await upsertPosePlayback(slug, playbackId, provider, null, { assetId, playbackPolicy });
     res.json({
       slug: row.slug,
       playbackId: row.playbackId,

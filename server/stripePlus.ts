@@ -43,11 +43,19 @@ async function customerSubscriptions(stripe: Stripe, customer: string) {
   }
 }
 
+export class CheckoutVerificationError extends Error {
+  constructor() {
+    super("Verify your email address before subscribing to Plus.");
+    this.name = "CheckoutVerificationError";
+  }
+}
+
 /** Persist customer ownership before redirecting so the portal survives restarts. */
 export async function checkoutForUser(stripe: Stripe, store: IStorage, userId: number,
   interval: "month" | "year", origin: string, metadata: Record<string, string>) {
   const user = await store.getUserById(userId);
   if (!user) throw new Error("Account not found");
+  if (!user.emailVerified) throw new CheckoutVerificationError();
   const ownerId = `user:${userId}`;
   const existing = await store.getEntitlement(ownerId);
   let customer = existing?.stripeCustomerId;
@@ -77,39 +85,74 @@ export async function checkoutForUser(stripe: Stripe, store: IStorage, userId: n
   });
 }
 
-/** Reconcile current Stripe state: retries and delayed events cannot replay old access. */
-export async function syncPlusEvent(stripe: Stripe, store: IStorage, event: Stripe.Event) {
-  if (event.livemode) throw new Error("Live-mode events are not accepted");
-  let subscriptionId: string | undefined;
+export class UnmatchedStripeUserError extends Error {
+  constructor(public customerId?: string, public subscriptionId?: string) {
+    super("Stripe event has no matching user/customer binding");
+    this.name = "UnmatchedStripeUserError";
+  }
+}
+
+export function stripeEventReferences(event: Stripe.Event): { customerId?: string; subscriptionId?: string } | null {
+  const object = event.data.object;
+  let subscription: string | { id: string } | null | undefined;
+  let customer: string | { id: string } | null | undefined;
   if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    if (session.mode !== "subscription") return;
-    subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+    const session = object as Stripe.Checkout.Session;
+    if (session.mode !== "subscription") return null;
+    subscription = session.subscription;
+    customer = session.customer;
   } else if (["customer.subscription.updated", "customer.subscription.deleted"].includes(event.type)) {
-    subscriptionId = (event.data.object as Stripe.Subscription).id;
-  } else return;
-  if (!subscriptionId) throw new Error("Subscription reference missing");
-  const current = await stripe.subscriptions.retrieve(subscriptionId);
-  if (current.livemode) throw new Error("Live-mode subscriptions are not accepted");
-  const ownerId = current.metadata.ownerId || "";
-  const match = /^user:([1-9]\d*)$/.exec(ownerId);
-  if (!match) return; // Legacy guest subscriptions cannot grant account access.
-  const userId = Number(match[1]);
-  if (!await store.getUserById(userId)) return;
-  const customer = typeof current.customer === "string" ? current.customer : current.customer.id;
-  const stored = await store.getEntitlement(ownerId);
-  if (stored?.stripeCustomerId && stored.stripeCustomerId !== customer) throw new Error("Customer ownership mismatch");
-  const prices = Object.values(plusPriceIds()).filter(Boolean);
-  const subscriptions = await customerSubscriptions(stripe, customer);
-  const active = subscriptions.find((sub) => !sub.livemode && sub.metadata.ownerId === ownerId &&
-    ["active", "trialing"].includes(sub.status) && sub.items.data.some((item) => prices.includes(item.price.id)));
-  const source = active || current;
-  const periodEnd = source.items.data[0]?.current_period_end;
-  const plan = active ? "plus" : "free";
-  await store.upsertEntitlement(ownerId, {
-    plan, status: source.status,
-    stripeCustomerId: customer, stripeSubscriptionId: source.id,
-    renewsAt: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+    const sub = object as Stripe.Subscription;
+    subscription = sub.id;
+    customer = sub.customer;
+  } else if (["invoice.paid", "invoice.payment_failed"].includes(event.type)) {
+    const invoice = object as Stripe.Invoice & { subscription?: string | { id: string } | null };
+    subscription = invoice.parent?.subscription_details?.subscription || invoice.subscription;
+    customer = invoice.customer;
+  } else return null;
+  return {
+    customerId: typeof customer === "string" ? customer : customer?.id,
+    subscriptionId: typeof subscription === "string" ? subscription : subscription?.id,
+  };
+}
+
+/** Reconcile against a locked persisted customer binding, never metadata.ownerId. */
+export async function syncPlusEvent(stripe: Stripe, store: IStorage, event: Stripe.Event) {
+  return store.runInTransaction(async () => {
+    if (event.livemode) throw new Error("Live-mode events are not accepted");
+    const references = stripeEventReferences(event);
+    if (!references) return undefined;
+    let { customerId, subscriptionId } = references;
+    if (!customerId && subscriptionId) {
+      const sub = await stripe.subscriptions.retrieve(subscriptionId);
+      customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+    }
+    const stored = await store.findStripeEntitlement(customerId, subscriptionId);
+    const match = stored && /^user:([1-9]\d*)$/.exec(stored.ownerId);
+    if (!stored || !match || !customerId || stored.stripeCustomerId !== customerId) throw new UnmatchedStripeUserError(customerId, subscriptionId);
+    const user = await store.getUserById(Number(match[1]), true);
+    if (!user) throw new UnmatchedStripeUserError(customerId, subscriptionId);
+    // The binding lock is held before these reads so different event IDs for
+    // one customer cannot commit older Stripe state after newer state.
+    const current = subscriptionId ? await stripe.subscriptions.retrieve(subscriptionId) : undefined;
+    if (current?.livemode) throw new Error("Live-mode subscriptions are not accepted");
+    if (current && (typeof current.customer === "string" ? current.customer : current.customer.id) !== customerId) throw new UnmatchedStripeUserError(customerId, subscriptionId);
+    const prices = Object.values(plusPriceIds()).filter(Boolean);
+    const subscriptions = await customerSubscriptions(stripe, customerId);
+    const active = subscriptions.find((sub) => !sub.livemode &&
+      ["active", "trialing"].includes(sub.status) &&
+      (typeof sub.customer === "string" ? sub.customer : sub.customer.id) === customerId && sub.items.data.some((item) => prices.includes(item.price.id)));
+    const source = active || current || subscriptions.find((sub) => sub.id === stored.stripeSubscriptionId);
+    const plan = active ? "plus" : "free";
+    const periodEnd = source?.items.data[0]?.current_period_end;
+    await store.setUserPlan(user.id, plan);
+    // entitlements.plan is retained for legacy/guest history, but webhook access
+    // decisions and writes go only through users.plan.
+    await store.updateStripeEntitlement(stored.ownerId, {
+      status: source?.status || "inactive", stripeCustomerId: customerId,
+      stripeSubscriptionId: source?.id || stored.stripeSubscriptionId,
+      renewsAt: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+    });
+    return { user: { ...user, plan }, ownerId: stored.ownerId, stored, source, plan } as const;
   });
-  await store.setUserPlan(userId, plan);
 }

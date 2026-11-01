@@ -10,3 +10,10 @@ test("video source resolves Mux IDs, HLS query URLs, progressive files and missi
   assert.equal(resolveVideoSource({ videoUrl: "javascript:alert(1)" }), null);
   assert.equal(resolveVideoSource({ playbackId: "../bad" }), null);
 });
+
+
+test("signed playback cannot fall back to an unsigned playback ID", () => {
+  assert.equal(resolveVideoSource({ playbackId: "signedID", playbackPolicy: "signed" }), null);
+  const url = "https://stream.mux.com/signedID.m3u8?token=authorized";
+  assert.deepEqual(resolveVideoSource({ videoUrl: url, playbackId: "signedID", playbackPolicy: "signed" }), { url, hls: true });
+});

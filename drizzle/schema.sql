@@ -256,3 +256,44 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free' CHE
 
 -- Uploaded caption tracks are tied to their own stream, never generated clips.
 ALTER TABLE pose_media ADD COLUMN IF NOT EXISTS captions_url TEXT;
+
+
+ALTER TABLE entitlements ADD COLUMN IF NOT EXISTS billing_details JSONB;
+CREATE TABLE IF NOT EXISTS billing_pending_consent (
+  owner_id TEXT PRIMARY KEY,
+  record JSONB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS billing_purchases (
+  sequence SERIAL NOT NULL,
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL,
+  charged_at TEXT NOT NULL,
+  record JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS billing_purchases_owner_idx ON billing_purchases(owner_id);
+CREATE TABLE IF NOT EXISTS billing_consent_audit (
+  id TEXT PRIMARY KEY,
+  sequence SERIAL NOT NULL,
+  owner_id TEXT,
+  kind TEXT NOT NULL CHECK (kind IN ('consent', 'account_cancellation')),
+  record JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS billing_consent_audit_owner_idx ON billing_consent_audit(owner_id);
+CREATE TABLE IF NOT EXISTS billing_paywall_snapshots (
+  id TEXT PRIMARY KEY,
+  html TEXT NOT NULL
+);
+
+ALTER TABLE billing_purchases ADD COLUMN IF NOT EXISTS sequence SERIAL;
+
+
+CREATE UNIQUE INDEX IF NOT EXISTS entitlements_stripe_customer_id_unique ON entitlements(stripe_customer_id);
+CREATE UNIQUE INDEX IF NOT EXISTS entitlements_stripe_subscription_id_unique ON entitlements(stripe_subscription_id);
+CREATE TABLE IF NOT EXISTS stripe_events (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL,
+  processed_at TEXT NOT NULL
+);
+
+ALTER TABLE pose_media ADD COLUMN IF NOT EXISTS asset_id TEXT;
+ALTER TABLE pose_media ADD COLUMN IF NOT EXISTS playback_policy TEXT NOT NULL DEFAULT 'public';

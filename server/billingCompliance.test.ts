@@ -1,4 +1,5 @@
-import { describe, it } from "node:test";
+import { initStorage } from "./storage";
+import { before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   appendConsentAudit,
@@ -13,6 +14,7 @@ import {
 import { BILLING_TERMS_VERSION, isPaidActive, priceLabel } from "./billingCompliance";
 
 describe("billing compliance policy", () => {
+  before(() => initStorage());
   it("marks first-charge refund eligible for 14 days only", () => {
     const now = Date.parse("2026-08-10T12:00:00.000Z");
     const ent: BillingEntitlement = {
@@ -44,11 +46,11 @@ describe("billing compliance policy", () => {
     );
   });
 
-  it("appends immutable consent audit with paywall snapshot id", () => {
+  it("appends immutable consent audit with paywall snapshot id", async () => {
     const ownerId = `audit-test-${Date.now()}`;
-    const before = readConsentAudit(ownerId).length;
-    const snap = savePaywallSnapshot("<div data-testid='paywall'>Plus $9.99/mo</div>");
-    const a = appendConsentAudit({
+    const before = (await readConsentAudit(ownerId)).length;
+    const snap = await savePaywallSnapshot("<div data-testid='paywall'>Plus $9.99/mo</div>");
+    const a = await appendConsentAudit({
       ownerId,
       ip: "203.0.113.9",
       userAgent: "test",
@@ -61,7 +63,7 @@ describe("billing compliance policy", () => {
       termsDisplayed: "Cancel in two taps.",
       paywallSnapshotId: snap,
     });
-    appendConsentAudit({
+    await appendConsentAudit({
       ownerId,
       ip: "203.0.113.9",
       userAgent: "test",
@@ -74,13 +76,13 @@ describe("billing compliance policy", () => {
       termsDisplayed: "Cancel in two taps.",
       paywallSnapshotId: snap,
     });
-    const rows = readConsentAudit(ownerId);
+    const rows = await readConsentAudit(ownerId);
     assert.equal(rows.length, before + 2);
     assert.equal(rows[0]!.id, a.id);
     assert.equal(rows[0]!.ip, "203.0.113.9");
     assert.match(rows[0]!.priceDisplayed, /\$9\.99/);
     // Prior rows are never rewritten — ids remain stable on re-read.
-    assert.equal(readConsentAudit(ownerId)[0]!.id, a.id);
+    assert.equal((await readConsentAudit(ownerId))[0]!.id, a.id);
   });
 
   it("verifies one-click cancel tokens", () => {

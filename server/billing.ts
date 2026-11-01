@@ -1,4 +1,5 @@
-import { checkoutForUser, checkoutRequestSchema, isStripeTestKey, plusPrice, syncPlusEvent } from "./stripePlus";
+import { CheckoutVerificationError, checkoutForUser, checkoutRequestSchema, isStripeTestKey, plusPrice } from "./stripePlus";
+import { processStripeWebhook, type StripeWebhookOptions } from "./stripeWebhook";
 import { publicAppOrigin } from "./publicUrl";
 import { billingEnabled } from "./publicConfig";
 /**
@@ -10,7 +11,6 @@ import Stripe from "stripe";
 import { createRateLimiter } from "./security";
 import {
   allEntitlements,
-  appendConsentAudit,
   getEntitlement,
   getPendingConsent,
   issueCancelToken,
@@ -18,14 +18,11 @@ import {
   purchasesForOwner,
   refundEligible,
   savePaywallSnapshot,
-  savePurchase,
   setEntitlement,
   setPendingConsent,
-  takePendingConsent,
   updatePurchase,
   verifyCancelToken,
   type BillingEntitlement,
-  type BillingInterval,
 } from "./billingStore";
 import {
   BILLING_TERMS_VERSION,
@@ -75,13 +72,6 @@ function subscriptionPeriodEnd(sub: Stripe.Subscription): number | null {
   return typeof legacy.current_period_end === "number" ? legacy.current_period_end : null;
 }
 
-function invoiceSubscriptionId(inv: Stripe.Invoice): string | undefined {
-  const loose = inv as unknown as { subscription?: string | { id: string } | null };
-  if (typeof loose.subscription === "string") return loose.subscription;
-  if (loose.subscription && typeof loose.subscription === "object") return loose.subscription.id;
-  return undefined;
-}
-
 function invoicePaymentIntentId(inv: Stripe.Invoice): string | undefined {
   const loose = inv as unknown as { payment_intent?: string | { id: string } | null };
   if (typeof loose.payment_intent === "string") return loose.payment_intent;
@@ -89,8 +79,8 @@ function invoicePaymentIntentId(inv: Stripe.Invoice): string | undefined {
   return undefined;
 }
 
-function publicEntitlement(ownerId: string) {
-  const row = getEntitlement(ownerId) || {
+async function publicEntitlement(ownerId: string) {
+  const row = await getEntitlement(ownerId) || {
     plan: "free",
     status: "active",
     renewsAt: null,
@@ -117,7 +107,7 @@ async function performCancel(
   ownerId: string,
   origin: string,
 ): Promise<{ ok: true; accessUntil: string } | { ok: false; status: number; error: string }> {
-  const row = getEntitlement(ownerId);
+  const row = await getEntitlement(ownerId);
   if (!isPaidActive(row) || !row) {
     return { ok: false, status: 404, error: "No active paid subscription" };
   }
@@ -158,7 +148,7 @@ async function performCancel(
     // Keep plan paid until period end so access continues.
     status: row.status === "trialing" ? "trialing" : "active",
   };
-  setEntitlement(ownerId, next);
+  await setEntitlement(ownerId, next);
 
   const cancelUrl = `${origin}/cancel?token=${encodeURIComponent(raw)}`;
   if (row.email) {
@@ -176,7 +166,7 @@ async function performCancel(
   return { ok: true, accessUntil };
 }
 
-export function registerBillingRoutes(app: Express, stripeClient: Stripe | null = stripe) {
+export function registerBillingRoutes(app: Express, stripeClient: Stripe | null = stripe, webhookOptions: StripeWebhookOptions = {}) {
   const stripe = stripeClient;
   app.get("/api/billing/config", async (_req, res) => {
     let prices;
@@ -199,14 +189,14 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
     });
   });
 
-  app.get("/api/billing/entitlement", (req, res) => {
-    res.json(publicEntitlement(req.ownerId || ""));
+  app.get("/api/billing/entitlement", async (req, res) => {
+    res.json(await publicEntitlement(req.ownerId || ""));
   });
 
   /** Preview for the single confirmation screen (tap 2). */
-  app.get("/api/billing/cancel-preview", (req, res) => {
+  app.get("/api/billing/cancel-preview", async (req, res) => {
     const ownerId = req.ownerId || "";
-    const row = getEntitlement(ownerId);
+    const row = await getEntitlement(ownerId);
     if (!isPaidActive(row) || !row) {
       return res.status(404).json({ error: "No active paid subscription to cancel" });
     }
@@ -243,7 +233,7 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
     const token = String(req.body?.token || req.query?.token || "");
     if (!token) return res.status(400).json({ error: "Missing cancel token" });
     let ownerId = "";
-    for (const [id, ent] of allEntitlements()) {
+    for (const [id, ent] of await allEntitlements()) {
       if (verifyCancelToken(token, ent.cancelTokenHash)) {
         ownerId = id;
         break;
@@ -259,7 +249,7 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
     const token = String(req.query?.token || "");
     if (!token) return res.status(400).json({ error: "Missing cancel token" });
     let ownerId = "";
-    for (const [id, ent] of allEntitlements()) {
+    for (const [id, ent] of await allEntitlements()) {
       if (verifyCancelToken(token, ent.cancelTokenHash)) {
         ownerId = id;
         break;
@@ -273,7 +263,7 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
   });
 
   /** Capture consent + exact paywall HTML before Stripe Checkout. */
-  app.post("/api/billing/consent", billLimit, (req: Request, res: Response) => {
+  app.post("/api/billing/consent", billLimit, async (req: Request, res: Response) => {
     const ownerId = req.ownerId || "";
     const plan = String(req.body?.plan || "");
     const interval = String(req.body?.interval || "month") === "year" ? "year" : "month";
@@ -295,8 +285,8 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
       return res.status(400).json({ error: "paywallHtml snapshot required" });
     }
     const email = String(req.body?.email || "").trim().toLowerCase().slice(0, 200) || undefined;
-    const snapshotId = savePaywallSnapshot(paywallHtml);
-    setPendingConsent(ownerId, {
+    const snapshotId = await savePaywallSnapshot(paywallHtml);
+    await setPendingConsent(ownerId, {
       ownerId,
       plan,
       interval,
@@ -315,19 +305,22 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
   });
 
   app.post("/api/billing/checkout", billLimit, async (req: Request, res: Response) => {
+    if (!req.userId) return res.status(401).json({ error: "Sign in to subscribe" });
+    const user = await storage.getUserById(req.userId);
+    if (!user) return res.status(401).json({ error: "Sign in to subscribe" });
+    if (!user.emailVerified) return res.status(403).json({ error: new CheckoutVerificationError().message, code: "EMAIL_NOT_VERIFIED" });
     if (!stripe || !billingEnabled() || !webhookSecret) {
       return res.status(503).json({
         error: "Billing is not configured on this deployment",
         hint: "Configure a Stripe test key, webhook signing secret, and Plus price IDs.",
       });
     }
-    if (!req.userId) return res.status(401).json({ error: "Sign in to subscribe" });
     const parsed = checkoutRequestSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Choose Plus monthly or yearly" });
     const { plan, interval } = parsed.data;
     const origin = publicAppOrigin();
     const ownerId = `user:${req.userId}`;
-    const pending = getPendingConsent(ownerId);
+    const pending = await getPendingConsent(ownerId);
 
     // Require a consent + paywall snapshot so every purchase has an audit trail.
     if (!pending || pending.plan !== plan || pending.interval !== interval) {
@@ -347,7 +340,7 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
       });
       res.json({ url: session.url });
     } catch (e) {
-      res.status(502).json({ error: (e as Error).message || "Checkout failed" });
+      res.status(e instanceof CheckoutVerificationError ? 403 : 502).json({ error: (e as Error).message || "Checkout failed" });
     }
   });
 
@@ -379,7 +372,7 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
   /** First-charge refund — self-serve, auto-approved within 14 days. */
   app.post("/api/billing/refund-first-charge", billLimit, async (req: Request, res: Response) => {
     const ownerId = req.ownerId || "";
-    const row = getEntitlement(ownerId);
+    const row = await getEntitlement(ownerId);
     if (!row || !refundEligible(row)) {
       return res.status(400).json({
         error: "Refund not available",
@@ -407,7 +400,7 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
     const amount = row.firstChargeAmount ?? row.amount ?? 0;
     const currency = row.firstChargeCurrency ?? row.currency ?? "USD";
     const now = new Date().toISOString();
-    setEntitlement(ownerId, {
+    await setEntitlement(ownerId, {
       ...row,
       refundedAt: now,
       plan: "free",
@@ -416,8 +409,8 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
       accessUntil: now,
     });
     if (req.userId) await storage.setUserPlan(req.userId, "free");
-    const purchases = purchasesForOwner(ownerId).filter((p) => p.isFirstCharge && !p.refundedAt);
-    for (const p of purchases) updatePurchase(p.id, { refundedAt: now });
+    const purchases = (await purchasesForOwner(ownerId)).filter((p) => p.isFirstCharge && !p.refundedAt);
+    for (const p of purchases) await updatePurchase(p.id, { refundedAt: now });
 
     if (row.email) {
       void sendRefundConfirmationEmail({ to: row.email, amount, currency });
@@ -436,7 +429,7 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
    * Local/demo helper: seed a paid entitlement so the two-tap cancel path can be
    * exercised without Stripe. Disabled in production unless BILLING_COMPLIANCE_DEMO=1.
    */
-  app.post("/api/billing/demo-subscribe", billLimit, (req: Request, res: Response) => {
+  app.post("/api/billing/demo-subscribe", billLimit, async (req: Request, res: Response) => {
     const allow =
       process.env.BILLING_COMPLIANCE_DEMO === "1" || process.env.NODE_ENV !== "production";
     if (!allow) return res.status(404).json({ error: "Not found" });
@@ -449,7 +442,7 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
     // demo entitlement must never reach a real mailbox.
     const email = String(req.body?.email || "demo@example.com").trim().toLowerCase();
     const { hash } = issueCancelToken();
-    setEntitlement(ownerId, {
+    await setEntitlement(ownerId, {
       plan,
       status: "active",
       renewsAt,
@@ -463,7 +456,7 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
       cancelTokenHash: hash,
       termsVersion: BILLING_TERMS_VERSION,
     });
-    res.json({ ok: true, entitlement: publicEntitlement(ownerId) });
+    res.json({ ok: true, entitlement: await publicEntitlement(ownerId) });
   });
 
   /** Cron / scheduler entry — also called from in-process timer. */
@@ -494,288 +487,32 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
 
     if (event.livemode) return res.status(400).json({ error: "Only Stripe test-mode events are accepted" });
 
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const ownerId = session.metadata?.ownerId || session.client_reference_id || "";
-      const plan = session.metadata?.sadhanaPlan || "plus";
-      const interval = (session.metadata?.interval === "year" ? "year" : "month") as BillingInterval;
-      const customerId =
-        typeof session.customer === "string" ? session.customer : session.customer?.id;
-      const subscriptionId =
-        typeof session.subscription === "string"
-          ? session.subscription
-          : session.subscription?.id;
-      if (ownerId) {
-        const pending = takePendingConsent(ownerId);
-        const amount =
-          pending?.amount ??
-          (typeof session.amount_total === "number" ? session.amount_total / 100 : catalogAmount(plan, interval));
-        const currency = (
-          pending?.currency ||
-          session.currency ||
-          "usd"
-        ).toUpperCase();
-        const email =
-          pending?.email ||
-          session.customer_details?.email ||
-          session.customer_email ||
-          getEntitlement(ownerId)?.email;
-
-        let renewsAt: string | null = null;
-        if (stripe && subscriptionId) {
-          try {
-            const sub = await stripe.subscriptions.retrieve(subscriptionId);
-            const periodEnd = subscriptionPeriodEnd(sub);
-            if (periodEnd) {
-              renewsAt = new Date(periodEnd * 1000).toISOString();
-            }
-          } catch {
-            /* ignore */
-          }
-        }
-
-        const snapshotId =
-          pending?.paywallSnapshotId ||
-          session.metadata?.paywallSnapshotId ||
-          savePaywallSnapshot("<!-- missing client snapshot; webhook placeholder -->");
-
-        const audit = appendConsentAudit({
-          ownerId,
-          ip: pending?.ip || "stripe-webhook",
-          userAgent: pending?.userAgent || "stripe-webhook",
-          plan,
-          interval,
-          amount,
-          currency,
-          termsVersion: pending?.termsVersion || BILLING_TERMS_VERSION,
-          priceDisplayed: pending?.priceDisplayed || priceLabel(amount, currency, interval),
-          termsDisplayed: pending?.termsDisplayed || DEFAULT_TERMS_DISPLAYED,
-          paywallSnapshotId: snapshotId,
-          checkoutSessionId: session.id,
-          stripeSubscriptionId: subscriptionId || null,
-        });
-
-        const prev = getEntitlement(ownerId);
-        const isFirst = !prev?.firstChargedAt;
-        const { hash } = issueCancelToken();
-        // Issue a fresh token for reminder one-click links; raw is regenerated on reminder send.
-
-        setEntitlement(ownerId, {
-          plan,
-          status: "active",
-          renewsAt,
-          stripeCustomerId: customerId || prev?.stripeCustomerId,
-          stripeSubscriptionId: subscriptionId || prev?.stripeSubscriptionId,
-          email: email || prev?.email,
-          interval,
-          amount,
-          currency,
-          accessUntil: null,
-          cancelAtPeriodEnd: false,
-          canceledAt: null,
-          firstChargedAt: prev?.firstChargedAt || new Date().toISOString(),
-          firstChargeAmount: prev?.firstChargeAmount ?? amount,
-          firstChargeCurrency: prev?.firstChargeCurrency ?? currency,
-          refundedAt: null,
-          cancelTokenHash: prev?.cancelTokenHash || hash,
-          termsVersion: audit.termsVersion,
-          paywallSnapshotId: snapshotId,
-          consentAuditId: audit.id,
-        });
-
-        savePurchase({
-          id: session.id,
-          ownerId,
-          plan,
-          interval,
-          amount,
-          currency,
-          chargedAt: new Date().toISOString(),
-          paywallSnapshotId: snapshotId,
-          consentAuditId: audit.id,
-          stripeCheckoutSessionId: session.id,
-          isFirstCharge: isFirst,
-          refundedAt: null,
-        });
-        await storage.upsertEntitlement(ownerId, {
-          plan,
-          status: "active",
-          renewsAt,
-          stripeCustomerId: customerId || prev?.stripeCustomerId || null,
-          stripeSubscriptionId: subscriptionId || prev?.stripeSubscriptionId || null,
-        });
-        void captureServerEvent(ownerId, "purchase_completed", {
-          flow_id: session.metadata?.flow_id || "plus_page",
-          plan,
-          amount,
-          currency,
-        });
-        if (email) {
-          void sendSubscriptionStartedEmail({
-            to: email,
-            plan,
-            manageUrl: `${appBaseUrl()}/plus`,
-          });
-        }
-      }
+    try {
+      const result = await processStripeWebhook(stripe, storage, event, {
+        ...webhookOptions,
+        notify: webhookOptions.notify || (async (notification) => {
+          const { ownerId, plan, email } = notification;
+          if (notification.kind === "purchase_completed") await captureServerEvent(ownerId, "purchase_completed", { flow_id: "plus_page", plan, amount: notification.amount || 0, currency: notification.currency || "USD" });
+          if (notification.kind === "subscription_started") await sendSubscriptionStartedEmail({ to: email, plan, manageUrl: `${appBaseUrl()}/plus` });
+          if (notification.kind === "payment_failed") await sendPaymentFailedEmail({ to: email, plan, manageUrl: `${appBaseUrl()}/plus` });
+          if (notification.kind === "subscription_cancelled") await captureServerEvent(ownerId, "subscription_cancelled", { days_active: notification.daysActive || 0, sessions_completed: notification.sessionsCompleted || 0 });
+        }),
+      });
+      res.json(result);
+    } catch {
+      // No event marker or partial account changes survive; Stripe can retry.
+      res.status(503).json({ error: "Stripe webhook could not be reconciled; retry later" });
     }
-
-    if (event.type === "invoice.payment_failed") {
-      const invoice = event.data.object as Stripe.Invoice;
-      const subId = invoiceSubscriptionId(invoice);
-      let ownerId = "";
-      let plan = "plus";
-      if (subId) {
-        for (const [oid, ent] of allEntitlements()) {
-          if (ent.stripeSubscriptionId !== subId) continue;
-          ownerId = oid;
-          plan = ent.plan || "plus";
-          setEntitlement(oid, { ...ent, status: "past_due" });
-          break;
-        }
-      }
-      const email =
-        (ownerId ? getEntitlement(ownerId)?.email : undefined) ||
-        invoice.customer_email ||
-        undefined;
-      if (email) {
-        void sendPaymentFailedEmail({
-          to: email,
-          plan,
-          manageUrl: `${appBaseUrl()}/plus`,
-        });
-      }
-    }
-
-    if (event.type === "invoice.paid") {
-      const inv = event.data.object as Stripe.Invoice;
-      const subId = invoiceSubscriptionId(inv);
-      if (subId) {
-        for (const [ownerId, ent] of allEntitlements()) {
-          if (ent.stripeSubscriptionId !== subId) continue;
-          const renewsAt = inv.lines?.data?.[0]?.period?.end
-            ? new Date(inv.lines.data[0].period.end * 1000).toISOString()
-            : ent.renewsAt;
-          const pi = invoicePaymentIntentId(inv);
-          setEntitlement(ownerId, {
-            ...ent,
-            renewsAt: renewsAt ?? ent.renewsAt,
-            firstChargedAt: ent.firstChargedAt || new Date().toISOString(),
-            firstChargeAmount:
-              ent.firstChargeAmount ??
-              (typeof inv.amount_paid === "number" ? inv.amount_paid / 100 : ent.amount),
-            firstChargeCurrency: ent.firstChargeCurrency || (inv.currency || "usd").toUpperCase(),
-            firstInvoiceId: ent.firstInvoiceId || inv.id,
-            firstPaymentIntentId: ent.firstPaymentIntentId || pi || null,
-            email: ent.email || inv.customer_email || undefined,
-            cancelAtPeriodEnd: false,
-          });
-          break;
-        }
-      }
-    }
-
-    if (event.type === "customer.subscription.updated") {
-      const sub = event.data.object as Stripe.Subscription;
-      const ownerId = sub.metadata?.ownerId || "";
-      const plan = sub.metadata?.sadhanaPlan || getEntitlement(ownerId)?.plan || "plus";
-      if (ownerId) {
-        const prev = getEntitlement(ownerId);
-        const periodEnd = subscriptionPeriodEnd(sub);
-        const renewsAt = periodEnd
-          ? new Date(periodEnd * 1000).toISOString()
-          : prev?.renewsAt ?? null;
-        setEntitlement(ownerId, {
-          plan:
-            sub.status === "active" || sub.status === "trialing" || sub.cancel_at_period_end
-              ? plan
-              : "free",
-          status: sub.status,
-          renewsAt,
-          stripeCustomerId:
-            typeof sub.customer === "string" ? sub.customer : prev?.stripeCustomerId,
-          stripeSubscriptionId: sub.id,
-          email: prev?.email,
-          interval: prev?.interval,
-          amount: prev?.amount,
-          currency: prev?.currency,
-          accessUntil: sub.cancel_at_period_end ? renewsAt : null,
-          cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end),
-          canceledAt: sub.cancel_at_period_end ? prev?.canceledAt || new Date().toISOString() : null,
-          firstChargedAt: prev?.firstChargedAt,
-          firstChargeAmount: prev?.firstChargeAmount,
-          firstChargeCurrency: prev?.firstChargeCurrency,
-          firstInvoiceId: prev?.firstInvoiceId,
-          firstPaymentIntentId: prev?.firstPaymentIntentId,
-          refundedAt: prev?.refundedAt,
-          cancelTokenHash: prev?.cancelTokenHash,
-          termsVersion: prev?.termsVersion,
-          paywallSnapshotId: prev?.paywallSnapshotId,
-          consentAuditId: prev?.consentAuditId,
-          lastReminderForRenewalAt: prev?.lastReminderForRenewalAt,
-        });
-      }
-    }
-
-    if (event.type === "customer.subscription.deleted") {
-      const sub = event.data.object as Stripe.Subscription;
-      const ownerId = sub.metadata?.ownerId || "";
-      if (ownerId) {
-        const prev = getEntitlement(ownerId);
-        setEntitlement(ownerId, {
-          plan: "free",
-          status: "canceled",
-          renewsAt: null,
-          stripeCustomerId: prev?.stripeCustomerId,
-          stripeSubscriptionId: prev?.stripeSubscriptionId,
-          email: prev?.email,
-          accessUntil: new Date().toISOString(),
-          cancelAtPeriodEnd: false,
-          canceledAt: prev?.canceledAt || new Date().toISOString(),
-          firstChargedAt: prev?.firstChargedAt,
-          firstChargeAmount: prev?.firstChargeAmount,
-          firstChargeCurrency: prev?.firstChargeCurrency,
-          refundedAt: prev?.refundedAt,
-          cancelTokenHash: prev?.cancelTokenHash,
-          paywallSnapshotId: prev?.paywallSnapshotId,
-          consentAuditId: prev?.consentAuditId,
-        });
-        await storage.upsertEntitlement(ownerId, {
-          plan: "free",
-          status: "canceled",
-          renewsAt: null,
-          stripeCustomerId: prev?.stripeCustomerId ?? null,
-          stripeSubscriptionId: prev?.stripeSubscriptionId ?? null,
-        });
-        let sessionsCompleted = 0;
-        try {
-          sessionsCompleted = (await storage.getSessions(ownerId)).length;
-        } catch {
-          /* ignore */
-        }
-        const subscribedMs = prev?.firstChargedAt ? Date.parse(prev.firstChargedAt) : NaN;
-        const daysActive = Number.isFinite(subscribedMs)
-          ? Math.max(0, Math.floor((Date.now() - subscribedMs) / 86_400_000))
-          : 0;
-        void captureServerEvent(ownerId, "subscription_cancelled", {
-          days_active: daysActive,
-          sessions_completed: sessionsCompleted,
-        });
-      }
-    }
-
-    await syncPlusEvent(stripe, storage, event);
-    res.json({ received: true });
   });
 }
 
 export async function dispatchRenewalReminders(origin: string): Promise<number> {
   let sent = 0;
-  for (const [ownerId, ent] of allEntitlements()) {
+  for (const [ownerId, ent] of await allEntitlements()) {
     if (!needsRenewalReminder(ent)) continue;
     if (!ent.email || !ent.renewsAt) continue;
     const { raw, hash } = issueCancelToken();
-    setEntitlement(ownerId, {
+    await setEntitlement(ownerId, {
       ...ent,
       cancelTokenHash: hash,
       lastReminderForRenewalAt: ent.renewsAt,
@@ -792,7 +529,7 @@ export async function dispatchRenewalReminders(origin: string): Promise<number> 
     if (result.ok) sent += 1;
     else {
       // Roll back reminder marker so we retry.
-      setEntitlement(ownerId, { ...ent, cancelTokenHash: hash });
+      await setEntitlement(ownerId, { ...ent, cancelTokenHash: hash });
     }
     void ownerId;
   }
@@ -805,37 +542,15 @@ export function startBillingScheduler() {
       publicAppOrigin();
     void dispatchRenewalReminders(origin).then((n) => {
       if (n > 0) console.info(`[billing] sent ${n} renewal reminder(s)`);
-    });
+    }).catch(() => console.warn("[billing] Renewal reminder dispatch failed; will retry next tick"));
   };
   // Every 6 hours — covers the 3-day window without spam.
   setInterval(tick, 6 * 60 * 60 * 1000);
   setTimeout(tick, 45_000);
 }
 
-/**
- * Mirror `.data/billing-entitlements.json` rows into Postgres/memory storage.
- * Idempotent — skips owners that already have a storage row. Safe on every boot.
- */
+/** Compatibility entry point for explicit legacy entitlement imports. */
 export async function migrateBillingEntitlements(): Promise<number> {
-  let imported = 0;
-  try {
-    for (const [ownerId, e] of allEntitlements()) {
-      if (!ownerId) continue;
-      if (await storage.getEntitlement(ownerId)) continue;
-      await storage.upsertEntitlement(ownerId, {
-        plan: e.plan,
-        status: e.status,
-        renewsAt: e.renewsAt ?? null,
-        stripeCustomerId: e.stripeCustomerId ?? null,
-        stripeSubscriptionId: e.stripeSubscriptionId ?? null,
-      });
-      imported++;
-    }
-  } catch (err) {
-    console.warn("[billing] entitlement migration skipped:", (err as Error).message);
-  }
-  if (imported > 0) {
-    console.log(`[billing] mirrored ${imported} entitlement(s) into durable storage`);
-  }
-  return imported;
+  const { importLegacyBillingData } = await import("./billingMigration");
+  return (await importLegacyBillingData(storage, { onlyEntitlements: true })).entitlements;
 }

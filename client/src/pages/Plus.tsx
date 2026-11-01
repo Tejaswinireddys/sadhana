@@ -1,5 +1,5 @@
 import { BILLING_ENABLED } from "@/lib/publicConfig";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { FadeIn } from "@/components/motion";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,7 @@ export default function Plus() {
 function LivePlus() {
   useDocumentTitle("Sadhana Plus · Plans");
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const qc = useQueryClient();
   const paywallRef = useRef<HTMLDivElement>(null);
   const [plan, setPlan] = useState<PlanId>(() => readPreferredPlan());
@@ -54,7 +55,7 @@ function LivePlus() {
   const [busy, setBusy] = useState(false);
   const [confirmationDeadline] = useState(() => Date.now() + 60_000);
   const returnedFromCheckout = readUrlParam("checkout") === "success";
-  const { data: auth } = useQuery<AuthState>({
+  const { data: auth, isLoading: authLoading } = useQuery<AuthState>({
     queryKey: AUTH_QUERY_KEY,
     refetchInterval: (query) => returnedFromCheckout && query.state.data?.user?.plan !== "plus" && Date.now() < confirmationDeadline ? 2000 : false,
   });
@@ -107,7 +108,11 @@ function LivePlus() {
       return;
     }
     if (!auth?.user) {
-      toast({ title: "Sign in to subscribe", description: "Your Plus subscription belongs to your account." });
+      navigate("/account?tab=create");
+      return;
+    }
+    if (!auth.user.emailVerified) {
+      navigate(`/verify?email=${encodeURIComponent(auth.user.email)}`);
       return;
     }
     if (!billing.enabled || !billing.prices) {
@@ -287,7 +292,7 @@ function LivePlus() {
                 <Button
                   className="min-h-11 w-full"
                   variant={plan === p.id ? "default" : "outline"}
-                  disabled={busy || (p.id !== "free" && (!billing.enabled || hasPaidPlan))}
+                  disabled={busy || authLoading || (p.id !== "free" && (hasPaidPlan || (!!auth?.user?.emailVerified && !billing.enabled)))}
                   onClick={() => void selectPlan(p.id)}
                   data-testid={`plan-select-${p.id}`}
                 >

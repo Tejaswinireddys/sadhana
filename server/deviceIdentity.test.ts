@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { Request, Response } from "express";
@@ -80,7 +81,8 @@ describe("resolveDeviceOwner", () => {
     assert.equal(headers["X-Device-Proof"], deviceProof(A));
   });
 
-  it("rejects a bare header UUID without proof when legacy mode is off", () => {
+  it("rejects a bare header UUID without proof when legacy mode is off", (t) => {
+    mockEnv(t, "DEVICE_ID_SECRET", "production-fixture-secret");
     const prev = process.env.ALLOW_LEGACY_DEVICE_HEADER;
     const prevNode = process.env.NODE_ENV;
     process.env.ALLOW_LEGACY_DEVICE_HEADER = "0";
@@ -140,5 +142,49 @@ describe("resolveDeviceOwner", () => {
     assert.equal(verifyDeviceProof(A, proof), true);
     assert.equal(verifyDeviceProof(A, "nope"), false);
     assert.equal(verifyDeviceProof(B, proof), false);
+  });
+});
+
+
+function mockEnv(t: { after: (fn: () => void) => void }, key: string, value: string) {
+  const previous = process.env[key];
+  process.env[key] = value;
+  t.after(() => { if (previous === undefined) delete process.env[key]; else process.env[key] = previous; });
+}
+
+describe("device signing secret isolation", () => {
+  it("preserves existing production v1 cookies when billing/session secrets change", (t) => {
+    mockEnv(t, "NODE_ENV", "production");
+    mockEnv(t, "DEVICE_ID_SECRET", "existing-production-device-secret");
+    mockEnv(t, "BILLING_CANCEL_TOKEN_SECRET", "billing-before");
+    mockEnv(t, "SESSION_SECRET", "session-before");
+    // Reproduce the deployed v1 wire format independently of deviceProof.
+    const proof = createHmac("sha256", "existing-production-device-secret").update(`device:v1:${A}`).digest("base64url");
+    const cookie = `sadhana_device=v1.${A}.${proof}`;
+    mockEnv(t, "BILLING_CANCEL_TOKEN_SECRET", "billing-after");
+    mockEnv(t, "SESSION_SECRET", "session-after");
+    const { res, setCookies, headers } = fakeRes();
+    assert.equal(resolveDeviceOwner(fakeReq({ cookie }), res), A);
+    assert.equal(headers["X-Device-Proof"], proof);
+    assert.equal(setCookies.length, 0);
+  });
+
+  it("fails closed without the production device secret", (t) => {
+    mockEnv(t, "NODE_ENV", "production");
+    mockEnv(t, "DEVICE_ID_SECRET", "");
+    mockEnv(t, "SESSION_SECRET", "session");
+    mockEnv(t, "BILLING_CANCEL_TOKEN_SECRET", "billing");
+    assert.throws(() => deviceProof(A), /DEVICE_ID_SECRET is required/);
+  });
+
+  it("uses SESSION_SECRET only in development and never the billing secret", (t) => {
+    mockEnv(t, "NODE_ENV", "development");
+    mockEnv(t, "DEVICE_ID_SECRET", "");
+    mockEnv(t, "SESSION_SECRET", "dev-session");
+    mockEnv(t, "BILLING_CANCEL_TOKEN_SECRET", "billing");
+    const expected = createHmac("sha256", "dev-session").update(`device:v1:${A}`).digest("base64url");
+    assert.equal(deviceProof(A), expected);
+    mockEnv(t, "BILLING_CANCEL_TOKEN_SECRET", "rotated");
+    assert.equal(deviceProof(A), expected);
   });
 });

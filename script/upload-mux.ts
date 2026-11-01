@@ -28,6 +28,7 @@ async function main() {
   await mkdir(records, { recursive: true });
   const recordPath = resolve(records, `${key}.json`);
   const result = await uploadToMux({
+    isPlus: catalog.find((row) => row.slug === slug)!.isPlus,
     tokenId: process.env.MUX_TOKEN_ID, tokenSecret: process.env.MUX_TOKEN_SECRET,
     ...(info ? { body: Readable.toWeb(createReadStream(file!)) as BodyInit, size: info.size } : {}),
     resumeUploadId: resume,
@@ -42,7 +43,7 @@ async function main() {
   }
   initStorage();
   try {
-    await upsertPosePlayback(key, result.playbackId, "mux", captionsUrl);
+    await upsertPosePlayback(key, result.playbackId, "mux", captionsUrl, { assetId: result.assetId, playbackPolicy: result.playbackPolicy });
     await writeFile(recordPath, JSON.stringify({ ...result, kind, slug, captionsUrl, status: "ready" }, null, 2));
   } finally { await pool?.end(); }
   console.log(`Saved ${kind} ${slug}: playbackId=${result.playbackId}. Upload does not publish a reviewed teaching demonstration.`);

@@ -190,9 +190,9 @@ supported.
 
    Existing `STRIPE_PRICE_PLUS_MONTHLY` / `STRIPE_PRICE_PLUS_YEARLY` names are
    supported as fallback aliases. Use Postgres (`DATABASE_URL`) for durable
-   accounts, plans, and Stripe customer/subscription associations. Without it,
-   local memory storage resets when the server restarts. Existing consent and
-   paywall audit files under `.data/` also need persistent storage if retained.
+   accounts, plans, Stripe customer/subscription associations, consent, purchases,
+   audits and paywall snapshots. Without it, local memory storage resets when
+   the server restarts. See the one-off billing-data import instructions below.
 3. In Stripe's **test Customer Portal settings**, save a configuration that
    enables subscription management and cancellation at the end of the billing
    period. Keep the product catalog limited to the configured Plus prices if
@@ -222,7 +222,7 @@ supported.
    reconciliation reads current Stripe state, so repeated or delayed events
    cannot re-enable a canceled subscription or revoke a newer active one.
    Use a real test Checkout/Portal lifecycle to exercise the account mapping;
-   standalone `stripe trigger` fixtures usually lack app account metadata.
+   standalone `stripe trigger` fixtures usually lack a persisted customer/account binding.
 
 Endpoints:
 
@@ -234,6 +234,33 @@ Endpoints:
 - `POST /api/billing/webhook`: verifies `Stripe-Signature` against the original
   raw body and handles the subscription lifecycle. Failed processing returns
   a non-2xx response for Stripe to retry.
+
+Webhook processing claims each event ID in `stripe_events` and commits the
+marker, `users.plan`, entitlement status and billing records in one transaction.
+Concurrent duplicate deliveries have no additional effects; a failed transaction
+rolls back the marker so Stripe can retry. Different events for one customer are
+serialized while current subscription state is reconciled. `users.plan` is the
+account access authority; metadata `ownerId` cannot grant access. Customer and
+subscription bindings are unique, and supported events without a matching user
+return 503, log identifying event/reference IDs and alert through the existing
+error reporter (Sentry when `SENTRY_DSN` is configured). Repair the binding before
+retrying the event. The webhook bypasses the global write limiter but still
+requires a valid signature on every delivery. Notifications run after commit,
+are attempted once, and are not replayed on duplicate delivery; this is not a
+durable notification outbox.
+
+Before deploying the unique binding indexes, check existing data for duplicates:
+
+```sql
+SELECT stripe_customer_id, count(*) FROM entitlements
+WHERE stripe_customer_id IS NOT NULL GROUP BY stripe_customer_id HAVING count(*) > 1;
+SELECT stripe_subscription_id, count(*) FROM entitlements
+WHERE stripe_subscription_id IS NOT NULL GROUP BY stripe_subscription_id HAVING count(*) > 1;
+```
+
+Resolve conflicting ownership manually before boot/schema application; the
+migration deliberately fails rather than merging financial ownership. Event
+markers contain no owner data and remain after account deletion.
 
 Automated coverage uses a mocked Stripe API plus real SDK webhook signatures;
 no Stripe credentials or network payments are needed for `npm test`. A real
@@ -257,9 +284,9 @@ npm run upload:mux -- --kind pose --slug tadasana --file /path/to/pose.mp4 --cap
 npm run upload:mux -- --kind class --slug front-splits --file /path/to/class.mp4
 ```
 
-The script creates a public-playback Mux Direct Upload, streams the file using
+The script reads the catalog `isPlus` flag: Plus uploads request `playback_policies: ["signed"]`, and free uploads request `["public"]`. It streams the file using
 the signed upload URL, polls until the asset is ready, and saves its playback ID
-with `provider: "mux"`. It does not load the whole video into memory. Failed
+with `provider: "mux"`, `asset_id` and `playback_policy` in `pose_media`. It does not load the whole video into memory. Failed
 uploads/processing never install a new playback ID. Processing times out after
 about 15 minutes; the upload and asset IDs are saved under `.data/mux-uploads/`.
 After an interrupted processing wait, resume without uploading a second copy:
@@ -280,6 +307,32 @@ records. Refresh the page to clear cached media manifests. Keep `.data/` if
 using file-backed IDs across deployments, or use Postgres. Per-record Mux
 selection works with the existing default stream provider; no
 `STREAM_PROVIDER=mux` change is required.
+
+For Plus playback, create a Mux URL signing key and set server-only
+`MUX_SIGNING_KEY_ID` and `MUX_SIGNING_KEY_PRIVATE` (PEM or Mux's base64-encoded
+PEM). Never use a `VITE_` prefix for credentials. See
+[Mux signed playback](https://www.mux.com/docs/guides/secure-video-playback).
+
+`GET /api/poses/:slug/playback-token` (or
+`GET /api/classes/:slug/playback-token`) resolves the stored signed playback ID
+and checks the authenticated `users.plan` on every request. Guests/free accounts
+cannot obtain tokens, even by supplying a different playback ID or plan. It
+returns `{ token, expiresAt, playbackId, hls }`, with a 15-minute RS256 video JWT
+and `Cache-Control: private, no-store`. Media manifests use the same authorization
+and supply the signed HLS URL to the existing players. Signed manifests are not
+kept in the module cache; visible players refresh their query every 10 minutes.
+Missing signing keys fail closed. Public free URLs do not receive JWTs. Issued
+tokens remain usable until expiry after a downgrade; they are bearer credentials.
+
+Existing rows default to `public` for compatibility. Before marking existing Mux
+content Plus, create a signed playback ID for its asset, remove **all public
+playback IDs in Mux**, then update `pose_media` with the signed ID, `asset_id`
+and `playback_policy = 'signed'` (or re-upload with the catalog marked Plus).
+Changing a database flag alone cannot revoke an existing public Mux URL. The
+upload script rejects resumed Plus assets that retain public IDs. Plus manifests
+refuse known public Mux rows until migration; no remote assets are deleted by
+this script. Uploaded captions copied into static assets remain public; use
+Mux in-stream captions for caption content requiring the same protection.
 
 Optional `--captions` takes an English WebVTT file timed to the uploaded video.
 The script copies it to `client/public/captions/uploads/` and associates its URL
@@ -304,6 +357,103 @@ pose-media URL.
 For authored content, optional `videoUrl` or Mux `playbackId` fields on an asana
 or pathway can also drive the player; the admin script saves hosted IDs in the
 media store instead of editing the catalog or generated `data/poses.json`.
-Playback IDs in this integration are public. Uploading does not certify an
+Free videos use public playback; Plus videos use signed playback as described
+above. A signed playback ID alone does not grant access. Uploading does not certify an
 asset as a reviewed teaching demonstration or change any review status in
 `instructorMediaManifest.ts`; that remains a separate human content workflow.
+
+
+Account deletion (`DELETE /api/auth/account`) verifies the password, checks
+current Stripe subscriptions, and cancels active/trialing subscriptions
+immediately before deleting the account. Scheduled end-of-period cancellation
+is replaced by immediate cancellation. Stripe lookup/cancellation failures (or
+failure to record confirmation) return `502` with
+`SUBSCRIPTION_CANCELLATION_FAILED`; the account, session and practice data stay
+available for retry. This still requires test-mode Stripe credentials even if
+new Checkout is disabled.
+
+Confirmed cancellations are recorded in
+the `billing_consent_audit` table (`kind = account_cancellation`) with the subscription ID, Stripe's
+cancellation timestamp, and reason `account_deletion`, without owner IDs or
+email addresses. Full owner cleanup removes entitlement
+records and pending consent from the configured store. Guest-practice transfers remove the source billing
+record without changing destination account billing. A practice-history-only
+wipe retains the subscription/customer association. Late subscription webhooks
+for a deleted account are logged and alerted, returning 503 for investigation without recreating its entitlement. Already-processed event IDs are acknowledged as duplicates.
+
+
+## Billing data storage and one-off import
+
+With `DATABASE_URL`, all live billing records use Postgres through `IStorage`:
+
+- `billing_pending_consent`: one pending consent per owner, consumed with an
+  atomic `DELETE … RETURNING` so concurrent webhooks cannot both take it.
+- `billing_purchases`: original purchase fields, chronological order and refund
+  updates, indexed by owner.
+- `billing_consent_audit`: append-only captured consent payloads. Anonymous
+  account-cancellation confirmations use a separate `account_cancellation`
+  kind and are excluded from consent-audit reads.
+- `billing_paywall_snapshots`: immutable IDs and exact captured HTML; the
+  existing 500,000-character cap still applies to new snapshots.
+
+The existing `entitlements` table also keeps the full billing payload in
+`billing_details` (cancellation tokens, consent links, first-charge/refund
+fields, email and renewal reminders), alongside its existing core columns.
+There are no runtime billing reads or writes under `.data/`. Without
+`DATABASE_URL`, the same operations use isolated in-memory maps, which reset
+on restart. DB errors propagate to the API rather than silently switching to
+file storage; scheduled reminder errors are retried on the next tick.
+
+For an installation with legacy `.data/` billing files:
+
+1. Pause billing writes/the old app and back up its `.data/` directory.
+2. Validate the export without changing any data:
+
+   ```bash
+   npm run migrate:billing -- --directory /path/to/legacy/.data --dry-run
+   ```
+
+3. Set the destination `DATABASE_URL` in the environment or local `.env`, then
+   run the import with the new code:
+
+   ```bash
+   npm run migrate:billing -- --directory /path/to/legacy/.data
+   ```
+
+   For a local PostgreSQL server without TLS, include `?sslmode=disable` in
+   `DATABASE_URL`.
+
+   The script applies the idempotent SQL schema and imports entitlements,
+   pending consent, purchases, consent-audit JSONL, paywall HTML snapshots, and
+   any account-cancellation JSONL. It validates all source records before the
+   data transaction. Invalid records identify their file/line and fail the
+   import. No legacy files are deleted or modified.
+4. Start the new app. Existing destination records win on ID/owner conflicts;
+   re-running during cutover skips them rather than overwriting a later refund
+   or consent. Imported audit IDs and snapshot IDs remain unchanged. Keep the
+   original export as a backup, not as an ongoing sync source: billing data is
+   no longer automatically imported on every boot.
+
+The normal import requires `DATABASE_URL` so it cannot accidentally report a
+successful migration into disposable memory storage. `--dry-run` needs no DB.
+For local PostgreSQL contract tests, set `BILLING_TEST_DATABASE_URL` to a test
+DB; tests create and drop their own unique schema. CI provisions PostgreSQL
+for these tests without enabling account persistence for unrelated unit tests.
+
+
+### Guest identity and subscription verification
+
+Production requires `DEVICE_ID_SECRET`. Preserve its existing value: v1 guest
+cookie/proof format and HMAC input are unchanged. Billing cancellation secrets
+never sign device identity; `SESSION_SECRET` is a development-only fallback.
+Before deploying, verify the production device secret matches the key used for
+existing guest cookies. If production previously relied on `SESSION_SECRET`
+(or the old billing-secret fallback), copy that exact signing value into
+`DEVICE_ID_SECRET` without rotating it. A cookie signed with a different key
+cannot remain valid automatically. The production-cookie regression test uses
+an independently generated v1 cookie; it does not inspect live production keys.
+
+Checkout requires `emailVerified: true` and returns 403 with
+`EMAIL_NOT_VERIFIED` otherwise, including on deployments without email delivery.
+Plus Subscribe sends guests to `/account?tab=create` and unverified accounts to `/verify`.
+Configure email delivery so those accounts can verify before subscribing.

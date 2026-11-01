@@ -277,7 +277,8 @@ export default function AsanaDetail() {
         <PoseExplanation slug={asana.slug} level={level} onTrainingChange={setTraining} hero showRail={false} hideSteps
           idleMedia={(fallback) => <VideoPlayer
             title={`${asana.english} video preview`}
-            videoUrl={asana.videoUrl || ((poseMedia?.video?.provider === "mux" || poseMedia?.video?.playbackId) ? poseMedia.video.hls || poseMedia.video.mp4 : undefined)}
+            playbackPolicy={poseMedia?.video?.playbackPolicy}
+            videoUrl={poseMedia?.video?.playbackPolicy === "signed" ? poseMedia.video.hls : asana.videoUrl || ((poseMedia?.video?.provider === "mux" || poseMedia?.video?.playbackId) ? poseMedia.video.hls || poseMedia.video.mp4 : undefined)}
             playbackId={asana.playbackId || ((poseMedia?.video?.provider === "mux" || poseMedia?.video?.playbackId) ? poseMedia.video.playbackId : undefined)}
             poster={`/poses/${asana.slug}.webp`}
             captions={(poseMedia?.video?.provider === "mux" || poseMedia?.video?.playbackId) && poseMedia.video.captions ? [{ src: poseMedia.video.captions, srcLang: "en", label: "English", default: true }] : []}

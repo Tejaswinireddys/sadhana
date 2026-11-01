@@ -14,6 +14,8 @@ import { streamProvider, type StreamProvider } from "./streamConfig";
 export type PoseMediaRow = {
   slug: string;
   playbackId: string;
+  assetId?: string | null;
+  playbackPolicy?: "public" | "signed";
   captionsUrl?: string | null;
   provider: StreamProvider | null;
   updatedAt: string;
@@ -57,18 +59,22 @@ function mergeSeedObject(obj: Record<string, unknown>) {
     let playbackId = "";
     let provider: StreamProvider | null = null;
     let captionsUrl: string | null = null;
+    let assetId: string | null = null;
+    let playbackPolicy: "public" | "signed" = "public";
     if (typeof value === "string") {
       playbackId = value.trim();
     } else if (value && typeof value === "object") {
-      const v = value as { playbackId?: string; id?: string; provider?: string; captionsUrl?: string };
+      const v = value as { playbackId?: string; id?: string; provider?: string; assetId?: string; playbackPolicy?: string; captionsUrl?: string };
       playbackId = String(v.playbackId || v.id || "").trim();
       captionsUrl = v.captionsUrl || null;
+      assetId = v.assetId || null;
+      playbackPolicy = v.playbackPolicy === "signed" ? "signed" : "public";
       const p = String(v.provider || "").toLowerCase();
       if (p === "bunny" || p === "mux" || p === "cloudflare") provider = p;
     }
     if (!playbackId) continue;
     if (!memory.has(slug)) {
-      memory.set(slug, { slug, playbackId, provider, captionsUrl, updatedAt: now });
+      memory.set(slug, { slug, playbackId, provider, captionsUrl, assetId, playbackPolicy, updatedAt: now });
     }
   }
 }
@@ -84,6 +90,8 @@ async function ensureTable() {
       updated_at TEXT NOT NULL
     );
     ALTER TABLE pose_media ADD COLUMN IF NOT EXISTS captions_url TEXT;
+    ALTER TABLE pose_media ADD COLUMN IF NOT EXISTS asset_id TEXT;
+    ALTER TABLE pose_media ADD COLUMN IF NOT EXISTS playback_policy TEXT NOT NULL DEFAULT 'public';
     CREATE UNIQUE INDEX IF NOT EXISTS pose_media_slug_idx ON pose_media (slug);
   `);
 }
@@ -108,10 +116,12 @@ export async function getPosePlayback(
       const r = await pool.query<{
         slug: string;
         playback_id: string;
+        asset_id: string | null;
+        playback_policy: "public" | "signed";
         captions_url: string | null;
         provider: string | null;
         updated_at: string;
-      }>("SELECT slug, playback_id, provider, captions_url, updated_at FROM pose_media WHERE slug = $1 LIMIT 1", [
+      }>("SELECT slug, playback_id, provider, captions_url, asset_id, playback_policy, updated_at FROM pose_media WHERE slug = $1 LIMIT 1", [
         slug,
       ]);
       const row = r.rows[0];
@@ -123,6 +133,8 @@ export async function getPosePlayback(
         return {
           slug: row.slug,
           playbackId: row.playback_id,
+          assetId: row.asset_id,
+          playbackPolicy: row.playback_policy,
           captionsUrl: row.captions_url,
           provider,
           updatedAt: row.updated_at,
@@ -140,12 +152,15 @@ export async function upsertPosePlayback(
   playbackId: string,
   provider: StreamProvider | null = null,
   captionsUrl: string | null = null,
+  mux: { assetId?: string | null; playbackPolicy?: "public" | "signed" } = {},
 ): Promise<PoseMediaRow> {
   await ready();
   const row: PoseMediaRow = {
     slug,
     playbackId: playbackId.trim(),
     captionsUrl,
+    assetId: mux.assetId || null,
+    playbackPolicy: mux.playbackPolicy || "public",
     provider,
     updatedAt: new Date().toISOString(),
   };
@@ -153,14 +168,16 @@ export async function upsertPosePlayback(
 
   if (pool) {
     await pool.query(
-      `INSERT INTO pose_media (slug, playback_id, provider, updated_at, captions_url)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO pose_media (slug, playback_id, provider, updated_at, captions_url, asset_id, playback_policy)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (slug) DO UPDATE SET
          playback_id = EXCLUDED.playback_id,
          provider = EXCLUDED.provider,
          updated_at = EXCLUDED.updated_at,
-         captions_url = EXCLUDED.captions_url`,
-      [row.slug, row.playbackId, row.provider, row.updatedAt, row.captionsUrl],
+         captions_url = EXCLUDED.captions_url,
+         asset_id = EXCLUDED.asset_id,
+         playback_policy = EXCLUDED.playback_policy`,
+      [row.slug, row.playbackId, row.provider, row.updatedAt, row.captionsUrl, row.assetId, row.playbackPolicy],
     );
   } else {
     // Persist seeds in memory mode so restarts in the same workspace keep IDs.
@@ -169,8 +186,8 @@ export async function upsertPosePlayback(
     const existing = existsSync(path)
       ? (JSON.parse(readFileSync(path, "utf-8")) as Record<string, unknown>)
       : {};
-    existing[slug] = provider
-      ? { playbackId: row.playbackId, provider, captionsUrl }
+    existing[slug] = provider || row.assetId || row.playbackPolicy === "signed"
+      ? { playbackId: row.playbackId, provider, captionsUrl, assetId: row.assetId, playbackPolicy: row.playbackPolicy }
       : row.playbackId;
     writeFileSync(path, JSON.stringify(existing, null, 2));
   }

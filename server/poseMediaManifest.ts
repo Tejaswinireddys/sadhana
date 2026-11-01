@@ -30,6 +30,7 @@ export type PoseMediaManifest = {
     captions: string | null;
     playbackId: string | null;
     provider: StreamProvider | "local" | null;
+    playbackPolicy?: "public" | "signed";
   } | null;
   audio: {
     url: string;
@@ -109,7 +110,7 @@ export function isSafeSlug(slug: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(slug) && slug.length <= 80;
 }
 
-export async function buildPoseMediaManifest(slug: string): Promise<PoseMediaManifest> {
+export async function buildPoseMediaManifest(slug: string, playbackToken?: string): Promise<PoseMediaManifest> {
   const root = publicRoot();
   const poster = posterFor(slug, root);
   const captionsPath = join(root, "captions", "poses", `${slug}.vtt`);
@@ -123,12 +124,13 @@ export async function buildPoseMediaManifest(slug: string): Promise<PoseMediaMan
     const urls = buildStreamPlaybackUrls(streamRow.playbackId, provider);
     if (urls) {
       video = {
-        hls: urls.hls,
-        mp4: urls.mp4,
+        hls: streamRow.playbackPolicy === "signed" ? (playbackToken ? `${urls.hls}?token=${playbackToken}` : null) : urls.hls,
+        mp4: streamRow.playbackPolicy === "signed" ? null : urls.mp4,
         webm: null,
         poster,
         captions: streamRow.captionsUrl || null,
-        playbackId: urls.playbackId,
+        playbackId: streamRow.playbackPolicy === "signed" && !playbackToken ? null : urls.playbackId,
+        playbackPolicy: streamRow.playbackPolicy || "public",
         provider: urls.provider,
       };
     }

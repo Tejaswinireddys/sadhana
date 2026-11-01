@@ -13,7 +13,6 @@ import { registerPlatformApi } from "./platformApi";
 import { registerPushRoutes, startPushScheduler } from "./push";
 import {
   registerBillingRoutes,
-  migrateBillingEntitlements,
   startBillingScheduler,
 } from "./billing";
 import { registerBuddyRoutes } from "./buddy";
@@ -134,8 +133,6 @@ async function ensureSchema() {
   } else {
     await ensureSchema();
   }
-  // One-time JSON→Postgres entitlement import (idempotent; no-op when empty).
-  await migrateBillingEntitlements();
 
   await registerRoutes(httpServer, app);
   registerPlatformApi(app);

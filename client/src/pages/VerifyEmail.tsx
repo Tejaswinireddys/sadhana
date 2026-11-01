@@ -43,14 +43,14 @@ export default function VerifyEmail() {
   const [autoTried, setAutoTried] = useState(false);
 
   useEffect(() => {
-    if (user) navigate("/account");
+    if (user?.emailVerified) navigate("/account");
   }, [user, navigate]);
 
   useEffect(() => {
     const params = readQuery();
     const qToken = params.get("token");
     const qEmail = params.get("email");
-    if (!qToken || autoTried || verify.isPending || user) return;
+    if (!qToken || autoTried || verify.isPending || user?.emailVerified) return;
     setAutoTried(true);
     void verify
       .mutateAsync({ token: qToken, email: qEmail || undefined })

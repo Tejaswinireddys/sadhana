@@ -64,3 +64,46 @@ test("class media API preserves a nullable video payload and JSON 404", async ({
   expect(missing.status()).toBe(404);
   expect(await missing.json()).toEqual({ error: "Class not found" });
 });
+
+for (const kind of ["pose", "class"] as const) {
+  test(`${kind} uses the authorized signed URL and never retries an unsigned ID`, async ({ page }) => {
+    const signedUrl = "https://stream.mux.com/signedFixture.m3u8?token=short-lived-fixture";
+    const path = kind === "pose" ? "**/api/poses/tadasana/media" : "**/api/classes/front-splits/media";
+    await page.route(path, (route) => route.fulfill({ json: { video: {
+      ...video, hls: signedUrl, mp4: null, playbackId: "signedFixture", playbackPolicy: "signed",
+    }, audio: null } }));
+    const requests: string[] = [];
+    await page.route("https://stream.mux.com/**", (route) => {
+      requests.push(route.request().url());
+      return route.abort("failed");
+    });
+    const requested = page.waitForRequest(signedUrl);
+    await page.goto(kind === "pose" ? "/asanas/tadasana" : "/pathways/front-splits");
+    await requested;
+    await expect(page.getByTestId("video-player-element")).toHaveCount(0, { timeout: 20000 });
+    expect(requests.length).toBeGreaterThan(0);
+    expect(requests.every((url) => new URL(url).searchParams.get("token") === "short-lived-fixture")).toBe(true);
+  });
+}
+
+test("refreshing a signed class URL preserves position and keeps paused playback paused", async ({ page }) => {
+  await page.clock.install();
+  let requests = 0;
+  await page.route("**/api/classes/front-splits/media", (route) => route.fulfill({ json: { video: {
+    ...video,
+    // A local progressive clip exercises source replacement without Mux credentials.
+    hls: `/videos/poses/tadasana.mp4?token=refresh-${++requests}`, mp4: null,
+    playbackId: "refreshFixture", playbackPolicy: "signed",
+  } } }));
+  await page.goto("/pathways/front-splits");
+  const player = page.getByTestId("video-player-element");
+  await expect(player).toBeVisible();
+  await player.evaluate((video: HTMLVideoElement) => { video.pause(); video.currentTime = 1; });
+  await expect.poll(() => player.evaluate((video: HTMLVideoElement) => video.currentTime)).toBeCloseTo(1, 1);
+  const before = requests;
+  await page.clock.fastForward(10 * 60_000);
+  await expect.poll(() => requests).toBeGreaterThan(before);
+  await expect.poll(() => player.evaluate((video: HTMLVideoElement) => video.readyState)).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => player.evaluate((video: HTMLVideoElement) => video.currentTime)).toBeCloseTo(1, 1);
+  expect(await player.evaluate((video: HTMLVideoElement) => video.paused)).toBe(true);
+});

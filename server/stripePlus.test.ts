@@ -43,8 +43,9 @@ function fixture(ownerId: string) {
     setCurrent: (next: typeof current) => { current = next; } };
 }
 
+let eventCounter = 0;
 function event(type: string, object: unknown): Stripe.Event {
-  return { id: `evt_${type}`, type, livemode: false, data: { object } } as Stripe.Event;
+  return { id: `evt_${++eventCounter}_${type}`, type, livemode: false, data: { object } } as Stripe.Event;
 }
 
 test("only test keys and fixed recurring test prices are accepted", async () => {
@@ -59,6 +60,7 @@ test("only test keys and fixed recurring test prices are accepted", async () => 
 test("Checkout uses configured monthly/yearly prices and server account identity", async () => {
   const store = new MemoryStorage();
   const user = await store.createUser("stripe@example.com", "hash");
+  await store.markEmailVerified(user.id);
   const f = fixture(`user:${user.id}`);
   f.setRows([]);
   for (const interval of ["month", "year"] as const) {
@@ -78,6 +80,7 @@ test("webhook reconciliation handles renewal, cancellation, retries and late eve
   const store = new MemoryStorage();
   const user = await store.createUser("events@example.com", "hash");
   const f = fixture(`user:${user.id}`);
+  await store.upsertEntitlement(`user:${user.id}`, { plan: "free", status: "inactive", stripeCustomerId: "cus_test", stripeSubscriptionId: null });
   const completed = event("checkout.session.completed", { mode: "subscription", subscription: "sub_test" });
   await syncPlusEvent(f.stripe, store, completed);
   await syncPlusEvent(f.stripe, store, completed);
@@ -115,7 +118,8 @@ test("billing HTTP routes require auth, verify raw signatures and use durable po
     req.ownerId = req.userId ? `user:${user.id}` : "guest-test";
     next();
   });
-  registerBillingRoutes(app, f.stripe);
+  const alerts: unknown[] = [];
+  registerBillingRoutes(app, f.stripe, { alert: (error) => { alerts.push(error); } });
   const server = app.listen(0, "127.0.0.1");
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
@@ -128,6 +132,15 @@ test("billing HTTP routes require auth, verify raw signatures and use durable po
   };
   try {
     assert.equal((await post("checkout", { interval: "month" }, { "Content-Type": "application/json" } as typeof headers)).status, 401);
+    const unverified = await post("checkout", { plan: "plus", interval: "month" });
+    assert.equal(unverified.status, 403);
+    process.env.BILLING_ENABLED = "false";
+    try { assert.equal((await post("checkout", { interval: "month" })).status, 403); }
+    finally { process.env.BILLING_ENABLED = "true"; }
+    assert.match((await unverified.json()).error, /Verify your email/);
+    assert.equal(f.calls.checkout, undefined);
+    assert.equal(await storage.getEntitlement(`user:${user.id}`), undefined);
+    await storage.markEmailVerified(user.id);
     assert.equal((await post("checkout", { plan: "coach", interval: "month" })).status, 400);
     assert.equal((await post("checkout", { interval: "fortnight" })).status, 400);
     assert.equal((await post("checkout", { interval: "month" })).status, 400);
@@ -145,7 +158,72 @@ test("billing HTTP routes require auth, verify raw signatures and use durable po
     f.current.status = "canceled";
     assert.equal((await sendEvent(event("customer.subscription.deleted", f.current))).status, 200);
     assert.equal((await storage.getUserById(user.id))?.plan, "free");
+    await storage.deleteUser(user.id);
+    assert.equal((await sendEvent(event("customer.subscription.deleted", f.current))).status, 503);
+    assert.equal((await sendEvent({ ...e, id: "evt_deleted_user_checkout" })).status, 503);
+    assert.equal(alerts.length, 2);
+    assert.equal(await storage.getEntitlement(`user:${user.id}`), undefined, "late webhooks must not recreate deleted entitlements");
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
+});
+
+test("users.plan overrides stale entitlement plan fields on billing reads", async () => {
+  initStorage();
+  const user = await storage.createUser("canonical@example.com", "hash");
+  const ownerId = `user:${user.id}`;
+  const { getEntitlement } = await import("./billingStore");
+  await storage.upsertEntitlement(ownerId, { plan: "plus", status: "active", billingDetails: { plan: "plus", status: "active", renewsAt: null } });
+  assert.equal((await getEntitlement(ownerId))?.plan, "free");
+  await storage.setUserPlan(user.id, "plus");
+  await storage.upsertEntitlement(ownerId, { plan: "free", status: "active", billingDetails: { plan: "free", status: "active", renewsAt: null } });
+  assert.equal((await getEntitlement(ownerId))?.plan, "plus");
+});
+
+test("webhook bypasses write throttling but still verifies every signature; adjacent paths stay limited", async () => {
+  initStorage();
+  const { mountSecurity } = await import("./security");
+  const app = express();
+  mountSecurity(app);
+  app.use(express.json({ verify: (req, _res, body) => { (req as express.Request).rawBody = body; } }));
+  const sdk = new Stripe("sk_test_fixture");
+  let alerts = 0;
+  registerBillingRoutes(app, sdk, { alert: () => { alerts++; } });
+  app.post("/api/billing/webhook-extra", (_req, res) => res.json({ ok: true }));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  const body = JSON.stringify(event("customer.created", { id: "cus_unrelated" }));
+  const signature = sdk.webhooks.generateTestHeaderString({ payload: body, secret: "whsec_fixture" });
+  try {
+    for (let index = 0; index < 95; index++) {
+      const response = await fetch(`${base}/api/billing/webhook`, { method: "POST", headers: { "Content-Type": "application/json", "stripe-signature": signature }, body });
+      assert.equal(response.status, 200, `signed delivery ${index}`);
+    }
+    for (let index = 0; index < 95; index++) {
+      const response = await fetch(`${base}/api/billing/webhook`, { method: "POST", headers: { "Content-Type": "application/json", "stripe-signature": "invalid" }, body });
+      assert.equal(response.status, 400, `unsigned delivery ${index}`);
+    }
+    let limited = false;
+    for (let index = 0; index < 95; index++) {
+      const response = await fetch(`${base}/api/billing/webhook-extra`, { method: "POST", headers: { "Content-Type": "application/json", Origin: base }, body: "{}" });
+      if (response.status === 429) limited = true;
+      else assert.equal(response.status, 200);
+    }
+    assert.equal(limited, true);
+    assert.equal(alerts, 0);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+
+test("unverified accounts cannot create Stripe customers or Checkout sessions", async () => {
+  const store = new MemoryStorage();
+  const user = await store.createUser("unverified-checkout@example.com", "hash");
+  const f = fixture(`user:${user.id}`);
+  f.stripe.customers.create = (async () => { throw new Error("must not call Stripe"); }) as never;
+  await assert.rejects(checkoutForUser(f.stripe, store, user.id, "month", "http://localhost:5055", {}), /Verify your email/);
+  assert.equal(f.calls.checkout, undefined);
+  assert.equal(await store.getEntitlement(`user:${user.id}`), undefined);
 });

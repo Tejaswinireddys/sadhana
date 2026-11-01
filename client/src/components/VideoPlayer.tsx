@@ -16,7 +16,7 @@ export type VideoPlayerProps = VideoSourceInput & {
 export function VideoPlayer(props: VideoPlayerProps) {
   const source = resolveVideoSource(props);
   if (!source) return <>{props.fallback}</>;
-  return <PlayableVideo key={source.url} {...props} source={source} />;
+  return <PlayableVideo key={props.playbackPolicy === "signed" ? props.playbackId || props.title : source.url} {...props} source={source} />;
 }
 
 function PlayableVideo({ source, title, poster, captions = [], fallback, className }: VideoPlayerProps & {
@@ -24,6 +24,7 @@ function PlayableVideo({ source, title, poster, captions = [], fallback, classNa
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const loaded = useRef(false);
+  const resume = useRef<{ time: number; playing: boolean } | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -35,6 +36,8 @@ function PlayableVideo({ source, title, poster, captions = [], fallback, classNa
     if (!source.hls) { video.src = source.url; video.load(); }
     return () => {
       window.clearTimeout(timeout);
+      // Refreshing a signed URL must not restart a class or resume a paused video.
+      resume.current = { time: video.currentTime, playing: !video.paused };
       video.pause();
       handle?.destroy();
       video.removeAttribute("src");
@@ -55,7 +58,16 @@ function PlayableVideo({ source, title, poster, captions = [], fallback, classNa
         aria-label={title}
         data-testid="video-player-element"
         className={cn("aspect-video w-full rounded-xl bg-card object-contain", !ready && "pointer-events-none absolute inset-0 opacity-0")}
-        onLoadedMetadata={() => { loaded.current = true; setReady(true); }}
+        onLoadedMetadata={() => {
+          const video = ref.current;
+          if (video && resume.current) {
+            video.currentTime = resume.current.time;
+            if (resume.current.playing) void video.play().catch(() => {});
+            resume.current = null;
+          }
+          loaded.current = true;
+          setReady(true);
+        }}
         onError={() => setFailed(true)}
       >
         {captions.map((track) => <track key={`${track.srcLang}:${track.src}`} kind="captions" {...track} />)}

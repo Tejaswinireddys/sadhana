@@ -38,14 +38,12 @@ export const DEVICE_PROOF_ECHO_HEADER = "X-Device-Proof";
 const COOKIE_MAX_AGE = 400 * 24 * 60 * 60;
 
 function deviceSecret(): string {
-  return (
-    process.env.DEVICE_ID_SECRET?.trim() ||
-    process.env.BILLING_CANCEL_TOKEN_SECRET?.trim() ||
-    process.env.SESSION_SECRET?.trim() ||
-    // Dev-only fallback so local boot works without extra env. Production
-    // deployments should set DEVICE_ID_SECRET (or SESSION_SECRET).
-    "sadhana-dev-device-secret"
-  );
+  const secret = process.env.DEVICE_ID_SECRET?.trim();
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("DEVICE_ID_SECRET is required in production to preserve guest identity");
+  }
+  return process.env.SESSION_SECRET?.trim() || "sadhana-dev-device-secret";
 }
 
 /** HMAC proof for a device UUID — possession of UUID alone is not enough. */

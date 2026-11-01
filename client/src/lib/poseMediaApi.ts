@@ -18,6 +18,7 @@ export type PoseMediaManifest = {
     captions?: string | null;
     playbackId?: string | null;
     provider?: string | null;
+    playbackPolicy?: "public" | "signed";
   } | null;
   audio: {
     url: string;
@@ -34,12 +35,13 @@ export async function fetchPoseMedia(slug: string): Promise<PoseMediaManifest> {
     credentials: "include",
   });
   if (!res.ok) {
+    if (res.status === 401 || res.status === 403) return { video: null, audio: null };
     const fallback = conventionFallback(slug);
     cache.set(slug, fallback);
     return fallback;
   }
   const data = (await res.json()) as PoseMediaManifest;
-  cache.set(slug, data);
+  if (data.video?.playbackPolicy !== "signed") cache.set(slug, data);
   return data;
 }
 
@@ -56,6 +58,7 @@ export function manifestToVideoSources(
   if (manifest?.video) {
     const mp4 = manifest.video.mp4;
     const hls = manifest.video.hls;
+    if (manifest.video.playbackPolicy === "signed" && !hls) return null;
     if (!hls && !mp4 && !manifest.video.webm) {
       return poseHasVideo(slug) ? poseMediaFor(slug) : null;
     }
@@ -118,6 +121,7 @@ export function usePoseMedia(slug: string | undefined) {
     queryKey: ["/api/poses", slug, "media"],
     queryFn: () => fetchPoseMedia(slug!),
     enabled: Boolean(slug),
-    staleTime: 5 * 60_000,
+    staleTime: 60_000,
+    refetchInterval: (query) => query.state.data?.video?.playbackPolicy === "signed" ? 10 * 60_000 : false,
   });
 }

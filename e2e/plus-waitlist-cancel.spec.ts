@@ -61,7 +61,7 @@ test.describe("cancel pages while Plus is waitlist-only", () => {
     await page.getByTestId("link-plus-waitlist").click();
     await expect(page).toHaveURL(/\/plus#waitlist$/);
     await expect(page.getByTestId("plan-select-plus")).toHaveText("Subscribe");
-    await expect(page.getByTestId("plan-select-plus")).toBeDisabled();
+    await expect(page.getByTestId("plan-select-plus")).toBeEnabled();
     await expect(page.getByTestId("plus-account-status")).toContainText("test mode");
     await expect(page.getByTestId("plus-waitlist")).toHaveCount(0);
   });

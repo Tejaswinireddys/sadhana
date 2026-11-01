@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
     prices: { month: { amount: 12, currency: "USD" }, year: { amount: 90, currency: "USD" } },
   } }));
   await page.route("**/api/auth/me", (route) => route.fulfill({ json: {
-    user: { id: 1, email: "test@example.com", plan: "free" }, deviceRows: 0,
+    user: { id: 1, email: "test@example.com", emailVerified: true, plan: "free" }, deviceRows: 0,
   } }));
 });
 
@@ -40,7 +40,7 @@ for (const [interval, label, amount] of [["month", "Monthly", 12], ["year", "Yea
 
 test("Manage / cancel opens the account Customer Portal", async ({ page }) => {
   await page.route("**/api/auth/me", (route) => route.fulfill({ json: {
-    user: { id: 1, email: "test@example.com", plan: "plus" }, deviceRows: 0,
+    user: { id: 1, email: "test@example.com", emailVerified: true, plan: "plus" }, deviceRows: 0,
   } }));
   await page.route("**/api/billing/portal", (route) => route.fulfill({ json: { url: "https://billing.stripe.com/p/session/test" } }));
   await page.route("https://billing.stripe.com/**", (route) => route.fulfill({ body: "Stripe test portal" }));
@@ -55,3 +55,29 @@ test("a success query string alone does not grant Plus access", async ({ page })
   await expect(page.getByTestId("plus-account-status")).toContainText("Waiting for subscription confirmation");
   await expect(page.getByTestId("plus-account-status")).not.toContainText("has Plus access");
 });
+
+
+for (const guest of [true, false]) {
+  test(`Subscribe sends ${guest ? "guests to signup" : "unverified accounts to verification"}`, async ({ page }) => {
+    await page.route("**/api/auth/me", (route) => route.fulfill({ json: {
+      user: guest ? null : { id: 1, email: "unverified@example.com", emailVerified: false, plan: "free" }, deviceRows: 0,
+    } }));
+    // Account prerequisites remain actionable even before billing is configured.
+    await page.route("**/api/billing/config", (route) => route.fulfill({ json: { enabled: false, note: "Unavailable" } }));
+    let billingWrites = 0;
+    await page.route(/\/api\/billing\/(consent|checkout)$/, (route) => {
+      billingWrites++;
+      return route.fulfill({ status: 500 });
+    });
+    await page.goto("/plus");
+    await page.getByTestId("plan-select-plus").click();
+    await expect(page).toHaveURL(guest ? /\/account\?tab=create$/ : /\/verify\?email=unverified%40example.com$/);
+    if (guest) {
+      await expect(page.getByTestId("signup-email")).toBeVisible();
+    } else {
+      await expect(page.getByTestId("verify-email")).toHaveValue("unverified@example.com");
+      await expect(page.getByTestId("verify-token")).toBeVisible();
+    }
+    expect(billingWrites).toBe(0);
+  });
+}

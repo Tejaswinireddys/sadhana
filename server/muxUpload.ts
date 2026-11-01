@@ -1,5 +1,6 @@
-export type MuxUploadResult = { uploadId: string; assetId: string; playbackId: string };
+export type MuxUploadResult = { uploadId: string; assetId: string; playbackId: string; playbackPolicy: "public" | "signed" };
 export type MuxUploadOptions = {
+  isPlus?: boolean;
   tokenId: string;
   tokenSecret: string;
   body?: BodyInit;
@@ -14,6 +15,7 @@ export type MuxUploadOptions = {
 /** Direct upload uses separate credentials for the API; signed upload URLs never receive the API token. */
 export async function uploadToMux(options: MuxUploadOptions): Promise<MuxUploadResult> {
   const { tokenId, tokenSecret } = options;
+  const playbackPolicy = options.isPlus ? "signed" : "public";
   if (!tokenId || !tokenSecret) throw new Error("MUX_TOKEN_ID and MUX_TOKEN_SECRET are required");
   const fetcher = options.fetcher || fetch;
   const wait = options.wait || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
@@ -31,7 +33,7 @@ export async function uploadToMux(options: MuxUploadOptions): Promise<MuxUploadR
   if (uploadId && !/^[a-zA-Z0-9_-]+$/.test(uploadId)) throw new Error("Invalid upload ID");
   if (!uploadId) {
     if (!options.body || !options.size) throw new Error("A nonempty video file is required");
-    const upload = await api("uploads", { new_asset_settings: { playback_policies: ["public"], video_quality: "basic" } });
+    const upload = await api("uploads", { new_asset_settings: { playback_policies: [playbackPolicy], video_quality: "basic" } });
     uploadId = upload.id;
     if (!uploadId || !upload.url?.startsWith("https://")) throw new Error("Mux returned an invalid upload");
     await options.onCreated?.(uploadId);
@@ -48,9 +50,12 @@ export async function uploadToMux(options: MuxUploadOptions): Promise<MuxUploadR
       const asset = await api(`assets/${encodeURIComponent(upload.asset_id)}`);
       if (asset.status === "errored") throw new Error(`Mux asset ${asset.id} errored`);
       if (asset.status === "ready") {
-        const playbackId = asset.playback_ids?.find((row: { policy: string; id: string }) => row.policy === "public")?.id;
-        if (!playbackId || !/^[a-zA-Z0-9_-]+$/.test(playbackId)) throw new Error("Ready asset has no valid public playback ID");
-        return { uploadId: uploadId!, assetId: upload.asset_id, playbackId };
+        const playbackId = asset.playback_ids?.find((row: { policy: string; id: string }) => row.policy === playbackPolicy)?.id;
+        if (options.isPlus && asset.playback_ids?.some((row: { policy: string }) => row.policy === "public")) {
+          throw new Error("Plus asset has public playback IDs; remove them in Mux before resuming");
+        }
+        if (!playbackId || !/^[a-zA-Z0-9_-]+$/.test(playbackId)) throw new Error(`Ready asset has no valid ${playbackPolicy} playback ID`);
+        return { uploadId: uploadId!, assetId: upload.asset_id, playbackId, playbackPolicy };
       }
     }
     await wait(5000);

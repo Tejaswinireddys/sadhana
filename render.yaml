@@ -14,6 +14,8 @@ services:
         value: production
       - key: DATABASE_URL
         sync: false # set manually in Render dashboard (Neon connection string)
+      - key: DEVICE_ID_SECRET
+        sync: false # preserve the existing guest-cookie signing key; do not rotate
       - key: PUBLIC_APP_URL
         sync: false
       - key: SUPPORT_EMAIL
