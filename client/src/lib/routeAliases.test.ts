@@ -6,13 +6,18 @@ import { accountAuthTab } from "./hashQuery";
 test("aliases rewrite to the real page", () => {
   assert.equal(aliasRouteTarget("/login"), "/account?tab=signin");
   assert.equal(aliasRouteTarget("/signup"), "/account?tab=signup");
+  assert.equal(aliasRouteTarget("/signin"), "/account?tab=signin");
+  assert.equal(aliasRouteTarget("/sign-in"), "/account?tab=signin");
+  assert.equal(aliasRouteTarget("/sign-in/"), "/account?tab=signin", "trailing slash");
   assert.equal(aliasRouteTarget("/today"), "/");
   assert.equal(aliasRouteTarget("/login/"), "/account?tab=signin", "trailing slash");
   assert.equal(aliasRouteTarget("/LOGIN"), "/account?tab=signin", "case");
 });
 
 test("the rewritten tab is one Account understands", () => {
-  assert.equal(accountAuthTab(new URLSearchParams(aliasRouteTarget("/login")!.split("?")[1]).get("tab")), "signin");
+  for (const alias of ["/login", "/signin", "/sign-in"]) {
+    assert.equal(accountAuthTab(new URLSearchParams(aliasRouteTarget(alias)!.split("?")[1]).get("tab")), "signin", alias);
+  }
   assert.equal(accountAuthTab(new URLSearchParams(aliasRouteTarget("/signup")!.split("?")[1]).get("tab")), "signup");
 });
 
@@ -24,8 +29,8 @@ test("the visitor's query and fragment survive; their tab wins", () => {
 });
 
 test("real pages and look-alikes are not aliases", () => {
-  for (const path of ["/", "/account", "/classes/login", "/login/extra", "/logins", "/api/login"]) {
+  for (const path of ["/", "/account", "/classes/login", "/login/extra", "/logins", "/api/login", "/sign", "/signin/extra", "/sign_in"]) {
     assert.equal(aliasRouteTarget(path), null, path);
   }
-  assert.deepEqual(Object.keys(ROUTE_ALIASES).sort(), ["/login", "/signup", "/today"]);
+  assert.deepEqual(Object.keys(ROUTE_ALIASES).sort(), ["/login", "/sign-in", "/signin", "/signup", "/today"]);
 });

@@ -38,6 +38,22 @@ test("GET /login returns 200 with the app's HTML", async () => {
   } finally { await h.close(); }
 });
 
+test("GET /signin and /sign-in return 200 with the app's HTML", async () => {
+  const h = await harness();
+  try {
+    for (const pathname of ["/signin", "/sign-in", "/signin/", "/sign-in?next=%2Fclasses"]) {
+      const res = await h.get(pathname);
+      assert.equal(res.status, 200, pathname);
+      assert.match(res.type, /^text\/html/, pathname);
+      assert.match(res.body, /data-entry="app"/, pathname);
+    }
+    for (const pathname of ["/signin/extra", "/sign-in/extra", "/sign_in"]) assert.equal((await h.get(pathname)).status, 404, pathname);
+    const api = await h.get("/api/signin");
+    assert.equal(api.status, 404);
+    assert.match(api.type, /^application\/json/);
+  } finally { await h.close(); }
+});
+
 test("client routes and aliases get the app shell with 200", async () => {
   const h = await harness();
   try {
@@ -70,6 +86,6 @@ test("unknown pages keep the app's Not Found screen with a real 404; /api stays 
 });
 
 test("isKnownAppRoute: aliases match exactly, real routes by first segment", () => {
-  for (const pathname of ["/", "/login", "/signup", "/today", "/account", "/classes/x"]) assert.equal(isKnownAppRoute(pathname), true, pathname);
+  for (const pathname of ["/", "/login", "/signin", "/sign-in", "/signup", "/today", "/account", "/classes/x"]) assert.equal(isKnownAppRoute(pathname), true, pathname);
   for (const pathname of ["/login/extra", "/logins", "/nope"]) assert.equal(isKnownAppRoute(pathname), false, pathname);
 });

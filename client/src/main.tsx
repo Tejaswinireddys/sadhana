@@ -22,7 +22,7 @@ if (legacyTarget) {
   window.history.replaceState(null, "", window.location.pathname + window.location.search);
 }
 
-// `/login`, `/signup`, `/today` → their real pages, the same way (see routeAliases.ts).
+// `/login`, `/signin`, `/sign-in`, `/signup`, `/today` → their real pages, the same way (see routeAliases.ts).
 const aliasTarget = aliasRouteTarget(window.location.pathname, window.location.search, window.location.hash);
 if (aliasTarget) window.history.replaceState(null, "", aliasTarget);
 

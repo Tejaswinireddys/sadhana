@@ -1,6 +1,7 @@
 /**
  * Conventional URLs people type or link to that the app has under another
- * name. `/login` and `/signup` are the Sign in / Sign up tabs of `/account`;
+ * name. `/login`, `/signin`, `/sign-in` and `/signup` are the Sign in / Sign up
+ * tabs of `/account`;
  * `/today` is the home page. Before these existed, opening one directly hit
  * the app's Not Found page with HTTP 404.
  *
@@ -8,10 +9,12 @@
  * the router (and history) only ever see the real page — the same pattern as
  * the legacy `/#/…` redirect. The server asks `aliasRouteTarget` too, so it
  * answers exactly these paths (not `/login/extra`) with 200 and the app shell
- * instead of a 404.
+ * instead of a 404. A new entry here is all a new alias needs on both sides.
  */
 export const ROUTE_ALIASES: Readonly<Record<string, { pathname: string; params?: Readonly<Record<string, string>> }>> = {
   "/login": { pathname: "/account", params: { tab: "signin" } },
+  "/signin": { pathname: "/account", params: { tab: "signin" } },
+  "/sign-in": { pathname: "/account", params: { tab: "signin" } },
   "/signup": { pathname: "/account", params: { tab: "signup" } },
   "/today": { pathname: "/" },
 };
