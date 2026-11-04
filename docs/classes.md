@@ -80,6 +80,23 @@ Mux dashboard) rather than a live class with no video. With
 asset cannot be found, when the playback id is Mux's public test clip (the
 placeholders), or when another class uses the same playback id.
 
+### Keeping removed placeholder classes removed
+
+The six placeholder classes (`gentle-morning-wake-up`, `desk-back-relief`,
+`unwind-before-sleep`, `steady-strength-flow`, `deep-hamstring-release`,
+`full-practice-stress-reset`) are written by `seedPlaceholderClasses`, which
+puts back every placeholder whose row is missing. A placeholder removed with
+`class:remove` stays gone only as long as nothing seeds again.
+
+- **`SEED_PLACEHOLDER_CLASSES` must stay unset in production.** With it set to
+  `true`, every server boot against Postgres re-seeds, so a removed
+  placeholder returns on the next deploy or restart. It is not in
+  `render.yaml` or `.env.example`; keep it out of the Render dashboard too.
+- **Don't run `npm run seed:classes` against the production database.** It
+  does the same thing once. Nothing in the build, start command or CI runs it.
+- The in-memory dev store (no `DATABASE_URL`) always seeds itself on boot. That
+  never touches Postgres.
+
 ## chapters.json
 
 A JSON array (or `{ "chapters": [ … ] }`) of chapters in time order:
