@@ -11,10 +11,25 @@ import {
   verifyCancelToken,
   type BillingEntitlement,
 } from "./billingStore";
-import { BILLING_TERMS_VERSION, isPaidActive, priceLabel } from "./billingCompliance";
+import { BILLING_TERMS_VERSION, CATALOG_PRICES, catalogAmount, isPaidActive, priceLabel } from "./billingCompliance";
+import { PLANS } from "../client/src/lib/plans";
 
 describe("billing compliance policy", () => {
   before(() => initStorage());
+  it("falls back to the live Stripe prices: Plus is $9.99/mo or $59.99/yr", () => {
+    assert.equal(catalogAmount("plus", "month"), 9.99);
+    assert.equal(catalogAmount("plus", "year"), 59.99);
+    assert.equal(priceLabel(catalogAmount("plus", "year"), "USD", "year"), "$59.99/yr");
+  });
+  it("the server's catalog mirrors the client's plan list exactly", () => {
+    // The server must not import client code at runtime, so the prices are
+    // copied; this is what stops the copies drifting (it is how $79/yr outlived
+    // the Stripe price change).
+    for (const plan of PLANS.filter((p) => p.id !== "free")) {
+      assert.deepEqual(CATALOG_PRICES[plan.id], { month: plan.monthlyUsd, year: plan.yearlyUsd }, plan.id);
+    }
+    assert.deepEqual(Object.keys(CATALOG_PRICES).sort(), PLANS.filter((p) => p.id !== "free").map((p) => p.id).sort());
+  });
   it("marks first-charge refund eligible for 14 days only", () => {
     const now = Date.parse("2026-08-10T12:00:00.000Z");
     const ent: BillingEntitlement = {
@@ -69,10 +84,10 @@ describe("billing compliance policy", () => {
       userAgent: "test",
       plan: "plus",
       interval: "year",
-      amount: 79,
+      amount: 59.99,
       currency: "USD",
       termsVersion: BILLING_TERMS_VERSION,
-      priceDisplayed: priceLabel(79, "USD", "year"),
+      priceDisplayed: priceLabel(59.99, "USD", "year"),
       termsDisplayed: "Cancel in two taps.",
       paywallSnapshotId: snap,
     });

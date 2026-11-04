@@ -26,7 +26,7 @@ function fixture(ownerId: string) {
   const stripe = {
     webhooks: sdk.webhooks,
     prices: { retrieve: async (id: string) => ({
-      id, active: true, livemode: false, currency: "usd", unit_amount: id === "price_year" ? 7900 : 999,
+      id, active: true, livemode: false, currency: "usd", unit_amount: id === "price_year" ? 5999 : 999,
       type: "recurring", billing_scheme: "per_unit", recurring: { interval: id === "price_year" ? "year" : "month", interval_count: 1, usage_type: "licensed" },
     }) },
     customers: { create: async () => ({ id: "cus_test", livemode: false }) },
@@ -53,6 +53,7 @@ test("only test keys and fixed recurring test prices are accepted", async () => 
   assert.equal(isStripeTestKey("sk_test_fixture"), true);
   const { stripe } = fixture("user:1");
   assert.equal((await plusPrice(stripe, "month")).amount, 9.99);
+  assert.equal((await plusPrice(stripe, "year")).amount, 59.99, "Stripe cents → dollars without float drift");
   stripe.prices.retrieve = (async () => ({ livemode: true })) as never;
   await assert.rejects(plusPrice(stripe, "month"));
 });

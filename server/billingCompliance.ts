@@ -14,7 +14,7 @@ export const BILLING_TERMS_VERSION = "2026-08-10-strict-arl";
 
 /** Catalog prices mirrored from client/src/lib/plans.ts (server must not import client). */
 export const CATALOG_PRICES: Record<string, { month: number; year: number }> = {
-  plus: { month: 9.99, year: 79 },
+  plus: { month: 9.99, year: 59.99 },
   coach: { month: 14.99, year: 149 },
 };
 

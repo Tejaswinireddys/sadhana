@@ -40,7 +40,9 @@ export const PLANS: Plan[] = [
     id: "plus",
     name: "Sadhana Plus",
     monthlyUsd: 9.99,
-    yearlyUsd: 79,
+    // Matches the live Stripe yearly price (price_1UWrZQ2NFlxWL0RyWmKP6woV).
+    // Only shown when the server cannot read prices from Stripe.
+    yearlyUsd: 59.99,
     status: "planned",
     bullets: [
       "Filmed movement demonstrations",
