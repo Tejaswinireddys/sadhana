@@ -44,6 +44,25 @@ describe("security hardening", () => {
     );
   });
 
+  it("CSP allows the Cast SDK's gstatic.com paths for the class player, and no more", async () => {
+    await withServer(
+      (app) => {
+        app.use(applySecurityHeaders);
+        app.get("/classes/x", (_req, res) => res.send("ok"));
+      },
+      async (base) => {
+        const csp = (await fetch(`${base}/classes/x`)).headers.get("content-security-policy") || "";
+        const scriptSrc = csp.split(";").map((d) => d.trim()).find((d) => d.startsWith("script-src ")) || "";
+        for (const path of ["https://www.gstatic.com/cv/js/sender/", "https://www.gstatic.com/eureka/clank/", "https://www.gstatic.com/cast/sdk/libs/"]) {
+          assert.ok(scriptSrc.split(" ").includes(path), `script-src allows ${path}`);
+        }
+        const gstatic = scriptSrc.split(" ").filter((src) => src.includes("gstatic"));
+        assert.equal(gstatic.length, 3, "only the three Cast SDK paths");
+        assert.ok(gstatic.every((src) => src.startsWith("https://") && src.endsWith("/")), "https and path-scoped, never the bare host");
+      },
+    );
+  });
+
   it("rate-limits rapid /api/auth/me probes", async () => {
     await withServer(
       (app) => {

@@ -280,12 +280,13 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
           </a>
         )}
         <MuxPlayer
-          ref={(el) => {
-            playerRef.current = el;
-            // Cast needs Google's SDK from gstatic.com, which CSP (rightly)
-            // blocks; opt the media element out instead of loading it.
-            el?.media?.setAttribute("disableremoteplayback", "");
-          }}
+          ref={(el) => { playerRef.current = el; }}
+          // Chromecast and AirPlay are Mux Player's own: its buttons show only
+          // once a device is found (Media Chrome hides them while unavailable).
+          // Nothing extra carries the token to the TV: Mux sets `cast-src` to
+          // the stream URL built from the same `playbackToken` attribute below,
+          // so a refreshed token reaches the next cast too. CSP allows the
+          // Cast SDK's gstatic.com paths (CAST_SDK_SCRIPT_SOURCES).
           playbackId={playback.playbackId}
           {...signedTokenAttributes(playback)}
           streamType="on-demand"

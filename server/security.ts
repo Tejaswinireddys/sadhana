@@ -20,6 +20,19 @@ const SENSITIVE_KEYS = new Set([
 ]);
 
 /** Strip or redact fields that must never appear in request logs. */
+/**
+ * Google's Cast sender SDK, which Mux Player loads in Chrome for the class
+ * player's Chromecast button. Path-scoped rather than all of www.gstatic.com:
+ * the bootstrap script (cv/js/sender), the sender it picks for this Chrome
+ * (eureka/clank) and the Cast framework (cast/sdk/libs). AirPlay needs no
+ * script — Safari provides it.
+ */
+export const CAST_SDK_SCRIPT_SOURCES = [
+  "https://www.gstatic.com/cv/js/sender/",
+  "https://www.gstatic.com/eureka/clank/",
+  "https://www.gstatic.com/cast/sdk/libs/",
+] as const;
+
 export function redactForLog(value: unknown, depth = 0): unknown {
   if (depth > 4 || value == null) return value;
   if (Array.isArray(value)) {
@@ -92,6 +105,7 @@ export function applySecurityHeaders(_req: Request, res: Response, next: NextFun
     "script-src",
     "'self'",
     ...(isProd ? [themeScriptHash] : ["'unsafe-inline'"]),
+    ...CAST_SDK_SCRIPT_SOURCES,
     ...ads.script,
   ].join(" ");
   const streamHosts = [...new Set([...streamCspHosts(), ...streamCspHosts("mux")])];
