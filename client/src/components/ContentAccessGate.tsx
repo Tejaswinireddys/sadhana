@@ -5,6 +5,7 @@ import { ASANAS, PATHWAYS } from "@/data/content";
 import { usePractice } from "@/context/PracticeContext";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { Button } from "@/components/ui/button";
+import { STRIPE_MODE } from "@/lib/publicConfig";
 
 /** Gate before mounting lessons or players, including restored practice queues. */
 export function ContentAccessGate({ children }: { children: ReactNode }) {
@@ -29,7 +30,7 @@ export function ContentAccessGate({ children }: { children: ReactNode }) {
   if (content.some((row) => !canAccess(row))) return (
     <section className="space-y-4 p-6" data-testid="plus-upgrade-screen">
       <h1 className="font-serif text-3xl">Continue with Sadhana Plus</h1>
-      <p>This practice is for Plus members. Subscribe using Stripe test mode.</p>
+      <p>This practice is for Plus members.{STRIPE_MODE === "live" ? "" : " Subscribe using Stripe test mode."}</p>
       <Button asChild><Link href="/plus" data-testid="button-upgrade-plus">Subscribe</Link></Button>
       <Button variant="outline" asChild><Link href="/pathways">Browse classes</Link></Button>
     </section>

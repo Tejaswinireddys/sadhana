@@ -1,4 +1,4 @@
-import { BILLING_ENABLED } from "@/lib/publicConfig";
+import { BILLING_ENABLED, STRIPE_MODE } from "@/lib/publicConfig";
 import { Link, useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { FadeIn } from "@/components/motion";
@@ -258,7 +258,9 @@ function LivePlus() {
           <p className="text-muted-foreground" data-testid="plans-intro">
             {billing.enabled
               ? "Cancel in two taps from Home. Renewal reminder 3 days before every charge. First-charge refund within 14 days, auto-approved. The safety library stays free."
-              : "Plus subscriptions use Stripe test mode. Checkout is unavailable until test billing is configured."}
+              : STRIPE_MODE === "live"
+                ? "Checkout is unavailable right now. The safety library and free practice stay available."
+                : "Plus subscriptions use Stripe test mode. Checkout is unavailable until test billing is configured."}
           </p>
           <p className="text-xs text-muted-foreground" data-testid="billing-status">
             {billing.note ||
@@ -366,7 +368,7 @@ function LivePlus() {
         data-testid="plus-account-status"
         data-status={status.kind}
       >
-        {plusStatusMessage(status)}
+        {plusStatusMessage(status, undefined, undefined, STRIPE_MODE)}
       </p>
       {status.kind === "signed-out" && <Link href="/account" className="underline" data-testid="plus-sign-in">Sign in to subscribe</Link>}
       <div className="flex flex-wrap items-center gap-3">

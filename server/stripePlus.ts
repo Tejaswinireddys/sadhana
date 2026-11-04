@@ -2,32 +2,32 @@ import type Stripe from "stripe";
 import { z } from "zod";
 import type { IStorage } from "./storage";
 import { subscriptionPeriodEnd } from "./stripeSubscriptionState";
+import { isStripeKeyForMode, matchesStripeMode, stripeConfig, stripeMode } from "./stripeConfig";
 
 export const checkoutRequestSchema = z.object({
   plan: z.literal("plus").default("plus"),
   interval: z.enum(["month", "year"]),
 });
 
+/** Plus price ids for the configured `STRIPE_MODE` (see stripeConfig.ts). */
 export function plusPriceIds() {
-  return {
-    month: process.env.STRIPE_PRICE_MONTHLY || process.env.STRIPE_PRICE_PLUS_MONTHLY || "",
-    year: process.env.STRIPE_PRICE_YEARLY || process.env.STRIPE_PRICE_PLUS_YEARLY || "",
-  };
+  return stripeConfig().prices;
 }
 
-/** Never instantiate a live-mode client, even when billing is enabled. */
+/** A test-mode secret key. Clients are built only from keys of the configured mode (`isStripeKeyForMode`). */
 export function isStripeTestKey(key: string): boolean {
-  return key.startsWith("sk_test_") || key.startsWith("rk_test_");
+  return isStripeKeyForMode(key, "test");
 }
 
 export async function plusPrice(stripe: Stripe, interval: "month" | "year") {
   const id = plusPriceIds()[interval];
-  if (!id) throw new Error(`STRIPE_PRICE_${interval === "month" ? "MONTHLY" : "YEARLY"} is required`);
+  const mode = stripeMode();
+  if (!id) throw new Error(`STRIPE_${mode === "live" ? "LIVE_" : ""}PRICE_${interval === "month" ? "MONTHLY" : "YEARLY"} is required`);
   const price = await stripe.prices.retrieve(id);
-  if (price.currency !== "usd" || price.livemode || !price.active || price.type !== "recurring" ||
+  if (price.currency !== "usd" || !matchesStripeMode(price.livemode, mode) || !price.active || price.type !== "recurring" ||
       price.recurring?.interval !== interval || price.recurring.interval_count !== 1 ||
       price.unit_amount === null || price.billing_scheme !== "per_unit" || price.recurring.usage_type !== "licensed") {
-    throw new Error("Configure an active, fixed-amount test price with the matching billing interval");
+    throw new Error(`Configure an active, fixed-amount ${mode} price with the matching billing interval`);
   }
   return { id: price.id, amount: price.unit_amount / 100, currency: price.currency.toUpperCase() };
 }
@@ -62,8 +62,8 @@ export async function checkoutForUser(stripe: Stripe, store: IStorage, userId: n
   let customer = existing?.stripeCustomerId;
   if (!customer) {
     const created = await stripe.customers.create({ email: user.email, metadata: { userId: String(userId), ownerId } },
-      { idempotencyKey: `sadhana-test-customer-${userId}` });
-    if (created.livemode) throw new Error("Only Stripe test customers are allowed");
+      { idempotencyKey: `sadhana-${stripeMode()}-customer-${userId}` });
+    if (!matchesStripeMode(created.livemode)) throw new Error(`Only Stripe ${stripeMode()} customers are allowed`);
     customer = created.id;
     await store.upsertEntitlement(ownerId, {
       plan: "free", status: "inactive", renewsAt: null,
@@ -120,7 +120,7 @@ export function stripeEventReferences(event: Stripe.Event): { customerId?: strin
 /** Reconcile against a locked persisted customer binding, never metadata.ownerId. */
 export async function syncPlusEvent(stripe: Stripe, store: IStorage, event: Stripe.Event) {
   return store.runInTransaction(async () => {
-    if (event.livemode) throw new Error("Live-mode events are not accepted");
+    if (!matchesStripeMode(event.livemode)) throw new Error(`${event.livemode ? "Live" : "Test"}-mode events are not accepted`);
     const references = stripeEventReferences(event);
     if (!references) return undefined;
     return reconcileStripeCustomer(stripe, store, references);
@@ -148,11 +148,11 @@ export async function reconcileStripeCustomer(stripe: Stripe, store: IStorage,
     // The binding lock is held before these reads so different event IDs for
     // one customer cannot commit older Stripe state after newer state.
     const current = subscriptionId ? await stripe.subscriptions.retrieve(subscriptionId) : undefined;
-    if (current?.livemode) throw new Error("Live-mode subscriptions are not accepted");
+    if (current && !matchesStripeMode(current.livemode)) throw new Error(`${current.livemode ? "Live" : "Test"}-mode subscriptions are not accepted`);
     if (current && (typeof current.customer === "string" ? current.customer : current.customer.id) !== customerId) throw new UnmatchedStripeUserError(customerId, subscriptionId);
     const prices = Object.values(plusPriceIds()).filter(Boolean);
     const subscriptions = await customerSubscriptions(stripe, customerId);
-    const active = subscriptions.find((sub) => !sub.livemode &&
+    const active = subscriptions.find((sub) => matchesStripeMode(sub.livemode) &&
       ["active", "trialing"].includes(sub.status) &&
       (typeof sub.customer === "string" ? sub.customer : sub.customer.id) === customerId && sub.items.data.some((item) => prices.includes(item.price.id)));
     const source = active || current || subscriptions.find((sub) => sub.id === stored.stripeSubscriptionId);

@@ -1,13 +1,16 @@
-import { isStripeTestKey } from "./stripePlus";
+import { isStripeKeyForMode, stripeConfig, stripeMode } from "./stripeConfig";
 import { adsConfigFromEnv } from "../shared/adsConfig";
 /** Public, non-secret launch settings embedded into the HTML response. */
 export function billingEnabled(): boolean {
-  return process.env.BILLING_ENABLED === "true" && isStripeTestKey(process.env.STRIPE_SECRET_KEY || "");
+  const { secretKey, mode } = stripeConfig();
+  return process.env.BILLING_ENABLED === "true" && isStripeKeyForMode(secretKey, mode);
 }
 export function publicConfig() {
   const email = process.env.SUPPORT_EMAIL?.trim() ?? "";
   return {
     billingEnabled: billingEnabled(),
+    /** Drives "test mode" wording; never a secret. */
+    stripeMode: stripeMode(),
     supportEmail: /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email) ? email : null,
     ads: adsConfigFromEnv(process.env),
   };

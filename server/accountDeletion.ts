@@ -1,13 +1,13 @@
 import Stripe from "stripe";
 import type { IStorage } from "./storage";
-import { isStripeTestKey } from "./stripePlus";
+import { isStripeKeyForMode, matchesStripeMode, stripeConfig } from "./stripeConfig";
 import { recordAccountCancellation, type AccountCancellation } from "./billingStore";
 
 export type AccountDeletionStripe = Pick<Stripe, "subscriptions">;
 
 function configuredStripe(): AccountDeletionStripe | null {
-  const key = process.env.STRIPE_SECRET_KEY || "";
-  return isStripeTestKey(key) ? new Stripe(key) : null;
+  const { secretKey, mode } = stripeConfig();
+  return isStripeKeyForMode(secretKey, mode) ? new Stripe(secretKey) : null;
 }
 
 /** Confirm immediate cancellation before any account/session data can be deleted. */
@@ -39,7 +39,7 @@ export async function cancelSubscriptionsForAccountDeletion(
   }
   let canceled = false;
   for (const sub of subscriptions.values()) {
-    if (sub.livemode) throw new Error("Only Stripe test mode is supported");
+    if (!matchesStripeMode(sub.livemode)) throw new Error(`Subscription ${sub.id} is not in the configured Stripe mode`);
     const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
     if (entitlement.stripeCustomerId && customerId !== entitlement.stripeCustomerId) throw new Error("Stripe customer does not match the account");
     const result = sub.status === "active" || sub.status === "trialing"

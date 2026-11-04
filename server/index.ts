@@ -25,6 +25,7 @@ import { registerAdsTxt } from "./adsTxt";
 import { publicAppOrigin } from "./publicUrl";
 import { captureServerException, initServerSentry } from "./sentry";
 import { sendJson404 } from "./json404";
+import { stripeStartupErrors, stripeStartupMessage } from "./stripeConfig";
 
 const app = express();
 const httpServer = createServer(app);
@@ -131,6 +132,14 @@ async function ensureSchema() {
 }
 
 (async () => {
+  // Before anything listens: a live deployment with a missing or test-mode
+  // value would otherwise boot with billing silently off, or worse.
+  const stripeErrors = stripeStartupErrors();
+  if (stripeErrors.length) {
+    console.error(stripeStartupMessage(stripeErrors));
+    process.exit(1);
+  }
+
   await initServerSentry();
 
   const { usingMemory } = initStorage();

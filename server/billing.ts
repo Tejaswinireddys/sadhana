@@ -1,4 +1,5 @@
-import { CheckoutVerificationError, checkoutForUser, checkoutRequestSchema, isStripeTestKey, plusPrice } from "./stripePlus";
+import { CheckoutVerificationError, checkoutForUser, checkoutRequestSchema, plusPrice } from "./stripePlus";
+import { isStripeKeyForMode, matchesStripeMode, stripeConfig } from "./stripeConfig";
 import { processStripeWebhook, resyncStripeEntitlement, type StripeWebhookOptions } from "./stripeWebhook";
 import { entitlementNeedsResync, subscriptionPeriodEnd } from "./stripeSubscriptionState";
 import { publicAppOrigin } from "./publicUrl";
@@ -44,13 +45,15 @@ import {
   sendSubscriptionStartedEmail,
 } from "./email";
 
-const stripeKey = process.env.STRIPE_SECRET_KEY || "";
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
-const stripe = isStripeTestKey(stripeKey) ? new Stripe(stripeKey) : null;
+// Keys for STRIPE_MODE (test by default). A key from the other mode builds no
+// client at all, so a mix-up leaves billing off instead of charging anyone.
+const { mode: stripeModeName, secretKey: stripeKey, webhookSecret } = stripeConfig();
+const live = stripeModeName === "live";
+const stripe = isStripeKeyForMode(stripeKey, stripeModeName) ? new Stripe(stripeKey) : null;
 
 if (stripe && !webhookSecret) {
   console.error(
-    "[billing] STRIPE_SECRET_KEY is set but STRIPE_WEBHOOK_SECRET is missing. " +
+    `[billing] The Stripe ${stripeModeName} secret key is set but its webhook secret is missing. ` +
       "Webhooks will be rejected until a signing secret is configured.",
   );
 }
@@ -217,7 +220,7 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
     } catch { /* Missing or invalid prices keep checkout disabled. */ }
     res.json({
       enabled: Boolean(stripe) && billingEnabled() && Boolean(prices) && Boolean(webhookSecret),
-      testMode: true,
+      testMode: !live,
       prices,
       plans: ["free", "plus"],
       portalAvailable: Boolean(stripe) && billingEnabled(),
@@ -226,8 +229,8 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
       renewalReminderDays: 3,
       termsVersion: BILLING_TERMS_VERSION,
       note: stripe && prices && webhookSecret
-        ? "Stripe test mode — use test cards only. Manage or cancel anytime."
-        : "Stripe test billing is not configured. Free practice stays available.",
+        ? (live ? "Manage or cancel anytime." : "Stripe test mode — use test cards only. Manage or cancel anytime.")
+        : (live ? "Billing is not available right now. Free practice stays available." : "Stripe test billing is not configured. Free practice stays available."),
     });
   });
 
@@ -528,7 +531,7 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
       return res.status(400).send(`Webhook Error: ${(e as Error).message}`);
     }
 
-    if (event.livemode) return res.status(400).json({ error: "Only Stripe test-mode events are accepted" });
+    if (!matchesStripeMode(event.livemode, stripeModeName)) return res.status(400).json({ error: `Only Stripe ${stripeModeName}-mode events are accepted` });
 
     try {
       const result = await processStripeWebhook(stripe, storage, event, {

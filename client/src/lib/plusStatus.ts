@@ -89,8 +89,11 @@ export function formatAccessDate(iso: string | null, locale?: string, timeZone?:
   return date.toLocaleDateString(locale, { year: "numeric", month: "long", day: "numeric", timeZone });
 }
 
-/** Copy for the account-status line under the plans. */
-export function plusStatusMessage(status: PlusStatus, locale?: string, timeZone?: string): string {
+/**
+ * Copy for the account-status line under the plans. `stripeMode` comes from
+ * the server's STRIPE_MODE: "no live payments" is only true in test mode.
+ */
+export function plusStatusMessage(status: PlusStatus, locale?: string, timeZone?: string, stripeMode: "test" | "live" = "test"): string {
   switch (status.kind) {
     case "loading":
       return "Checking your account…";
@@ -108,6 +111,6 @@ export function plusStatusMessage(status: PlusStatus, locale?: string, timeZone?
     }
     case "signed-out":
     case "free":
-      return "Stripe test mode only — no live payments.";
+      return stripeMode === "live" ? "You're on the free plan." : "Stripe test mode only — no live payments.";
   }
 }

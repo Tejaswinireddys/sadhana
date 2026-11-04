@@ -164,19 +164,59 @@ flow, or a new pathway, follow the pattern in `client/src/data/content.ts`.
 MIT — see `LICENSE`.
 
 
-## Stripe Plus subscriptions (test mode only)
+## Stripe Plus subscriptions
 
 Plus Checkout requires a signed-in account. Guests and new accounts remain
-`free`; a verified webhook sets `users.plan` to `plus`. This integration rejects
-live secret keys, live prices, and live webhook events. No live payments are
-supported.
+`free`; a verified webhook sets `users.plan` to `plus`.
+
+### Test or live: `STRIPE_MODE`
+
+`STRIPE_MODE` picks which Stripe account mode the server uses. It is `test`
+unless set to exactly `live`. The mode decides which set of variables is read,
+and it is also a guard: a secret key, price, customer, subscription or webhook
+event from the *other* mode is refused, so a test key in live mode (or a live
+key in test mode) leaves billing off rather than charging anyone.
+
+| Value | Test mode (`STRIPE_MODE` unset or `test`) | Live mode (`STRIPE_MODE=live`) |
+| --- | --- | --- |
+| Secret key | `STRIPE_TEST_SECRET_KEY`, else `STRIPE_SECRET_KEY` (`sk_test_…`/`rk_test_…`) | `STRIPE_LIVE_SECRET_KEY` (`sk_live_…`/`rk_live_…`) |
+| Publishable key | `STRIPE_TEST_PUBLISHABLE_KEY`, else `STRIPE_PUBLISHABLE_KEY` (`pk_test_…`) | `STRIPE_LIVE_PUBLISHABLE_KEY` (`pk_live_…`) |
+| Webhook signing secret | `STRIPE_TEST_WEBHOOK_SECRET`, else `STRIPE_WEBHOOK_SECRET` | `STRIPE_LIVE_WEBHOOK_SECRET` (`whsec_…`) |
+| Monthly Plus price | `STRIPE_TEST_PRICE_MONTHLY`, else `STRIPE_PRICE_MONTHLY`, else `STRIPE_PRICE_PLUS_MONTHLY` | `STRIPE_LIVE_PRICE_MONTHLY` (`price_…`) |
+| Yearly Plus price | `STRIPE_TEST_PRICE_YEARLY`, else `STRIPE_PRICE_YEARLY`, else `STRIPE_PRICE_PLUS_YEARLY` | `STRIPE_LIVE_PRICE_YEARLY` (`price_…`) |
+
+- **Test mode is unchanged.** The unprefixed names every existing setup uses
+  keep working; the `STRIPE_TEST_*` names take precedence when both are set.
+  A missing or non-test key just leaves billing off, as before.
+- **Live mode never reads the unprefixed names** (they hold test values) and
+  **refuses to start** unless all five `STRIPE_LIVE_*` values are set and each
+  has its live form. It prints every problem at once and exits, for example:
+
+  ```text
+  [billing] Stripe configuration is invalid (STRIPE_MODE=live). The server will not start:
+    - STRIPE_LIVE_WEBHOOK_SECRET is missing
+    - STRIPE_LIVE_PRICE_YEARLY is missing
+  ```
+
+  Any `STRIPE_MODE` other than `test` or `live` also stops startup.
+- `BILLING_ENABLED=true` is still required in either mode.
+- Set **`BILLING_CANCEL_TOKEN_SECRET`** before switching modes. Without it,
+  one-click cancel links in emails are signed with the webhook secret, which
+  changes with the mode, so links already sent would stop working.
+- The publishable key is checked at startup but not used by the client yet:
+  Checkout is a server-created redirect.
+- The app's wording follows the mode: "Stripe test mode only — no live
+  payments" and the test-card hints appear only in test mode.
+
+### Test-mode setup
 
 1. In Stripe **test mode**, create a Plus product with two active, fixed USD
    recurring prices: one every month and one every year. Copy their `price_…`
    IDs. The Plus page reads the amounts from Stripe; the consent snapshot must
    match those amounts before Checkout can begin.
 2. Configure the following server environment variables (never put secrets in
-   `VITE_*` variables or commit them):
+   `VITE_*` variables or commit them). These are the test-mode values; for live,
+   set `STRIPE_MODE=live` and the `STRIPE_LIVE_*` names from the table above:
 
    ```dotenv
    BILLING_ENABLED=true

@@ -1,5 +1,6 @@
 /** Billing compliance records use IStorage: Postgres in production, memory locally. */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { stripeConfig } from "./stripeConfig";
 import { storage } from "./storage";
 import type { BillingEntitlement, ConsentAuditEntry, PurchaseRecord, PendingConsent, AccountCancellation } from "../shared/billing";
 export type { BillingInterval, BillingEntitlement, ConsentAuditEntry, PurchaseRecord, PendingConsent, AccountCancellation } from "../shared/billing";
@@ -72,7 +73,7 @@ export async function updatePurchase(id: string, patch: Partial<PurchaseRecord>)
 
 const TOKEN_SECRET =
   process.env.BILLING_CANCEL_TOKEN_SECRET ||
-  process.env.STRIPE_WEBHOOK_SECRET ||
+  stripeConfig().webhookSecret ||
   "sadhana-dev-cancel-token";
 
 export function hashCancelToken(raw: string): string {

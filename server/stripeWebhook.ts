@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { matchesStripeMode, stripeMode } from "./stripeConfig";
 import { randomBytes } from "node:crypto";
 import type { IStorage } from "./storage";
 import type { BillingEntitlement, ConsentAuditEntry } from "../shared/billing";
@@ -77,7 +78,7 @@ export async function resyncStripeEntitlement(stripe: Stripe, store: IStorage, o
 
 /** Claim + all database effects commit together; external notifications run only after commit. */
 export async function processStripeWebhook(stripe: Stripe, store: IStorage, event: Stripe.Event, options: StripeWebhookOptions = {}) {
-  if (event.livemode || !event.id || !event.type) throw new Error("Invalid test-mode Stripe event");
+  if (!matchesStripeMode(event.livemode) || !event.id || !event.type) throw new Error(`Invalid ${stripeMode()}-mode Stripe event`);
   const notifications: StripeWebhookNotification[] = [];
   try {
     const processed = await store.runInTransaction(async () => {
