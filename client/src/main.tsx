@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./LaunchApp";
 import { legacyRouteTarget } from "./lib/welcomeGate";
+import { aliasRouteTarget } from "./lib/routeAliases";
 import "./index.css";
 
 /**
@@ -20,6 +21,10 @@ if (legacyTarget) {
   // Bare "#" left over from an old link — drop it.
   window.history.replaceState(null, "", window.location.pathname + window.location.search);
 }
+
+// `/login`, `/signup`, `/today` → their real pages, the same way (see routeAliases.ts).
+const aliasTarget = aliasRouteTarget(window.location.pathname, window.location.search, window.location.hash);
+if (aliasTarget) window.history.replaceState(null, "", aliasTarget);
 
 createRoot(document.getElementById("root")!).render(<App />);
 

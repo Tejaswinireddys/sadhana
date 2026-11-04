@@ -7,6 +7,7 @@ import { brandPublicHtml, publicAppOrigin, robotsTxt } from "./publicUrl";
 import { sendJson404 } from "./json404";
 import { mountStaticMedia } from "./mountStaticMedia";
 import { servesWelcomeHtml } from "./welcomeEntry";
+import { aliasRouteTarget } from "../client/src/lib/routeAliases";
 
 const ONE_YEAR_SECONDS = 31_536_000;
 const ONE_DAY_SECONDS = 86_400;
@@ -88,7 +89,13 @@ const KNOWN_TOP_LEVEL_SEGMENTS = new Set([
   "design-system",
 ]);
 
-function isKnownAppRoute(pathname: string): boolean {
+/**
+ * A path the client renders as a real page: a known first segment, or an
+ * exact alias (`/login`, `/signup`, `/today`) that `main.tsx` rewrites before
+ * the router runs.
+ */
+export function isKnownAppRoute(pathname: string): boolean {
+  if (aliasRouteTarget(pathname)) return true;
   const first = pathname.split("/").filter(Boolean)[0] ?? "";
   return KNOWN_TOP_LEVEL_SEGMENTS.has(first);
 }
@@ -111,8 +118,8 @@ function isNonSpaPrefix(pathname: string): boolean {
   );
 }
 
-export function serveStatic(app: Express) {
-  const distPath = path.resolve(__dirname, "public");
+/** `distPath` defaults to the built client next to dist/index.cjs; tests pass a fixture. */
+export function serveStatic(app: Express, distPath = path.resolve(__dirname, "public")) {
   if (!fs.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`,
