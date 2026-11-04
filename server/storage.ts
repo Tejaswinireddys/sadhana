@@ -186,6 +186,14 @@ export interface IStorage {
    * a later save without it never un-finishes a class.
    */
   saveClassProgress(ownerId: string, classId: number, data: { secondsWatched: number; completed: boolean }): Promise<ClassProgressRow>;
+  /** How many viewers' progress rows point at one class (for `class:remove`'s plan). */
+  countClassProgressForClass(classId: number): Promise<number>;
+  /**
+   * Delete one class and every progress row that points at it, in one
+   * transaction. Chapters live on the class row and go with it. Returns what
+   * was actually deleted, so the caller reports real counts, not the plan's.
+   */
+  deleteClassWithProgress(classId: number): Promise<{ classRows: number; progressRows: number }>;
   getMobilityCheckIns(ownerId: string, pathwaySlug: string): Promise<MobilityCheckIn[]>;
   createMobilityCheckIn(ownerId: string, data: InsertMobilityCheckIn): Promise<MobilityCheckIn>;
   deleteMobilityCheckIn(ownerId: string, id: number): Promise<void>;
@@ -832,6 +840,19 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
+  async countClassProgressForClass(classId: number): Promise<number> {
+    const [row] = await this.orm.select({ n: sql<number>`count(*)::int` }).from(classProgress).where(eq(classProgress.classId, classId));
+    return Number(row?.n ?? 0);
+  }
+  async deleteClassWithProgress(classId: number): Promise<{ classRows: number; progressRows: number }> {
+    return this.runInTransaction(async () => {
+      // Progress first and explicitly: the FK cascades too, but this is the count we report.
+      const progress = await this.orm.delete(classProgress).where(eq(classProgress.classId, classId)).returning({ id: classProgress.id });
+      const removed = await this.orm.delete(classes).where(eq(classes.id, classId)).returning({ id: classes.id });
+      return { classRows: removed.length, progressRows: progress.length };
+    });
+  }
+
   async getMobilityCheckIns(ownerId: string, pathwaySlug: string): Promise<MobilityCheckIn[]> {
     return this.orm
       .select()
@@ -1463,6 +1484,18 @@ export class MemoryStorage implements IStorage {
     const row: ClassProgressRow = { id: this.nextId(), ownerId, classId, ...data, updatedAt };
     this.classProgressRows.push(row);
     return structuredClone(row);
+  }
+
+  async countClassProgressForClass(classId: number) {
+    return this.classProgressRows.filter((row) => row.classId === classId).length;
+  }
+  async deleteClassWithProgress(classId: number) {
+    // Both arrays are replaced in one synchronous step, so there is no partial state to roll back.
+    const progressRows = this.classProgressRows.filter((row) => row.classId === classId).length;
+    const classRows = this.classRows.filter((row) => row.id === classId).length;
+    this.classProgressRows = this.classProgressRows.filter((row) => row.classId !== classId);
+    this.classRows = this.classRows.filter((row) => row.id !== classId);
+    return { classRows, progressRows };
   }
 
   async getMobilityCheckIns(ownerId: string, pathwaySlug: string) {

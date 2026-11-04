@@ -49,6 +49,37 @@ only ids — never tokens or secrets.
 `--chapters` or `--captions`). It also attaches a real video to a placeholder:
 `--slug steady-strength-flow`.
 
+## Removing a class
+
+```bash
+npm run class:remove -- --slug slow-flow [--delete-mux-asset] [--yes] [--dry-run]
+```
+
+Uses the same `.env` as `class:upload` (`DATABASE_URL`; `MUX_TOKEN_ID` and
+`MUX_TOKEN_SECRET` to find or delete the Mux asset). It looks the class up by
+slug and prints what it will delete:
+
+- the class row, and the chapters stored on it;
+- every viewer's progress row for the class;
+- ratings: none are stored per class. The effort rating at the end of a
+  class is saved on the viewer's own practice session, which belongs to
+  their history and is **kept**;
+- the playback id, and the Mux asset id behind it (looked up from Mux, so
+  it shows as unknown without Mux credentials).
+
+Then it asks you to type `yes`, unless `--yes` is passed. Without a terminal
+(CI, a pipe) it refuses rather than guess, so pass `--yes` there.
+`--dry-run` prints the plan and changes nothing.
+
+The class row and its progress rows are deleted in **one transaction**: a
+failure rolls back both. The Mux asset is kept unless `--delete-mux-asset` is
+given. In that case it is deleted after the database rows, so a failed Mux
+call leaves an orphaned asset (its id is printed, so you can delete it in the
+Mux dashboard) rather than a live class with no video. With
+`--delete-mux-asset`, the command stops before deleting anything when the
+asset cannot be found, when the playback id is Mux's public test clip (the
+placeholders), or when another class uses the same playback id.
+
 ## chapters.json
 
 A JSON array (or `{ "chapters": [ … ] }`) of chapters in time order:
