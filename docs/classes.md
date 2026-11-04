@@ -32,6 +32,12 @@ What it does:
 4. Saves the class (same rules as `class:add`), with the chapters, the
    asset's duration (rounded up to whole minutes) and a poster frame
    (`--thumbnail-time`, default a tenth of the way in, at most 30 s).
+   A **Plus** poster is served from `/api/classes/<slug>/thumbnail.webp`:
+   the server signs a Mux `t` token for that frame (time and width set
+   inside the token), gets the image from Mux, caches it for an hour and
+   sends back only the image. Browsers, locked cards included, never
+   receive the playback id or the token. If signing is not configured, the
+   API returns `thumbnailUrl: null` and the card shows its placeholder.
 
 `--dry-run` checks the file, the chapters JSON (including pose slugs) and the
 captions source, then stops: nothing is uploaded or saved. The command prints

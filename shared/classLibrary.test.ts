@@ -16,6 +16,7 @@ import {
   nextProgress,
   paginate,
   presentClass,
+  classThumbnailPath,
   resumeFrom,
   sortClasses,
   withSavedProgress,
@@ -135,6 +136,20 @@ describe("classPlayback (signed Plus)", () => {
   it("a Plus class on a public id is never served, even to Plus", () => {
     assert.equal(classPlayback(plus, "plus", signer), null);
     assert.equal(JSON.stringify(presentClass(plus, "plus", null, signer)).includes("secretPlusId"), false);
+  });
+
+  it("a signed class's poster is the same-origin relay when signing works, else none", () => {
+    const relay = "/api/classes/x/thumbnail.webp";
+    const bare = row({ slug: "x", tier: "plus", muxPlaybackId: "signedPlusId", playbackPolicy: "signed", thumbnailUrl: null });
+    for (const plan of ["free", "plus"] as const) {
+      assert.equal(presentClass(bare, plan, null, undefined, { signedThumbnails: true }).thumbnailUrl, relay);
+      assert.equal(presentClass(bare, plan).thumbnailUrl, null);
+    }
+    const muxUrl = row({ ...bare, thumbnailUrl: "https://image.mux.com/signedPlusId/thumbnail.webp" });
+    assert.equal(presentClass(muxUrl, "plus", null, undefined, { signedThumbnails: true }).thumbnailUrl, relay);
+    const custom = row({ ...bare, thumbnailUrl: "/poses/x.webp" });
+    assert.equal(presentClass(custom, "free", null, undefined, { signedThumbnails: true }).thumbnailUrl, "/poses/x.webp");
+    assert.equal(classThumbnailPath("x"), relay);
   });
 
   it("without a signer (lists) or with signing unconfigured, a signed class is unplayable", () => {

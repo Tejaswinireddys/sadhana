@@ -39,7 +39,7 @@ function decodeJwt(token: string) {
 
 type Summary = { slug: string; tier: string; locked: boolean; playback: { playbackId: string } | null; thumbnailUrl: string | null; progress: { secondsWatched: number; completed: boolean } | null };
 
-async function harness({ signing = true, attachSigned = true } = {}) {
+async function harness({ signing = true, attachSigned = true, fetchImage }: { signing?: boolean; attachSigned?: boolean; fetchImage?: typeof fetch } = {}) {
   withSigning(signing);
   const store = new MemoryStorage();
   await seedPlaceholderClasses(store, Date.now(), quietWarn);
@@ -60,7 +60,7 @@ async function harness({ signing = true, attachSigned = true } = {}) {
     req.ownerId = req.userId ? `user:${req.userId}` : req.get("x-owner") || "device-guest";
     next();
   });
-  registerClassRoutes(app, { store });
+  registerClassRoutes(app, { store, fetchImage });
   const server = app.listen(0, "127.0.0.1");
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
@@ -68,9 +68,10 @@ async function harness({ signing = true, attachSigned = true } = {}) {
     const res = await fetch(`${base}${path}`, { headers: { ...(as ? { "x-as": as } : {}), ...(owner ? { "x-owner": owner } : {}) } });
     return { status: res.status, text: await res.clone().text(), body: await res.json(), cache: res.headers.get("cache-control") };
   };
+  const raw = (path: string, as?: string) => fetch(`${base}${path}`, { headers: as ? { "x-as": as } : {} });
   const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
     fetch(`${base}${path}`, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
-  return { store, get, post, close: () => new Promise<void>((resolve) => { withSigning(false); server.close(() => resolve()); }) };
+  return { store, get, raw, post, close: () => new Promise<void>((resolve) => { withSigning(false); server.close(() => resolve()); }) };
 }
 
 const plusSlugs = PLACEHOLDER_CLASSES.filter((row) => row.tier === "plus").map((row) => row.slug);
@@ -213,11 +214,114 @@ test("a locked class whose thumbnail embeds the playback id gets no thumbnail", 
     const id = SIGNED_IDS[PLACEHOLDER_CLASSES[3].slug];
     await h.store.upsertClassBySlug({ ...PLACEHOLDER_CLASSES[3], muxPlaybackId: id, thumbnailUrl: `https://image.mux.com/${id}/thumbnail.webp`, createdAt: new Date().toISOString() });
     const detail = await h.get(`/api/classes/${PLACEHOLDER_CLASSES[3].slug}`, "free");
-    assert.equal(detail.body.class.thumbnailUrl, null);
+    assert.equal(detail.body.class.thumbnailUrl, `/api/classes/${PLACEHOLDER_CLASSES[3].slug}/thumbnail.webp`,
+      "the tokenless Mux URL is replaced by the signed relay");
     assert.equal(detail.text.includes(id), false);
     const asPlus = await h.get(`/api/classes/${PLACEHOLDER_CLASSES[3].slug}`, "plus");
-    assert.match(asPlus.body.class.thumbnailUrl, /image\.mux\.com/);
+    assert.equal(asPlus.body.class.thumbnailUrl, `/api/classes/${PLACEHOLDER_CLASSES[3].slug}/thumbnail.webp`);
   } finally { await h.close(); }
+});
+
+/** A stand-in for image.mux.com that records each request's token. */
+function fakeMux(respond: () => Response = () => new Response(Buffer.from("webp-bytes"), { headers: { "content-type": "image/webp" } })) {
+  const calls: URL[] = [];
+  const fetchImage = (async (input: string | URL | Request) => {
+    calls.push(new URL(String(input)));
+    return respond();
+  }) as typeof fetch;
+  return { calls, fetchImage };
+}
+
+async function withoutThumbnails(h: Awaited<ReturnType<typeof harness>>) {
+  for (const row of PLACEHOLDER_CLASSES.filter((r) => r.tier === "plus")) {
+    await h.store.upsertClassBySlug({ ...row, muxPlaybackId: SIGNED_IDS[row.slug], thumbnailUrl: null, thumbnailTimeSec: 42, createdAt: new Date().toISOString() });
+  }
+}
+
+test("signed Plus classes list a same-origin poster for every viewer, never the id or a token", async () => {
+  const h = await harness();
+  try {
+    await withoutThumbnails(h);
+    for (const as of [undefined, "free", "plus"]) {
+      const list = await h.get("/api/classes", as);
+      for (const slug of plusSlugs) {
+        assert.equal(list.body.items.find((r: Summary) => r.slug === slug).thumbnailUrl, `/api/classes/${slug}/thumbnail.webp`);
+      }
+      assert.ok(Object.values(SIGNED_IDS).every((id) => !list.text.includes(id)), `no signed id in the listing for ${as ?? "guest"}`);
+      const progress = await h.get("/api/class-progress", as);
+      assert.equal(progress.status, 200);
+    }
+    const detail = await h.get(`/api/classes/${plusSlugs[0]}`, "free");
+    assert.equal(detail.body.class.thumbnailUrl, `/api/classes/${plusSlugs[0]}/thumbnail.webp`);
+    assert.equal(detail.text.includes(SIGNED_IDS[plusSlugs[0]]), false);
+  } finally { await h.close(); }
+});
+
+test("without signing, signed Plus classes have no thumbnail (the client placeholder shows)", async () => {
+  const h = await harness({ signing: false });
+  try {
+    await withoutThumbnails(h);
+    const list = await h.get("/api/classes", "plus");
+    assert.ok(list.body.items.filter((r: Summary) => r.tier === "plus").every((r: Summary) => r.thumbnailUrl === null));
+  } finally { await h.close(); }
+});
+
+test("thumbnail relay: signs a t token bound to the poster frame and sends only the bytes", async () => {
+  const mux = fakeMux();
+  const h = await harness({ fetchImage: mux.fetchImage });
+  try {
+    await withoutThumbnails(h);
+    const slug = plusSlugs[0];
+    const res = await h.raw(`/api/classes/${slug}/thumbnail.webp`, "free");
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), "image/webp");
+    assert.equal(res.headers.get("cache-control"), "public, max-age=3600");
+    assert.equal(Buffer.from(await res.arrayBuffer()).toString(), "webp-bytes");
+    assert.equal(mux.calls.length, 1);
+    const call = mux.calls[0];
+    assert.equal(`${call.origin}${call.pathname}`, `https://image.mux.com/${SIGNED_IDS[slug]}/thumbnail.webp`);
+    assert.deepEqual([...call.searchParams.keys()], ["token"], "image options live in the token, not the query");
+    const jwt = decodeJwt(call.searchParams.get("token")!);
+    assert.equal(jwt.valid, true);
+    assert.equal(jwt.payload.aud, "t");
+    assert.equal(jwt.payload.sub, SIGNED_IDS[slug]);
+    assert.equal(jwt.payload.time, 42);
+    assert.equal(jwt.payload.width, 640);
+    assert.ok(jwt.payload.exp - jwt.payload.iat <= 300);
+
+    await h.raw(`/api/classes/${slug}/thumbnail.webp`);
+    assert.equal(mux.calls.length, 1, "the poster is cached for every viewer");
+  } finally { await h.close(); }
+});
+
+test("thumbnail relay: failures are JSON, not cached, and only signed classes are relayed", async () => {
+  let ok = false;
+  const mux = fakeMux(() => ok
+    ? new Response(Buffer.from("webp-bytes"), { headers: { "content-type": "image/webp" } })
+    : new Response("forbidden", { status: 403, headers: { "content-type": "text/plain" } }));
+  const h = await harness({ fetchImage: mux.fetchImage });
+  try {
+    await withoutThumbnails(h);
+    const slug = plusSlugs[1];
+    const failed = await h.raw(`/api/classes/${slug}/thumbnail.webp`);
+    assert.equal(failed.status, 502);
+    assert.deepEqual(await failed.json(), { error: "Thumbnail unavailable" });
+    ok = true;
+    assert.equal((await h.raw(`/api/classes/${slug}/thumbnail.webp`)).status, 200, "a failure is retried");
+    assert.equal(mux.calls.length, 2);
+
+    assert.equal((await h.raw(`/api/classes/${freeSlugs[0]}/thumbnail.webp`)).status, 404, "public classes use Mux directly");
+    assert.equal((await h.raw("/api/classes/no-such-class/thumbnail.webp")).status, 404);
+    assert.equal((await h.raw("/api/classes/Bad%20Slug/thumbnail.webp")).status, 404);
+  } finally { await h.close(); }
+
+  const unsigned = await harness({ signing: false, fetchImage: mux.fetchImage });
+  try {
+    await withoutThumbnails(unsigned);
+    const res = await unsigned.raw(`/api/classes/${plusSlugs[2]}/thumbnail.webp`);
+    assert.equal(res.status, 503);
+    assert.equal(mux.calls.length, 2, "nothing is fetched without a token");
+  } finally { await unsigned.close(); }
 });
 
 test("filters and pagination", async () => {

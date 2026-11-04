@@ -161,9 +161,8 @@ export async function resolveClassPlayback(api: MuxAssetApi, options: Pick<Class
 
 /**
  * The row to upsert. A free class defaults to Mux's thumbnail; a Plus class
- * gets none unless one is given, since a signed thumbnail needs a token the
- * library cards do not carry (and `presentClass` drops thumbnails that embed
- * the id for locked viewers anyway).
+ * stores none unless one is given: its poster needs a signed token, which the
+ * API mints per request and relays through `classThumbnailPath`.
  */
 export function buildClassRow(
   options: ClassAddOptions,

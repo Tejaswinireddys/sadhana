@@ -285,19 +285,48 @@ export function classPlayback(
 }
 
 /**
+ * Same-origin URL for a signed class's poster frame. The server signs a Mux
+ * `t` token and relays the image, so neither the playback id nor the token
+ * reaches the browser — locked cards get a real poster without breaking the
+ * "no Plus id for free viewers" rule.
+ */
+export function classThumbnailPath(slug: string): string {
+  return `/api/classes/${slug}/thumbnail.webp`;
+}
+
+/**
+ * A signed class whose stored thumbnail is missing, or is Mux's own URL
+ * (unusable without a token, and it embeds the id), is served through
+ * `classThumbnailPath`. A custom thumbnail (`--thumbnail`) is kept as is.
+ */
+export function usesSignedThumbnail(row: Pick<ClassRecord, "muxPlaybackId" | "playbackPolicy" | "thumbnailUrl">): boolean {
+  const playbackId = row.muxPlaybackId?.trim();
+  if (row.playbackPolicy !== "signed" || !playbackId) return false;
+  return !row.thumbnailUrl || row.thumbnailUrl.includes(playbackId);
+}
+
+function viewerThumbnail(row: ClassRecord, locked: boolean, signedThumbnails: boolean): string | null {
+  if (usesSignedThumbnail(row)) return signedThumbnails ? classThumbnailPath(row.slug) : null;
+  const playbackId = row.muxPlaybackId?.trim() || null;
+  const leaksPlayback = !!playbackId && !!row.thumbnailUrl?.includes(playbackId);
+  return locked && leaksPlayback ? null : row.thumbnailUrl;
+}
+
+/**
  * The viewer's view of a class. Locked classes carry no playback id, and a
  * thumbnail URL that embeds it (Mux's `image.mux.com/<id>/…`) is dropped too —
- * with a public playback policy, the id alone is enough to stream.
+ * with a public playback policy, the id alone is enough to stream. Signed
+ * classes get `classThumbnailPath` when `signedThumbnails` says the server can
+ * sign; otherwise null, and the client shows its placeholder.
  */
 export function presentClass(
   row: ClassRecord,
   viewerPlan: ViewerPlan,
   progress?: ClassProgressRecord | null,
   sign?: ClassTokenSigner,
+  options: { signedThumbnails?: boolean } = {},
 ): ClassSummary {
   const locked = isClassLocked(row, viewerPlan);
-  const playbackId = row.muxPlaybackId?.trim() || null;
-  const thumbnailLeaksPlayback = !!playbackId && !!row.thumbnailUrl?.includes(playbackId);
   return {
     id: row.id,
     slug: row.slug,
@@ -307,7 +336,7 @@ export function presentClass(
     level: row.level,
     durationMinutes: row.durationMinutes,
     focusTags: [...row.focusTags],
-    thumbnailUrl: locked && thumbnailLeaksPlayback ? null : row.thumbnailUrl,
+    thumbnailUrl: viewerThumbnail(row, locked, options.signedThumbnails ?? false),
     tier: row.tier,
     chapters: storedChapters(row.chapters),
     thumbnailTimeSec: typeof row.thumbnailTimeSec === "number" && row.thumbnailTimeSec >= 0 ? row.thumbnailTimeSec : null,

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { Clock, Lock, PlayCircle } from "lucide-react";
 import type { ClassSummary } from "@shared/classLibrary";
@@ -12,6 +13,8 @@ import { formatClassMinutes, levelLabel } from "@/lib/classesApi";
  */
 export function ClassCard({ item, testIdPrefix = "class-card" }: { item: ClassSummary; testIdPrefix?: string }) {
   const href = item.locked ? "/plus" : `/classes/${item.slug}`;
+  // A relayed Plus poster can still fail upstream; fall back to the placeholder.
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const progress = item.progress && !item.progress.completed && item.durationMinutes > 0
     ? Math.min(100, Math.round((item.progress.secondsWatched / (item.durationMinutes * 60)) * 100))
     : null;
@@ -37,9 +40,10 @@ export function ClassCard({ item, testIdPrefix = "class-card" }: { item: ClassSu
       {/* overflow-hidden: a flex child with aspect-ratio otherwise grows to its
           content, and the portrait pose illustrations stretched cards to 3:4. */}
       <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-muted">
-        {item.thumbnailUrl ? (
+        {item.thumbnailUrl && !thumbnailFailed ? (
           <img
             src={item.thumbnailUrl}
+            onError={() => setThumbnailFailed(true)}
             alt=""
             width={640}
             height={360}

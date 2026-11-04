@@ -409,11 +409,12 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
 }
 
 function LockedClass({ item }: { item: ClassSummary }) {
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
   return (
     <div className="space-y-4 rounded-xl border border-card-border bg-card p-6 text-center shadow-soft" data-testid="class-player-locked">
-      {item.thumbnailUrl && (
+      {item.thumbnailUrl && !thumbnailFailed && (
         <div className="relative mx-auto aspect-video w-full max-w-md overflow-hidden rounded-lg bg-muted">
-          <img src={item.thumbnailUrl} alt="" width={640} height={360} loading="lazy" className="absolute inset-0 h-full w-full object-contain" />
+          <img src={item.thumbnailUrl} alt="" width={640} height={360} loading="lazy" onError={() => setThumbnailFailed(true)} className="absolute inset-0 h-full w-full object-contain" />
         </div>
       )}
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
