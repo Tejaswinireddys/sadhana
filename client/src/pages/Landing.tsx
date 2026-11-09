@@ -1,5 +1,7 @@
 import { SupportContact } from "@/components/SupportContact";
-import { BILLING_ENABLED } from "@/lib/publicConfig";
+import { BILLING_ENABLED, STRIPE_MODE } from "@/lib/publicConfig";
+import { billingCopy, billingState } from "@/lib/billingCopy";
+import { CLASS_FORMAT_DISCLOSURE, CLASS_FORMAT_SHORT } from "@/data/classFormat";
 /**
  * Public homepage (/welcome).
  *
@@ -64,7 +66,7 @@ const FORMAT = [
   {
     icon: ImageIcon,
     title: "Illustrated poses",
-    body: `All ${landing.poseCount} poses are drawn, with the body shape described in text for screen readers. There is no filmed teacher — each pose shows a still.`,
+    body: `All ${landing.poseCount} poses are drawn, with the body shape described in text for screen readers. In guided practice each pose shows a labelled still.`,
   },
   {
     icon: Volume2,
@@ -86,7 +88,11 @@ const FORMAT = [
 const FAQ = [
   {
     q: "What will I see and hear during a practice?",
-    a: "An illustration of the pose, a recorded voice talking you into it, the same words as captions, and a countdown for the hold. There is no video of a teacher.",
+    a: "In a guided practice: an illustration of the pose, a recorded voice talking you into it, the same words as captions, and a countdown for the hold. The video classes are different — see the next question.",
+  },
+  {
+    q: "Are the video classes taught by a real instructor?",
+    a: CLASS_FORMAT_DISCLOSURE,
   },
   {
     q: "Do I need any equipment?",
@@ -124,6 +130,9 @@ export default function Landing() {
     const secure = window.location.protocol === "https:" ? "; Secure" : "";
     document.cookie = `sadhana_welcome_seen=1; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
   };
+
+  const billing = billingCopy(billingState(BILLING_ENABLED, STRIPE_MODE));
+  const faq = [...FAQ, { q: "Can I buy Sadhana Plus?", a: billing.help }];
 
   const { sessions, samplePoses, samplePreflight, personalisation, flaggedBenefitLines } = landing;
   const firstPose = samplePoses[0];
@@ -269,8 +278,8 @@ export default function Landing() {
             <Reveal className="mb-6 max-w-2xl space-y-2">
               <h2 className="font-serif text-3xl font-semibold tracking-tight">How it teaches</h2>
               <p className="text-muted-foreground" data-testid="landing-no-filmed-instruction">
-                Illustrations and voice, not video. There is no filmed instruction yet — each pose
-                shows a labelled still.
+                Guided practice uses illustrations and voice — each pose shows a labelled still.{" "}
+                {CLASS_FORMAT_SHORT} No human instructor filmed or reviewed them.
               </p>
             </Reveal>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -424,11 +433,12 @@ export default function Landing() {
               <h2 className="font-serif text-xl font-semibold">Free today</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Everything described here is free: all {landing.poseCount} illustrated poses, guided
-                sessions, programs, breathing, the quiz, your history and journal. A paid plan is
-                planned but not on sale — there is a waitlist and nothing can be charged.
+                sessions, programs, breathing, the quiz, the free video classes, your history and
+                journal.{" "}
+                <span data-testid="landing-plus-billing" data-billing-state={billing.state}>{billing.landingPlus}</span>
               </p>
-              <Link href="/plus" className="inline-flex min-h-11 items-center text-sm text-primary hover:underline">
-                About the planned plan
+              <Link href="/plus" className="inline-flex min-h-11 items-center text-sm text-primary hover:underline" data-testid="landing-plus-link">
+                {billing.landingPlusLink}
               </Link>
             </div>
             <div className="space-y-2 rounded-2xl border border-border/60 bg-card p-5" data-testid="landing-help">
@@ -476,7 +486,7 @@ export default function Landing() {
         <section id="faq" className="mx-auto max-w-6xl px-4 py-12 md:px-8 md:py-16">
           <h2 className="mb-6 font-serif text-3xl font-semibold tracking-tight">Questions</h2>
           <div className="divide-y divide-border/70">
-            {FAQ.map((item) => (
+            {faq.map((item) => (
               <details key={item.q} className="group py-3 open:pb-4">
                 <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
                   {item.q}

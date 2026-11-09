@@ -5,7 +5,8 @@ import { ASANAS, PATHWAYS } from "@/data/content";
 import { usePractice } from "@/context/PracticeContext";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { Button } from "@/components/ui/button";
-import { STRIPE_MODE } from "@/lib/publicConfig";
+import { BILLING_ENABLED, STRIPE_MODE } from "@/lib/publicConfig";
+import { billingCopy, billingState } from "@/lib/billingCopy";
 
 /** Gate before mounting lessons or players, including restored practice queues. */
 export function ContentAccessGate({ children }: { children: ReactNode }) {
@@ -27,11 +28,12 @@ export function ContentAccessGate({ children }: { children: ReactNode }) {
   ] : [])].filter((row) => row !== undefined);
   if (!content.some((row) => row.isPlus)) return <>{children}</>;
   if (isLoading) return <p role="status">Checking access…</p>;
+  const billing = billingCopy(billingState(BILLING_ENABLED, STRIPE_MODE));
   if (content.some((row) => !canAccess(row))) return (
     <section className="space-y-4 p-6" data-testid="plus-upgrade-screen">
       <h1 className="font-serif text-3xl">Continue with Sadhana Plus</h1>
-      <p>This practice is for Plus members.{STRIPE_MODE === "live" ? "" : " Subscribe using Stripe test mode."}</p>
-      <Button asChild><Link href="/plus" data-testid="button-upgrade-plus">Subscribe</Link></Button>
+      <p data-testid="plus-gate-billing">{billing.gateNote}</p>
+      <Button asChild><Link href="/plus" data-testid="button-upgrade-plus">{billing.gateCta}</Link></Button>
       <Button variant="outline" asChild><Link href="/pathways">Browse classes</Link></Button>
     </section>
   );

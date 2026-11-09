@@ -45,10 +45,10 @@ describe("plusStatus — pending cancellation", () => {
     );
   });
 
-  it("only test mode says there are no live payments", () => {
+  it("only test mode says there are no real charges", () => {
     for (const kind of ["free", "signed-out"] as const) {
-      assert.equal(plusStatusMessage({ kind } as never), "Stripe test mode only — no live payments.", `${kind}, default`);
-      assert.equal(plusStatusMessage({ kind } as never, undefined, undefined, "test"), "Stripe test mode only — no live payments.");
+      assert.equal(plusStatusMessage({ kind } as never), "You're on the free plan. Purchasing Plus is unavailable right now.", `${kind}, default`);
+      assert.equal(plusStatusMessage({ kind } as never, undefined, undefined, "test"), "You're on the free plan. Checkout is in Stripe test mode — no real charges.");
       assert.equal(plusStatusMessage({ kind } as never, undefined, undefined, "live"), "You're on the free plan.");
     }
     assert.equal(plusStatusMessage({ kind: "plus" }, undefined, undefined, "live"), "Your account has Plus access.");

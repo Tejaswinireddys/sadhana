@@ -1,9 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { LEGAL_VERSION } from "../client/src/lib/legal";
 
-// With BILLING_ENABLED unset (the default), Plus is waitlist-only: the cancel
-// pages must say so, link to the waitlist, and never call billing endpoints
-// that can only answer 404 because no subscription can exist.
+// With BILLING_ENABLED unset (the default), purchasing Plus is unavailable: the
+// cancel pages must say so and never call billing endpoints that can only
+// answer 404 because no subscription can exist.
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((version) => {
@@ -30,7 +30,7 @@ test.describe("cancel pages while Plus is waitlist-only", () => {
     await page.goto("/cancel");
     const notice = page.getByTestId("plus-not-available");
     await expect(notice).toBeVisible();
-    await expect(notice).toContainText("not available yet");
+    await expect(notice).toContainText("unavailable");
     await expect(notice).toContainText("nothing to refund");
     await expect(page.getByTestId("link-plus-waitlist")).toHaveAttribute("href", "/plus#waitlist");
     // No refund or two-tap instructions for a plan nobody can buy.
@@ -56,13 +56,17 @@ test.describe("cancel pages while Plus is waitlist-only", () => {
     await expect(page.getByTestId("cancel-done")).toHaveCount(0);
   });
 
-  test("the legacy waitlist link now opens subscription choices", async ({ page }) => {
+  test("the legacy waitlist link opens plans that say purchasing is unavailable", async ({ page }) => {
     await page.goto("/cancel");
     await page.getByTestId("link-plus-waitlist").click();
     await expect(page).toHaveURL(/\/plus#waitlist$/);
+    await expect(page.getByTestId("plans-intro")).toContainText("Purchasing Sadhana Plus is unavailable");
+    await expect(page.getByTestId("plan-billing-badge-plus")).toHaveText("Not on sale");
+    // Still actionable for a guest: it leads to signup, not to a checkout.
     await expect(page.getByTestId("plan-select-plus")).toHaveText("Subscribe");
     await expect(page.getByTestId("plan-select-plus")).toBeEnabled();
-    await expect(page.getByTestId("plus-account-status")).toContainText("test mode");
+    await expect(page.getByTestId("plus-account-status")).toContainText("unavailable");
+    await expect(page.getByTestId("plus-account-status")).not.toContainText("test mode");
     await expect(page.getByTestId("plus-waitlist")).toHaveCount(0);
   });
 

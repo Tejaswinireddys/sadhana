@@ -4,6 +4,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { FadeIn } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { billingCopy, billingState, plusPrices, usd } from "@/lib/billingCopy";
 import { PLANS, readPreferredPlan, writePreferredPlan, type PlanId } from "@/lib/plans";
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -59,6 +60,7 @@ function LivePlus() {
   const [plan, setPlan] = useState<PlanId>(() => readPreferredPlan());
   const [interval, setInterval] = useState<"month" | "year">("month");
   const [billing, setBilling] = useState<BillingConfig>({ enabled: false, note: "" });
+  const [billingLoaded, setBillingLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmationDeadline] = useState(() => Date.now() + CHECKOUT_POLL_WINDOW_MS);
   const returnedFromCheckout = readUrlParam("checkout") === "success";
@@ -121,8 +123,14 @@ function LivePlus() {
     void fetch("/api/billing/config")
       .then((r) => r.json())
       .then((c: BillingConfig) => setBilling(c))
-      .catch(() => setBilling({ enabled: false, note: "Billing unavailable right now." }));
+      .catch(() => setBilling({ enabled: false, note: "Billing unavailable right now." }))
+      .finally(() => setBillingLoaded(true));
   }, []);
+
+  // Until the server answers, the page-embedded flag decides, so a test-mode
+  // site never flashes "unavailable" (or a live one "test") on first paint.
+  const billingMode = billingState(billingLoaded ? billing.enabled : BILLING_ENABLED, STRIPE_MODE);
+  const copy = billingCopy(billingMode, plusPrices(billing));
 
   useEffect(() => {
     if (paywallTracked.current) return;
@@ -161,7 +169,7 @@ function LivePlus() {
       return;
     }
     if (!billing.enabled || !billing.prices) {
-      toast({ title: "Checkout unavailable", description: "Stripe test billing is not configured." });
+      toast({ title: "Checkout unavailable", description: copy.statusNote });
       return;
     }
     void captureProduct("checkout_started", { flow_id: flowId, plan: id });
@@ -256,17 +264,10 @@ function LivePlus() {
         <header className="space-y-2">
           <h1 className="font-serif text-3xl font-semibold tracking-tight">Plans</h1>
           <p className="text-muted-foreground" data-testid="plans-intro">
-            {billing.enabled
-              ? "Cancel in two taps from Home. Renewal reminder 3 days before every charge. First-charge refund within 14 days, auto-approved. The safety library stays free."
-              : STRIPE_MODE === "live"
-                ? "Checkout is unavailable right now. The safety library and free practice stay available."
-                : "Plus subscriptions use Stripe test mode. Checkout is unavailable until test billing is configured."}
+            {copy.plansIntro}
           </p>
-          <p className="text-xs text-muted-foreground" data-testid="billing-status">
-            {billing.note ||
-              (billing.enabled
-                ? "Checkout is live."
-                : "Stripe test billing is not configured.")}
+          <p className="text-xs text-muted-foreground" data-testid="billing-status" data-billing-state={billingMode}>
+            {billing.note || copy.statusNote}
           </p>
           <p className="text-sm">
             {BILLING_ENABLED && (<Link
@@ -310,12 +311,12 @@ function LivePlus() {
               <CardHeader className="pb-2">
                 <CardTitle className="flex flex-wrap items-center gap-2 font-serif text-xl">
                   {p.name}
-                  {p.status === "planned" && !billing.enabled && (
+                  {p.id !== "free" && copy.badge && (
                     <span
                       className="rounded-full border border-border px-2 py-0.5 font-sans text-xs font-medium text-muted-foreground"
-                      data-testid={`plan-planned-${p.id}`}
+                      data-testid={`plan-billing-badge-${p.id}`}
                     >
-                      Test subscriptions
+                      {copy.badge}
                     </span>
                   )}
                 </CardTitle>
@@ -323,8 +324,8 @@ function LivePlus() {
                   {p.monthlyUsd === 0
                     ? "Free"
                     : interval === "year"
-                      ? `$${billing.prices?.year.amount ?? p.yearlyUsd}/yr`
-                      : `$${billing.prices?.month.amount ?? p.monthlyUsd}/mo`}
+                      ? `${usd(billing.prices?.year.amount ?? p.yearlyUsd)}/yr`
+                      : `${usd(billing.prices?.month.amount ?? p.monthlyUsd)}/mo`}
                 </p>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -347,7 +348,7 @@ function LivePlus() {
                     ? plan === "free"
                       ? "Selected"
                       : "Continue free"
-                    : "Subscribe"}
+                    : copy.subscribeLabel}
                 </Button>
               </CardContent>
             </Card>
@@ -368,7 +369,7 @@ function LivePlus() {
         data-testid="plus-account-status"
         data-status={status.kind}
       >
-        {plusStatusMessage(status, undefined, undefined, STRIPE_MODE)}
+        {plusStatusMessage(status, undefined, undefined, billingMode)}
       </p>
       {status.kind === "signed-out" && <Link href="/account" className="underline" data-testid="plus-sign-in">Sign in to subscribe</Link>}
       <div className="flex flex-wrap items-center gap-3">
@@ -406,9 +407,9 @@ function LivePlus() {
           </Button>
         )}
       </div>
-      {billing.enabled && (
-        <p className="text-sm text-muted-foreground">
-          Cancel is two taps from Home. You can also manage or cancel your subscription in Stripe&apos;s test portal.
+      {billing.enabled && copy.manageNote && (
+        <p className="text-sm text-muted-foreground" data-testid="plus-manage-note">
+          {copy.manageNote}
         </p>
       )}
 
