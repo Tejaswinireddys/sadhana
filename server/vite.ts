@@ -9,6 +9,8 @@ import { brandPublicHtml, publicAppOrigin, robotsTxt } from "./publicUrl";
 import { sendJson404 } from "./json404";
 import { mountStaticMedia } from "./mountStaticMedia";
 import { servesWelcomeHtml } from "./welcomeEntry";
+import { spaStatus } from "./static";
+import { storage } from "./storage";
 
 const viteLogger = createLogger();
 
@@ -97,7 +99,8 @@ export async function setupVite(server: Server, app: Express) {
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
       const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      // Same status rules as production, so a missing class is a 404 here too.
+      res.status(await spaStatus(pathname, storage)).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);

@@ -8,6 +8,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { initStorage, pool, storage } from "./storage";
+import { publishedClassPaths, sitemapXml } from "./classPages";
 import { mountSecurity, redactForLog } from "./security";
 import { registerPlatformApi } from "./platformApi";
 import { registerPushRoutes, startPushScheduler } from "./push";
@@ -68,20 +69,20 @@ registerAdsTxt(app);
 
 const PUBLIC_ORIGIN = publicAppOrigin();
 
-/** Real XML sitemap (not the SPA shell) for marketing / SEO crawlers. */
-app.get("/sitemap.xml", (_req, res) => {
-  const paths = publicSitemapPaths();
-  const urls = paths
-    .map(
-      (p) =>
-        `  <url><loc>${PUBLIC_ORIGIN}${p}</loc><changefreq>weekly</changefreq></url>`,
-    )
-    .join("\n");
-  res
-    .type("application/xml")
-    .send(
-      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
-    );
+/**
+ * Real XML sitemap (not the SPA shell) for marketing / SEO crawlers: the static
+ * public pages plus every published class. Drafts and deleted classes are
+ * left out; only slugs are read, never playback ids. If the class catalogue
+ * cannot be read, the static pages are still served rather than a 500.
+ */
+app.get("/sitemap.xml", async (_req, res) => {
+  let classPaths: string[] = [];
+  try {
+    classPaths = await publishedClassPaths(storage);
+  } catch (error) {
+    console.warn("[sitemap] class catalogue unavailable:", error instanceof Error ? error.message : error);
+  }
+  res.type("application/xml").send(sitemapXml(PUBLIC_ORIGIN, [...publicSitemapPaths(), ...classPaths]));
 });
 
 export function log(message: string, source = "express") {
