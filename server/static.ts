@@ -8,6 +8,8 @@ import { sendJson404 } from "./json404";
 import { mountStaticMedia } from "./mountStaticMedia";
 import { servesWelcomeHtml } from "./welcomeEntry";
 import { aliasRouteTarget } from "../client/src/lib/routeAliases";
+import { classPageStatus } from "./classPages";
+import { storage } from "./storage";
 
 const ONE_YEAR_SECONDS = 31_536_000;
 const ONE_DAY_SECONDS = 86_400;
@@ -118,8 +120,25 @@ function isNonSpaPrefix(pathname: string): boolean {
   );
 }
 
+/** Where the SPA fallback looks up class pages; tests pass a fixture store. */
+export type ClassPageStore = Parameters<typeof classPageStatus>[1];
+
+/**
+ * The HTTP status for the app shell at `pathname`: known routes are 200,
+ * unknown ones 404, and a class detail page is 200 only while that class is
+ * published (see `classPageStatus`).
+ */
+export async function spaStatus(pathname: string, classes: ClassPageStore): Promise<number> {
+  return (await classPageStatus(pathname, classes)) ?? (isKnownAppRoute(pathname) ? 200 : 404);
+}
+
 /** `distPath` defaults to the built client next to dist/index.cjs; tests pass a fixture. */
-export function serveStatic(app: Express, distPath = path.resolve(__dirname, "public")) {
+export function serveStatic(
+  app: Express,
+  distPath = path.resolve(__dirname, "public"),
+  // A getter: `storage` is assigned by initStorage() after this module loads.
+  classStore: () => ClassPageStore = () => storage,
+) {
   if (!fs.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`,
@@ -154,7 +173,7 @@ export function serveStatic(app: Express, distPath = path.resolve(__dirname, "pu
   app.get("/welcome", (req, res) => sendSpaHtml(req, res, "/welcome"));
   app.get("/", (req, res) => sendSpaHtml(req, res, "/"));
 
-  app.use("/{*path}", (req, res) => {
+  app.use("/{*path}", async (req, res) => {
     const pathname = requestPathname(req);
     if (pathname === "/design-system" || pathname.startsWith("/analytics/")) {
       res.setHeader("X-Robots-Tag", "noindex");
@@ -175,6 +194,6 @@ export function serveStatic(app: Express, distPath = path.resolve(__dirname, "pu
       res.status(404).end();
       return;
     }
-    sendSpaHtml(req, res, pathname, isKnownAppRoute(pathname) ? 200 : 404);
+    sendSpaHtml(req, res, pathname, await spaStatus(pathname, classStore()));
   });
 }
