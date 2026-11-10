@@ -7,6 +7,7 @@
  * account never receives a Plus playback id, not even inside a thumbnail URL.
  */
 import { z } from "zod";
+import { wrongTypeMessage } from "./validation";
 
 export const CLASS_LEVELS = ["beginner", "intermediate", "advanced"] as const;
 export type ClassLevel = (typeof CLASS_LEVELS)[number];
@@ -53,7 +54,7 @@ export type ClassChapter = { startSec: number; title: string; poseSlug?: string 
 export const CLASS_CHAPTERS_MAX = 100;
 
 const chapterSchema = z.object({
-  startSec: z.number({ invalid_type_error: "startSec must be a number of seconds" }).finite().min(0, "startSec cannot be negative"),
+  startSec: z.number({ error: wrongTypeMessage("startSec must be a number of seconds") }).finite().min(0, "startSec cannot be negative"),
   title: z.string().trim().min(1, "title is required").max(120, "title is longer than 120 characters"),
   poseSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "poseSlug must be a catalog slug like adho-mukha-svanasana").optional(),
 }).strict();

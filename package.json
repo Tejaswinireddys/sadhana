@@ -69,7 +69,7 @@
     "date-fns": "^3.6.0",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.45.2",
-    "drizzle-zod": "^0.7.0",
+    "drizzle-zod": "^0.8.3",
     "embla-carousel-react": "^8.6.0",
     "express": "^5.0.1",
     "framer-motion": "^11.13.1",
@@ -96,8 +96,8 @@
     "web-push": "^3.6.7",
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
-    "zod": "^3.24.2",
-    "zod-validation-error": "^3.4.0"
+    "zod": "^4.6.7",
+    "zod-validation-error": "^4.0.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",
@@ -128,6 +128,9 @@
   "overrides": {
     "drizzle-kit": {
       "@esbuild-kit/esm-loader": "npm:tsx@^4.20.4"
+    },
+    "@tailwindcss/typography": {
+      "postcss-selector-parser": "^6.1.6"
     }
   }
 }

@@ -1,14 +1,24 @@
 import { z } from "zod";
 
+/**
+ * zod 4 replaced `required_error` / `invalid_type_error` with one `error`
+ * callback. These keep the zod 3 split: the custom copy only for the case it
+ * was written for, zod's default message otherwise.
+ */
+export const requiredMessage = (message: string) => (issue: { input?: unknown }) =>
+  issue.input === undefined ? message : undefined;
+export const wrongTypeMessage = (message: string) => (issue: { input?: unknown }) =>
+  issue.input === undefined ? undefined : message;
+
 /** Shared signup/reset password rules — letter + number, min 8. */
 export const passwordSchema = z
-  .string({ required_error: "Password is required" })
+  .string({ error: requiredMessage("Password is required") })
   .min(8, "Use at least 8 characters")
   .regex(/[A-Za-z]/, "Include at least one letter")
   .regex(/[0-9]/, "Include at least one number");
 
 export const credentialsSchema = z.object({
-  email: z.string({ required_error: "Email is required" }).trim().toLowerCase().email("Enter a valid email address"),
+  email: z.string({ error: requiredMessage("Email is required") }).trim().toLowerCase().email("Enter a valid email address"),
   password: passwordSchema,
   displayName: z.string().trim().min(1, "Name is required").max(48).optional(),
 });
@@ -26,11 +36,11 @@ export const loginSchema = z.object({
 export type LoginCredentials = z.infer<typeof loginSchema>;
 
 export const forgotPasswordSchema = z.object({
-  email: z.string({ required_error: "Email is required" }).trim().toLowerCase().email("Enter a valid email address"),
+  email: z.string({ error: requiredMessage("Email is required") }).trim().toLowerCase().email("Enter a valid email address"),
 });
 
 export const resetPasswordSchema = z.object({
-  email: z.string({ required_error: "Email is required" }).trim().toLowerCase().email("Enter a valid email address"),
+  email: z.string({ error: requiredMessage("Email is required") }).trim().toLowerCase().email("Enter a valid email address"),
   // Either an emailed reset code or the recovery code issued at signup on a
   // deployment that cannot send mail.
   token: z.string().trim().min(16, "Enter your reset code or recovery code"),
@@ -39,11 +49,11 @@ export const resetPasswordSchema = z.object({
 
 export const verifyEmailSchema = z.object({
   token: z.string().min(16, "Enter the verification code from your email"),
-  email: z.string({ required_error: "Email is required" }).trim().toLowerCase().email("Enter a valid email address").optional(),
+  email: z.string({ error: requiredMessage("Email is required") }).trim().toLowerCase().email("Enter a valid email address").optional(),
 });
 
 export const resendVerificationSchema = z.object({
-  email: z.string({ required_error: "Email is required" }).trim().toLowerCase().email("Enter a valid email address"),
+  email: z.string({ error: requiredMessage("Email is required") }).trim().toLowerCase().email("Enter a valid email address"),
 });
 
 export const MIN_HOLD_SECONDS = 5;
@@ -52,7 +62,7 @@ export const MAX_HOLD_SECONDS = 300;
 export const posePlanSchema = z.object({
   slug: z.string().min(1),
   holdSeconds: z
-    .number({ invalid_type_error: "Hold must be a number of seconds" })
+    .number({ error: wrongTypeMessage("Hold must be a number of seconds") })
     .int("Hold must be a whole number of seconds")
     .min(MIN_HOLD_SECONDS, `Hold at least ${MIN_HOLD_SECONDS} seconds`)
     .max(MAX_HOLD_SECONDS, `Hold at most ${MAX_HOLD_SECONDS} seconds (5 minutes)`),

@@ -19,7 +19,7 @@ const cancellationSchema = z.object({ stripeSubscriptionId: text, canceledAt: te
 async function readMap<T>(file: string, schema: z.ZodTypeAny): Promise<[string, T][]> {
   if (!existsSync(file)) return [];
   try {
-    const obj = z.record(schema).parse(JSON.parse(await readFile(file, "utf8")));
+    const obj = z.record(z.string(), schema).parse(JSON.parse(await readFile(file, "utf8")));
     return Object.entries(obj) as [string, T][];
   } catch { throw new Error(`Invalid billing records in ${basename(file)}; no import performed`); }
 }
