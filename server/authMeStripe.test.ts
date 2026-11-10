@@ -18,7 +18,21 @@ import type Stripe from "stripe";
  * because the memory store serialises every read behind any open transaction
  * and so cannot model a pool: `BILLING_TEST_DATABASE_URL=… npm test`.
  */
-const pgUrl = process.env.BILLING_TEST_DATABASE_URL;
+/**
+ * `initStorage()` always asks for SSL, which hosted Postgres needs. CI's
+ * `postgres:16` service (and a local test database) has no SSL, so this file
+ * failed with "The server does not support SSL connections" on every CI run.
+ * An explicit `sslmode` in the URL overrides that `ssl` option in node-postgres,
+ * so the test opts out unless the URL already chooses — the other Postgres
+ * tests (`billingStorage`, `muxPlayback`) already connect without SSL.
+ */
+function testDatabaseUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  const parsed = new URL(url);
+  if (!parsed.searchParams.has("sslmode")) parsed.searchParams.set("sslmode", "disable");
+  return parsed.toString();
+}
+const pgUrl = testDatabaseUrl(process.env.BILLING_TEST_DATABASE_URL);
 if (pgUrl) process.env.DATABASE_URL = pgUrl; else delete process.env.DATABASE_URL;
 process.env.STRIPE_SECRET_KEY = "sk_test_fixture";
 process.env.BILLING_ENABLED = "true";
