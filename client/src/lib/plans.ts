@@ -1,8 +1,10 @@
 /**
- * Subscription tiers. Only Free exists today; the paid tiers are planned and
- * waitlisted. Stripe Checkout activates when STRIPE_SECRET_KEY (+ price IDs)
- * are set — until then nothing can be charged.
+ * Subscription tiers. Whether Plus can be bought — and whether checkout is a
+ * Stripe test or live one — comes from the server's configuration, never from
+ * this file: see `billingCopy.ts` for the wording of each state.
  */
+import { PLUS_CLASSES_BULLET } from "../data/classFormat";
+
 export type PlanId = "free" | "plus" | "coach";
 
 export type Plan = {
@@ -44,11 +46,10 @@ export const PLANS: Plan[] = [
     // Only shown when the server cannot read prices from Stripe.
     yearlyUsd: 59.99,
     status: "planned",
-    bullets: [
-      "Filmed movement demonstrations",
-      "Full offline practice — sequences, timing and narration",
-      "Advanced progress insights",
-    ],
+    // Only what Plus unlocks today. "Filmed movement demonstrations" and
+    // "Full offline practice" were listed here while neither existed (the FAQ
+    // says practice needs a connection), so a purchase would have bought them.
+    bullets: [PLUS_CLASSES_BULLET, "Everything in Free"],
   },
   {
     id: "coach",

@@ -10,6 +10,8 @@
  * never "signed out".
  */
 
+import { billingCopy, type BillingState } from "./billingCopy";
+
 export type PlusEntitlementView = {
   plan: string;
   status?: string;
@@ -90,10 +92,12 @@ export function formatAccessDate(iso: string | null, locale?: string, timeZone?:
 }
 
 /**
- * Copy for the account-status line under the plans. `stripeMode` comes from
- * the server's STRIPE_MODE: "no live payments" is only true in test mode.
+ * Copy for the account-status line under the plans. `billing` is the server's
+ * real configuration (`billingState`): "no real charges" is only true in test
+ * mode, and "unavailable" only when billing is off. Defaults to "disabled" so a
+ * caller that forgets it never implies Plus can be bought.
  */
-export function plusStatusMessage(status: PlusStatus, locale?: string, timeZone?: string, stripeMode: "test" | "live" = "test"): string {
+export function plusStatusMessage(status: PlusStatus, locale?: string, timeZone?: string, billing: BillingState = "disabled"): string {
   switch (status.kind) {
     case "loading":
       return "Checking your account…";
@@ -111,6 +115,6 @@ export function plusStatusMessage(status: PlusStatus, locale?: string, timeZone?
     }
     case "signed-out":
     case "free":
-      return stripeMode === "live" ? "You're on the free plan." : "Stripe test mode only — no live payments.";
+      return billingCopy(billing).freeAccount;
   }
 }

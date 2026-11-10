@@ -1,5 +1,7 @@
 import { SupportContact } from "@/components/SupportContact";
-import { BILLING_ENABLED } from "@/lib/publicConfig";
+import { BILLING_ENABLED, STRIPE_MODE } from "@/lib/publicConfig";
+import { billingCopy, billingState } from "@/lib/billingCopy";
+import { CLASS_FORMAT_DISCLOSURE } from "@/data/classFormat";
 /**
  * Help — the page error states point at.
  *
@@ -21,6 +23,7 @@ export default function Help() {
     queryKey: ["/api/auth/mail-status"],
   });
   const emailWorks = mailStatus?.emailEnabled !== false;
+  const billing = billingCopy(billingState(BILLING_ENABLED, STRIPE_MODE));
 
   return (
     <FadeIn className="mx-auto max-w-2xl space-y-6 pb-16">
@@ -153,6 +156,36 @@ export default function Help() {
           <p>
             Missing a day does not delete anything. There is no penalty and no streak shaming; the
             number simply reflects the days you practised.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="help-classes">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Are the video classes taught by a real instructor?</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p>{CLASS_FORMAT_DISCLOSURE}</p>
+          <p>
+            Guided practice is separate: each pose shows a labelled illustration with a recorded
+            voice and captions.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="help-plus">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
+            Can I buy Sadhana Plus?
+            {billing.badge ? <Badge variant="outline" data-testid="help-plus-badge">{billing.badge}</Badge> : null}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <p data-testid="help-plus-answer" data-billing-state={billing.state}>{billing.help}</p>
+          <p>
+            <Link href="/plus" className="underline underline-offset-2">
+              {billing.state === "disabled" ? "About Sadhana Plus" : "See plans"}
+            </Link>
           </p>
         </CardContent>
       </Card>

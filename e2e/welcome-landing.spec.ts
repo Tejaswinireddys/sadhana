@@ -49,7 +49,7 @@ test.describe("the landing page says what this is", () => {
     await expect(page.getByTestId("landing-format-2")).toContainText(/caption/i);
     await expect(page.getByTestId("landing-format-3")).toContainText(/modification/i);
     await expect(page.getByTestId("landing-no-filmed-instruction")).toContainText(
-      /no filmed instruction/i,
+      /AI-generated instructor motion[\s\S]*No human instructor filmed or reviewed them/,
     );
   });
 
@@ -105,7 +105,9 @@ test.describe("the landing page says what this is", () => {
     await expect(page.getByTestId("landing-free-list")).toContainText(
       new RegExp(`all ${ASANAS.length} illustrated poses`, "i"),
     );
-    await expect(page.getByTestId("landing-free-list")).toContainText(/waitlist/i);
+    // The default e2e server runs with billing off; billing-copy.spec covers test and live.
+    await expect(page.getByTestId("landing-free-list")).toContainText(/purchasing is unavailable/i);
+    await expect(page.getByTestId("landing-free-list")).not.toContainText(/waitlist|planned/i);
     await expect(page.getByTestId("landing-content-review")).toContainText(/catalog editors/i);
     await expect(page.getByTestId("landing-report-issue")).toHaveAttribute("href", /github\.com\/.+\/issues/);
     await expect(page.getByTestId("landing-help-link")).toHaveAttribute("href", "/help");
