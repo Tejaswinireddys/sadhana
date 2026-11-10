@@ -32,6 +32,7 @@ import {
   Sparkles,
   Waves,
 } from "lucide-react";
+import { fetchPriority } from "@/lib/fetchPriority";
 
 const FEATURED_PROFILE_IDS = [
   "stress-relief",
@@ -334,7 +335,7 @@ export default function Register() {
               height={1600}
               loading="eager"
               decoding="async"
-              fetchPriority="high"
+              {...fetchPriority("high")}
               aria-hidden
             />
             <div
