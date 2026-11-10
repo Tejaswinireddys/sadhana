@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useMotionEnabled } from "@/components/motion";
 import { poseImageAlt } from "@/data/poseImageAlts";
+import { fetchPriority } from "@/lib/fetchPriority";
 
 type HeroBreathSceneProps = {
   className?: string;
@@ -71,7 +72,7 @@ export default function HeroBreathScene({
           )}
           loading="eager"
           decoding="async"
-          fetchPriority="high"
+          {...fetchPriority("high")}
         />
 
         {/* Soft atmosphere — always present for brand depth */}

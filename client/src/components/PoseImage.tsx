@@ -17,6 +17,7 @@ import { resolvePoseImageSources } from "@/lib/poseImageSources";
 import { accurateImageAlt, poseImageWithheld } from "@/data/poseImageAccuracy";
 import { WithheldPoseImage } from "@/components/WithheldPoseImage";
 import { cn } from "@/lib/utils";
+import { fetchPriority } from "@/lib/fetchPriority";
 
 export function PoseImage({
   slug,
@@ -174,7 +175,7 @@ export function PoseImage({
             sizes={sizes}
             loading={eager ? "eager" : "lazy"}
             decoding={eager ? "sync" : "async"}
-            fetchPriority={priority ? "high" : "auto"}
+            {...fetchPriority(priority ? "high" : "auto")}
             onLoad={() => setLoaded(true)}
             onError={handleError}
             className={cn(
