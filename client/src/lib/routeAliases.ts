@@ -2,7 +2,7 @@
  * Conventional URLs people type or link to that the app has under another
  * name. `/login`, `/signin`, `/sign-in` and `/signup` are the Sign in / Sign up
  * tabs of `/account`;
- * `/today` is the home page. Before these existed, opening one directly hit
+ * `/today` is the home page; `/support` is the Help page. Before these existed, opening one directly hit
  * the app's Not Found page with HTTP 404.
  *
  * `main.tsx` rewrites an alias with `replaceState` before React mounts, so
@@ -17,6 +17,7 @@ export const ROUTE_ALIASES: Readonly<Record<string, { pathname: string; params?:
   "/sign-in": { pathname: "/account", params: { tab: "signin" } },
   "/signup": { pathname: "/account", params: { tab: "signup" } },
   "/today": { pathname: "/" },
+  "/support": { pathname: "/help" },
 };
 
 /**
