@@ -64,7 +64,9 @@ client/
                              *.generated.* files are script output — don't hand-edit
     index.css                Tailwind layers + design tokens (CSS variables)
 server/
-  index.ts                   Express app, middleware order, boot sequence
+  index.ts                   Entry point: loads .env, calls bootServer()
+  boot.ts                    Express app, middleware order, boot sequence
+  startup.ts                 Startup step timing + readiness state for /healthz
   routes.ts                  Core /api routes (auth, sessions, journal, …)
   platformApi.ts, push.ts, billing.ts, buddy.ts, teachersWaitlist.ts
                              Feature route modules (register*Routes(app))
@@ -118,7 +120,7 @@ Dynamic segments use `:slug` (`/asanas/:slug`, `/pathways/:slug`, `/kids/:slug`,
 (`MARKETING_PATHS`) render without the app chrome. First-time visitors to `/`
 are sent to `/welcome`. Navigate with wouter's `useLocation` / `<Link>`.
 
-**Server** — Express. Middleware order in `server/index.ts` matters:
+**Server** — Express. Middleware order in `server/boot.ts` matters:
 security → body parsers → `/healthz`, `/sitemap.xml` → request logging →
 `registerRoutes` (mounts `ownerMiddleware` on `/api`) and the feature
 `register*Routes(app)` modules → JSON 404 for unknown `/api/*` → error handler
@@ -218,6 +220,7 @@ run in one process — there is no separate frontend dev server.
 - **Images / CLS:** `PoseImage` uses `<picture>` WebP + PNG fallback (`npm run gen:pose-webp`), reserves `aspect-ratio` (default 1:2 for 600×1200 sources), and sets intrinsic width/height. Raw pose `<img>` tags should also set width/height (or aspect-ratio) and `loading`.
 - With Postgres configured, the schema is auto-applied on boot from `drizzle/schema.sql` (no manual migration step needed); `npm run db:push` is available for manual schema pushes.
 - **`/healthz` is DB-aware.** It returns 200 only when `storage.ping()` succeeds (always true in memory mode; `SELECT 1` against Postgres otherwise). A DB outage returns 503 so Render stops routing to a broken instance.
+- **The port is bound before the schema is applied.** `bootServer` (`server/boot.ts`) does only synchronous setup, then `listen()`, then the critical steps (`defaultCriticalSteps`: `drizzle/schema.sql`), then optional warmups in the background (`defaultWarmups`, the Sentry SDK import, schedulers). `/healthz` answers 503 `starting` (and `/api/*` 503) until the critical steps finish, and the process exits if one fails. Anything new that a request does not strictly need goes in `defaultWarmups`, never before `listen()`; each step logs its duration as `[startup] …` and errors go through `safeErrorText` so a connection string is never printed. `server/boot.test.ts` pins the order.
 - Stripe entitlements live in the `entitlements` table (not `.data/billing-entitlements.json`). Boot runs an idempotent JSON→Postgres import via `migrateBillingEntitlements()`.
 - The service worker / PWA (`client/public/sw.js`) is production-only and not active in `npm run dev`.
 - Optional Python scripts under `script/` (voice/asset generation) and the Playwright demo scripts are content pipelines, not needed to run or test the app.
