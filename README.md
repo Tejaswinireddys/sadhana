@@ -125,6 +125,46 @@ set, OG tags, canonical URLs, and `/robots.txt` rewrite automatically at serve t
 For error monitoring set `SENTRY_DSN` (server) and `VITE_SENTRY_DSN` (browser).
 Regenerate pose WebP siblings with `npm run gen:pose-webp` after adding PNGs.
 
+### Web Push reminders: VAPID keys
+
+Closed-tab reminders use Web Push, which needs a VAPID key pair. A browser's
+subscription is bound to the public key it subscribed with, so the pair has to
+stay the same across restarts and deploys.
+
+1. Generate a pair once:
+
+   ```bash
+   npm run gen:vapid-keys
+   ```
+
+   It prints the keys to your terminal and writes nothing to disk.
+2. Set exactly the two variables it prints on the server — on Render:
+   **Dashboard → your service → Environment** — then redeploy:
+
+   ```
+   VAPID_PUBLIC_KEY=…
+   VAPID_PRIVATE_KEY=…
+   ```
+
+   `VAPID_SUBJECT` (a `mailto:` address or `https://` URL push services can
+   contact) is optional.
+3. Confirm in the deploy log: `[push] Web Push enabled with the configured VAPID keys`.
+
+What happens without them:
+
+| Environment | Keys | Result |
+| --- | --- | --- |
+| Production | both set and valid | Push on. |
+| Production | missing | Push **off**; the log says `[push] Web Push is DISABLED: …`. The rest of the app runs normally, `GET /api/push/vapid-public-key` returns `{ "enabled": false }`, and Settings tells people push is not set up. Temporary keys are never generated. |
+| Development / tests | missing | A temporary pair per run, so nothing needs setting up locally. |
+| Any | only one set, or malformed | Push off, with the reason in the log. |
+
+Keep `VAPID_PRIVATE_KEY` out of the repository, issues and any `VITE_*` variable
+— for local use put it in the git-ignored `.env`. Do not rotate the pair
+casually: changing either key invalidates every existing subscription, and each
+person has to turn reminders on again. Subscriptions made while the server was
+running on temporary keys are already invalid for the same reason.
+
 ### Privacy / account controls
 
 - Signed-in users can **delete their account** (password confirm) from Account —

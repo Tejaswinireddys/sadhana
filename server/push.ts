@@ -7,6 +7,7 @@ import webpush from "web-push";
 import { createRateLimiter } from "./security";
 import { loadMap, saveMap } from "./jsonStore";
 import { localDayHourKey, localHourFor } from "./pushTime";
+import { resolveVapidConfig, vapidStartupMessage, type VapidConfig } from "./vapidConfig";
 
 export { localDayHourKey, localHourFor } from "./pushTime";
 
@@ -29,26 +30,30 @@ function persist() {
   saveMap(STORE, subs);
 }
 
-let vapidPublic = process.env.VAPID_PUBLIC_KEY || "";
-let vapidPrivate = process.env.VAPID_PRIVATE_KEY || "";
-const vapidSubject = process.env.VAPID_SUBJECT || "mailto:hello@sadhana.local";
+/**
+ * Resolved once at load. In production with no keys this is `enabled: false`:
+ * see vapidConfig.ts for why a temporary pair is never generated there.
+ */
+const vapid: VapidConfig = resolveVapidConfig();
+if (vapid.enabled) console.log(vapidStartupMessage(vapid));
+else console.warn(vapidStartupMessage(vapid));
 
-if (!vapidPublic || !vapidPrivate) {
-  const generated = webpush.generateVAPIDKeys();
-  vapidPublic = generated.publicKey;
-  vapidPrivate = generated.privateKey;
-  console.log(
-    "[push] Generated ephemeral VAPID keys (set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY for persistence)",
-  );
+/** Whether this process can send Web Push at all. */
+export function pushEnabled(): boolean {
+  return vapid.enabled;
 }
 
-webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
+const PUSH_DISABLED_ERROR = "Push notifications are not configured on this server";
 
 const pushLimit = createRateLimiter({ windowMs: 60_000, max: 30 });
 
 async function sendTo(sub: PushSub, payload: string): Promise<boolean> {
+  // Disabled is not a delivery failure: keep the subscription for when keys exist.
+  if (!vapid.enabled) return false;
   try {
-    await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload);
+    await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload, {
+      vapidDetails: { subject: vapid.subject, publicKey: vapid.publicKey, privateKey: vapid.privateKey },
+    });
     return true;
   } catch (e) {
     const status = (e as { statusCode?: number }).statusCode;
@@ -100,6 +105,8 @@ export async function pushToOwner(
 let schedulerStarted = false;
 
 export function startPushScheduler() {
+  // Nothing can be sent without keys, so there is nothing to schedule.
+  if (!vapid.enabled) return;
   if (schedulerStarted) return;
   schedulerStarted = true;
   // Every 10 minutes — cheap and catches the top of each local hour.
@@ -112,12 +119,18 @@ export function startPushScheduler() {
   setInterval(tick, 10 * 60_000);
 }
 
-export function registerPushRoutes(app: Express) {
+/** `config` defaults to this process's; tests pass one to exercise the disabled server. */
+export function registerPushRoutes(app: Express, config: VapidConfig = vapid) {
+  // Same route and shape either way: the client already reads `enabled: false`
+  // as "push is not set up here" and falls back to in-tab alerts.
   app.get("/api/push/vapid-public-key", (_req, res) => {
-    res.json({ enabled: true, publicKey: vapidPublic });
+    res.json(config.enabled ? { enabled: true, publicKey: config.publicKey } : { enabled: false, publicKey: "" });
   });
 
   app.post("/api/push/subscribe", pushLimit, (req: Request, res: Response) => {
+    // Storing a subscription we can never deliver to would tell the browser
+    // reminders are on when they are not.
+    if (!config.enabled) return res.status(503).json({ error: PUSH_DISABLED_ERROR });
     const endpoint = String(req.body?.endpoint || "");
     const p256dh = String(req.body?.keys?.p256dh || "");
     const auth = String(req.body?.keys?.auth || "");
@@ -152,6 +165,7 @@ export function registerPushRoutes(app: Express) {
   });
 
   app.post("/api/push/test", pushLimit, async (req: Request, res: Response) => {
+    if (!config.enabled) return res.status(503).json({ error: PUSH_DISABLED_ERROR });
     const endpoint = String(req.body?.endpoint || "");
     const targets = endpoint
       ? [...subs.values()].filter((s) => s.endpoint === endpoint)
