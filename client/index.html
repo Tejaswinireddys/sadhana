@@ -94,8 +94,8 @@
         border-radius: 999px;
         animation: sadhana-boot 0.8s linear infinite;
       }
-      /* Honest slow-start note (free hosting sleeps). Appears only when loading
-         really is slow: a pure-CSS fade keeps fast loads clean of it. */
+      /* Slow-load note. Appears only when loading really is slow: a pure-CSS
+         fade keeps fast loads clean of it. */
       #boot-splash .boot-slow {
         margin: 0;
         max-width: 22rem;
@@ -118,7 +118,7 @@
         <p class="boot-brand">Sadhana</p>
         <div class="boot-spin" aria-hidden="true"></div>
         <p style="margin:0;font-size:14px">Loading…</p>
-        <p class="boot-slow">Still waking up — after a quiet spell the free server can take up to a minute. Your practice data is safe.</p>
+        <p class="boot-slow">Still loading — your practice data is safe. Try refreshing if this takes more than a minute.</p>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
