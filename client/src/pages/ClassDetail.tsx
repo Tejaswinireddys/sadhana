@@ -517,10 +517,44 @@ function ClassDetail({ slug }: { slug: string }) {
   const next = detail.data?.next ?? null;
   const [completed, setCompleted] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const startedLogged = useRef(false);
+  const completedLogged = useRef(false);
   useDocumentTitle(item ? `${item.title} · Sadhana` : "Class · Sadhana");
 
   const notFound = detail.isError && /^404:/.test(detail.error instanceof Error ? detail.error.message : "");
   const isDone = completed || !!item?.progress?.completed;
+
+  const notePlaying = (value: boolean) => {
+    setPlaying(value);
+    if (value && item && !startedLogged.current) {
+      startedLogged.current = true;
+      void import("@/lib/productAnalytics")
+        .then(({ captureProduct }) =>
+          captureProduct("class_started", {
+            slug: item.slug,
+            tier: item.tier,
+            minutes: item.durationMinutes,
+          }),
+        )
+        .catch(() => undefined);
+    }
+  };
+
+  const noteCompleted = () => {
+    setCompleted(true);
+    if (item && !completedLogged.current) {
+      completedLogged.current = true;
+      void import("@/lib/productAnalytics")
+        .then(({ captureProduct }) =>
+          captureProduct("class_completed", {
+            slug: item.slug,
+            tier: item.tier,
+            minutes: item.durationMinutes,
+          }),
+        )
+        .catch(() => undefined);
+    }
+  };
 
   return (
     <FadeIn className="mx-auto max-w-4xl space-y-6 py-2">
@@ -559,7 +593,7 @@ function ClassDetail({ slug }: { slug: string }) {
           </header>
 
           <section aria-label={`${item.title} video`} aria-describedby={item.locked ? undefined : "class-player-keys"}>
-            <ClassVideoSection item={item} next={next} onCompleted={() => setCompleted(true)} onPlayingChange={setPlaying} />
+            <ClassVideoSection item={item} next={next} onCompleted={noteCompleted} onPlayingChange={notePlaying} />
           </section>
 
           {isDone && (

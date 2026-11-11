@@ -216,6 +216,9 @@ export default function Account() {
       setPassword("");
       setConfirmPassword("");
       if ("needsVerification" in result && result.needsVerification) {
+        void import("@/lib/productAnalytics")
+          .then(({ captureProduct }) => captureProduct("signup_completed", { needs_verification: true }))
+          .catch(() => undefined);
         setPendingVerifyEmail(result.email);
         const q = new URLSearchParams({ email: result.email });
         if ("verifyToken" in result && result.verifyToken) q.set("token", result.verifyToken);
@@ -229,6 +232,9 @@ export default function Account() {
       // This server cannot send mail, so the recovery code is the only way
       // back into the account. Show it instead of navigating away.
       if ("recoveryCode" in result && result.recoveryCode) {
+        void import("@/lib/productAnalytics")
+          .then(({ captureProduct }) => captureProduct("signup_completed", { needs_verification: false }))
+          .catch(() => undefined);
         setRecoveryCode(result.recoveryCode);
         toast({
           title: "Save your recovery code",
@@ -236,6 +242,9 @@ export default function Account() {
         });
         return;
       }
+      void import("@/lib/productAnalytics")
+        .then(({ captureProduct }) => captureProduct("signup_completed", { needs_verification: false }))
+        .catch(() => undefined);
       toast({
         title: "Account created",
         description: "You can now sign in from any device.",

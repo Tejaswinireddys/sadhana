@@ -1,7 +1,9 @@
 /**
- * Lazy PostHog browser client. No-ops when VITE_PUBLIC_POSTHOG_KEY is unset.
+ * Lazy PostHog browser client. No-ops when VITE_PUBLIC_POSTHOG_KEY is unset,
+ * and refuses to init when Do Not Track / GPC is on.
  */
 import type { AnalyticsProps } from "../../../funnel/events";
+import { browserDoNotTrack } from "./doNotTrack";
 
 type PostHogLike = {
   capture: (event: string, props?: Record<string, unknown>) => void;
@@ -30,6 +32,7 @@ export async function initPostHog(): Promise<PostHogLike | null> {
   const env = viteEnv();
   const key = env.VITE_PUBLIC_POSTHOG_KEY as string | undefined;
   if (!key) return null;
+  if (browserDoNotTrack()) return null;
   if (client) return client;
   if (initStarted) return client;
   initStarted = true;

@@ -125,6 +125,12 @@ export default function Landing() {
     document.title = "Sadhana — A daily yoga practice that fits your day";
   }, []);
 
+  useEffect(() => {
+    void import("@/lib/productAnalytics")
+      .then(({ captureProduct }) => captureProduct("welcome_viewed", { path: "/welcome" }))
+      .catch(() => undefined);
+  }, []);
+
   const enterApp = () => {
     writeString(KEYS.welcomeSeen, "1");
     const secure = window.location.protocol === "https:" ? "; Secure" : "";
