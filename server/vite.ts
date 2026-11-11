@@ -9,7 +9,7 @@ import { brandPublicHtml, publicAppOrigin, robotsTxt } from "./publicUrl";
 import { sendJson404 } from "./json404";
 import { mountStaticMedia } from "./mountStaticMedia";
 import { servesWelcomeHtml } from "./welcomeEntry";
-import { spaStatus } from "./static";
+import { spaPage } from "./static";
 import { storage } from "./storage";
 
 const viteLogger = createLogger();
@@ -93,14 +93,16 @@ export async function setupVite(server: Server, app: Express) {
       );
 
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = brandPublicHtml(template, publicAppOrigin(), pathname);
+      // Same status and <head> rules as production, so a missing class is a
+      // 404 here too and a real one carries its own share tags.
+      const spa = await spaPage(pathname, storage);
+      template = brandPublicHtml(template, publicAppOrigin(), pathname, spa.head);
       template = template.replace(
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
       const page = await vite.transformIndexHtml(url, template);
-      // Same status rules as production, so a missing class is a 404 here too.
-      res.status(await spaStatus(pathname, storage)).set({ "Content-Type": "text/html" }).end(page);
+      res.status(spa.status).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);

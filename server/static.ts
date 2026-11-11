@@ -8,7 +8,8 @@ import { sendJson404 } from "./json404";
 import { mountStaticMedia } from "./mountStaticMedia";
 import { servesWelcomeHtml } from "./welcomeEntry";
 import { aliasRouteTarget } from "../client/src/lib/routeAliases";
-import { classPageStatus } from "./classPages";
+import { classPageHead, classPageStatus, resolveClassPage, type PageHead } from "./classPages";
+import { classThumbnailSigningAvailable } from "./muxPlayback";
 import { storage } from "./storage";
 
 const ONE_YEAR_SECONDS = 31_536_000;
@@ -38,8 +39,8 @@ export function staticCacheControl(relativePath: string): string | undefined {
   return undefined;
 }
 
-function sendBrandedHtml(res: express.Response, filePath: string, status = 200, pathname = "/") {
-  const html = brandPublicHtml(fs.readFileSync(filePath, "utf-8"), publicAppOrigin(), pathname);
+function sendBrandedHtml(res: express.Response, filePath: string, status = 200, pathname = "/", page?: PageHead | null) {
+  const html = brandPublicHtml(fs.readFileSync(filePath, "utf-8"), publicAppOrigin(), pathname, page);
   res.setHeader("Cache-Control", "no-cache");
   res.status(status).setHeader("Content-Type", "text/html; charset=utf-8").send(html);
 }
@@ -132,6 +133,25 @@ export async function spaStatus(pathname: string, classes: ClassPageStore): Prom
   return (await classPageStatus(pathname, classes)) ?? (isKnownAppRoute(pathname) ? 200 : 404);
 }
 
+/**
+ * `spaStatus`, plus the `<head>` for the page when it is a published class.
+ * One class lookup answers both, so a 404 can never carry a class's tags and a
+ * real class can never be served with the generic ones. Shared by the
+ * production fallback below and the dev (Vite) one.
+ */
+export async function spaPage(
+  pathname: string,
+  classes: ClassPageStore,
+  signedThumbnails: () => boolean = classThumbnailSigningAvailable,
+): Promise<{ status: number; head: PageHead | null }> {
+  const classPage = await resolveClassPage(pathname, classes);
+  if (!classPage) return { status: isKnownAppRoute(pathname) ? 200 : 404, head: null };
+  const head = classPage.row
+    ? classPageHead(classPage.row, publicAppOrigin(), { signedThumbnails: signedThumbnails() })
+    : null;
+  return { status: classPage.status, head };
+}
+
 /** `distPath` defaults to the built client next to dist/index.cjs; tests pass a fixture. */
 export function serveStatic(
   app: Express,
@@ -147,9 +167,9 @@ export function serveStatic(
 
   const indexPath = path.resolve(distPath, "index.html");
   const welcomePath = path.resolve(distPath, "welcome.html");
-  const sendSpaHtml = (req: express.Request, res: express.Response, pathname: string, status = 200) => {
+  const sendSpaHtml = (req: express.Request, res: express.Response, pathname: string, status = 200, page?: PageHead | null) => {
     const isWelcome = servesWelcomeHtml(pathname, req.headers.cookie);
-    sendBrandedHtml(res, isWelcome ? welcomePath : indexPath, status, pathname);
+    sendBrandedHtml(res, isWelcome ? welcomePath : indexPath, status, pathname, page);
   };
 
   app.get("/robots.txt", (_req, res) => {
@@ -194,6 +214,7 @@ export function serveStatic(
       res.status(404).end();
       return;
     }
-    sendSpaHtml(req, res, pathname, await spaStatus(pathname, classStore()));
+    const page = await spaPage(pathname, classStore());
+    sendSpaHtml(req, res, pathname, page.status, page.head);
   });
 }
