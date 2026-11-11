@@ -435,7 +435,10 @@ export function PoseExplanation({
         // stays the same in the hero slot. Idle hero is shorter so the
         // detail page can keep the written pose underneath.
         training
-          ? "aspect-[3/4] max-h-[min(38vh,18rem)] landscape:max-h-[min(46vh,14rem)] sm:aspect-video"
+          // Landscape phones are short: beginner cues (and the static-reference
+          // badge) need room under the picture or the controls drop below the
+          // fold — keep the stage under ~11rem in landscape.
+          ? "aspect-[3/4] max-h-[min(38vh,18rem)] landscape:max-h-[min(34vh,11rem)] sm:aspect-video"
           : hero
             ? "h-40 w-full sm:aspect-video sm:h-auto sm:max-h-[min(40vh,20rem)]"
             : "aspect-[3/4] max-h-[min(46vh,26rem)] sm:aspect-video",
