@@ -1,8 +1,8 @@
 import { PoseReferenceImage } from "./PoseReferenceImage";
 import { BILLING_ENABLED } from "@/lib/publicConfig";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { WithheldPoseImage } from "@/components/WithheldPoseImage";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { poseImageWithheld } from "@/data/poseImageAccuracy";
+import type { SidebarSuggestion } from "@/lib/globalSearch";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -26,7 +26,6 @@ import { useTheme } from "./ThemeProvider";
 import { APP_SHELL_ID } from "./FullScreenOverlay";
 import { useAuth } from "@/lib/auth";
 import { useRecentSearches } from "@/context/RecentSearchesContext";
-import { searchSidebarSuggestions } from "@/lib/globalSearch";
 import {
   Home,
   LayoutGrid,
@@ -43,6 +42,13 @@ import {
 } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: typeof Home; prefixes?: string[] };
+
+/** Loaded with the first keystroke. A static import pulled the pose catalog into every route. */
+const WithheldPoseImage = lazy(() =>
+  import("@/components/WithheldPoseImage").then((m) => ({ default: m.WithheldPoseImage })),
+);
+
+const EMPTY_SUGGESTIONS: { items: SidebarSuggestion[]; total: number } = { items: [], total: 0 };
 
 /** Five primary destinations. Secondary pages live on these hubs, not as equal nav items.
  *  Live-class waitlist stays off primary nav until it is real.
@@ -93,7 +99,23 @@ function SidebarSearch() {
   const [dismissed, setDismissed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const suggestions = useMemo(() => searchSidebarSuggestions(value, 8), [value]);
+  const [suggestions, setSuggestions] = useState(EMPTY_SUGGESTIONS);
+  useEffect(() => {
+    const query = value.trim();
+    if (!query) {
+      setSuggestions(EMPTY_SUGGESTIONS);
+      return;
+    }
+    let live = true;
+    // Catalog search stays out of the shell chunk until someone actually types.
+    void import("@/lib/globalSearch").then((m) => {
+      if (!live) return;
+      setSuggestions(m.searchSidebarSuggestions(value, 8));
+    });
+    return () => {
+      live = false;
+    };
+  }, [value]);
 
   const close = () => {
     setDismissed(true);
@@ -268,7 +290,9 @@ function SidebarSearch() {
                   >
                     <span className="h-8 w-8 shrink-0 overflow-hidden rounded bg-accent/30">
                       {poseImageWithheld(s.pose.slug) ? (
-                        <WithheldPoseImage slug={s.pose.slug} compact />
+                        <Suspense fallback={<span className="block h-full w-full bg-accent/30" />}>
+                          <WithheldPoseImage slug={s.pose.slug} compact />
+                        </Suspense>
                       ) : (
                         <PoseReferenceImage
                         src={`${import.meta.env.BASE_URL}poses/${s.pose.slug}.webp`}

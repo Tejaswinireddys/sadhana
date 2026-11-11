@@ -1,11 +1,14 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useLocation } from "wouter";
 import type { Asana, Mood } from "@/data/content";
 import type { InstructionMode } from "@/lib/guidedDuration";
-import { asanaBySlug } from "@/data/content";
+import { loadCatalog, peekCatalog } from "@/lib/catalogRegistry";
+import { routeReadsQueue } from "@/lib/shellRoutes";
 import {
   loadPersistedPractice,
   savePersistedPractice,
   clearPersistedPractice,
+  type PersistedPractice,
   type PersistedProgress,
 } from "@/lib/practicePersist";
 import {
@@ -74,6 +77,11 @@ type PracticeContextType = {
   /** One-shot flag: true until Practice/Guided consumes a restored snapshot. */
   needsRestore: boolean;
   consumeRestoredProgress: () => void;
+  /**
+   * True while a saved queue is waiting on the pose catalog. Session routes
+   * hold their first paint so a Plus pose cannot render before the lookup.
+   */
+  queuePending: boolean;
 };
 
 const DEFAULT_META: SessionMeta = {
@@ -87,18 +95,17 @@ const DEFAULT_META: SessionMeta = {
   instructionMode: null,
 };
 
-function hydrateFromStorage(): {
+function queueFromSaved(
+  saved: PersistedPractice,
+  lookup: (slug: string) => Asana | undefined,
+): {
   todays: QueuedAsana[];
   meta: SessionMeta;
   progress: PersistedProgress | null;
 } {
-  const saved = loadPersistedPractice();
-  if (!saved || saved.poses.length === 0) {
-    return { todays: [], meta: DEFAULT_META, progress: null };
-  }
   const todays: QueuedAsana[] = [];
   for (const p of saved.poses) {
-    const asana = asanaBySlug(p.slug);
+    const asana = lookup(p.slug);
     if (!asana) continue;
     todays.push({
       ...asana,
@@ -113,17 +120,61 @@ function hydrateFromStorage(): {
   };
 }
 
+function hydrateFromStorage(): {
+  todays: QueuedAsana[];
+  meta: SessionMeta;
+  progress: PersistedProgress | null;
+  queuePending: boolean;
+} {
+  const saved = loadPersistedPractice();
+  if (!saved || saved.poses.length === 0) {
+    return { todays: [], meta: DEFAULT_META, progress: null, queuePending: false };
+  }
+  const lookup = peekCatalog()?.asanaBySlug;
+  if (!lookup) {
+    return { todays: [], meta: DEFAULT_META, progress: null, queuePending: true };
+  }
+  return { ...queueFromSaved(saved, lookup), queuePending: false };
+}
+
 const PracticeContext = createContext<PracticeContextType | null>(null);
 
 export function PracticeProvider({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
   const initial = hydrateFromStorage();
   const [todays, setTodays] = useState<QueuedAsana[]>(initial.todays);
   const [meta, setMetaState] = useState<SessionMeta>(initial.meta);
   const [progress, setProgress] = useState<PersistedProgress | null>(initial.progress);
   const [needsRestore, setNeedsRestore] = useState(!!initial.progress?.started);
+  const [queuePending, setQueuePending] = useState(initial.queuePending);
+
+  // The catalog is not part of the shell. Resolve a saved queue only on a
+  // route that shows it, and don't wipe sessionStorage while that is in flight.
+  useEffect(() => {
+    if (!queuePending || !routeReadsQueue(location)) return;
+    let live = true;
+    void loadCatalog().then(({ asanaBySlug }) => {
+      if (!live) return;
+      const saved = loadPersistedPractice();
+      if (!saved?.poses.length) {
+        setQueuePending(false);
+        return;
+      }
+      const next = queueFromSaved(saved, asanaBySlug);
+      setTodays(next.todays);
+      setMetaState(next.meta);
+      setProgress(next.progress);
+      setNeedsRestore(!!next.progress?.started);
+      setQueuePending(false);
+    });
+    return () => {
+      live = false;
+    };
+  }, [queuePending, location]);
 
   // Persist queue whenever it changes.
   useEffect(() => {
+    if (queuePending) return;
     if (todays.length === 0) {
       clearPersistedPractice();
       return;
@@ -138,12 +189,13 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
       meta,
       progress: saved?.progress ?? null,
     });
-  }, [todays, meta]);
+  }, [todays, meta, queuePending]);
 
   const add = (a: Asana) =>
     setTodays((prev) => (prev.find((x) => x.slug === a.slug) ? prev : [...prev, a]));
   const remove = (slug: string) => setTodays((prev) => prev.filter((x) => x.slug !== slug));
   const clear = () => {
+    setQueuePending(false);
     setTodays([]);
     setMetaState(DEFAULT_META);
     setProgress(null);
@@ -153,6 +205,12 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
   const setMeta = (m: Partial<SessionMeta>) => setMetaState((prev) => ({ ...prev, ...m }));
 
   const loadSession: PracticeContextType["loadSession"] = (poses, m) => {
+    const asanaBySlug = peekCatalog()?.asanaBySlug;
+    if (!asanaBySlug) {
+      void loadCatalog().then(() => loadSession(poses, m));
+      return;
+    }
+    setQueuePending(false);
     const careRegions = m?.careRegions ?? loadCareRegions();
     if (careRegions.length > 0) saveCareRegions(careRegions);
 
@@ -226,6 +284,7 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
         progress,
         needsRestore,
         consumeRestoredProgress,
+        queuePending,
       }}
     >
       {children}

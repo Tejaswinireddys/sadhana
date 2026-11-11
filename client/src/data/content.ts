@@ -1,4 +1,5 @@
 // Static content for Sadhana. Asanas, pathways, and affirmations live here (not in DB).
+import { registerCatalog } from "@/lib/catalogRegistry";
 import { withSessionPreparation } from "./sessionPreparation";
 import { EXTRAS } from "./variations";
 import { FOCUS_ZONES, STRETCH_ZONES, DEFAULT_FOCUS_ZONE } from "./zones";
@@ -7851,3 +7852,5 @@ export function breathOfTheDay(date = new Date()): BreathTechnique {
   const idx = Math.abs(Math.floor(epochDay)) % BREATHING.length;
   return BREATHING[idx];
 }
+
+registerCatalog({ ASANAS, PATHWAYS, asanaBySlug });

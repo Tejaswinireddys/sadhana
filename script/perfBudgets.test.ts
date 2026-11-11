@@ -19,6 +19,9 @@ const CHUNK_BUDGETS: Record<string, number> = {
   index: 400_000,
 };
 
+/** App-*.js loads on every in-app route, so it stays under Vite's chunk warning. */
+const APP_CHUNK_BUDGET = 700_000;
+
 describe("performance budgets", () => {
   it("keeps known heavy chunks under soft budgets when dist exists", () => {
     if (!existsSync(DIST)) {
@@ -35,6 +38,13 @@ describe("performance budgets", () => {
         `${match} is ${size} bytes — over budget ${max}. Split or lazy-load further.`,
       );
     }
+    const appChunk = files.find((f) => /^App-.*\.js$/.test(f));
+    assert.ok(appChunk, "App-*.js is missing from dist/public/assets");
+    const appBytes = statSync(join(DIST, appChunk)).size;
+    assert.ok(
+      appBytes <= APP_CHUNK_BUDGET,
+      `${appChunk} is ${appBytes} bytes — over the ${APP_CHUNK_BUDGET} byte App budget. Split or lazy-load further.`,
+    );
   });
 });
 

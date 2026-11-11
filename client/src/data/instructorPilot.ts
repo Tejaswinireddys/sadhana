@@ -23,16 +23,12 @@ import {
   type TimelinePhase,
   type VariationLevel,
 } from "@/data/instructorMediaManifest";
+import {
+  INSTRUCTOR_PILOT_SLUGS,
+  type InstructorPilotSlug,
+} from "@/data/instructorPilotSlugs";
 
-export const INSTRUCTOR_PILOT_SLUGS = [
-  "tadasana",
-  "balasana",
-  "marjaryasana-bitilasana",
-  "virabhadrasana-ii",
-  "kumbhakasana",
-] as const;
-
-export type InstructorPilotSlug = (typeof INSTRUCTOR_PILOT_SLUGS)[number];
+export { INSTRUCTOR_PILOT_SLUGS, type InstructorPilotSlug };
 export type InstructorMode = "learn" | "flow";
 
 // Shared media vocabulary lives in the manifest — it is the module that

@@ -5,7 +5,12 @@
  *
  * Rules are catalog-editor reviewed content mappings, not medical clearance.
  */
-import { asanaBySlug } from "@/data/content";
+import { peekCatalog } from "@/lib/catalogRegistry";
+
+/** The catalog registers itself when a pose page loads it. Absent until then. */
+function asanaBySlug(slug: string) {
+  return peekCatalog()?.asanaBySlug(slug);
+}
 
 /** Stable adaptation IDs — distinct from difficulty levels. */
 export type AdaptationId =
