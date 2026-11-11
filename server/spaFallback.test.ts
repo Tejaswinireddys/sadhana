@@ -27,7 +27,11 @@ async function harness() {
     const bytes = Buffer.from(await res.arrayBuffer());
     return { status: res.status, type: res.headers.get("content-type") ?? "", body: bytes.toString("utf8"), bytes };
   };
-  return { get, close: () => new Promise<void>((resolve) => server.close(() => { fs.rmSync(dist, { recursive: true, force: true }); resolve(); })) };
+  const head = async (pathname: string) => {
+    const res = await fetch(`${base}${pathname}`, { method: "HEAD", redirect: "manual" });
+    return { status: res.status, type: res.headers.get("content-type") ?? "" };
+  };
+  return { get, head, close: () => new Promise<void>((resolve) => server.close(() => { fs.rmSync(dist, { recursive: true, force: true }); resolve(); })) };
 }
 
 test("GET /login returns 200 with the app's HTML", async () => {
@@ -64,6 +68,34 @@ test("client routes and aliases get the app shell with 200", async () => {
       assert.equal(res.status, 200, pathname);
       assert.match(res.type, /^text\/html/, pathname);
       assert.match(res.body, /data-entry="app"/, pathname);
+    }
+  } finally { await h.close(); }
+});
+
+/** Routes a QA refresh / cold deep-link walk hits — shell must stay 200 HTML. */
+const DEEP_LINK_SHELL_PATHS = [
+  "/privacy",
+  "/plus",
+  "/start",
+  "/terms",
+  "/cancel",
+  "/asanas",
+  "/classes",
+  "/journal",
+  "/settings",
+];
+
+test("QA deep-link paths get the app shell with 200 (GET and HEAD)", async () => {
+  const h = await harness();
+  try {
+    for (const pathname of DEEP_LINK_SHELL_PATHS) {
+      const res = await h.get(pathname);
+      assert.equal(res.status, 200, pathname);
+      assert.match(res.type, /^text\/html/, pathname);
+      assert.match(res.body, /data-entry="app"/, pathname);
+      const head = await h.head(pathname);
+      assert.equal(head.status, 200, `HEAD ${pathname}`);
+      assert.match(head.type, /^text\/html/, `HEAD ${pathname}`);
     }
   } finally { await h.close(); }
 });
