@@ -80,3 +80,10 @@ describe("the shared trainer fallback does not invent movement", () => {
     assert.doesNotMatch(src, /<canvas|requestAnimationFrame|resolveAnatomicalCallout|drawKinematicTrainer/);
   });
 });
+
+describe("guided PoseHumanStage shows the static-reference label once", () => {
+  it("keeps the movie caption assistive-only when referenceNote is set", () => {
+    const human = readFileSync(resolve("client/src/components/PoseHumanStage.tsx"), "utf8");
+    assert.match(human, /captionMode=\{referenceNote \? "sr-only" : "visible"\}/);
+  });
+});

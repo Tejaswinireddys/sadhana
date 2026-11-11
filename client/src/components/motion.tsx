@@ -137,7 +137,14 @@ export function PageFade({
   routeKey: string;
 }) {
   const enabled = useMotionEnabled();
-  if (!enabled || routeKey.startsWith("/guided") || routeKey.startsWith("/practice")) {
+  // Skip the fade for fullscreen practice *and* Home — exiting /guided into
+  // opacity:0 made Today look blank for a beat even with the shell mounted.
+  if (
+    !enabled ||
+    routeKey === "/" ||
+    routeKey.startsWith("/guided") ||
+    routeKey.startsWith("/practice")
+  ) {
     return <div className={className}>{children}</div>;
   }
   return (

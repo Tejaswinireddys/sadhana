@@ -143,6 +143,9 @@ export function PoseHumanStage({
               stepProgress={1}
               side={side}
               cueText={caption}
+              // PoseHumanStage already paints `referenceNote` as the badge;
+              // keep the movie's duplicate caption for assistive tech only.
+              captionMode={referenceNote ? "sr-only" : "visible"}
             />
           </div>
         ) : null}

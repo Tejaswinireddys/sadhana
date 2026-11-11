@@ -25,7 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ContentAccessGate } from "@/components/ContentAccessGate";
 import { PageFade } from "@/components/motion";
 
-/** Eager: first paint + marketing entry. Everything else is route-split. */
+/** Home stays route-split; exit-from-guided warms the chunk + skips PageFade. */
 const Home = lazy(() => import("@/pages/Home"));
 const Landing = lazy(() => import("@/pages/Landing"));
 
@@ -84,6 +84,24 @@ const Cancel = lazyPage(() => import("@/pages/Cancel"));
 const CancelConfirm = lazyPage(() => import("@/pages/CancelConfirm"));
 
 function RouteFallback() {
+  const [location] = useLocation();
+  const home = (location.split("?")[0] || "/") === "/";
+  // Returning from /guided used to flash a near-empty shell; keep Today’s
+  // layout shape mounted while the Home chunk loads.
+  if (home) {
+    return (
+      <div className="space-y-6 py-2" role="status" aria-live="polite" aria-label="Loading Today" data-testid="home-route-fallback">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-28 w-full rounded-xl" />
+        <Skeleton className="h-24 w-full rounded-xl" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-32 w-full rounded-xl" />
+        </div>
+        <span className="sr-only">Loading Today…</span>
+      </div>
+    );
+  }
   return (
     <div className="space-y-4 py-6" role="status" aria-live="polite" aria-label="Loading page">
       <Skeleton className="h-10 w-2/3 max-w-md" />
