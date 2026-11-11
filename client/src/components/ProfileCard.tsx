@@ -20,6 +20,8 @@ import { requestWellnessConsent } from "@/lib/legal";
 import { useToast } from "@/hooks/use-toast";
 import { resolveIcon } from "@/lib/icons";
 import type { Profile } from "@/data/profiles";
+import { poseImageWithheld } from "@/data/poseImageAccuracy";
+import { profilePreviewSlugs } from "@/lib/profilePreview";
 import { PoseImage } from "@/components/PoseImage";
 import { Check, Clock, CalendarDays, ChevronDown, Info, Sparkles } from "lucide-react";
 
@@ -33,7 +35,7 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const Icon = resolveIcon(profile.icon);
-  const previewSlugs = profile.recommendedAsanas.slice(0, 3);
+  const previewSlugs = profilePreviewSlugs(profile.recommendedAsanas, poseImageWithheld);
   const outcome = profile.tagline;
   const audience = AUDIENCE_BADGE[profile.id];
 

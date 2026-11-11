@@ -7,7 +7,17 @@ import Landing from "@/pages/Landing";
 import { homeEntry } from "@/lib/welcomeGate";
 import { markWelcomeSeen, probeSignedIn } from "@/lib/welcomeSeen";
 const Workspace = lazy(() => import("./App"));
-const loading = <p role="status" className="p-6" data-testid="app-entry-loading">Loading your practice…</p>;
+const loading = (
+  <div
+    role="status"
+    aria-live="polite"
+    className="flex min-h-[100svh] flex-col items-center justify-center gap-3 text-primary"
+    data-testid="app-entry-loading"
+  >
+    <span className="h-7 w-7 animate-spin rounded-full border-2 border-primary/25 border-t-primary" aria-hidden />
+    <p className="text-sm">Loading…</p>
+  </div>
+);
 
 /** `/` is the welcome page for brand-new guests only; account holders get Today. */
 function Entry() {

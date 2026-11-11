@@ -1,9 +1,16 @@
 /**
  * Connectivity banner: only after consecutive health failures, with backoff
  * and an explicit retry. Successful /api traffic clears the banner immediately.
+ *
+ * The browser's offline event is not enough. `navigator.onLine` stays false
+ * on some devices that are sending and receiving requests, which left internal
+ * pages showing "You're offline" on a working connection. A failed /healthz
+ * (or a timed-out one) is what makes the banner appear, and a later success
+ * takes it down.
  */
 import { useEffect, useRef, useState } from "react";
 import { RefreshCw, WifiOff } from "lucide-react";
+import { connectivityView } from "@/lib/connectivity";
 
 const FAIL_THRESHOLD = 2;
 const BASE_INTERVAL_MS = 30_000;
@@ -20,9 +27,7 @@ export function notifyApiOk() {
 }
 
 export function ConnectivityBanner() {
-  const [offline, setOffline] = useState(
-    typeof navigator !== "undefined" ? !navigator.onLine : false,
-  );
+  const [browserOffline, setBrowserOffline] = useState(false);
   const [apiDown, setApiDown] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const failCount = useRef(0);
@@ -30,14 +35,18 @@ export function ConnectivityBanner() {
   const cancelled = useRef(false);
 
   useEffect(() => {
-    const onOff = () => setOffline(true);
+    const onOff = () => {
+      setBrowserOffline(typeof navigator === "undefined" || navigator.onLine === false);
+      void ping(true);
+    };
     const onOn = () => {
-      setOffline(false);
+      setBrowserOffline(false);
       void ping(true);
     };
     const onApiOk = () => {
       failCount.current = 0;
       setApiDown(false);
+      setBrowserOffline(false);
     };
     window.addEventListener("offline", onOff);
     window.addEventListener("online", onOn);
@@ -52,7 +61,6 @@ export function ConnectivityBanner() {
 
   async function ping(force = false) {
     if (cancelled.current) return;
-    if (!navigator.onLine) return;
     try {
       const ctrl = new AbortController();
       const t = window.setTimeout(() => ctrl.abort(), PING_TIMEOUT_MS);
@@ -62,10 +70,11 @@ export function ConnectivityBanner() {
       if (res.ok) {
         failCount.current = 0;
         setApiDown(false);
+        setBrowserOffline(false);
         schedule(BASE_INTERVAL_MS);
         return;
       }
-      recordFailure(force);
+      noteUnreachable(force);
     } catch (err) {
       if (cancelled.current) return;
       // Aborts from a superseded ping shouldn't count as an outage.
@@ -73,10 +82,15 @@ export function ConnectivityBanner() {
         schedule(BASE_INTERVAL_MS);
         return;
       }
-      recordFailure(force);
+      noteUnreachable(force);
     } finally {
       setRetrying(false);
     }
+  }
+
+  function noteUnreachable(force: boolean) {
+    setBrowserOffline(typeof navigator !== "undefined" && navigator.onLine === false);
+    recordFailure(force);
   }
 
   function recordFailure(force: boolean) {
@@ -108,7 +122,9 @@ export function ConnectivityBanner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!offline && !apiDown) return null;
+  const view = connectivityView({ browserOffline, apiDown });
+  if (!view) return null;
+  const offline = view === "offline";
 
   return (
     <div
