@@ -1,8 +1,24 @@
 /**
  * Attach an HLS source to a <video> element.
  * Uses native HLS on Safari; hls.js elsewhere. Progressive MP4 remains a fallback.
+ *
+ * hls.js is ~590 kB and is imported **on demand**, the first time a stream
+ * actually has to be attached without native support. A static import here put
+ * it in the download for the pose library, search, the Trainer and every other
+ * page that merely *can* show a stream — almost none of which ever do, because
+ * pose media falls back to local progressive files without stream ids.
  */
-import Hls from "hls.js";
+import type Hls from "hls.js";
+
+let hlsModule: Promise<typeof Hls> | null = null;
+/** One shared download; a failed one is forgotten so the next attach can retry. */
+function loadHls(): Promise<typeof Hls> {
+  hlsModule ??= import("hls.js").then((m) => m.default).catch((error) => {
+    hlsModule = null;
+    throw error;
+  });
+  return hlsModule;
+}
 
 export type HlsAttachHandle = {
   destroy: () => void;
@@ -52,8 +68,16 @@ export function attachHls(
     };
   }
 
-  if (Hls.isSupported()) {
-    hls = new Hls({
+  // The library arrives asynchronously, so every step re-checks `destroyed`:
+  // a card that scrolled away before the chunk landed must not start a stream.
+  void loadHls().then((HlsLib) => {
+    if (destroyed) return;
+    if (!HlsLib.isSupported()) {
+      // No HLS support — signal failure so caller can show illustration.
+      fail();
+      return;
+    }
+    const instance = new HlsLib({
       enableWorker: true,
       lowLatencyMode: false,
       // Favor start time over quality on slow networks — ABR will climb.
@@ -61,15 +85,16 @@ export function attachHls(
       maxBufferLength: 20,
       maxMaxBufferLength: 40,
     });
-    hls.loadSource(hlsUrl);
-    hls.attachMedia(video);
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    hls = instance;
+    instance.loadSource(hlsUrl);
+    instance.attachMedia(video);
+    instance.on(HlsLib.Events.MANIFEST_PARSED, () => {
       if (!destroyed) opts?.onManifestParsed?.();
     });
-    hls.on(Hls.Events.ERROR, (_evt, data) => {
+    instance.on(HlsLib.Events.ERROR, (_evt, data) => {
       if (!data?.fatal || destroyed) return;
       // Try a one-shot recover; then give up to illustration fallback.
-      if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+      if (data.type === HlsLib.ErrorTypes.NETWORK_ERROR) {
         try {
           hls?.startLoad();
         } catch {
@@ -83,20 +108,17 @@ export function attachHls(
       }
       fail();
     });
-    return {
-      destroy() {
-        destroyed = true;
-        hls?.destroy();
-        hls = null;
-      },
-    };
-  }
+  }, () => {
+    // The chunk itself failed to load (offline, deploy in progress): same
+    // outcome as a stream that cannot start — the caller shows the illustration.
+    fail();
+  });
 
-  // No HLS support — signal failure so caller can show illustration.
-  fail();
   return {
     destroy() {
       destroyed = true;
+      hls?.destroy();
+      hls = null;
     },
   };
 }

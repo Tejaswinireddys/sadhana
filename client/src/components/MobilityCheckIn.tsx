@@ -1,14 +1,5 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RTooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +10,12 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Ruler, TrendingDown, TrendingUp } from "lucide-react";
 import type { MobilityCheckIn as CheckIn } from "@shared/schema";
 import { mobilityCheckInCopy } from "@/lib/mobilityCheckIn";
+
+/**
+ * recharts (~390 kB) is only needed once there is a measurement to plot, so
+ * the chart is its own chunk: a pathway page with no check-ins never loads it.
+ */
+const MobilityTrendChart = lazy(() => import("./MobilityTrendChart"));
 
 /** Recommended check-in days, scaled to the program's real length. */
 function checkinDaysFor(totalDays: number): number[] {
@@ -164,44 +161,16 @@ export function MobilityCheckInCard({
                 : "Your baseline is recorded — log again to see progress."}
             </div>
             <div className="h-52 w-full" data-testid="chart-mobility">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 8, right: 16, left: -8, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis
-                    dataKey="day"
-                    type="number"
-                    domain={[1, totalDays]}
-                    ticks={CHECKIN_DAYS}
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    label={{ value: "Day", position: "insideBottom", offset: -4, fontSize: 11 }}
-                  />
-                  <YAxis
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    allowDecimals={false}
-                    label={{ value: copy.chartUnit, angle: -90, position: "insideLeft", fontSize: 11 }}
-                  />
-                  <RTooltip
-                    contentStyle={{
-                      background: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                    formatter={(v: number) => [`${v}`, copy.chartValue]}
-                    labelFormatter={(d) => `Day ${d}`}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="inches"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2.5}
-                    dot={{ r: 4, fill: "hsl(var(--primary))" }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {/* The box above reserves the height; recharts fills it when it lands. */}
+              <Suspense fallback={null}>
+                <MobilityTrendChart
+                  data={chartData}
+                  totalDays={totalDays}
+                  ticks={CHECKIN_DAYS}
+                  unit={copy.chartUnit}
+                  valueLabel={copy.chartValue}
+                />
+              </Suspense>
             </div>
           </div>
         )}

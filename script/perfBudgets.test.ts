@@ -5,7 +5,7 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const DIST = join(process.cwd(), "dist", "public", "assets");
@@ -34,6 +34,67 @@ describe("performance budgets", () => {
         size <= max,
         `${match} is ${size} bytes — over budget ${max}. Split or lazy-load further.`,
       );
+    }
+  });
+});
+
+/**
+ * Heavy libraries that must only ever be reached through a dynamic import, and
+ * the one module allowed to import each for real. A single static import of
+ * hls.js (in lib/hlsAttach.ts) once put 590 kB on the pose library, search,
+ * the Trainer and four other pages that never played a stream.
+ */
+const LAZY_ONLY: Record<string, string[]> = {
+  "hls.js": [],
+  "@mux/mux-player-react": ["client/src/components/ClassMuxPlayer.tsx"],
+  recharts: ["client/src/components/MobilityTrendChart.tsx", "client/src/pages/FunnelDashboard.tsx", "client/src/components/ui/chart.tsx"],
+};
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(path);
+    return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [path] : [];
+  });
+}
+
+describe("code splitting", () => {
+  it("imports hls.js, Mux Player and recharts statically only where a lazy chunk already isolates them", () => {
+    const root = process.cwd();
+    const offenders: string[] = [];
+    for (const file of sourceFiles(join(root, "client", "src"))) {
+      const relative = file.slice(root.length + 1).split("\\").join("/");
+      const source = readFileSync(file, "utf8");
+      for (const [library, allowed] of Object.entries(LAZY_ONLY)) {
+        const escaped = library.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+        // A value import or re-export: `import X from`, `import { a } from`, `export { default } from`. `import type` is erased and fine.
+        const staticImport = new RegExp(`^(?:import|export)\\s+(?!type\\b)[^;]*?from\\s+["']${escaped}["']`, "m");
+        if (staticImport.test(source) && !allowed.includes(relative)) offenders.push(`${relative} imports ${library}`);
+      }
+    }
+    assert.deepEqual(offenders, [], "use a dynamic import() or React.lazy for these");
+  });
+
+  it("keeps those libraries out of every page's initial download when dist exists", () => {
+    const manifestPath = join(process.cwd(), "dist", "public", ".vite", "manifest.json");
+    if (!existsSync(manifestPath)) return;
+    type Entry = { file: string; imports?: string[] };
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, Entry>;
+    const heavyKeys = Object.keys(manifest).filter((key) => /node_modules\/(hls\.js|recharts|@mux|media-chrome)\//.test(key) || /^_(hls|LineChart)-/.test(key));
+    assert.ok(heavyKeys.length > 0, "expected to find the hls / chart chunks in the manifest");
+    const heavyFiles = new Set(heavyKeys.map((key) => manifest[key].file));
+    const staticClosure = (key: string, seen = new Set<string>()) => {
+      if (seen.has(key)) return seen;
+      seen.add(key);
+      for (const next of manifest[key].imports ?? []) staticClosure(next, seen);
+      return seen;
+    };
+    // Every page except the dev-only funnel dashboard, which is charts by definition.
+    const pages = Object.keys(manifest).filter((key) => /^(index|welcome)\.html$|^_App-|^src\/pages\//.test(key) && !key.endsWith("FunnelDashboard.tsx"));
+    assert.ok(pages.length > 20);
+    for (const page of pages) {
+      const pulled = [...staticClosure(page)].map((key) => manifest[key].file).filter((file) => heavyFiles.has(file));
+      assert.deepEqual(pulled, [], `${page} statically pulls ${pulled.join(", ")}`);
     }
   });
 });

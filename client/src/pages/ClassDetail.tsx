@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
-import MuxPlayer, { type MuxPlayerRefAttributes } from "@mux/mux-player-react";
+import type { MuxPlayerRefAttributes } from "@mux/mux-player-react";
 import { ArrowLeft, CheckCircle2, Clock, Lock } from "lucide-react";
 import { currentChapterIndex, muxChapters, resumeFrom, type ClassPlayback, type ClassSummary } from "@shared/classLibrary";
 import { Button } from "@/components/ui/button";
@@ -102,6 +102,14 @@ function signedTokenAttributes(playback: ClassPlayback): Record<string, string> 
 
 /** Show the pose cue again on any pointer or key activity; hide it after this long idle in fullscreen. */
 const CUE_IDLE_MS = 3000;
+
+/**
+ * Mux Player (with Media Chrome, casting and its own hls.js) is ~1.1 MB of
+ * script. It is fetched only when a class is actually playable for this
+ * viewer — a locked Plus class, an unknown slug or a class with no video never
+ * downloads it — instead of riding along with the page itself.
+ */
+const MuxPlayer = lazy(() => import("@/components/ClassMuxPlayer"));
 
 function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
   item: ClassSummary; next: ClassSummary | null; onCompleted: () => void; onPlayingChange: (playing: boolean) => void;
@@ -279,6 +287,8 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
             {cuePose.english}
           </a>
         )}
+        {/* Same 16:9 box as the player, so nothing shifts when it arrives. */}
+        <Suspense fallback={<div className="aspect-video w-full" aria-busy="true" data-testid="class-player-loading" />}>
         <MuxPlayer
           ref={(el) => { playerRef.current = el; }}
           // Chromecast and AirPlay are Mux Player's own: its buttons show only
@@ -338,6 +348,7 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
           }}
           data-testid="class-mux-player"
         />
+        </Suspense>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
         <p data-testid="class-player-resume" data-start={initialStart} data-policy={playback.policy}>
