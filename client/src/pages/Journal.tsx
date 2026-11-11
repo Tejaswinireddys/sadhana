@@ -27,6 +27,7 @@ import {
 import { EmptyState } from "@/components/EmptyState";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { applyJournalDeleted, applyJournalSaved } from "@/lib/journalCache";
 import { requestWellnessConsent } from "@/lib/legal";
 import { MOODS, type Mood } from "@/data/content";
 import { MOOD_ICONS } from "@/lib/moods";
@@ -99,7 +100,7 @@ export default function Journal() {
   }, [entries, isLoading]);
 
   const save = useMutation({
-    mutationFn: (d: Draft) => {
+    mutationFn: async (d: Draft) => {
       // Writing a journal entry stores wellness data — surface consent now.
       requestWellnessConsent();
       const payload = {
@@ -111,12 +112,19 @@ export default function Journal() {
           d.tags.split(",").map((t) => t.trim()).filter(Boolean),
         ),
       };
-      if (d.id) return apiRequest("PATCH", `/api/journal/${d.id}`, payload);
-      return apiRequest("POST", "/api/journal", payload);
+      const res = d.id
+        ? await apiRequest("PATCH", `/api/journal/${d.id}`, payload)
+        : await apiRequest("POST", "/api/journal", payload);
+      return (await res.json()) as JournalEntry;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
+    onSuccess: (entry) => {
+      // Write through the cache first — invalidate alone raced a stale empty
+      // GET under staleTime: Infinity and left the list blank after the toast.
+      queryClient.setQueryData<JournalEntry[]>(["/api/journal"], (old) =>
+        applyJournalSaved(old, entry),
+      );
+      void queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
+      void queryClient.invalidateQueries({ queryKey: ["/api/sessions/stats"] });
       void import("@/lib/practiceDataSync").then(({ broadcastPracticeDataChanged }) =>
         broadcastPracticeDataChanged("journal"),
       );
@@ -127,9 +135,18 @@ export default function Journal() {
   });
 
   const remove = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/journal/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/journal/${id}`);
+      return id;
+    },
+    onSuccess: (id) => {
+      queryClient.setQueryData<JournalEntry[]>(["/api/journal"], (old) =>
+        applyJournalDeleted(old, id),
+      );
+      void queryClient.invalidateQueries({ queryKey: ["/api/journal"] });
+      void import("@/lib/practiceDataSync").then(({ broadcastPracticeDataChanged }) =>
+        broadcastPracticeDataChanged("journal"),
+      );
       setDeleteId(null);
       toast({ title: "Entry deleted" });
     },
