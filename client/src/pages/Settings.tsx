@@ -670,14 +670,18 @@ export default function Settings() {
               onCheckedChange={(enabled) => {
                 setAnalyticsOn(enabled);
                 writeAnalyticsPrefs({ enabled });
+                void import("@/lib/productAnalytics")
+                  .then(({ syncAnalyticsConsent }) => syncAnalyticsConsent(enabled))
+                  .catch(() => undefined);
               }}
               data-testid="settings-analytics"
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            Off by default for in-app session events. Never includes journal text, emails, or injury
-            notes. When product analytics is enabled, anonymous acquisition-funnel events from /start may
-            still be captured so we can fix drop-off — see Privacy for details.
+            Off by default for practice and class events. Never includes journal text, emails, or injury
+            notes. Browser Do Not Track / Global Privacy Control blocks remote analytics entirely.
+            With a PostHog key set and DNT off, anonymous acquisition-funnel events (welcome, finder,
+            checkout) may still be sent so we can fix drop-off — see Privacy and docs/ANALYTICS.md.
           </p>
           {import.meta.env.DEV && (
             <Button variant="outline" className="min-h-11 w-full justify-start" asChild>

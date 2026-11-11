@@ -16,6 +16,7 @@ import { parseAttribution, trafficSource } from "./attribution";
 describe("product event taxonomy", () => {
   it("includes every required funnel event name", () => {
     for (const name of [
+      "welcome_viewed",
       "quiz_started",
       "quiz_question_shown",
       "quiz_answered",
@@ -25,9 +26,13 @@ describe("product event taxonomy", () => {
       "paywall_viewed",
       "checkout_started",
       "purchase_completed",
+      "signup_completed",
       "app_first_open",
+      "app_return",
       "session_started",
       "session_completed",
+      "class_started",
+      "class_completed",
       "subscription_cancelled",
     ]) {
       assert.ok(PRODUCT_EVENTS.includes(name as (typeof PRODUCT_EVENTS)[number]), name);

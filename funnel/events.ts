@@ -4,6 +4,7 @@
  */
 
 export const PRODUCT_EVENTS = [
+  "welcome_viewed",
   "quiz_started",
   "quiz_question_shown",
   "quiz_answered",
@@ -13,9 +14,13 @@ export const PRODUCT_EVENTS = [
   "paywall_viewed",
   "checkout_started",
   "purchase_completed",
+  "signup_completed",
   "app_first_open",
+  "app_return",
   "session_started",
   "session_completed",
+  "class_started",
+  "class_completed",
   "subscription_cancelled",
 ] as const;
 
@@ -76,8 +81,21 @@ export type PurchaseCompletedProps = {
   currency: string;
 };
 
+export type WelcomeViewedProps = {
+  path: string;
+};
+
 export type AppFirstOpenProps = {
   source: string;
+};
+
+/** Fired on a later visit; `days_since_first_open` powers D1 / D7 retention. */
+export type AppReturnProps = {
+  days_since_first_open: number;
+};
+
+export type SignupCompletedProps = {
+  needs_verification: boolean;
 };
 
 export type SessionStartedProps = {
@@ -91,12 +109,25 @@ export type SessionCompletedProps = {
   poses_skipped: number;
 };
 
+export type ClassStartedProps = {
+  slug: string;
+  tier: string;
+  minutes: number;
+};
+
+export type ClassCompletedProps = {
+  slug: string;
+  tier: string;
+  minutes: number;
+};
+
 export type SubscriptionCancelledProps = {
   days_active: number;
   sessions_completed: number;
 };
 
 export type ProductEventProps = {
+  welcome_viewed: WelcomeViewedProps;
   quiz_started: QuizStartedProps;
   quiz_question_shown: QuizQuestionShownProps;
   quiz_answered: QuizAnsweredProps;
@@ -106,9 +137,13 @@ export type ProductEventProps = {
   paywall_viewed: PaywallViewedProps;
   checkout_started: CheckoutStartedProps;
   purchase_completed: PurchaseCompletedProps;
+  signup_completed: SignupCompletedProps;
   app_first_open: AppFirstOpenProps;
+  app_return: AppReturnProps;
   session_started: SessionStartedProps;
   session_completed: SessionCompletedProps;
+  class_started: ClassStartedProps;
+  class_completed: ClassCompletedProps;
   subscription_cancelled: SubscriptionCancelledProps;
 };
 

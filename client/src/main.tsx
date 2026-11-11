@@ -33,14 +33,15 @@ import("./lib/analytics")
   .catch(() => undefined);
 
 import("./lib/productAnalytics")
-  .then(({ trackAppFirstOpen }) => {
+  .then(async ({ trackAppFirstOpen, trackAppReturn }) => {
     const path = window.location.pathname || "/";
     const source = path.startsWith("/start")
       ? "quiz"
       : path === "/welcome"
         ? "landing"
         : "app";
-    return trackAppFirstOpen(source);
+    await trackAppFirstOpen(source);
+    await trackAppReturn();
   })
   .catch(() => undefined);
 

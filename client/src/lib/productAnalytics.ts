@@ -1,5 +1,9 @@
 /**
  * Product analytics facade: exact funnel event names → PostHog + local buffer.
+ *
+ * Remote capture needs `VITE_PUBLIC_POSTHOG_KEY`, no Do Not Track / GPC, and
+ * either Settings consent or an anonymous acquisition-funnel event. With no
+ * key everything stays local (or silent).
  */
 import {
   isProductEvent,
@@ -9,15 +13,23 @@ import {
 } from "../../../funnel/events";
 import { makeLoggedEvent, type LoggedEvent } from "../../../funnel/eventLog";
 import { readAnalyticsPrefs } from "./analytics";
-import { posthogCapture, posthogConfigured, posthogDistinctId } from "./posthogClient";
+import { browserDoNotTrack } from "./doNotTrack";
+import { posthogCapture, posthogConfigured, posthogDistinctId, setPostHogOptOut } from "./posthogClient";
 
 const BUFFER_KEY = "sadhana.product.events.v1";
 const DISTINCT_KEY = "sadhana.analytics.distinct";
 const FIRST_OPEN_KEY = "sadhana.analytics.firstOpenDone";
+const FIRST_OPEN_AT_KEY = "sadhana.analytics.firstOpenAt";
+const LAST_RETURN_DAY_KEY = "sadhana.analytics.lastReturnDay";
 const MAX_BUFFER = 2000;
 
-/** Funnel acquisition events always capture when PostHog is configured (anonymous). */
+/**
+ * Anonymous acquisition funnel — may go remote when PostHog is keyed and DNT
+ * is off, even without Settings opt-in (see docs/ANALYTICS.md). Practice and
+ * class events always need consent (or stay local-only).
+ */
 const FUNNEL_ALWAYS = new Set<ProductEvent>([
+  "welcome_viewed",
   "quiz_started",
   "quiz_question_shown",
   "quiz_answered",
@@ -27,6 +39,9 @@ const FUNNEL_ALWAYS = new Set<ProductEvent>([
   "paywall_viewed",
   "checkout_started",
   "purchase_completed",
+  "signup_completed",
+  "app_first_open",
+  "app_return",
 ]);
 
 function localDistinctId(): string {
@@ -91,10 +106,16 @@ export function appendProductEvents(events: LoggedEvent[]) {
   writeBuffer([...readBuffer(), ...events].slice(-MAX_BUFFER));
 }
 
-function shouldCapture(event: ProductEvent): boolean {
-  if (FUNNEL_ALWAYS.has(event) && posthogConfigured()) return true;
-  if (FUNNEL_ALWAYS.has(event)) return true; // still buffer locally for dashboard
+function shouldBuffer(event: ProductEvent): boolean {
+  if (FUNNEL_ALWAYS.has(event)) return true;
   return readAnalyticsPrefs().enabled || posthogConfigured();
+}
+
+function shouldSendRemote(event: ProductEvent): boolean {
+  if (!posthogConfigured()) return false;
+  if (browserDoNotTrack()) return false;
+  if (FUNNEL_ALWAYS.has(event)) return true;
+  return readAnalyticsPrefs().enabled;
 }
 
 export async function captureProduct<E extends ProductEvent>(
@@ -102,7 +123,7 @@ export async function captureProduct<E extends ProductEvent>(
   props: ProductEventProps[E],
 ): Promise<void> {
   if (!isProductEvent(event)) return;
-  if (!shouldCapture(event)) return;
+  if (!shouldBuffer(event)) return;
 
   const clean = sanitizeProps(props as AnalyticsProps);
   const distinct = (await posthogDistinctId()) || localDistinctId();
@@ -113,24 +134,59 @@ export async function captureProduct<E extends ProductEvent>(
     console.info("[product-analytics]", event, clean);
   }
 
-  // PostHog: funnel always (when keyed); in-app respects Settings opt-in OR keyed+enabled default.
-  const prefs = readAnalyticsPrefs();
-  const sendRemote =
-    posthogConfigured() && (FUNNEL_ALWAYS.has(event) || prefs.enabled);
-  if (sendRemote) {
+  if (shouldSendRemote(event)) {
     void posthogCapture(event, clean);
   }
 }
 
-/** Fire once per browser for app_first_open. */
+/** Fire once per browser for app_first_open; stamps the first-open day for returns. */
 export async function trackAppFirstOpen(source: string): Promise<void> {
   try {
     if (localStorage.getItem(FIRST_OPEN_KEY)) return;
     localStorage.setItem(FIRST_OPEN_KEY, "1");
+    if (!localStorage.getItem(FIRST_OPEN_AT_KEY)) {
+      localStorage.setItem(FIRST_OPEN_AT_KEY, new Date().toISOString());
+    }
   } catch {
     /* private mode — still fire */
   }
   await captureProduct("app_first_open", { source });
+}
+
+/**
+ * Day-1 / day-7 (and later) return: once per local calendar day after the
+ * first open, with `days_since_first_open` for retention cohorting.
+ */
+export async function trackAppReturn(now = new Date()): Promise<void> {
+  let firstAt: string | null = null;
+  let lastDay: string | null = null;
+  try {
+    firstAt = localStorage.getItem(FIRST_OPEN_AT_KEY);
+    lastDay = localStorage.getItem(LAST_RETURN_DAY_KEY);
+  } catch {
+    return;
+  }
+  if (!firstAt) return;
+  const first = Date.parse(firstAt);
+  if (!Number.isFinite(first)) return;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfFirst = new Date(first);
+  const firstDay = new Date(startOfFirst.getFullYear(), startOfFirst.getMonth(), startOfFirst.getDate()).getTime();
+  const days = Math.floor((startOfToday - firstDay) / 86_400_000);
+  if (days < 1) return;
+  const dayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  if (lastDay === dayKey) return;
+  try {
+    localStorage.setItem(LAST_RETURN_DAY_KEY, dayKey);
+  } catch {
+    /* still fire once this session */
+  }
+  await captureProduct("app_return", { days_since_first_open: days });
+}
+
+/** Keep PostHog's own opt-out flag in sync with Settings. */
+export async function syncAnalyticsConsent(enabled: boolean): Promise<void> {
+  await setPostHogOptOut(!enabled || browserDoNotTrack());
 }
 
 /** Persist flow_id for server-side purchase attribution via checkout metadata. */
