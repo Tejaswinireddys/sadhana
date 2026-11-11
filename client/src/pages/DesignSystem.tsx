@@ -285,7 +285,7 @@ export default function DesignSystem() {
           <Link href="/welcome">Landing</Link>
         </Button>
         <Button asChild variant="outline" className="min-h-11 cursor-pointer">
-          <Link href="/register">Register</Link>
+          <Link href="/start">Start quiz</Link>
         </Button>
         <Button asChild variant="outline" className="min-h-11 cursor-pointer">
           <Link href="/settings">Settings</Link>

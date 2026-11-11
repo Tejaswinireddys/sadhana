@@ -15,6 +15,11 @@ test("aliases rewrite to the real page", () => {
   assert.equal(aliasRouteTarget("/support"), "/help");
   assert.equal(aliasRouteTarget("/support/"), "/help", "trailing slash");
   assert.equal(aliasRouteTarget("/support", "?ref=email", "#contact"), "/help?ref=email#contact");
+  // The retired local-setup wizard: old links land on the one onboarding path.
+  assert.equal(aliasRouteTarget("/register"), "/start");
+  assert.equal(aliasRouteTarget("/register/"), "/start", "trailing slash");
+  assert.equal(aliasRouteTarget("/REGISTER"), "/start", "case");
+  assert.equal(aliasRouteTarget("/register", "?ref=email"), "/start?ref=email");
 });
 
 test("the rewritten tab is one Account understands", () => {
@@ -32,8 +37,8 @@ test("the visitor's query and fragment survive; their tab wins", () => {
 });
 
 test("real pages and look-alikes are not aliases", () => {
-  for (const path of ["/", "/account", "/classes/login", "/login/extra", "/logins", "/api/login", "/sign", "/signin/extra", "/sign_in", "/support/extra", "/supports", "/api/support"]) {
+  for (const path of ["/", "/account", "/classes/login", "/login/extra", "/logins", "/api/login", "/sign", "/signin/extra", "/sign_in", "/support/extra", "/supports", "/api/support", "/register/extra", "/registers"]) {
     assert.equal(aliasRouteTarget(path), null, path);
   }
-  assert.deepEqual(Object.keys(ROUTE_ALIASES).sort(), ["/login", "/sign-in", "/signin", "/signup", "/support", "/today"]);
+  assert.deepEqual(Object.keys(ROUTE_ALIASES).sort(), ["/login", "/register", "/sign-in", "/signin", "/signup", "/support", "/today"]);
 });

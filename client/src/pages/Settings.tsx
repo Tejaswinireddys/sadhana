@@ -260,9 +260,9 @@ export default function Settings() {
             </Button>
           </div>
           <Button variant="outline" className="min-h-11 w-full cursor-pointer justify-start gap-2" asChild>
-            <Link href="/register" data-testid="settings-register">
+            <Link href="/start" data-testid="settings-register">
               <Info className="h-4 w-4" />
-              Create or update practice setup
+              Retake the practice quiz (5 short questions)
             </Link>
           </Button>
         </CardContent>

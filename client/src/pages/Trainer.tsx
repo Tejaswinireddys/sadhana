@@ -503,6 +503,10 @@ export default function Trainer() {
                 {activeProfile ? ` — with ${activeProfile.name} poses woven in` : ""} —
                 then flow into a guided session with voice and timers.
               </p>
+              <p className="text-xs text-muted-foreground">
+                The Trainer shares your saved goal, pace and time with the start quiz — answered
+                once, used everywhere. Nothing here creates an account.
+              </p>
               <Button
                 className="w-full"
                 onClick={() => setShowTour(false)}

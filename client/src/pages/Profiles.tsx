@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ProfileCard } from "@/components/ProfileCard";
@@ -63,6 +64,14 @@ export default function Profiles() {
         <p className="max-w-2xl text-muted-foreground">
           Choose a preset built around a goal and a realistic cadence. Activating a path tailors
           your home dashboard and pre-builds today's session — poses and breath, ready to go.
+        </p>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Paths are optional presets saved on this device — not an account signup. New here? The
+          quickest way in is the{" "}
+          <Link href="/start" className="font-medium text-foreground underline underline-offset-2" data-testid="profiles-start-link">
+            five-question finder
+          </Link>
+          .
         </p>
         {activeId && (
           <div className="flex flex-col items-start gap-3 pt-1 sm:flex-row sm:items-center">
