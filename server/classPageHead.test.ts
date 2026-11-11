@@ -6,7 +6,7 @@ import path from "node:path";
 import express from "express";
 import type { ClassRow, InsertClass } from "../shared/schema";
 import { MemoryStorage } from "./storage";
-import { classPageHead } from "./classPages";
+import { classPageHead, missingClassPageHead } from "./classPages";
 import { MUX_PUBLIC_TEST_PLAYBACK_ID } from "./classSeed";
 import { brandPublicHtml } from "./publicUrl";
 import { serveStatic, spaPage } from "./static";
@@ -97,6 +97,7 @@ test("a published class is served with its own title, description, canonical and
       assert.equal(meta(body, "twitter:image"), poster);
       assert.equal(meta(body, "og:image:width"), null, "the default image's 1200×630 is not claimed for a class poster");
       assert.equal(meta(body, "og:image:height"), null);
+      assert.equal(meta(body, "robots"), null, "a published class stays indexable");
     }
   } finally { await h.close(); }
 });
@@ -111,6 +112,8 @@ test("a Plus class uses the same-origin thumbnail route and never a playback id 
   assert.equal(meta(html, "og:image"), `${ORIGIN}/api/classes/core-strength/thumbnail.webp`);
   assert.equal(meta(html, "twitter:image"), `${ORIGIN}/api/classes/core-strength/thumbnail.webp`);
   assert.equal(title(html), "Core strength · Sadhana");
+  assert.equal(canonical(html), `${ORIGIN}/classes/core-strength`);
+  assert.equal(meta(html, "robots"), null);
   assert.doesNotMatch(html, new RegExp(PLUS_ID), "no playback id anywhere in the HTML");
   assert.doesNotMatch(html, /image\.mux\.com|stream\.mux\.com|token=|eyJ/, "no Mux URL and no token");
 
@@ -144,17 +147,31 @@ test("a Plus class with a public playback id never shares a thumbnail that embed
   assert.doesNotMatch(brandPublicHtml(TEMPLATE, ORIGIN, "/classes/public-plus", head), new RegExp(PLUS_ID));
 });
 
-test("missing, draft and deleted classes keep their 404 and get no class tags", async () => {
+test("missing, draft and deleted classes are 404s with a not-found head and no canonical URL", async () => {
   const h = await harness(await catalogue());
   try {
-    const generic = title(brandPublicHtml(TEMPLATE, ORIGIN, "/classes/missing-class"));
-    for (const pathname of ["/classes/missing-class", "/classes/draft-flow", "/classes/retired-flow", "/classes/Bad%20Slug!"]) {
+    const head = missingClassPageHead();
+    assert.equal(head.title, "Class not found · Sadhana");
+    assert.equal(head.description, "It may have been moved or unpublished.");
+    assert.equal(head.image, null);
+    assert.equal(head.jsonLd, null);
+    assert.equal(head.robots, "noindex,nofollow");
+    for (const pathname of ["/classes/missing-class", "/classes/missing-class/", "/classes/draft-flow", "/classes/retired-flow", "/classes/Bad%20Slug!"]) {
       const { status, body } = await h.get(pathname);
       assert.equal(status, 404, pathname);
-      assert.equal(title(body), generic, `${pathname} keeps the generic title`);
-      assert.equal(meta(body, "og:image"), `${ORIGIN}/og-image.png`);
+      assert.equal(title(body), "Class not found · Sadhana", pathname);
+      assert.equal(meta(body, "description"), "It may have been moved or unpublished.");
+      assert.equal(meta(body, "og:title"), "Class not found · Sadhana");
+      assert.equal(meta(body, "og:description"), "It may have been moved or unpublished.");
+      assert.equal(meta(body, "twitter:title"), "Class not found · Sadhana");
+      assert.equal(meta(body, "twitter:description"), "It may have been moved or unpublished.");
+      assert.equal(canonical(body), null, `${pathname} must not advertise itself as canonical`);
+      assert.equal(meta(body, "og:url"), null, `${pathname} must not publish an og:url`);
+      assert.equal(meta(body, "robots"), "noindex,nofollow");
+      assert.equal(meta(body, "og:image"), `${ORIGIN}/og-image.png`, "the site image stays; no class poster is invented");
+      assert.equal(meta(body, "og:image:alt"), "Sadhana — calm guided yoga practice, with an illustrated tree pose.");
       assert.equal(jsonLd(body), null);
-      assert.doesNotMatch(body, /Unannounced draft class|Not public yet|Retired class title|DRAFTplaybackSECRET/, `${pathname} leaks nothing about an unpublished class`);
+      assert.doesNotMatch(body, /missing-class|draft-flow|retired-flow|Bad Slug|Unannounced draft class|Not public yet|Retired class title|DRAFTplaybackSECRET/, `${pathname} leaks nothing about an unpublished class`);
     }
   } finally { await h.close(); }
 });

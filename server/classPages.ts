@@ -18,6 +18,8 @@
  * What leaves this module is what a signed-out visitor may see: slugs and
  * catalogue copy. Never a Plus playback id, a policy or a token — the head is
  * built from `presentClass(row, "free")`, the same view the API gives a guest.
+ * A missing, draft or deleted class is a 404 whose head says only "Class not
+ * found": no canonical URL, no og:url, and no invented title or poster.
  */
 import type { ClassRow } from "../shared/schema";
 import { classSlugSchema, presentClass, type ClassRecord } from "../shared/classLibrary";
@@ -82,9 +84,32 @@ export type PageHead = {
   imageAlt: string | null;
   /** schema.org data for a `<script type="application/ld+json">`, or null. */
   jsonLd: Record<string, unknown> | null;
+  /**
+   * Set on a class URL that is not a page. `brandPublicHtml` then drops the
+   * canonical link and `og:url` (they would name a slug that does not exist)
+   * and emits this robots directive.
+   */
+  robots?: "noindex,nofollow";
 };
 
 const DESCRIPTION_MAX = 200;
+
+/**
+ * Head for `/classes/<slug>` when no published class has that slug.
+ * The words are the same ones the page itself shows. Nothing is derived from
+ * the slug: a guess would advertise a class that is not there.
+ */
+export function missingClassPageHead(): PageHead {
+  return {
+    title: "Class not found · Sadhana",
+    description: "It may have been moved or unpublished.",
+    canonicalPath: "",
+    image: null,
+    imageAlt: null,
+    jsonLd: null,
+    robots: "noindex,nofollow",
+  };
+}
 
 /** One line of plain text, cut at a word boundary: share cards truncate anyway, mid-word. */
 function summarise(text: string): string {

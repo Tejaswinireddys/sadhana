@@ -20,8 +20,6 @@ export function publicAppOrigin(): string {
  * would otherwise be read as a replacement pattern.
  */
 export function brandPublicHtml(html: string, origin = publicAppOrigin(), pathname = "/", page?: PageHead | null): string {
-  const canonicalPath = page?.canonicalPath ?? (pathname === "/welcome" ? "/" : pathname.split("?")[0]);
-  const canonical = `${origin}${canonicalPath}`;
   const metadata = page ?? pageMetadata(pathname);
   if (metadata) {
     html = html.replace(/<title>[\s\S]*?<\/title>/, () => `<title>${escapeAttr(metadata.title)}</title>`)
@@ -36,11 +34,22 @@ export function brandPublicHtml(html: string, origin = publicAppOrigin(), pathna
       .replace(/\s*<meta\s+property="og:image:(?:width|height)"\s+content="[^"]*"\s*\/?>/g, "")
       .replace(/(<meta\s+property="og:image:alt"\s+content=")[^"]*(")/, (_all, start, end) => `${start}${escapeAttr(page.imageAlt ?? metadata?.title ?? "")}${end}`);
   }
-  html = html.split("__PUBLIC_APP_ORIGIN__").join(origin)
-    .replace(/(<link rel="canonical" href=")[^"]*(")/, (_all, start, end) => `${start}${escapeAttr(canonical)}${end}`)
-    .replace(/(<meta property="og:url" content=")[^"]*(")/, (_all, start, end) => `${start}${escapeAttr(canonical)}${end}`);
+  html = html.split("__PUBLIC_APP_ORIGIN__").join(origin);
+  if (page?.robots) {
+    // A class that is not published must not be canonicalised at its own URL.
+    html = html
+      .replace(/\s*<link rel="canonical" href="[^"]*"\s*\/?>/g, "")
+      .replace(/\s*<meta property="og:url" content="[^"]*"\s*\/?>/g, "");
+  } else {
+    const canonicalPath = page?.canonicalPath ?? (pathname === "/welcome" ? "/" : pathname.split("?")[0]);
+    const canonical = `${origin}${canonicalPath}`;
+    html = html
+      .replace(/(<link rel="canonical" href=")[^"]*(")/, (_all, start, end) => `${start}${escapeAttr(canonical)}${end}`)
+      .replace(/(<meta property="og:url" content=")[^"]*(")/, (_all, start, end) => `${start}${escapeAttr(canonical)}${end}`);
+  }
+  const robots = page?.robots ? `<meta name="robots" content="${escapeAttr(page.robots)}">` : "";
   const structured = page?.jsonLd ? `<script type="application/ld+json">${jsonForScript(page.jsonLd)}</script>` : "";
-  return html.replace("</head>", () => `${structured}${publicConfigHtml()}</head>`);
+  return html.replace("</head>", () => `${robots}${structured}${publicConfigHtml()}</head>`);
 }
 /**
  * JSON safe inside a <script> element: `<` is escaped so stored text containing

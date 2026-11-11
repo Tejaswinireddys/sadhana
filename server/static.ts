@@ -8,7 +8,7 @@ import { sendJson404 } from "./json404";
 import { mountStaticMedia } from "./mountStaticMedia";
 import { servesWelcomeHtml } from "./welcomeEntry";
 import { aliasRouteTarget } from "../client/src/lib/routeAliases";
-import { classPageHead, classPageStatus, resolveClassPage, type PageHead } from "./classPages";
+import { classPageHead, classPageStatus, missingClassPageHead, resolveClassPage, type PageHead } from "./classPages";
 import { classThumbnailSigningAvailable } from "./muxPlayback";
 import { storage } from "./storage";
 
@@ -136,8 +136,9 @@ export async function spaStatus(pathname: string, classes: ClassPageStore): Prom
 /**
  * `spaStatus`, plus the `<head>` for the page when it is a published class.
  * One class lookup answers both, so a 404 can never carry a class's tags and a
- * real class can never be served with the generic ones. Shared by the
- * production fallback below and the dev (Vite) one.
+ * real class can never be served with the generic ones. A class-shaped 404
+ * gets the not-found head instead of a canonical URL for the missing slug.
+ * Shared by the production fallback below and the dev (Vite) one.
  */
 export async function spaPage(
   pathname: string,
@@ -146,6 +147,7 @@ export async function spaPage(
 ): Promise<{ status: number; head: PageHead | null }> {
   const classPage = await resolveClassPage(pathname, classes);
   if (!classPage) return { status: isKnownAppRoute(pathname) ? 200 : 404, head: null };
+  if (classPage.status === 404) return { status: 404, head: missingClassPageHead() };
   const head = classPage.row
     ? classPageHead(classPage.row, publicAppOrigin(), { signedThumbnails: signedThumbnails() })
     : null;
