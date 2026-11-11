@@ -306,11 +306,37 @@ export function usesSignedThumbnail(row: Pick<ClassRecord, "muxPlaybackId" | "pl
   return !row.thumbnailUrl || row.thumbnailUrl.includes(playbackId);
 }
 
-function viewerThumbnail(row: ClassRecord, locked: boolean, signedThumbnails: boolean): string | null {
-  if (usesSignedThumbnail(row)) return signedThumbnails ? classThumbnailPath(row.slug) : null;
+/** Mux's standard poster frame for a public (or already-tokenised) playback id. */
+export function muxPosterUrl(playbackId: string, timeSec?: number | null): string {
+  const id = playbackId.trim();
+  const q = typeof timeSec === "number" && timeSec >= 0 ? `?time=${timeSec}` : "";
+  return `https://image.mux.com/${id}/thumbnail.webp${q}`;
+}
+
+function viewerThumbnail(
+  row: ClassRecord,
+  locked: boolean,
+  signedThumbnails: boolean,
+  fillMissingMuxPoster: boolean,
+): string | null {
+  if (usesSignedThumbnail(row)) {
+    if (signedThumbnails) return classThumbnailPath(row.slug);
+    // Signing unavailable: keep a custom non-Mux poster if the row has one.
+    const custom = row.thumbnailUrl?.trim() || null;
+    const playbackId = row.muxPlaybackId?.trim() || null;
+    if (custom && !(playbackId && custom.includes(playbackId))) return custom;
+    return null;
+  }
   const playbackId = row.muxPlaybackId?.trim() || null;
   const leaksPlayback = !!playbackId && !!row.thumbnailUrl?.includes(playbackId);
-  return locked && leaksPlayback ? null : row.thumbnailUrl;
+  if (locked && leaksPlayback) return null;
+  if (row.thumbnailUrl) return row.thumbnailUrl;
+  // Library cards may fill a missing public Mux poster; schema.org / page-head
+  // callers leave this off so VideoObject still requires an authored poster.
+  if (fillMissingMuxPoster && playbackId && row.playbackPolicy !== "signed") {
+    return muxPosterUrl(playbackId, row.thumbnailTimeSec);
+  }
+  return null;
 }
 
 /**
@@ -325,7 +351,7 @@ export function presentClass(
   viewerPlan: ViewerPlan,
   progress?: ClassProgressRecord | null,
   sign?: ClassTokenSigner,
-  options: { signedThumbnails?: boolean } = {},
+  options: { signedThumbnails?: boolean; fillMissingMuxPoster?: boolean } = {},
 ): ClassSummary {
   const locked = isClassLocked(row, viewerPlan);
   return {
@@ -337,7 +363,12 @@ export function presentClass(
     level: row.level,
     durationMinutes: row.durationMinutes,
     focusTags: [...row.focusTags],
-    thumbnailUrl: viewerThumbnail(row, locked, options.signedThumbnails ?? false),
+    thumbnailUrl: viewerThumbnail(
+      row,
+      locked,
+      options.signedThumbnails ?? false,
+      options.fillMissingMuxPoster ?? false,
+    ),
     tier: row.tier,
     chapters: storedChapters(row.chapters),
     thumbnailTimeSec: typeof row.thumbnailTimeSec === "number" && row.thumbnailTimeSec >= 0 ? row.thumbnailTimeSec : null,

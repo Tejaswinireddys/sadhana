@@ -18,6 +18,7 @@ import {
   paginate,
   presentClass,
   classThumbnailPath,
+  muxPosterUrl,
   resumeFrom,
   sortClasses,
   withSavedProgress,
@@ -161,6 +162,11 @@ describe("Plus lock", () => {
     assert.equal(presentClass(leaky, "plus").thumbnailUrl, leaky.thumbnailUrl);
   });
 
+  it("muxPosterUrl builds the standard Mux thumbnail URL", () => {
+    assert.equal(muxPosterUrl("abc"), "https://image.mux.com/abc/thumbnail.webp");
+    assert.equal(muxPosterUrl("abc", 30), "https://image.mux.com/abc/thumbnail.webp?time=30");
+  });
+
   it("free classes keep public playback for everyone", () => {
     assert.deepEqual(presentClass(free, "free").playback, { provider: "mux", policy: "public", playbackId: "freeId" });
     assert.deepEqual(presentClass(free, "plus").playback, { provider: "mux", policy: "public", playbackId: "freeId" });
@@ -207,7 +213,25 @@ describe("classPlayback (signed Plus)", () => {
     assert.equal(presentClass(muxUrl, "plus", null, undefined, { signedThumbnails: true }).thumbnailUrl, relay);
     const custom = row({ ...bare, thumbnailUrl: "/poses/x.webp" });
     assert.equal(presentClass(custom, "free", null, undefined, { signedThumbnails: true }).thumbnailUrl, "/poses/x.webp");
+    // Without signing, a custom pose poster is still shown (not a gray empty tile).
+    assert.equal(presentClass(custom, "free").thumbnailUrl, "/poses/x.webp");
     assert.equal(classThumbnailPath("x"), relay);
+  });
+
+  it("synthesises a Mux poster for library cards when asked, but not for page-head defaults", () => {
+    const bare = row({
+      slug: "morning",
+      tier: "free",
+      muxPlaybackId: "freeId",
+      playbackPolicy: "public",
+      thumbnailUrl: null,
+      thumbnailTimeSec: 12,
+    });
+    assert.equal(presentClass(bare, "free").thumbnailUrl, null);
+    assert.equal(
+      presentClass(bare, "free", null, undefined, { fillMissingMuxPoster: true }).thumbnailUrl,
+      muxPosterUrl("freeId", 12),
+    );
   });
 
   it("without a signer (lists) or with signing unconfigured, a signed class is unplayable", () => {

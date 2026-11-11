@@ -10,14 +10,14 @@
  *   - API: never cached. Practice data must not be served stale.
  *   - Push: show gentle practice reminders when the tab is closed.
  */
-const VERSION = "v4";
+const VERSION = "v5";
 const SHELL_CACHE = `sadhana-shell-${VERSION}`;
 const ASSET_CACHE = `sadhana-assets-${VERSION}`;
 const OFFLINE_CACHE = "sadhana-offline-v1";
 const SHELL_URL = "/index.html";
 
 /** How long to wait for the network before falling back to cache. */
-const NETWORK_TIMEOUT_MS = 3000;
+const NETWORK_TIMEOUT_MS = 8000;
 
 const PRECACHE = [
   SHELL_URL,
@@ -109,7 +109,15 @@ async function networkFirst(request, cacheName, fallbackUrl) {
         setTimeout(() => reject(new Error("timeout")), NETWORK_TIMEOUT_MS),
       ),
     ]);
-    if (response && response.ok) cache.put(fallbackUrl ?? request, response.clone());
+    if (response && response.ok) {
+      cache.put(fallbackUrl ?? request, response.clone());
+      return response;
+    }
+    // Deploy blips and misrouted navigations can return 404/502/503. Passing
+    // those through made a refresh look like "page not found" even though the
+    // origin later served 200 to curl. Prefer the cached SPA shell instead.
+    const cached = await cache.match(fallbackUrl ?? request);
+    if (cached) return cached;
     return response;
   } catch {
     const cached = await cache.match(fallbackUrl ?? request);

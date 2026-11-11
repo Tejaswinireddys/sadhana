@@ -282,6 +282,11 @@ export default function GuidedSession() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
+  // Warm Today while practicing so exit/complete does not suspend on a blank fade.
+  useEffect(() => {
+    void import("@/pages/Home");
+  }, []);
+
   const startQuickSession = (q: (typeof QUICK_SESSIONS)[number]) => {
     const poses = q.poses
       .map((p) => {
@@ -1545,6 +1550,8 @@ export default function GuidedSession() {
     setShowRpe(false);
     saveProgress(null);
     clear();
+    // Warm the destination chunk before navigate so / does not suspend blank.
+    void import("@/lib/shellRoutes").then(({ prefetchShellPage }) => prefetchShellPage(path));
     navigate(path);
   };
 

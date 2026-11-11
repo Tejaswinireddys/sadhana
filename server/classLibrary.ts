@@ -43,7 +43,13 @@ async function publishedWithProgress(store: IStorage, ownerId: string, plan: Vie
   const [rows, progress] = await Promise.all([store.listClasses(), store.getClassProgress(ownerId)]);
   const byClass = new Map(progress.map((row) => [row.classId, row]));
   const published = sortClasses(rows.filter((row) => row.published) as ClassRecord[]);
-  return published.map((row) => ({ row, summary: presentClass(row, plan, byClass.get(row.id), undefined, { signedThumbnails }) }));
+  return published.map((row) => ({
+    row,
+    summary: presentClass(row, plan, byClass.get(row.id), undefined, {
+      signedThumbnails,
+      fillMissingMuxPoster: true,
+    }),
+  }));
 }
 
 /** Signs one poster frame: `(playbackId, timeSec) → t token | null`. */

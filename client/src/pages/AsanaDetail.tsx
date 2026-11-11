@@ -30,7 +30,7 @@ import { CONTENT_REVIEW } from "@/data/contentProvenance";
 import { manifestAudioUrl, usePoseMedia } from "@/lib/poseMediaApi";
 import { pronunciationFor, shouldShowPronunciation } from "@/lib/sanskritPronunciation";
 import { usagesForAsana } from "@/data/asanaUsage";
-import { KEYS, poseLevelFromExperience, readString } from "@/lib/localPrefs";
+import { KEYS, defaultPoseLevel, readString } from "@/lib/localPrefs";
 import { QUICK_SESSIONS, quickSessionMeta } from "@/data/quickSessions";
 import { catalogSessionMinutes } from "@/lib/pathwayTiming";
 import { usePractice } from "@/context/PracticeContext";
@@ -170,7 +170,7 @@ export default function AsanaDetail() {
   const { add, todays, loadSession } = usePractice();
   const { toast } = useToast();
   const [level, setLevel] = useState<Level>(() =>
-    poseLevelFromExperience(readString(KEYS.experienceLevel)),
+    defaultPoseLevel(readString(KEYS.experienceLevel), asana?.difficulty),
   );
   /** True while a lesson is running, so the page can stand down competing CTAs. */
   const [training, setTraining] = useState(false);
