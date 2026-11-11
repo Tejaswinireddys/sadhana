@@ -88,10 +88,14 @@ test("the port is bound before a critical step finishes, but /healthz and the AP
     assert.deepEqual(await get("/healthz"), { status: 503, body: { ok: false, error: "starting" } });
     assert.deepEqual(await get("/api/auth/me"), { status: 503, body: { error: "Server is starting" } });
     assert.equal(warmupStarted, false, "warmups wait for the critical steps");
+    // The keep-alive probe answers as soon as the port is bound: an uptime
+    // ping must warm the instance, not fail it, during startup.
+    assert.deepEqual(await get("/ping"), { status: 200, body: { ok: true } });
 
     schema.release();
     await server.ready;
     assert.equal((await get("/healthz")).status, 200);
+    assert.deepEqual(await get("/ping"), { status: 200, body: { ok: true } });
     assert.equal(warmupStarted, true);
   } finally {
     schema.release();

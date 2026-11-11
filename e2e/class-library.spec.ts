@@ -84,6 +84,26 @@ test("filter chips narrow the library and are keyboard operable", async ({ page 
   await expect(count).toHaveText("6 classes");
 });
 
+test("a zero-match filter combination offers closest matches instead of a dead end", async ({ page }) => {
+  await page.goto("/classes");
+  // No beginner class runs 30+ minutes in the seed.
+  await page.getByTestId("class-library-level-beginner").click();
+  await page.getByTestId("class-library-duration-30-plus").click();
+  await expect(page.getByTestId("class-library-count")).toContainText("0 classes match these filters");
+
+  const closest = page.getByTestId("class-library-closest");
+  await expect(closest).toBeVisible();
+  await expect(page.getByTestId("class-library-closest-note")).toContainText("closest lengths");
+  // Suggestions keep the level facet and lead with the smallest miss (20 min).
+  await expect(closest.getByTestId("class-card-unwind-before-sleep")).toBeVisible();
+  await expect(closest.getByTestId("class-card-steady-strength-flow")).toHaveCount(0);
+  // And the short-session alternative is offered.
+  await expect(page.getByTestId("class-library-closest-guided")).toContainText("Guided practices");
+
+  await page.getByTestId("class-library-clear").click();
+  await expect(page.getByTestId("class-library-closest")).toHaveCount(0);
+});
+
 test("playing saves progress, resumes from it, surfaces Continue, and completes at 90%", async ({ page }) => {
   const slug = "desk-back-relief";
   await page.goto("/classes");
@@ -108,6 +128,15 @@ test("playing saves progress, resumes from it, surfaces Continue, and completes 
   // Library and Today both offer to continue it.
   await page.getByTestId("class-player-back").click();
   await expect(page.getByTestId("class-library-continue").getByTestId(`class-card-${slug}`)).toBeVisible();
+
+  // Continue watching honours the filters: desk-back-relief is beginner, so an
+  // Intermediate filter hides the row instead of ignoring the facets.
+  await page.getByTestId("class-library-level-intermediate").click();
+  await expect(page.getByTestId("class-library-continue")).toHaveCount(0);
+  await page.getByTestId("class-library-level-beginner").click();
+  await expect(page.getByTestId("class-library-continue").getByTestId(`class-card-${slug}`)).toBeVisible();
+  await page.getByTestId("class-library-clear").click();
+
   await page.goto("/");
   await expect(page.getByTestId("home-continue-class")).toContainText("Continue your class");
   await expect(page.getByTestId("home-continue-class")).toContainText("from 1:35");

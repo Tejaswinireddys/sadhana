@@ -191,6 +191,14 @@ export async function bootServer(options: BootOptions = {}): Promise<BootedServe
     }
   });
 
+  // Liveness probe for uptime monitors: 200 the instant the port is bound, no
+  // database round-trip, and still 200 while critical startup steps run. A
+  // monitor on /ping won't page for a DB outage that /healthz correctly
+  // reports. /healthz stays the readiness check Render routes on.
+  app.get("/ping", (_req, res) => {
+    res.status(200).json({ ok: true });
+  });
+
   registerAdsTxt(app);
 
   const PUBLIC_ORIGIN = publicAppOrigin();

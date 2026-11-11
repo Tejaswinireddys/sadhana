@@ -5,6 +5,10 @@
  * `/today` is the home page; `/support` is the Help page. Before these existed, opening one directly hit
  * the app's Not Found page with HTTP 404.
  *
+ * `/register` was a separate local-setup wizard that read like account signup
+ * (it wasn't — `/account` is). New users now have one onboarding path, the
+ * five-question finder at `/start`, so old `/register` links land there.
+ *
  * `main.tsx` rewrites an alias with `replaceState` before React mounts, so
  * the router (and history) only ever see the real page — the same pattern as
  * the legacy `/#/…` redirect. The server asks `aliasRouteTarget` too, so it
@@ -16,6 +20,7 @@ export const ROUTE_ALIASES: Readonly<Record<string, { pathname: string; params?:
   "/signin": { pathname: "/account", params: { tab: "signin" } },
   "/sign-in": { pathname: "/account", params: { tab: "signin" } },
   "/signup": { pathname: "/account", params: { tab: "signup" } },
+  "/register": { pathname: "/start" },
   "/today": { pathname: "/" },
   "/support": { pathname: "/help" },
 };

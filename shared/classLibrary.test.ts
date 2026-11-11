@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   classListQuerySchema,
   classPlayback,
+  closestClassMatches,
   continueWatching,
   currentChapterIndex,
   muxChapters,
@@ -64,6 +65,63 @@ describe("filterClasses", () => {
     assert.deepEqual(durationRange("under-15"), { minMinutes: 0, maxMinutes: 14 });
     assert.deepEqual(durationRange("30-plus"), { minMinutes: 31, maxMinutes: undefined });
     assert.deepEqual(durationRange(undefined), {});
+  });
+});
+
+describe("closestClassMatches", () => {
+  // The live catalog that motivated this: every beginner class runs 15–20
+  // minutes, so Beginner + Under 15 — the most common first pick — was a dead
+  // end.
+  const rows = [
+    row({ slug: "wake", level: "beginner", durationMinutes: 20, focusTags: ["morning"], tier: "free" }),
+    row({ slug: "desk", level: "beginner", durationMinutes: 15, focusTags: ["back pain"], tier: "free" }),
+    row({ slug: "strength", level: "intermediate", durationMinutes: 25, focusTags: ["strength"], tier: "plus" }),
+    row({ slug: "long", level: "advanced", durationMinutes: 45, focusTags: ["stress"], tier: "plus" }),
+    row({ slug: "draft", level: "beginner", durationMinutes: 5, focusTags: ["morning"], tier: "free", published: false }),
+  ];
+
+  it("returns null when the filters already match something", () => {
+    assert.equal(closestClassMatches(rows, { level: "beginner" }), null);
+    assert.equal(closestClassMatches(rows, {}), null);
+  });
+
+  it("relaxes duration first: Beginner + Under 15 offers the shortest beginner classes", () => {
+    const got = closestClassMatches(rows, { level: "beginner", ...durationRange("under-15") });
+    assert.equal(got?.relaxed, "duration");
+    assert.deepEqual(got?.items.map((r) => r.slug), ["desk", "wake"]);
+  });
+
+  it("keeps the other facets while relaxing one", () => {
+    const got = closestClassMatches(rows, { level: "intermediate", ...durationRange("under-15") });
+    assert.equal(got?.relaxed, "duration");
+    assert.deepEqual(got?.items.map((r) => r.slug), ["strength"]);
+  });
+
+  it("never suggests an unpublished class, even when it is the closest", () => {
+    const got = closestClassMatches(rows, { level: "beginner", ...durationRange("under-15") });
+    assert.equal(got?.items.some((r) => r.slug === "draft"), false);
+  });
+
+  it("relaxes focus, then level, when duration is not the blocker", () => {
+    const focus = closestClassMatches(rows, { level: "beginner", focus: ["sleep"] });
+    assert.equal(focus?.relaxed, "focus");
+    assert.deepEqual(focus?.items.map((r) => r.slug), ["wake", "desk"]);
+
+    const level = closestClassMatches([rows[0], rows[1]], { level: "advanced" });
+    assert.equal(level?.relaxed, "level");
+    assert.deepEqual(level?.items.map((r) => r.slug), ["wake", "desk"]);
+  });
+
+  it("falls back to the shortest classes when no single relaxation matches", () => {
+    const got = closestClassMatches(rows, { level: "advanced", focus: ["sleep"], maxMinutes: 10 });
+    assert.equal(got?.relaxed, "everything");
+    assert.deepEqual(got?.items.map((r) => r.slug), ["desk", "wake", "strength"]);
+  });
+
+  it("respects the limit and returns null for an empty library", () => {
+    const got = closestClassMatches(rows, { level: "beginner", ...durationRange("under-15") }, 1);
+    assert.deepEqual(got?.items.map((r) => r.slug), ["desk"]);
+    assert.equal(closestClassMatches([], { level: "beginner" }), null);
   });
 });
 

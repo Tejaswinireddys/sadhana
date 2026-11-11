@@ -5,16 +5,19 @@ import {
   CLASS_DURATION_RANGES,
   CLASS_FOCUS_TAGS,
   CLASS_LEVELS,
+  closestClassMatches,
+  filterClasses,
   type ClassDurationRangeId,
   type ClassLevel,
   type ClassSummary,
+  type RelaxedClassFacet,
 } from "@shared/classLibrary";
 import { Button } from "@/components/ui/button";
 import { FadeIn } from "@/components/motion";
 import { ClassCard } from "@/components/ClassCard";
 import { AdSlot } from "@/components/ads/AdSlot";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { levelLabel, useClassList, useContinueWatching, type LibraryFilters } from "@/lib/classesApi";
+import { levelLabel, libraryClassFilters, useClassList, useContinueWatching, type LibraryFilters } from "@/lib/classesApi";
 import { countOf, plural } from "@/lib/plural";
 
 /** Single-select chip; "All" clears its facet. Real buttons, so Tab/Enter/Space work. */
@@ -89,6 +92,14 @@ function ClassRow({ title, items, testId, empty, action }: {
 
 const capitalise = (tag: string) => tag.charAt(0).toUpperCase() + tag.slice(1);
 
+/** Why the "Closest matches" classes are not exact matches, per relaxed facet. */
+const CLOSEST_MATCH_NOTES: Record<RelaxedClassFacet, string> = {
+  duration: "No classes run that length yet — these are the closest lengths that fit your other filters.",
+  focus: "No classes cover that focus yet — these fit your other filters.",
+  level: "No classes at that level yet — these fit your other filters.",
+  everything: "Nothing matches that combination yet — here are the shortest classes to start with.",
+};
+
 export default function Classes() {
   useDocumentTitle("Video classes · Sadhana");
   const [filters, setFilters] = useState<LibraryFilters>({});
@@ -99,8 +110,21 @@ export default function Classes() {
   const plus = items.filter((item) => item.tier === "plus");
   const viewerIsPlus = list.data?.viewerPlan === "plus";
   const active = !!(filters.level || filters.duration || filters.focus);
-  const resumable = continuing.data?.items ?? [];
   const total = list.data?.total ?? 0;
+
+  // The most common first pick (Beginner + Under 15) can match nothing in a
+  // small catalog. Instead of a dead end, fetch the whole library once and
+  // offer the closest classes, plus the guided practices that do run short.
+  const noMatches = active && !list.isLoading && !list.isError && total === 0;
+  const fullList = useClassList({}, { enabled: noMatches });
+  const closest = noMatches && fullList.data
+    ? closestClassMatches(fullList.data.items, libraryClassFilters(filters))
+    : null;
+
+  // Continue watching honours the active filters: it is a resume shelf, not a
+  // way around them. With no filters it shows everything resumable.
+  const resumable = continuing.data?.items ?? [];
+  const visibleResumable = active ? filterClasses(resumable, libraryClassFilters(filters)) : resumable;
 
   return (
     <FadeIn className="mx-auto max-w-5xl space-y-8 py-2">
@@ -142,11 +166,32 @@ export default function Classes() {
         </div>
       )}
 
-      {resumable.length > 0 && (
-        <ClassRow title="Continue watching" items={resumable} testId="class-library-continue" />
+      {visibleResumable.length > 0 && (
+        <ClassRow title="Continue watching" items={visibleResumable} testId="class-library-continue" />
       )}
       {/* One slot, after the first row of classes (Continue watching when there is one). */}
-      {resumable.length > 0 && <AdSlot placement="classes" />}
+      {visibleResumable.length > 0 && <AdSlot placement="classes" />}
+
+      {closest && closest.items.length > 0 && (
+        <section aria-labelledby="class-library-closest-heading" className="space-y-3" data-testid="class-library-closest">
+          <h2 id="class-library-closest-heading" className="font-serif text-xl font-semibold">Closest matches</h2>
+          <p className="text-sm text-muted-foreground" data-testid="class-library-closest-note">
+            {CLOSEST_MATCH_NOTES[closest.relaxed]}
+          </p>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {closest.items.map((item) => (
+              <li key={item.slug}><ClassCard item={item} /></li>
+            ))}
+          </ul>
+          <p className="text-sm text-muted-foreground" data-testid="class-library-closest-guided">
+            Short on time?{" "}
+            <Link href="/guided" className="font-medium text-foreground underline underline-offset-2">
+              Guided practices
+            </Link>{" "}
+            run from a few minutes with voice and captions — no video needed.
+          </p>
+        </section>
+      )}
 
       {!list.isLoading && !list.isError && (
         <>
@@ -154,7 +199,7 @@ export default function Classes() {
             title="Free classes" items={free} testId="class-library-free"
             empty={active ? "No free classes match these filters." : "No free classes yet."}
           />
-          {resumable.length === 0 && <AdSlot placement="classes" />}
+          {visibleResumable.length === 0 && <AdSlot placement="classes" />}
           <ClassRow
             title="Sadhana Plus" items={plus} testId="class-library-plus"
             empty={active ? "No Plus classes match these filters." : "No Plus classes yet."}

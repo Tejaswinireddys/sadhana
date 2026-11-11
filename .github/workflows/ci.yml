@@ -35,17 +35,20 @@ jobs:
       - run: npm run check
       - run: npm test
 
+  # Official Playwright image ships Chromium + OS deps for this exact version,
+  # so e2e never runs apt / --with-deps against Ubuntu mirrors (those DNS
+  # failures cancelled jobs after 20 minutes of retries). Keep the image tag
+  # in lockstep with package-lock's @playwright/test version.
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.0-jammy
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium --with-deps
-      - run: npm run test:e2e
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Run Playwright tests
+        run: npm run test:e2e
         env:
           CI: "true"

@@ -111,7 +111,7 @@ npm start            # serve the production build (NODE_ENV=production)
 ## Routing
 
 **Client** — wouter, real paths (no hash routing). All routes live in
-`AppRouter` in `client/src/App.tsx`; every page except Home/Landing/Register is
+`AppRouter` in `client/src/App.tsx`; every page except Home/Landing is
 `lazy()`-loaded and wrapped in `Suspense` + a per-route `ErrorBoundary`.
 Dynamic segments use `:slug` (`/asanas/:slug`, `/pathways/:slug`, `/kids/:slug`,
 `/kids/breath/:slug`). Some routes are conditional: `/analytics/funnel` and

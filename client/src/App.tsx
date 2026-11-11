@@ -25,14 +25,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ContentAccessGate } from "@/components/ContentAccessGate";
 import { PageFade } from "@/components/motion";
 
-/** Eager: first paint + marketing / registration entry. Everything else is route-split. */
+/** Eager: first paint + marketing entry. Everything else is route-split. */
 const Home = lazy(() => import("@/pages/Home"));
 const Landing = lazy(() => import("@/pages/Landing"));
-const Register = lazy(() => import("@/pages/Register"));
 
 const MARKETING_PATHS = new Set([
   "/welcome",
-  "/register",
   "/start",
   "/verify",
   "/cancel",
@@ -131,7 +129,8 @@ function AppRouter() {
     <PageFade routeKey={location.split("?")[0] || "/"}>
       <Suspense fallback={<RouteFallback />}>
         <ContentAccessGate><Switch>
-          <Route path="/register" component={Register} />
+          {/* /register is an alias of /start now (routeAliases.ts) — the
+              local-setup wizard it carried read like account signup. */}
           <Route path="/welcome" component={Landing} />
           <Route path="/start" component={StartQuiz} />
           {import.meta.env.DEV && <Route path="/analytics/funnel" component={FunnelDashboard} />}

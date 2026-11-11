@@ -45,6 +45,12 @@ test("/today opens Today, and Back does not return to the alias", async ({ page 
   await expect(page).toHaveURL(/\/classes$/);
 });
 
+test("/register opens the start quiz — the retired setup wizard is an alias now", async ({ page }) => {
+  await page.goto("/register");
+  await expect(page).toHaveURL(/\/start$/);
+  await expect(page.getByTestId("start-quiz")).toBeVisible();
+});
+
 test("/support opens Help, and Back does not return to the alias", async ({ page }) => {
   await page.goto("/classes");
   await page.goto("/support");

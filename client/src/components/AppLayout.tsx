@@ -418,7 +418,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isSignedIn, isLoading: authLoading } = useAuth();
   const isChromeFree =
     location === "/welcome" ||
-    location === "/register" ||
     location === "/start" ||
     location === "/verify" ||
     location === "/cancel" ||

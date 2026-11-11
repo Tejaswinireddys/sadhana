@@ -421,3 +421,57 @@ export function durationRange(id: ClassDurationRangeId | undefined): Pick<ClassF
   const range = CLASS_DURATION_RANGES.find((r) => r.id === id);
   return range ? { minMinutes: range.minMinutes, maxMinutes: range.maxMinutes } : {};
 }
+
+/** Which facet `closestClassMatches` had to give up to find anything. */
+export type RelaxedClassFacet = "duration" | "focus" | "level" | "everything";
+
+export type ClosestClassMatches<T> = { items: T[]; relaxed: RelaxedClassFacet };
+
+/**
+ * Closest classes when a filter combination matches nothing, so the most
+ * common first-visit pick (Beginner + Under 15 min, in a catalog whose
+ * shortest beginner class runs 15) ends at suggestions instead of a dead end.
+ *
+ * One facet is relaxed at a time — duration first, because length is the
+ * easiest thing for a viewer to flex — while the other facets keep filtering.
+ * Relaxed-duration results are ordered by how far they miss the requested
+ * range, so "Under 15" offers the shortest classes first. If no single
+ * relaxation finds anything, the shortest published classes stand in
+ * (`relaxed: "everything"`). Returns null when the filters already match
+ * something (no suggestions needed) or the library is empty.
+ */
+export function closestClassMatches<
+  T extends Pick<ClassRecord, "level" | "tier" | "durationMinutes" | "focusTags"> & { published?: boolean },
+>(rows: readonly T[], filters: ClassFilters, limit = 3): ClosestClassMatches<T> | null {
+  if (filterClasses(rows, filters).length) return null;
+  const durationActive = filters.minMinutes !== undefined || filters.maxMinutes !== undefined;
+  const missBy = (minutes: number) => {
+    const min = filters.minMinutes ?? 0;
+    const max = filters.maxMinutes ?? Number.POSITIVE_INFINITY;
+    return minutes < min ? min - minutes : minutes > max ? minutes - max : 0;
+  };
+  if (durationActive) {
+    const { minMinutes: _min, maxMinutes: _max, ...rest } = filters;
+    const matched = filterClasses(rows, rest);
+    if (matched.length) {
+      const items = [...matched]
+        .sort((a, b) => missBy(a.durationMinutes) - missBy(b.durationMinutes) || a.durationMinutes - b.durationMinutes)
+        .slice(0, limit);
+      return { items, relaxed: "duration" };
+    }
+  }
+  if (filters.focus?.length) {
+    const { focus: _focus, ...rest } = filters;
+    const matched = filterClasses(rows, rest);
+    if (matched.length) return { items: matched.slice(0, limit), relaxed: "focus" };
+  }
+  if (filters.level) {
+    const { level: _level, ...rest } = filters;
+    const matched = filterClasses(rows, rest);
+    if (matched.length) return { items: matched.slice(0, limit), relaxed: "level" };
+  }
+  const all = filterClasses(rows, {});
+  if (!all.length) return null;
+  const items = [...all].sort((a, b) => a.durationMinutes - b.durationMinutes).slice(0, limit);
+  return { items, relaxed: "everything" };
+}
