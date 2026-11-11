@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { poseLevelFromExperience } from "./localPrefs.ts";
+import { defaultPoseLevel, poseLevelFromExperience } from "./localPrefs.ts";
 
 describe("registration + email verification contract", () => {
   it("exposes confirm-password signup fields and a verify route", () => {
@@ -76,11 +76,14 @@ describe("registration + email verification contract", () => {
 });
 
 describe("pose-detail path from onboarding experience", () => {
-  it("maps Brand new to beginner and reads that default on the pose page", () => {
+  it("maps Brand new to beginner and defaults unset experience from catalog difficulty", () => {
     assert.equal(poseLevelFromExperience("new"), "beginner");
     assert.equal(poseLevelFromExperience("some"), "intermediate");
     assert.equal(poseLevelFromExperience("regular"), "advanced");
+    assert.equal(defaultPoseLevel(null, "Beginner"), "beginner");
+    assert.equal(defaultPoseLevel(undefined, "Intermediate"), "intermediate");
+    assert.equal(defaultPoseLevel("some", "Beginner"), "intermediate");
     const detail = readFileSync(resolve("client/src/pages/AsanaDetail.tsx"), "utf8");
-    assert.match(detail, /poseLevelFromExperience\(readString\(KEYS\.experienceLevel\)\)/);
+    assert.match(detail, /defaultPoseLevel\(readString\(KEYS\.experienceLevel\), asana\?\.difficulty\)/);
   });
 });

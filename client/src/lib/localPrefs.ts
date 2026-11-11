@@ -80,6 +80,35 @@ export function poseLevelFromExperience(
   return "intermediate";
 }
 
+/**
+ * Catalog `difficulty` ("Beginner" | "Intermediate" | "Advanced") → variation
+ * path. Unknown values fall back to beginner so a bad row never invents a path.
+ */
+export function catalogDifficultyToLevel(
+  difficulty: string | null | undefined,
+): "beginner" | "intermediate" | "advanced" {
+  const d = (difficulty || "").trim().toLowerCase();
+  if (d === "intermediate") return "intermediate";
+  if (d === "advanced") return "advanced";
+  return "beginner";
+}
+
+/**
+ * Default variation path for a pose detail page. An explicit onboarding
+ * experience wins; otherwise the catalog difficulty is the single source of
+ * truth — never the old "null → intermediate" default that labelled Beginner
+ * poses Intermediate in the lesson badge.
+ */
+export function defaultPoseLevel(
+  experience: string | null | undefined,
+  catalogDifficulty: string | null | undefined,
+): "beginner" | "intermediate" | "advanced" {
+  if (experience === "new" || experience === "some" || experience === "regular") {
+    return poseLevelFromExperience(experience);
+  }
+  return catalogDifficultyToLevel(catalogDifficulty);
+}
+
 export type ReminderPrefs = {
   enabled: boolean;
   /** Local hour 0–23 when the in-app nudge should appear. */
