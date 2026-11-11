@@ -10,6 +10,14 @@ import { KEYS, readString, writeString } from "@/lib/localPrefs";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 
+/**
+ * The sample teacher profiles carry illustrative, unverified credentials
+ * (see `@/data/instructors`). Real visitors must never read them as real
+ * teachers, so they render only when this build flag is set — an internal
+ * preview switch, off in production and by default everywhere.
+ */
+const SHOW_SAMPLE_TEACHERS = import.meta.env.VITE_SHOW_SAMPLE_TEACHERS === "true";
+
 export default function Instructors() {
   useDocumentTitle("Instructors · Sadhana");
   const live = upcomingLive();
@@ -60,12 +68,13 @@ export default function Instructors() {
       <header className="space-y-2">
         <h1 className="font-serif text-3xl font-semibold tracking-tight">Teachers waitlist</h1>
         <p className="max-w-2xl text-muted-foreground">
-          Sample profiles for now — credentials are not independently verified and there are no
-          scheduled live classes. This page is also at{" "}
+          Live, teacher-led classes aren&apos;t available yet — no teachers are listed and nothing
+          is bookable. This page is also at{" "}
           <Link href="/teachers" className="underline underline-offset-2">
             /teachers
           </Link>
-          . Join the waitlist and we will email you when real teachers and bookable classes open.
+          . Join the waitlist and we will email you when verified teachers and bookable classes
+          open.
         </p>
       </header>
 
@@ -125,14 +134,25 @@ export default function Instructors() {
         </section>
       )}
 
-      <section className="space-y-3">
+      <section className="space-y-3" data-testid="teachers-practice-today">
+        <h2 className="font-serif text-xl">Practice today</h2>
+        <p className="text-sm text-muted-foreground">
+          While live classes are in the works, the adaptive plan and guided sessions are ready now.
+        </p>
+        <Button variant="outline" className="min-h-11" asChild>
+          <Link href="/adaptive">Prep with adaptive practice</Link>
+        </Button>
+      </section>
+
+      {SHOW_SAMPLE_TEACHERS && (
+      <section className="space-y-3" data-testid="teachers-sample-profiles">
         <div className="flex items-center gap-2">
           <h2 className="font-serif text-xl">Sample teacher profiles</h2>
-          <Badge variant="outline">Preview</Badge>
+          <Badge variant="outline">Internal preview</Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          Live classes aren't scheduled yet. Practice today with the adaptive trainer and guided
-          sessions.
+          Visible only with VITE_SHOW_SAMPLE_TEACHERS — illustrative profiles for layout review,
+          never shown to practitioners.
         </p>
         <div className="grid gap-4 md:grid-cols-2">
           {INSTRUCTORS.map((i) => (
@@ -161,14 +181,12 @@ export default function Instructors() {
                   ))}
                 </ul>
                 <p className="text-xs">Accessibility: {i.accessibility.join("; ")}</p>
-                <Button variant="outline" className="min-h-11" asChild>
-                  <Link href="/adaptive">Prep with adaptive practice</Link>
-                </Button>
               </CardContent>
             </Card>
           ))}
         </div>
       </section>
+      )}
     </FadeIn>
   );
 }
