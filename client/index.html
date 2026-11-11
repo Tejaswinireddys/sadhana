@@ -79,6 +79,13 @@
         font-family: system-ui, sans-serif;
       }
       html.dark #boot-splash { color: #99f6e4; }
+      #boot-splash .boot-brand {
+        margin: 0;
+        font-family: Lora, Georgia, serif;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
       #boot-splash .boot-spin {
         width: 28px;
         height: 28px;
@@ -87,7 +94,19 @@
         border-radius: 999px;
         animation: sadhana-boot 0.8s linear infinite;
       }
+      /* Honest slow-start note (free hosting sleeps). Appears only when loading
+         really is slow: a pure-CSS fade keeps fast loads clean of it. */
+      #boot-splash .boot-slow {
+        margin: 0;
+        max-width: 22rem;
+        padding: 0 1rem;
+        text-align: center;
+        font-size: 13px;
+        opacity: 0;
+        animation: sadhana-boot-slow 0.6s ease-in 6s forwards;
+      }
       @keyframes sadhana-boot { to { transform: rotate(360deg); } }
+      @keyframes sadhana-boot-slow { to { opacity: 0.85; } }
       @media (prefers-reduced-motion: reduce) {
         #boot-splash .boot-spin { animation: none; }
       }
@@ -96,8 +115,10 @@
   <body>
     <div id="root">
       <div id="boot-splash" role="status" aria-live="polite">
+        <p class="boot-brand">Sadhana</p>
         <div class="boot-spin" aria-hidden="true"></div>
         <p style="margin:0;font-size:14px">Loading…</p>
+        <p class="boot-slow">Still waking up — after a quiet spell the free server can take up to a minute. Your practice data is safe.</p>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
