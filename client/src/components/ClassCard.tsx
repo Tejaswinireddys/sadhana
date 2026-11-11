@@ -54,11 +54,18 @@ export function ClassCard({ item, testIdPrefix = "class-card" }: { item: ClassSu
             height={360}
             loading="lazy"
             decoding="async"
-            className="absolute inset-0 h-full w-full object-contain"
+            // Cover fills the 16:9 tile. Contain left portrait pose posters and
+            // some Mux frames letterboxed as large gray bars that looked empty.
+            className="absolute inset-0 h-full w-full object-cover object-center"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <PlayCircle className="h-10 w-10" aria-hidden />
+          <div
+            className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/15 via-muted to-secondary/20 px-4 text-center text-muted-foreground"
+            data-testid={`${testIdPrefix}-poster-fallback-${item.slug}`}
+            aria-hidden
+          >
+            <PlayCircle className="h-10 w-10" />
+            <span className="line-clamp-2 text-xs font-medium text-foreground/80">{item.title}</span>
           </div>
         )}
         {item.locked && (
