@@ -358,7 +358,9 @@ export function registerBillingRoutes(app: Express, stripeClient: Stripe | null 
     if (!stripe || !billingEnabled() || !webhookSecret) {
       return res.status(503).json({
         error: "Billing is not configured on this deployment",
-        hint: "Configure a Stripe test key, webhook signing secret, and Plus price IDs.",
+        hint: stripeModeName === "live"
+          ? "Configure STRIPE_LIVE_SECRET_KEY, STRIPE_LIVE_WEBHOOK_SECRET, and STRIPE_LIVE_PRICE_* (see docs/STRIPE_GO_LIVE.md)."
+          : "Configure a Stripe test key, webhook signing secret, and Plus price IDs.",
       });
     }
     const parsed = checkoutRequestSchema.safeParse(req.body);

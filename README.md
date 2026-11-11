@@ -248,6 +248,13 @@ key in test mode) leaves billing off rather than charging anyone.
 - The app's wording follows the mode: "Stripe test mode only — no live
   payments" and the test-card hints appear only in test mode.
 
+### Going live
+
+To flip this deployment to live charges (Render env vars + Stripe Dashboard
+steps, webhook URL `https://sadhana-ou9m.onrender.com/api/billing/webhook`),
+follow **[`docs/STRIPE_GO_LIVE.md`](docs/STRIPE_GO_LIVE.md)**. No code change is
+required — only `STRIPE_MODE=live` and the `STRIPE_LIVE_*` values.
+
 ### Test-mode setup
 
 1. In Stripe **test mode**, create a Plus product with two active, fixed USD
