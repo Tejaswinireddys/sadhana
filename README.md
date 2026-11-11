@@ -349,6 +349,39 @@ listener. All existing catalog content remains free until explicitly marked
 `isPlus`; subscribing changes the account plan, not the catalog flags.
 
 
+### End-to-end subscription test (Stripe test mode)
+
+`e2e/plus-subscription.spec.ts` walks the whole subscription against the real
+Stripe **test-mode** API: a guest sees the Plus lock, signs up and verifies,
+pays in Stripe Checkout with the `4242…` test card, the webhook grants Plus,
+signed playback is issued, the subscription is cancelled in the Stripe Customer
+Portal, access lasts to the period end and is then removed, and every webhook
+is replayed to prove it is not applied twice.
+
+```bash
+STRIPE_TEST_SECRET_KEY=sk_test_… \
+STRIPE_TEST_PRICE_MONTHLY=price_… STRIPE_TEST_PRICE_YEARLY=price_… \
+PLUS_E2E_DATABASE_URL=postgresql://localhost:5432/postgres \
+npx playwright test e2e/plus-subscription.spec.ts
+```
+
+- **Test mode only.** A live key in any of those variables is refused, and
+  `STRIPE_LIVE_*` is never read. The Stripe test account also needs its
+  Customer Portal settings saved with cancellation allowed.
+- **Never your real data.** `DATABASE_URL` and `.env` are ignored. The database
+  must be a Postgres on this machine; the test creates a throwaway
+  `plus_e2e_…` database on it and drops it afterwards. It starts its own server
+  on a free port, with its own webhook signing secret and mail sink.
+- **No keys, no result.** Without all four variables the test is reported as
+  *skipped*, with the missing names in its title. It never falls back to mocks
+  (`e2e/stripe-plus.spec.ts` is the mocked UI test). CI has no Stripe keys, so
+  it skips there too.
+- Three things are arranged rather than waited for, and the spec's header says
+  so: webhooks are relayed (Stripe cannot reach 127.0.0.1 — the test reads the
+  events Stripe generated and delivers them signed), the period end is brought
+  forward by ending the subscription through the API, and playback tokens are
+  verified against a throwaway signing key rather than streamed from Mux.
+
 ## Mux video uploads and playback
 
 Create a Mux API access token with Video read/write permissions and put
