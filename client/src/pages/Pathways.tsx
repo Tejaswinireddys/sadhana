@@ -237,7 +237,7 @@ function FilterChip({
 }
 
 export default function Pathways() {
-  useDocumentTitle("Classes · Sadhana");
+  useDocumentTitle("Pathways · Sadhana");
   const { data: enrollments = [] } = useQuery<Enrollment[]>({ queryKey: ["/api/enrollments"] });
   const [, navigate] = useLocation();
   const { loadSession } = usePractice();
@@ -285,10 +285,15 @@ export default function Pathways() {
   return (
     <div className="animate-fade-in space-y-8" data-testid="classes-catalog">
       <header className="space-y-1">
-        <h1 className="font-serif text-3xl font-semibold tracking-tight">Classes</h1>
+        <h1 className="font-serif text-3xl font-semibold tracking-tight">Pathways</h1>
         <p className="text-muted-foreground">
-          Short sessions for right now, or programs that build toward a goal. A lock marks Plus
-          programs — you can still open them.
+          Illustrated quick flows for right now, and programs that build toward a goal. A lock
+          marks Plus programs — you can still open them. Looking for follow-along videos? Those
+          live in{" "}
+          <Link href="/classes" className="font-medium text-foreground underline underline-offset-2" data-testid="pathways-classes-link">
+            Classes
+          </Link>
+          .
         </p>
       </header>
 
@@ -299,8 +304,8 @@ export default function Pathways() {
             type="search"
             value={filters.query ?? ""}
             onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))}
-            placeholder="Search classes"
-            aria-label="Search classes"
+            placeholder="Search pathways"
+            aria-label="Search pathways"
             className="h-11 min-h-11 pl-9"
             data-testid="classes-search"
           />
@@ -390,12 +395,12 @@ export default function Pathways() {
       {filtering ? (
         <section className="space-y-3" data-testid="classes-results" aria-live="polite">
           <h2 className="font-serif text-xl">
-            {results.length === 0 ? "No classes match" : countOf(results.length, "class", "classes")}
+            {results.length === 0 ? "No pathways match" : countOf(results.length, "pathway", "pathways")}
           </h2>
           {results.length === 0 ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground" data-testid="classes-empty">
-                Nothing matches that search. Clear the filters to see every class.
+                Nothing matches that search. Clear the filters to see every pathway.
               </p>
               <Button type="button" variant="outline" onClick={() => setFilters(EMPTY_FILTERS)} data-testid="classes-clear">
                 Clear filters
