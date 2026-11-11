@@ -45,7 +45,20 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
-      - run: npx playwright install chromium --with-deps
+      # apt mirrors on ubuntu-latest occasionally fail DNS mid-install; retry a
+      # few times so a transient "Temporary failure resolving …" does not red
+      # the whole PR before any Playwright tests run.
+      - name: Install Playwright Chromium
+        run: |
+          for attempt in 1 2 3 4; do
+            if npx playwright install chromium --with-deps; then
+              exit 0
+            fi
+            echo "playwright install failed (attempt $attempt); retrying in $((attempt * 15))s…"
+            sleep $((attempt * 15))
+          done
+          echo "playwright install failed after retries"
+          exit 1
       - run: npm run test:e2e
         env:
           CI: "true"
