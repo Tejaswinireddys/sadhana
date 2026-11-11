@@ -4,7 +4,7 @@
  * them with device headers and credentials.
  */
 import { useQuery } from "@tanstack/react-query";
-import type { ClassLevel, ClassProgressBody, ClassSummary, ClassDurationRangeId, ViewerPlan } from "@shared/classLibrary";
+import type { ClassFilters, ClassLevel, ClassProgressBody, ClassSummary, ClassDurationRangeId, ViewerPlan } from "@shared/classLibrary";
 import { durationRange, withSavedProgress } from "@shared/classLibrary";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
@@ -36,8 +36,24 @@ export function classListUrl(filters: LibraryFilters): string {
   return `/api/classes?${params.toString()}`;
 }
 
-export function useClassList(filters: LibraryFilters) {
-  return useQuery<ClassListResponse>({ queryKey: [classListUrl(filters)], staleTime: 30_000 });
+export function useClassList(filters: LibraryFilters, options: { enabled?: boolean } = {}) {
+  return useQuery<ClassListResponse>({
+    queryKey: [classListUrl(filters)],
+    staleTime: 30_000,
+    enabled: options.enabled ?? true,
+  });
+}
+
+/**
+ * The chosen chips as the shared `ClassFilters` shape, so client-side rules
+ * (`filterClasses`, `closestClassMatches`) apply exactly what the server does.
+ */
+export function libraryClassFilters(filters: LibraryFilters): ClassFilters {
+  return {
+    level: filters.level,
+    focus: filters.focus ? [filters.focus] : undefined,
+    ...durationRange(filters.duration),
+  };
 }
 
 type ContinueWatching = { items: ClassSummary[] };
