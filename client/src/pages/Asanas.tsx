@@ -193,7 +193,7 @@ export default function Asanas() {
               data-testid={`chip-family-${String(chip.id).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
             >
               <span>{chip.label}</span>
-              <span className="tabular-nums text-xs opacity-80">{chip.count}</span>
+              <span className="tabular-nums text-xs">{chip.count}</span>
             </Button>
           ))}
         </ScrollRow>
@@ -213,7 +213,7 @@ export default function Asanas() {
               data-testid={`chip-level-${l.toLowerCase()}`}
             >
               <span>{l}</span>
-              <span className="tabular-nums text-xs opacity-80">{levelCounts[l]}</span>
+              <span className="tabular-nums text-xs">{levelCounts[l]}</span>
             </Button>
           ))}
         </div>

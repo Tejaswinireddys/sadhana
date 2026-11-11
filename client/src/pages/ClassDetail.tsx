@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import type { MuxPlayerRefAttributes } from "@mux/mux-player-react";
-import { ArrowLeft, CheckCircle2, Clock, Lock } from "lucide-react";
+import { ArrowLeft, Captions, CheckCircle2, Clock, Lock } from "lucide-react";
 import { currentChapterIndex, muxChapters, resumeFrom, type ClassPlayback, type ClassSummary } from "@shared/classLibrary";
 import { Button } from "@/components/ui/button";
 import { FadeIn } from "@/components/motion";
@@ -188,17 +188,41 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
     else void stageRef.current?.requestFullscreen?.().catch(() => undefined);
   };
 
-  const toggleCaptions = () => {
+  /**
+   * Captions state for the page's own toggle. `null` until the video's tracks
+   * are known, so the page never claims "no captions" about a video it has
+   * not loaded yet.
+   */
+  const [captions, setCaptions] = useState<{ available: boolean; showing: boolean } | null>(null);
+  const trackList = (): TextTrackList | undefined => {
     const el = playerRef.current as unknown as { textTracks?: TextTrackList; media?: { textTracks?: TextTrackList } } | null;
-    const tracks = el?.textTracks ?? el?.media?.textTracks;
-    if (!tracks) return;
-    for (let i = 0; i < tracks.length; i++) {
-      const track = tracks[i];
-      if (track.kind === "subtitles" || track.kind === "captions") {
-        track.mode = track.mode === "showing" ? "hidden" : "showing";
-        return;
-      }
-    }
+    return el?.textTracks ?? el?.media?.textTracks;
+  };
+  const captionTracks = () => Array.from(trackList() ?? []).filter((t) => t.kind === "subtitles" || t.kind === "captions");
+  const syncCaptions = () => {
+    const tracks = captionTracks();
+    setCaptions({ available: tracks.length > 0, showing: tracks.some((t) => t.mode === "showing") });
+  };
+  const unbindTracks = useRef<(() => void) | null>(null);
+  /** Follow the track list: HLS subtitle tracks arrive after the manifest, and the player's own menu changes them too. */
+  const bindTracks = () => {
+    unbindTracks.current?.();
+    unbindTracks.current = null;
+    const tracks = trackList();
+    if (!tracks?.addEventListener) return;
+    const events = ["addtrack", "removetrack", "change"] as const;
+    events.forEach((type) => tracks.addEventListener(type, syncCaptions));
+    unbindTracks.current = () => events.forEach((type) => tracks.removeEventListener(type, syncCaptions));
+  };
+  useEffect(() => () => unbindTracks.current?.(), []);
+
+  const toggleCaptions = () => {
+    const tracks = captionTracks();
+    if (!tracks.length) return;
+    const showing = tracks.some((t) => t.mode === "showing");
+    // Off hides every caption track; on shows the first (the class's own language).
+    tracks.forEach((track, index) => { track.mode = !showing && index === 0 ? "showing" : "hidden"; });
+    syncCaptions();
   };
 
   // Page-level shortcuts (the player handles the same keys itself when focused).
@@ -314,6 +338,8 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
           style={{ aspectRatio: "16 / 9", width: "100%", display: "block" }}
           onLoadedMetadata={() => {
             applyToMedia();
+            bindTracks();
+            syncCaptions();
             const point = restoring.current;
             const el = playerRef.current;
             if (!point || !el) return;
@@ -367,6 +393,29 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
         <p id="class-player-keys">Keyboard: Space plays or pauses, ← and → skip 10 seconds, C toggles captions, F goes full screen.</p>
       </div>
 
+      {/* A captions control of the page's own: Mux Player only shows its
+          captions button once a track exists, and says nothing when there is
+          none — so a viewer who needs captions could not tell "off" from
+          "this video has none". Always visible, reachable with Tab, and the
+          "C" shortcut does the same thing. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Button
+          type="button"
+          size="sm"
+          variant={captions?.showing ? "default" : "outline"}
+          aria-pressed={captions?.showing ?? false}
+          disabled={!captions?.available}
+          className="min-h-11 gap-1.5"
+          onClick={toggleCaptions}
+          data-testid="class-captions-toggle"
+        >
+          <Captions className="h-4 w-4" aria-hidden />
+          Captions
+        </Button>
+        {captions && !captions.available && (
+          <p className="text-sm text-muted-foreground" data-testid="class-captions-none">This video has no captions.</p>
+        )}
+      </div>
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Playback speed" data-testid="class-speed">
         <span className="text-sm font-medium">Speed</span>
         {CLASS_SPEEDS.map((value) => (

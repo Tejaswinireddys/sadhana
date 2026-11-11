@@ -18,17 +18,22 @@ export function ClassCard({ item, testIdPrefix = "class-card" }: { item: ClassSu
   const progress = item.progress && !item.progress.completed && item.durationMinutes > 0
     ? Math.min(100, Math.round((item.progress.secondsWatched / (item.durationMinutes * 60)) * 100))
     : null;
-  const label = [
-    item.title,
-    `${formatClassMinutes(item.durationMinutes)}, ${levelLabel(item.level)}`,
+  /**
+   * The link is named by its own content — title, length, level — plus this
+   * visually hidden line for what is only drawn (the lock badge, the progress
+   * bar). It used to carry an `aria-label` that re-worded the card ("Title.
+   * 10 min, Beginner"), so the accessible name did not contain the text a
+   * sighted voice-control user reads off the card and says to open it
+   * (WCAG 2.5.3 Label in Name). Naming from content cannot drift that way.
+   */
+  const spokenOnly = [
     item.locked ? "Sadhana Plus class — unlock with Plus" : item.tier === "plus" ? "Sadhana Plus" : null,
-    item.progress?.completed ? "Completed" : progress !== null ? `${progress}% watched` : null,
+    !item.progress?.completed && progress !== null ? `${progress}% watched` : null,
   ].filter(Boolean).join(". ");
 
   return (
     <Link
       href={href}
-      aria-label={label}
       data-testid={`${testIdPrefix}-${item.slug}`}
       data-locked={item.locked ? "true" : "false"}
       className={cn(
@@ -73,12 +78,14 @@ export function ClassCard({ item, testIdPrefix = "class-card" }: { item: ClassSu
       </div>
       <div className="flex flex-1 flex-col gap-1.5 p-4">
         <p className="font-medium leading-snug">{item.title}</p>
+        {/* The dots are decoration; the spaces keep the words apart for a screen reader (flex ignores them). */}
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{formatClassMinutes(item.durationMinutes)}</span>
-          <span>·</span>
+          <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" aria-hidden />{formatClassMinutes(item.durationMinutes)}</span>
+          {" "}<span aria-hidden>·</span>{" "}
           <span>{levelLabel(item.level)}</span>
-          {item.progress?.completed && (<><span>·</span><span>Completed</span></>)}
+          {item.progress?.completed && (<>{" "}<span aria-hidden>·</span>{" "}<span>Completed</span></>)}
         </p>
+        {spokenOnly && <span className="sr-only">{spokenOnly}</span>}
       </div>
     </Link>
   );
