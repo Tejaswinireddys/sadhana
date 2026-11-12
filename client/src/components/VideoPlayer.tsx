@@ -9,8 +9,17 @@ export type VideoPlayerProps = VideoSourceInput & {
   poster?: string;
   captions?: VideoCaption[];
   fallback: ReactNode;
+  /** Wrapper around the video (and loading fallback). */
   className?: string;
+  /**
+   * Classes on the <video> element. Defaults to landscape 16:9. Callers that
+   * ship portrait lessons pass a 9:16 box with object-contain — never cover —
+   * so the body is not cropped on phones.
+   */
+  videoClassName?: string;
 };
+
+const DEFAULT_VIDEO_CLASS = "aspect-video w-full rounded-xl bg-card object-contain";
 
 /** User-controlled playback; missing, unsupported and failed streams retain the existing image. */
 export function VideoPlayer(props: VideoPlayerProps) {
@@ -19,7 +28,15 @@ export function VideoPlayer(props: VideoPlayerProps) {
   return <PlayableVideo key={props.playbackPolicy === "signed" ? props.playbackId || props.title : source.url} {...props} source={source} />;
 }
 
-function PlayableVideo({ source, title, poster, captions = [], fallback, className }: VideoPlayerProps & {
+function PlayableVideo({
+  source,
+  title,
+  poster,
+  captions = [],
+  fallback,
+  className,
+  videoClassName = DEFAULT_VIDEO_CLASS,
+}: VideoPlayerProps & {
   source: NonNullable<ReturnType<typeof resolveVideoSource>>;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -57,7 +74,7 @@ function PlayableVideo({ source, title, poster, captions = [], fallback, classNa
         poster={poster}
         aria-label={title}
         data-testid="video-player-element"
-        className={cn("aspect-video w-full rounded-xl bg-card object-contain", !ready && "pointer-events-none absolute inset-0 opacity-0")}
+        className={cn(videoClassName, !ready && "pointer-events-none absolute inset-0 opacity-0")}
         onLoadedMetadata={() => {
           const video = ref.current;
           if (video && resume.current) {
