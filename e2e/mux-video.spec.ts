@@ -19,7 +19,10 @@ test("pose preview has controls/captions and yields to the existing teaching sta
   await page.route("**/api/poses/tadasana/media", (route) => route.fulfill({ json: { video, audio: null } }));
   await page.route("**/captions/test-fixture.vtt", (route) => route.fulfill({ contentType: "text/vtt", body: "WEBVTT\n\n00:00.000 --> 00:02.000\nCaption fixture\n" }));
   await page.goto("/asanas/tadasana");
-  const player = page.getByTestId("video-player-element");
+  // Scope to the Mux/idle preview slot — Tadasana also mounts an AI trainer
+  // lesson player with the same test id above this section.
+  const preview = page.getByTestId("pose-media-slot");
+  const player = preview.getByTestId("video-player-element");
   await expect(player).toBeVisible();
   await expect(player).toHaveAttribute("controls", "");
   await expect(player.locator("track")).toHaveAttribute("kind", "captions");
@@ -27,7 +30,7 @@ test("pose preview has controls/captions and yields to the existing teaching sta
   expect(await player.evaluate((node: HTMLVideoElement) => node.autoplay)).toBe(false);
   await page.getByTestId("button-watch-demo-tadasana").click();
   await expect(page.getByTestId("lesson-live-cue")).toBeVisible();
-  await expect(page.getByTestId("video-player-element")).toHaveCount(0);
+  await expect(preview.getByTestId("video-player-element")).toHaveCount(0);
   await expect(page.getByTestId("pose-lesson-static-reference")).toBeVisible();
 });
 
@@ -52,7 +55,10 @@ test("HLS failure restores the pose image without a blocking spinner", async ({ 
   await page.goto("/asanas/tadasana");
   await requested;
   await expect(page.getByTestId("demo-hero-tadasana")).toBeVisible();
-  await expect(page.getByTestId("video-player-element")).toHaveCount(0, { timeout: 20000 });
+  // Only the Mux preview falls back; the AI trainer player above stays mounted.
+  await expect(page.getByTestId("pose-media-slot").getByTestId("video-player-element")).toHaveCount(0, {
+    timeout: 20000,
+  });
   await expect(page.getByTestId("demo-hero-tadasana")).toBeVisible();
 });
 
@@ -80,7 +86,12 @@ for (const kind of ["pose", "class"] as const) {
     const requested = page.waitForRequest(signedUrl);
     await page.goto(kind === "pose" ? "/asanas/tadasana" : "/pathways/front-splits");
     await requested;
-    await expect(page.getByTestId("video-player-element")).toHaveCount(0, { timeout: 20000 });
+    // Pose pages may still show the AI trainer player; assert only the Mux slot.
+    const muxSlot =
+      kind === "pose"
+        ? page.getByTestId("pose-media-slot").getByTestId("video-player-element")
+        : page.getByTestId("video-player-element");
+    await expect(muxSlot).toHaveCount(0, { timeout: 20000 });
     expect(requests.length).toBeGreaterThan(0);
     expect(requests.every((url) => new URL(url).searchParams.get("token") === "short-lived-fixture")).toBe(true);
   });

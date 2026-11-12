@@ -13,7 +13,9 @@ import { StepMotion } from "@/components/StepMotion";
 import { VoicePlayer } from "@/components/VoicePlayer";
 import { PoseExplanation, PoseTeachRail } from "@/components/PoseExplanation";
 import { VideoPlayer } from "@/components/VideoPlayer";
+import { AiTrainerLesson } from "@/components/AiTrainerLesson";
 import { PoseImage } from "@/components/PoseImage";
+import { aiTrainerLessonFor } from "@/data/aiTrainerLessons";
 import { ScrollRow } from "@/components/ScrollRow";
 import {
   ASANAS,
@@ -268,10 +270,23 @@ export default function AsanaDetail() {
         <ArrowLeft className="h-4 w-4" /> Poses
       </button>
 
+      {(() => {
+        // Pilot AI lessons sit above the interactive pose guide so testers can
+        // play them without scrolling under the sticky Practice bar first.
+        const aiLesson = aiTrainerLessonFor(asana.slug);
+        if (!aiLesson) return null;
+        return (
+          <div className="pb-3" data-testid="ai-trainer-lesson-slot">
+            <AiTrainerLesson lesson={aiLesson} />
+          </div>
+        );
+      })()}
+
       {/*
         Media slot. Today this is the still reference inside the lesson.
         A reviewed movement demo mounts in the same slot later; generated
-        crossfade clips stay out of teaching.
+        crossfade clips stay out of teaching. Distinct from the AI trainer
+        preview above — that clip is labeled pilot content, not reviewed.
       */}
       <div data-testid="pose-media-slot">
         <PoseExplanation slug={asana.slug} level={level} onTrainingChange={setTraining} hero showRail={false} hideSteps
