@@ -4,13 +4,15 @@
  * Strategy:
  *   - App shell (navigations): network-first with a short timeout, falling back
  *     to the cached shell. This is what covers the cold start.
- *   - Static assets (hashed JS/CSS, pose images, audio): cache-first. They are
- *     content-hashed or immutable, so a stale hit is always safe.
+ *   - Static assets (hashed JS/CSS, pose images, captions): cache-first. They
+ *     are content-hashed or immutable, so a stale hit is always safe.
+ *   - Progressive media (`/videos/`, `/audio/`, mp4/webm/mp3) and Range
+ *     requests: never intercepted — Cache Storage cannot preserve 206 ranges.
  *   - Explicit offline pack (`sadhana-offline-v1`): checked before network for assets.
  *   - API: never cached. Practice data must not be served stale.
  *   - Push: show gentle practice reminders when the tab is closed.
  */
-const VERSION = "v5";
+const VERSION = "v6";
 const SHELL_CACHE = `sadhana-shell-${VERSION}`;
 const ASSET_CACHE = `sadhana-assets-${VERSION}`;
 const OFFLINE_CACHE = "sadhana-offline-v1";
@@ -18,6 +20,21 @@ const SHELL_URL = "/index.html";
 
 /** How long to wait for the network before falling back to cache. */
 const NETWORK_TIMEOUT_MS = 8000;
+
+/**
+ * Progressive video/audio must not go through Cache Storage.
+ * A full Response lacks byte ranges, so Safari/Chrome seeking and scrubbing
+ * break once the SW caches the whole file. Pass Range and media streams
+ * straight to the network instead.
+ */
+function isMediaStream(url) {
+  return (
+    url.pathname.startsWith("/videos/") ||
+    url.pathname.startsWith("/audio/") ||
+    url.pathname.startsWith("/voice/") ||
+    /\.(mp4|webm|m3u8|mp3)$/i.test(url.pathname)
+  );
+}
 
 const PRECACHE = [
   SHELL_URL,
@@ -91,12 +108,12 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 function isAsset(url) {
+  if (isMediaStream(url)) return false;
   return (
     url.pathname.startsWith("/assets/") ||
     url.pathname.startsWith("/poses/") ||
-    url.pathname.startsWith("/videos/") ||
-    url.pathname.startsWith("/voice/") ||
-    /\.(png|jpg|jpeg|webp|svg|woff2?|mp3|json|webm|mp4)$/.test(url.pathname)
+    url.pathname.startsWith("/captions/") ||
+    /\.(png|jpg|jpeg|webp|svg|woff2?|json|vtt)$/.test(url.pathname)
   );
 }
 
@@ -146,6 +163,9 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (url.pathname.startsWith("/api/")) return;
+
+  // Never cache Range or progressive media — browser needs real 206 responses.
+  if (request.headers.has("Range") || isMediaStream(url)) return;
 
   if (request.mode === "navigate") {
     // Path-based routing: a navigation can be any real path (`/asanas/tadasana`),
