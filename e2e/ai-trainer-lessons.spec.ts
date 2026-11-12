@@ -17,25 +17,41 @@ const LESSONS = Object.values(AI_TRAINER_LESSONS);
 
 test.describe("AI trainer pose lessons", () => {
   for (const lesson of LESSONS) {
-    test(`${lesson.english} deep link renders video + English captions`, async ({ page }) => {
+    test(`${lesson.english} deep link renders portrait video + English captions`, async ({
+      page,
+    }) => {
       await page.goto(`/asanas/${lesson.slug}`);
 
       await expect(page.getByTestId("text-asana-english")).toContainText(lesson.english);
-      await expect(page.getByTestId("ai-trainer-lesson")).toBeVisible();
+      const section = page.getByTestId("ai-trainer-lesson");
+      await expect(section).toBeVisible();
+      await expect(section).toHaveAttribute("data-aspect", "9/16");
       await expect(page.getByTestId("ai-trainer-lesson-label")).toHaveText("AI trainer preview");
 
-      const section = page.getByTestId("ai-trainer-lesson");
       const video = section.getByTestId("video-player-element");
       await expect(video).toBeVisible();
       await expect(video).toHaveAttribute("controls", "");
       await expect(video).toHaveAttribute("playsinline", "");
       await expect(video).toHaveAttribute("poster", lesson.poster);
+      await expect(video).toHaveClass(/aspect-\[9\/16\]/);
+      await expect(video).toHaveClass(/object-contain/);
+      await expect(video).not.toHaveClass(/object-cover/);
+      await expect(video).not.toHaveClass(/aspect-video/);
       expect(await video.evaluate((node: HTMLVideoElement) => node.autoplay)).toBe(false);
 
       // Progressive same-origin lesson file (Mux not required for this pilot).
       await expect
         .poll(async () => video.evaluate((node: HTMLVideoElement) => node.currentSrc || node.src))
         .toContain(lesson.mp4);
+
+      await expect
+        .poll(async () =>
+          video.evaluate((node: HTMLVideoElement) => ({
+            w: node.videoWidth,
+            h: node.videoHeight,
+          })),
+        )
+        .toEqual({ w: lesson.width, h: lesson.height });
 
       const track = video.locator("track");
       await expect(track).toHaveAttribute("kind", "captions");
@@ -60,6 +76,9 @@ test.describe("AI trainer pose lessons", () => {
       expect(captions.status()).toBe(200);
       const body = await captions.text();
       expect(body).toMatch(/^WEBVTT/m);
+
+      const poster = await request.get(lesson.poster);
+      expect(poster.status()).toBe(200);
     });
   }
 });
