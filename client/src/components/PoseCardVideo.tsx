@@ -2,8 +2,9 @@
  * PoseCardVideo — library thumbnails.
  *
  * Demo clips are step journeys that start on a shared standing entry (~0.2s).
- * Autoplaying (or pausing there) makes every card look identical. Show the
- * pose PNG — the same poster Pathways uses — and only swap to video on hover.
+ * Autoplaying (or pausing there) makes every card look identical. Always show
+ * the pose illustration via PoseImage (never a blank cream box while a poster
+ * decodes), and only swap to video on hover.
  *
  * Card frame: fixed 3:4 aspect + object-cover + cream wash so tall 1:2
  * illustrations fill the card without grey side bands. Teaching surfaces keep
@@ -40,17 +41,14 @@ export function PoseCardVideo({
   const hlsRef = useRef<HlsAttachHandle | null>(null);
   const [hover, setHover] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [posterReady, setPosterReady] = useState(false);
   const reduceMotion = useMemo(() => prefersReducedMotion(), []);
   const { data: manifest } = usePoseMedia(slug);
   const media = useMemo(() => manifestToVideoSources(slug, manifest), [slug, manifest]);
-  const hasVideo = Boolean(media);
   const showVideo = !!media && hover && !failed && !reduceMotion;
   const resolvedAlt = asanaBySlug(slug)?.imageAlt || alt;
 
   useEffect(() => {
     setFailed(false);
-    setPosterReady(false);
   }, [slug]);
 
   useEffect(() => {
@@ -72,7 +70,7 @@ export function PoseCardVideo({
     const play = v.play();
     if (play && typeof play.catch === "function") {
       play.catch(() => {
-        /* gesture-blocked play is fine — poster stays visible underneath */
+        /* gesture-blocked play is fine — illustration stays visible underneath */
       });
     }
 
@@ -82,22 +80,6 @@ export function PoseCardVideo({
       hlsRef.current = null;
     };
   }, [showVideo, slug, media]);
-
-  if (!hasVideo || failed || !media) {
-    return (
-      <PoseImage
-        slug={slug}
-        alt={resolvedAlt}
-        rounded="rounded-none"
-        aspect={POSE_CARD_ASPECT}
-        fit="cover"
-        shadow={false}
-        breath={false}
-        testId={testId}
-        className={cn(POSE_CARD_FRAME_CLASS, className)}
-      />
-    );
-  }
 
   return (
     <div
@@ -109,39 +91,34 @@ export function PoseCardVideo({
       )}
       style={{ aspectRatio: "3 / 4" }}
       data-testid={testId ?? `pose-card-video-${slug}`}
-      data-media={showVideo ? "video" : "poster"}
+      data-media={showVideo ? "video" : "illustration"}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      {/* Cream frame stays visible while the poster decodes — avoids blank lazy frames. */}
-      {!posterReady && (
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-background"
-          data-testid={`pose-card-placeholder-${slug}`}
-        />
-      )}
-      <img
-        width={600}
-        height={1200}
-        src={media.poster}
+      {/*
+        PoseImage is the always-visible base. A separate poster <img> that
+        stayed invisible until onLoad painted every card as a blank cream box
+        whenever decode lagged or the poster 404'd.
+      */}
+      <PoseImage
+        slug={slug}
         alt={resolvedAlt}
-        className={cn(
-          "relative z-0 h-full w-full object-cover object-center transition-opacity duration-200",
-          posterReady ? "opacity-100" : "opacity-0",
-        )}
-        loading="eager"
-        decoding="async"
-        onLoad={() => setPosterReady(true)}
-        ref={(node) => {
-          if (node?.complete && node.naturalWidth > 0) setPosterReady(true);
-        }}
+        rounded="rounded-none"
+        aspect={POSE_CARD_ASPECT}
+        fit="cover"
+        shadow={false}
+        breath={false}
+        // Eager: lazy + content-visibility on the library card left many
+        // thumbnails never decoding (blank cream boxes). thumb also prefers
+        // pre-scaled assets when they exist; otherwise it still loads full-size.
+        thumb
+        className={cn("h-full w-full", POSE_CARD_FRAME_CLASS)}
       />
       {showVideo && (
         <video
           ref={videoRef}
           className="absolute inset-0 z-[1] h-full w-full object-cover object-center"
-          poster={media.poster}
+          poster={media?.poster}
           playsInline
           muted
           loop
@@ -150,8 +127,8 @@ export function PoseCardVideo({
           onError={() => setFailed(true)}
           data-testid={`pose-card-video-el-${slug}`}
         >
-          {!media.hls && media.webm ? <source src={media.webm} type="video/webm" /> : null}
-          {!media.hls && media.mp4 ? <source src={media.mp4} type="video/mp4" /> : null}
+          {!media?.hls && media?.webm ? <source src={media.webm} type="video/webm" /> : null}
+          {!media?.hls && media?.mp4 ? <source src={media.mp4} type="video/mp4" /> : null}
         </video>
       )}
     </div>

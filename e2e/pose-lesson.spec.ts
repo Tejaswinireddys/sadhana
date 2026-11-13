@@ -58,6 +58,14 @@ test.describe("pose lesson — media honesty", () => {
 
     test(`${pose.english} discloses that no movement demo exists`, async ({ page }) => {
       await page.goto(`/asanas/${pose.slug}`);
+      // AI trainer pilot poses hide the static-reference disclosure because a
+      // playable lesson already sits above the pose guide.
+      if (pose.slug === "virabhadrasana-ii") {
+        await expect(page.getByTestId("ai-trainer-lesson")).toBeVisible();
+        await expect(page.getByTestId("lesson-media-disclosure")).toHaveCount(0);
+        await expect(page.getByTestId("pose-lesson-media-label")).toHaveCount(0);
+        return;
+      }
       await expect(page.getByTestId("lesson-media-disclosure")).toBeVisible();
       await expect(page.getByTestId("pose-lesson-media-label")).toContainText(
         "Static reference — movement demonstration unavailable",

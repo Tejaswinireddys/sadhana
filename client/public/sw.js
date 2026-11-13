@@ -12,7 +12,7 @@
  *   - API: never cached. Practice data must not be served stale.
  *   - Push: show gentle practice reminders when the tab is closed.
  */
-const VERSION = "v6";
+const VERSION = "v7";
 const SHELL_CACHE = `sadhana-shell-${VERSION}`;
 const ASSET_CACHE = `sadhana-assets-${VERSION}`;
 const OFFLINE_CACHE = "sadhana-offline-v1";
