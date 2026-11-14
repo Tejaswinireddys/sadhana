@@ -78,6 +78,63 @@ test.describe("Today leads with one practice", () => {
     await expect(page.getByTestId("link-take-quiz")).toHaveCount(0);
   });
 
+  test("saved onboarding preferences do not replace the finder plan", async ({ page }) => {
+    await seed(page, {
+      "sadhana.quiz.plan": JSON.stringify({
+        title: "Your Calm Reset",
+        minutes: 10,
+        timeLabel: "10 min",
+        intent: "calm",
+        experience: "new",
+        introPoseSlug: "tadasana",
+        poses: [
+          { slug: "tadasana", holdSeconds: 30 },
+          { slug: "balasana", holdSeconds: 45 },
+          { slug: "savasana", holdSeconds: 60 },
+        ],
+      }),
+      "sadhana.practice.intent": "calm",
+      "sadhana.practice.need": "calm",
+      "sadhana.practice.minutes": "10",
+    });
+    await page.goto("/");
+    await expect(page.getByTestId("today-practice-title")).toHaveText("Your Calm Reset");
+    await expect(page.getByTestId("today-practice-reason")).toContainText(/calmer/i);
+  });
+
+  test("an active path leads Today ahead of the finder plan", async ({ page }) => {
+    await seed(page, {
+      "sadhana.quiz.plan": JSON.stringify({
+        title: "Your Calm Reset",
+        minutes: 10,
+        timeLabel: "10 min",
+        intent: "calm",
+        experience: "new",
+        introPoseSlug: "tadasana",
+        poses: [{ slug: "tadasana", holdSeconds: 30 }],
+      }),
+      "sadhana.practice.intent": "calm",
+      "sadhana.practice.need": "calm",
+      "sadhana.practice.minutes": "10",
+    });
+    await page.route("**/api/profile/active", async (route) => {
+      await route.fulfill({
+        json: {
+          id: 1,
+          ownerId: "guest",
+          profileId: "better-sleep",
+          activatedAt: new Date().toISOString(),
+          active: true,
+        },
+      });
+    });
+    await page.goto("/");
+    await expect(page.getByTestId("today-practice-title")).toHaveText("Better Sleep session");
+    await expect(page.getByTestId("today-practice-reason")).toContainText(/Better Sleep path/);
+    await expect(page.getByTestId("link-change-path")).toHaveAttribute("href", "/profiles");
+    await expect(page.getByTestId("link-take-quiz")).toHaveCount(0);
+  });
+
   test("changing the time regenerates the card and its duration", async ({ page }) => {
     await seed(page);
     await page.goto("/");
