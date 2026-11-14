@@ -7,6 +7,14 @@ test("the app shell shows a spinner before React replaces the root", () => {
   assert.match(html, /id="boot-splash"/);
   assert.match(html, /role="status"/);
   assert.match(html, /Loading…/);
+  assert.match(html, /Waking the studio/);
+});
+
+test("readiness and liveness probes stay separate", () => {
+  const boot = readFileSync(new URL("../../../server/boot.ts", import.meta.url), "utf8");
+  assert.match(boot, /app\.get\("\/healthz"/);
+  assert.match(boot, /app\.get\("\/ping"/);
+  assert.match(boot, /database unreachable/);
 });
 
 test("the quiz entrance does not fade in from invisible", () => {
