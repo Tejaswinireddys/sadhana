@@ -166,10 +166,20 @@ export default function Home() {
   const sessionRowsList = sessionRows ?? [];
 
   const [savePromptDismissed, setSavePromptDismissed] = useState(false);
-  /** Overrides from the card's time / focus / energy / equipment controls. */
-  const [adjust, setAdjust] = useState<HomeAdjust>(() => {
-    const saved = readPracticePreferences();
-    return { minutes: saved.minutes, need: saved.need, energy: null, noProps: false };
+  /**
+   * Overrides from the card's time / focus / energy / equipment controls,
+   * for this visit only.
+   *
+   * Starts empty. Saved preferences stay defaults for a generated practice
+   * (`preferredMinutes` / `preferredNeed` below). Copying them in here made
+   * `adjustRegenerates` true on every load, so Today kept the onboarding
+   * practice and ignored the path chosen on /profiles.
+   */
+  const [adjust, setAdjust] = useState<HomeAdjust>({
+    minutes: null,
+    need: null,
+    energy: null,
+    noProps: false,
   });
   const { data: savedFlows = [], isPending: savedFlowsPending } = useQuery<CustomFlow[]>({ queryKey: ["/api/custom-flows"] });
   /** The most recently watched, unfinished video class. */

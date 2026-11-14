@@ -5,8 +5,11 @@ import { generateAdaptiveSession } from "./adaptiveGenerator.ts";
 import {
   adjustedPractice,
   alternativePractices,
+  recommendPractice,
   type HomeContext,
 } from "./homeRecommendation.ts";
+import { profileById } from "@/data/profiles";
+import { asanaBySlug, breathBySlug } from "@/data/content";
 import { countOf, posesQueued } from "./plural.ts";
 
 const ctx = (over: Partial<HomeContext> = {}): HomeContext => ({
@@ -105,6 +108,90 @@ describe("the adaptive plan explains its length once", () => {
         `${minutes}min ran ${r.session.totalMinutes}min with no explanation`,
       );
     }
+  });
+});
+
+describe("a chosen path leads Today", () => {
+  const finderPlan = {
+    title: "Your Calm Reset",
+    minutes: 10,
+    timeLabel: "10 min",
+    poses: [{ slug: "tadasana", holdSeconds: 30 }],
+    introPoseSlug: "tadasana",
+    experience: "new" as const,
+    intent: "calm" as const,
+  };
+
+  it("outranks the saved finder plan and the onboarding focus", () => {
+    const profile = profileById("better-sleep");
+    assert.ok(profile);
+    const rec = recommendPractice(
+      ctx({
+        profile,
+        quizPlan: finderPlan,
+        intent: "calm",
+        preferredNeed: "calm",
+        preferredMinutes: 10,
+      }),
+    );
+    assert.equal(rec?.source, "profile");
+    assert.equal(rec?.id, "profile:better-sleep");
+    assert.equal(rec?.title, "Better Sleep session");
+    assert.match(rec?.reason ?? "", /following the Better Sleep path/);
+    const expected = profile.recommendedAsanas.filter((slug) => asanaBySlug(slug));
+    assert.deepEqual(
+      rec?.poses.map((p) => p.slug),
+      expected,
+    );
+    const breath = profile.recommendedBreathing.find((slug) => breathBySlug(slug)) ?? null;
+    assert.equal(rec?.meta.breathSlug, breath);
+    assert.ok(breath, "the path's breath should be part of today's session");
+  });
+
+  it("still lets an enrolled program day lead", () => {
+    const profile = profileById("better-sleep");
+    assert.ok(profile);
+    const rec = recommendPractice(
+      ctx({
+        profile,
+        quizPlan: finderPlan,
+        programDay: {
+          pathwaySlug: "sleep-reset",
+          pathwayName: "Sleep reset",
+          day: 2,
+          theme: "Rest",
+          poses: [{ slug: "savasana", holdSeconds: 60 }],
+        },
+      }),
+    );
+    assert.equal(rec?.source, "program");
+    assert.equal(rec?.id, "program:sleep-reset:2");
+  });
+
+  it("uses the finder plan when no path is chosen", () => {
+    const rec = recommendPractice(
+      ctx({
+        quizPlan: finderPlan,
+        intent: "calm",
+        preferredNeed: "calm",
+        preferredMinutes: 10,
+      }),
+    );
+    assert.equal(rec?.source, "quiz-plan");
+    assert.equal(rec?.title, "Your Calm Reset");
+  });
+
+  it("composes from the last chosen focus when nothing more specific is set", () => {
+    const rec = recommendPractice(
+      ctx({
+        intent: "calm",
+        preferredNeed: "strength",
+        preferredMinutes: 15,
+      }),
+    );
+    assert.equal(rec?.source, "generated");
+    assert.match(rec?.id ?? "", /^generated:strength:/);
+    assert.match(rec?.reason ?? "", /strength/i);
   });
 });
 
