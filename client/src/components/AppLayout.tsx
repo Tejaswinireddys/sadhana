@@ -1,5 +1,6 @@
 import { PoseReferenceImage } from "./PoseReferenceImage";
 import { BILLING_ENABLED } from "@/lib/publicConfig";
+import { chromeLegalFooterLinks } from "@/lib/legalFooterLinks";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { poseImageWithheld } from "@/data/poseImageAccuracy";
 import type { SidebarSuggestion } from "@/lib/globalSearch";
@@ -493,30 +494,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               About Sadhana
             </Link>
           </Button>
-          <p className="px-2 pt-1 text-xs text-muted-foreground">
-            <Link href="/privacy" className="underline-offset-2 hover:underline">
-              Privacy
-            </Link>
-            {" · "}
-            <Link href="/terms" className="underline-offset-2 hover:underline">
-              Terms
-            </Link>
-            {" · "}
-            {BILLING_ENABLED && (<Link href="/cancel" className="underline-offset-2 hover:underline" data-testid="footer-cancel">
-              Cancel
-            </Link>)}
-            {" · "}
-            <Link href="/health-disclaimer" className="underline-offset-2 hover:underline">
-              Health
-            </Link>
-            {" · "}
-            <Link
-              href="/help"
-              className="underline-offset-2 hover:underline"
-              data-testid="footer-help"
-            >
-              Help
-            </Link>
+          <p className="px-2 pt-1 text-xs text-muted-foreground" data-testid="chrome-legal-footer">
+            {chromeLegalFooterLinks(BILLING_ENABLED).map((link, i) => (
+              <span key={link.href}>
+                {i > 0 ? " · " : null}
+                <Link
+                  href={link.href}
+                  className="underline-offset-2 hover:underline"
+                  data-testid={link.testId}
+                >
+                  {link.label}
+                </Link>
+              </span>
+            ))}
           </p>
           <p className="px-2 pt-2 text-xs text-muted-foreground">
             Sādhanā — a daily, dedicated practice.
