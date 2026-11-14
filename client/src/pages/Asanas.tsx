@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,10 +15,11 @@ import {
   libraryFamilyChipCounts,
   matchesAudience,
 } from "@/lib/asanaLibraryFilters";
+import { hasAiTrainerLesson, AI_TRAINER_LESSON_SLUGS } from "@/data/aiTrainerLessons";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useProgressiveList } from "@/hooks/useProgressiveList";
 import type { FavoriteAsana, UserProfile } from "@shared/schema";
-import { Heart, Smile, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { Heart, Smile, SlidersHorizontal, ChevronDown, Clapperboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { difficultyBadgeClass } from "@/lib/difficultyBadge";
 import { FadeIn } from "@/components/motion";
@@ -28,6 +29,22 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { readUrlParam } from "@/lib/hashQuery";
+
+/** Shareable library filter: `/asanas?ai=1` shows only AI-trainer poses. */
+function readAiVideoFilter(): boolean {
+  const raw = (readUrlParam("ai") || "").toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes";
+}
+
+function writeAiVideoFilter(on: boolean) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (on) url.searchParams.set("ai", "1");
+  else url.searchParams.delete("ai");
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState(window.history.state, "", next);
+}
 
 const LEVELS = ["All", "Beginner", "Intermediate", "Advanced"] as const;
 type LevelFilter = (typeof LEVELS)[number];
@@ -51,13 +68,20 @@ function usesNoProps(a: Asana): boolean {
 
 export default function Asanas() {
   useDocumentTitle("Poses · Sadhana");
+  const [location] = useLocation();
   const [category, setCategory] = useState<Category | "All">("All");
   const [audience, setAudience] = useState<AudienceFilter>(DEFAULT_AUDIENCE_FILTER);
   const [level, setLevel] = useState<LevelFilter>("All");
   const [time, setTime] = useState<TimeFilter>("Any time");
   const [prop, setProp] = useState<PropFilter>("Any props");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [aiVideoOnly, setAiVideoOnly] = useState(() => readAiVideoFilter());
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // Keep the chip in sync when the practitioner lands with ?ai=1 or edits the bar.
+  useEffect(() => {
+    setAiVideoOnly(readAiVideoFilter());
+  }, [location]);
 
   const { data: favorites = [] } = useQuery<FavoriteAsana[]>({
     queryKey: ["/api/favorites/asanas"],
@@ -96,10 +120,11 @@ export default function Asanas() {
       if (prop === "Needs strap" && !usesProp(a, "strap")) return false;
       if (prop === "Needs wall" && !usesProp(a, "wall")) return false;
       if (favoritesOnly && !favSet.has(a.slug)) return false;
+      if (aiVideoOnly && !hasAiTrainerLesson(a.slug)) return false;
       if (!matchesAudience(a, audience)) return false;
       return true;
     });
-  }, [category, level, time, prop, favoritesOnly, favSet, audience]);
+  }, [category, level, time, prop, favoritesOnly, aiVideoOnly, favSet, audience]);
 
   const { visible, hasMore, loadMore, visibleCount, total } = useProgressiveList(list, 24);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -123,13 +148,24 @@ export default function Asanas() {
     setTime("Any time");
     setProp("Any props");
     setFavoritesOnly(false);
+    setAiVideoOnly(false);
+    writeAiVideoFilter(false);
     setAudience(DEFAULT_AUDIENCE_FILTER);
+  };
+
+  const toggleAiVideoOnly = () => {
+    setAiVideoOnly((prev) => {
+      const next = !prev;
+      writeAiVideoFilter(next);
+      return next;
+    });
   };
 
   const activeFilterCount = [
     audience !== "All",
     time !== "Any time",
     prop !== "Any props",
+    aiVideoOnly,
   ].filter(Boolean).length;
 
   const FilterRow = ({
@@ -248,6 +284,7 @@ export default function Asanas() {
             variant={favoritesOnly ? "default" : "outline"}
             onClick={() => setFavoritesOnly((v) => !v)}
             className="min-h-[44px] cursor-pointer gap-1.5 transition-colors duration-200"
+            aria-pressed={favoritesOnly}
             data-testid="filter-favorites"
           >
             <Heart className={cn("h-4 w-4", favoritesOnly && "fill-current")} />
@@ -257,6 +294,20 @@ export default function Asanas() {
                 {favorites.length}
               </span>
             )}
+          </Button>
+          <Button
+            type="button"
+            variant={aiVideoOnly ? "default" : "outline"}
+            onClick={toggleAiVideoOnly}
+            className="min-h-[44px] cursor-pointer gap-1.5 transition-colors duration-200"
+            aria-pressed={aiVideoOnly}
+            data-testid="filter-ai-video"
+          >
+            <Clapperboard className="h-4 w-4" />
+            With AI video
+            <span className="ml-1 rounded-full bg-background/30 px-1.5 text-xs tabular-nums">
+              {AI_TRAINER_LESSON_SLUGS.length}
+            </span>
           </Button>
           <Badge variant="secondary" className="tabular-nums" data-testid="chip-pose-count">
             {list.length === ASANAS.length
@@ -370,12 +421,21 @@ export default function Asanas() {
 
                 <Link href={`/asanas/${a.slug}`} className="block cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <div>
-                    <div className="transition-transform duration-200 group-hover:scale-[1.02]">
+                    <div className="relative transition-transform duration-200 group-hover:scale-[1.02]">
                       <PoseCardVideo
                         slug={a.slug}
                         alt={a.imageAlt}
                         testId={`asana-thumb-${a.slug}`}
                       />
+                      {hasAiTrainerLesson(a.slug) && (
+                        <Badge
+                          className="absolute left-3 top-3 z-[2] gap-1 bg-background/90 text-foreground shadow-soft backdrop-blur"
+                          data-testid={`badge-ai-video-${a.slug}`}
+                        >
+                          <Clapperboard className="h-3.5 w-3.5" aria-hidden />
+                          AI video
+                        </Badge>
+                      )}
                     </div>
                     <CardContent className="space-y-2 p-4">
                       <div className="flex items-start justify-between gap-2">

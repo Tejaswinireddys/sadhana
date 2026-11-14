@@ -53,5 +53,11 @@ describe("asana library filters", () => {
     // Category/level no longer live only inside the collapsible panel.
     assert.equal(/group="category"/.test(src), false);
     assert.equal(/group="level"/.test(src), false);
+    // AI trainer library filter + card badge.
+    assert.match(src, /hasAiTrainerLesson/);
+    assert.match(src, /data-testid="filter-ai-video"/);
+    assert.match(src, /aria-pressed=\{aiVideoOnly\}/);
+    assert.match(src, /badge-ai-video-/);
+    assert.match(src, /searchParams\.set\("ai", "1"\)/);
   });
 });

@@ -39,9 +39,10 @@ describe("two-tap cancel path", () => {
   it("public /cancel is linked from paywall and footer with no upsell", () => {
     const cancel = readFileSync(resolve("client/src/pages/Cancel.tsx"), "utf8");
     const plus = readFileSync(resolve("client/src/pages/Plus.tsx"), "utf8");
-    const layout = readFileSync(resolve("client/src/components/AppLayout.tsx"), "utf8");
+    const footer = readFileSync(resolve("client/src/lib/legalFooterLinks.ts"), "utf8");
     assert.match(cancel, /No upsell/);
     assert.match(plus, /data-testid="paywall-cancel-link"/);
-    assert.match(layout, /data-testid="footer-cancel"/);
+    assert.match(footer, /footer-cancel/);
+    assert.match(footer, /href: "\/cancel"/);
   });
 });

@@ -11,6 +11,7 @@ import { LEGAL_VERSION } from "../client/src/lib/legal";
 const ROUTES: Array<{ path: string; ready: (page: Page) => ReturnType<Page["getByTestId"]> | ReturnType<Page["getByRole"]> }> = [
   { path: "/privacy", ready: (p) => p.getByRole("heading", { name: "Privacy Policy" }) },
   { path: "/plus", ready: (p) => p.getByTestId("paywall-root") },
+  { path: "/challenges", ready: (p) => p.getByTestId("buddy-code") },
   { path: "/start", ready: (p) => p.getByTestId("start-quiz") },
   { path: "/terms", ready: (p) => p.getByRole("heading", { name: "Terms of Use" }) },
   { path: "/help", ready: (p) => p.getByTestId("help-contact") },

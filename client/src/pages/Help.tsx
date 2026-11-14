@@ -208,11 +208,16 @@ export default function Help() {
             ,{" "}
             <Link href="/terms" className="underline underline-offset-2">
               Terms
-            </Link>{" "}
-            and{" "}
-            {BILLING_ENABLED && (<Link href="/cancel" className="underline underline-offset-2">
-              how to cancel
-            </Link>)}
+            </Link>
+            {BILLING_ENABLED ? (
+              <>
+                {" "}
+                and{" "}
+                <Link href="/cancel" className="underline underline-offset-2">
+                  how to cancel
+                </Link>
+              </>
+            ) : null}
             .
           </p>
         </CardContent>

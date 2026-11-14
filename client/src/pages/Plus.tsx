@@ -22,6 +22,7 @@ import {
   plusStatusMessage,
   type PlusEntitlementView,
 } from "@/lib/plusStatus";
+import { plusSeeAlsoLinks } from "@/lib/legalFooterLinks";
 
 type BillingConfig = {
   enabled: boolean;
@@ -413,19 +414,20 @@ function LivePlus() {
         </p>
       )}
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground" data-testid="plus-see-also">
         See{" "}
-        <Link href="/privacy" className="underline underline-offset-2">
-          Privacy
-        </Link>
-        ,{" "}
-        <Link href="/terms" className="underline underline-offset-2">
-          Terms
-        </Link>
-        , and{" "}
-        {BILLING_ENABLED && (<Link href="/cancel" className="underline underline-offset-2">
-          Cancel
-        </Link>)}
+        {plusSeeAlsoLinks(BILLING_ENABLED).map((link, i, all) => (
+          <span key={link.href}>
+            {i > 0 ? (i === all.length - 1 ? ", and " : ", ") : null}
+            <Link
+              href={link.href}
+              className="underline underline-offset-2"
+              data-testid={link.testId}
+            >
+              {link.label}
+            </Link>
+          </span>
+        ))}
         .
       </p>
     </FadeIn>
