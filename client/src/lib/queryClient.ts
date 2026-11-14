@@ -100,6 +100,10 @@ export const queryClient = new QueryClient({
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
+      // Keep Home's practice queries through a guided session (often >5 min).
+      // Default gcTime is 5 minutes; without this, returning to / remounts cold
+      // and flashes "Reading your saved practice…".
+      gcTime: 1000 * 60 * 60 * 24,
       retry: false,
     },
     mutations: {

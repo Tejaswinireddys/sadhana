@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { attachHls } from "@/lib/hlsAttach";
 import { resolveVideoSource, type VideoSourceInput } from "@/lib/videoSource";
+import { claimPageMedia, onPageMediaClaim } from "@/lib/pageMedia";
 import { cn } from "@/lib/utils";
 
 export type VideoCaption = { src: string; srcLang: string; label: string; default?: boolean };
@@ -44,6 +45,8 @@ function PlayableVideo({
   const resume = useRef<{ time: number; playing: boolean } | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const reactId = useId();
+  const mediaOwner = `video-player:${reactId}`;
   useEffect(() => {
     const video = ref.current;
     if (!video || failed) return;
@@ -61,6 +64,11 @@ function PlayableVideo({
       video.load();
     };
   }, [source.url, source.hls, failed]);
+  // Another surface claimed the page — pause so AI trainer / lesson / Mux do not stack.
+  useEffect(() => onPageMediaClaim((claim) => {
+    if (claim.id === mediaOwner) return;
+    ref.current?.pause();
+  }), [mediaOwner]);
   if (failed) return <>{fallback}</>;
   return (
     <div className={cn("relative", className)} data-testid="video-player" data-media-kind={ready ? "video" : "image"}>
@@ -74,7 +82,9 @@ function PlayableVideo({
         poster={poster}
         aria-label={title}
         data-testid="video-player-element"
+        data-media-owner={mediaOwner}
         className={cn(videoClassName, !ready && "pointer-events-none absolute inset-0 opacity-0")}
+        onPlay={() => claimPageMedia(mediaOwner)}
         onLoadedMetadata={() => {
           const video = ref.current;
           if (video && resume.current) {

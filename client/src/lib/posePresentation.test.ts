@@ -56,9 +56,10 @@ describe("pose library card visual polish", () => {
     assert.match(card, /object-cover/);
     assert.match(card, /bg-background/);
     assert.match(card, /fit="cover"/);
-    // Blank lazy frames: cream placeholder + eager poster decode.
-    assert.match(card, /pose-card-placeholder/);
-    assert.match(card, /loading="eager"/);
+    // Always-visible PoseImage base — never an opacity-0 poster waiting onLoad.
+    assert.match(card, /<PoseImage/);
+    assert.doesNotMatch(card, /pose-card-placeholder/);
+    assert.doesNotMatch(card, /posterReady/);
   });
 
   it("keeps teaching PoseImage on contain by default", () => {

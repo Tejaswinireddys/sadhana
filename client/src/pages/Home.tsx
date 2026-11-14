@@ -131,33 +131,39 @@ export default function Home() {
 
   const {
     data: stats,
-    isLoading: statsLoading,
+    isPending: statsPending,
     isError: statsError,
     refetch: refetchStats,
   } = useQuery<Stats>({ queryKey: ["/api/sessions/stats", todayISO()] });
-  const { data: activeProfileRow, isLoading: profileLoading } = useQuery<UserProfile | null>({
+  const { data: activeProfileRow, isPending: profilePending } = useQuery<UserProfile | null>({
     queryKey: ["/api/profile/active"],
   });
-  const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery<Enrollment[]>({
+  const { data: enrollments, isPending: enrollmentsPending } = useQuery<Enrollment[]>({
     queryKey: ["/api/enrollments"],
   });
   const { data: journalEntries = [] } = useQuery<Journal[]>({ queryKey: ["/api/journal"] });
   // "This week" needs the sessions themselves: the stats endpoint returns
   // lifetime totals and an 84-day heatmap, neither of which is a week.
   const {
-    data: sessionRows = [],
-    isLoading: sessionsLoading,
+    data: sessionRows,
+    isPending: sessionsPending,
     isError: sessionsError,
     refetch: refetchSessions,
   } = useQuery<Session[]>({ queryKey: ["/api/sessions"] });
 
   /**
-   * Everything the recommendation depends on has to be in hand before we can
-   * name a practice. Rendering a newcomer card for half a second and then
-   * replacing it with someone's program is worse than a skeleton.
+   * Cold load only — not a background refetch after a guided session.
+   * `isLoading` was true again whenever React Query GC'd unused keys during a
+   * long practice, which flashed "Reading your saved practice…" on the way
+   * back to Home even though the practitioner already had data this session.
    */
   const bootstrapping =
-    statsLoading || profileLoading || enrollmentsLoading || sessionsLoading;
+    (stats === undefined && statsPending) ||
+    (activeProfileRow === undefined && profilePending) ||
+    (enrollments === undefined && enrollmentsPending) ||
+    (sessionRows === undefined && sessionsPending);
+  const enrollmentsList = enrollments ?? [];
+  const sessionRowsList = sessionRows ?? [];
 
   const [savePromptDismissed, setSavePromptDismissed] = useState(false);
   /** Overrides from the card's time / focus / energy / equipment controls. */
@@ -193,11 +199,11 @@ export default function Home() {
 
   const activeEnrollments = useMemo(
     () =>
-      enrollments
+      enrollmentsList
         .filter((e) => e.active)
         .map((e) => ({ enrollment: e, pathway: pathwayBySlug(e.pathwaySlug) }))
         .filter((x): x is { enrollment: Enrollment; pathway: Pathway } => !!x.pathway),
-    [enrollments],
+    [enrollmentsList],
   );
 
   /** Today's day of the first active day-by-day program, when there is one. */
@@ -377,14 +383,14 @@ export default function Home() {
   const thisWeek = useMemo(
     () =>
       weeklyProgress(
-        sessionRows.map((row) => ({
+        sessionRowsList.map((row) => ({
           date: row.date,
           durationMinutes: row.durationMinutes,
           kind: (row.kind as "asana" | "breathing" | undefined) ?? "asana",
         })),
         todayISO(),
       ),
-    [sessionRows],
+    [sessionRowsList],
   );
 
   const recentJournal = journalEntries.slice(0, 1);
@@ -395,12 +401,12 @@ export default function Home() {
 
   const recentSessions = useMemo(
     () =>
-      sessionRows
+      sessionRowsList
         .filter((r) => (r.kind ?? "asana") === "asana")
         .slice()
         .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id))
         .slice(0, 2),
-    [sessionRows],
+    [sessionRowsList],
   );
 
   const startSavedFlow = (flow: CustomFlow) => {
@@ -836,7 +842,7 @@ export default function Home() {
               </Button>
             </CardContent>
           </Card>
-        ) : statsLoading || sessionsLoading || !progressTiles ? (
+        ) : bootstrapping || !progressTiles ? (
           <div className="grid grid-cols-3 gap-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-16 w-full" />

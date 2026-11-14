@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ImageOff, Loader2, UserCheck } from "lucide-react";
 import type { PoseDemoAvailability } from "@/data/poseDemoAvailability";
 import { STATIC_REFERENCE_LABEL } from "@/data/poseDemoAvailability";
+import { hasAiTrainerLesson } from "@/data/aiTrainerLessons";
 import { resolveTrainerStageState } from "@/data/poseKeyframes";
 import { HumanPoseTrainerMovie } from "@/components/HumanPoseTrainerMovie";
 import type { LessonPhase, VariationLevel } from "@/lib/poseLesson";
@@ -261,8 +262,12 @@ export function PoseLessonStage({
         </div>
       ) : null}
 
-      {/* Honest media label — always visible, never a raw asset path. */}
-      {!hasMovement ? (
+      {/*
+        Honest media label — always visible when there is no movement demo,
+        except on AI-trainer pilot poses where the playable lesson above already
+        covers the demonstration and this badge would contradict it.
+      */}
+      {!hasMovement && !hasAiTrainerLesson(demo.slug) ? (
         <p
           className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-[11px] font-medium text-muted-foreground shadow-sm backdrop-blur-sm"
           data-testid="pose-lesson-media-label"

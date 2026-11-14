@@ -1,4 +1,8 @@
 services:
+  # Node web service (not a static site). Express already serves the SPA shell
+  # for known client routes (`server/static.ts` → spaPage). Do NOT add a
+  # Render "Rewrite /* → /index.html" rule in the dashboard — that pattern is
+  # for static sites and would bypass API / media JSON 404 behaviour.
   - type: web
     name: sadhana
     runtime: node

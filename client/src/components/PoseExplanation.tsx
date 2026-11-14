@@ -28,6 +28,8 @@ import {
 } from "@/lib/poseLesson";
 import { manifestAudioUrl, usePoseMedia } from "@/lib/poseMediaApi";
 import { unlockAudio } from "@/lib/audioUnlock";
+import { claimPageMedia, onPageMediaClaim } from "@/lib/pageMedia";
+import { hasAiTrainerLesson } from "@/data/aiTrainerLessons";
 import { cn } from "@/lib/utils";
 import type { Preferences } from "@shared/schema";
 import {
@@ -250,6 +252,18 @@ export function PoseExplanation({
   // Leaving the page must not leave audio running.
   useEffect(() => stopMedia, [stopMedia]);
 
+  const mediaOwner = `pose-lesson:${slug}`;
+
+  // AI trainer / Mux / VoicePlayer claimed the page — pause this lesson's clock + audio.
+  useEffect(() => {
+    return onPageMediaClaim((claim) => {
+      if (claim.id === mediaOwner) return;
+      const a = audioRef.current;
+      if (a) a.pause();
+      setPlaying(false);
+    });
+  }, [mediaOwner]);
+
   // The lesson clock. Narration follows it rather than driving it, so a
   // missing or slow MP3 cannot desynchronise the steps from the timer.
   useEffect(() => {
@@ -319,6 +333,7 @@ export function PoseExplanation({
 
   const start = () => {
     void unlockAudio();
+    claimPageMedia(mediaOwner);
     setStarted(true);
     setCompleted(false);
     setTimeSec(0);
@@ -374,7 +389,13 @@ export function PoseExplanation({
       </Button>
       <Button
         className="min-h-12 flex-1"
-        onClick={() => setPlaying((p) => !p)}
+        onClick={() => {
+          setPlaying((p) => {
+            const next = !p;
+            if (next) claimPageMedia(mediaOwner);
+            return next;
+          });
+        }}
         aria-label={playing ? "Pause lesson" : "Resume lesson"}
         data-testid={`button-pause-demo-${asana.slug}`}
       >
@@ -552,7 +573,7 @@ export function PoseExplanation({
             */}
             {training ? controls : null}
 
-            {lesson.demo.kind !== "movement" ? (
+            {lesson.demo.kind !== "movement" && !hasAiTrainerLesson(asana.slug) ? (
               <p
                 className={cn(
                   "rounded-lg bg-muted/50 text-xs text-muted-foreground",

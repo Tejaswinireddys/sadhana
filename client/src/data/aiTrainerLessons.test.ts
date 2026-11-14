@@ -79,7 +79,7 @@ describe("service worker leaves progressive video on the network", () => {
   const sw = readFileSync(resolve("client/public/sw.js"), "utf8");
 
   it("bumps the cache version and skips Range / media streams", () => {
-    assert.match(sw, /const VERSION = "v6"/);
+    assert.match(sw, /const VERSION = "v7"/);
     assert.match(sw, /isMediaStream/);
     assert.match(sw, /request\.headers\.has\("Range"\) \|\| isMediaStream\(url\)/);
     assert.match(sw, /url\.pathname\.startsWith\("\/videos\/"\)/);

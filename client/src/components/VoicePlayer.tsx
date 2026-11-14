@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useToast } from "@/hooks/use-toast";
 import type { Preferences } from "@shared/schema";
 import { Volume2, Pause } from "lucide-react";
+import { claimPageMedia, onPageMediaClaim } from "@/lib/pageMedia";
 import { cn } from "@/lib/utils";
 
 const RATES = [0.75, 1, 1.25, 1.5] as const;
@@ -59,6 +60,8 @@ export function VoicePlayer({
     setDuration(0);
   }, [src]);
 
+  const mediaOwner = `voice-player:${slug}`;
+
   // Stop playback if voice gets disabled mid-play
   useEffect(() => {
     if (!voiceEnabled && audioRef.current) {
@@ -67,6 +70,15 @@ export function VoicePlayer({
     }
   }, [voiceEnabled]);
 
+  // AI trainer / pose lesson claimed the page — stop this narration.
+  useEffect(() => {
+    return onPageMediaClaim((claim) => {
+      if (claim.id === mediaOwner) return;
+      audioRef.current?.pause();
+      setPlaying(false);
+    });
+  }, [mediaOwner]);
+
   const toggle = () => {
     const a = audioRef.current;
     if (!a) return;
@@ -74,6 +86,7 @@ export function VoicePlayer({
       a.pause();
       setPlaying(false);
     } else {
+      claimPageMedia(mediaOwner);
       a.playbackRate = rate;
       const p = a.play();
       // play() returns a promise that can reject (autoplay policy, 404, decode).
@@ -185,6 +198,8 @@ export function VoicePlayer({
           src={src}
           preload="none"
           data-testid={`audio-el-${slug}`}
+          data-media-owner={mediaOwner}
+          onPlay={() => claimPageMedia(mediaOwner)}
           onLoadedMetadata={(e) => setDuration((e.target as HTMLAudioElement).duration)}
           onTimeUpdate={(e) => setCurrent((e.target as HTMLAudioElement).currentTime)}
           onEnded={() => {
