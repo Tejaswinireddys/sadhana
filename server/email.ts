@@ -1,7 +1,11 @@
+import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 import { publicAppOrigin } from "./publicUrl";
+
 /**
- * Transactional email — Resend when RESEND_API_KEY is set, else optional
- * EMAIL_WEBHOOK_URL POST, else structured console log (dev / demos).
+ * Transactional email — SMTP (incl. Gmail App Password) when configured, else
+ * Resend when RESEND_API_KEY is set, else optional EMAIL_WEBHOOK_URL POST,
+ * else structured console log (dev / demos).
  */
 export type SendEmailInput = {
   to: string;
@@ -12,11 +16,24 @@ export type SendEmailInput = {
   kind: string;
 };
 
+export type EmailTransportMode = "smtp" | "resend" | "webhook" | "log";
+
+/** Public mail-status provider — never includes credentials or addresses. */
+export type MailProvider = "smtp" | "resend" | "webhook" | "none";
+
 export type SendEmailResult = {
   sent: boolean;
-  mode: "resend" | "webhook" | "log";
+  mode: EmailTransportMode;
   id?: string;
   error?: string;
+};
+
+export type SmtpConfig = {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
 };
 
 /** Compatibility shape used by subscription-compliance helpers. */
@@ -34,6 +51,105 @@ export type EmailResult = {
   skipped?: boolean;
   error?: string;
 };
+
+const SMTP_TIMEOUT_MS = 20_000;
+
+let smtpTransporter: Transporter | null = null;
+let smtpTransporterKey: string | null = null;
+
+/** Test hook: replace SMTP sendMail without opening a real socket. */
+let smtpSendMailForTests:
+  | ((mail: {
+      from: string;
+      to: string;
+      subject: string;
+      text: string;
+      html: string;
+    }) => Promise<{ messageId?: string }>)
+  | null = null;
+
+function closeSmtpTransporter(): void {
+  if (smtpTransporter && typeof smtpTransporter.close === "function") {
+    try {
+      smtpTransporter.close();
+    } catch {
+      /* ignore */
+    }
+  }
+  smtpTransporter = null;
+  smtpTransporterKey = null;
+}
+
+/** @internal Reset pooled transporter and SMTP test overrides between tests. */
+export function __resetSmtpTransporterForTests(): void {
+  closeSmtpTransporter();
+  smtpSendMailForTests = null;
+}
+
+/** @internal Inject a fake SMTP send for unit tests (no network). */
+export function __setSmtpSendMailForTests(
+  fn: typeof smtpSendMailForTests,
+): void {
+  smtpSendMailForTests = fn;
+}
+
+/**
+ * Resolve SMTP settings. `GMAIL_USER` + `GMAIL_APP_PASSWORD` is a shortcut for
+ * smtp.gmail.com:465 with TLS. Explicit `SMTP_*` wins when `SMTP_HOST` is set.
+ */
+export function resolveSmtpConfig(
+  env: Record<string, string | undefined> = process.env,
+): SmtpConfig | null {
+  const smtpHost = env.SMTP_HOST?.trim();
+  if (smtpHost) {
+    const user = env.SMTP_USER?.trim();
+    const pass = env.SMTP_PASS?.trim();
+    if (!user || !pass) return null;
+    const portRaw = env.SMTP_PORT?.trim();
+    const port = portRaw ? Number(portRaw) : 465;
+    if (!Number.isFinite(port) || port <= 0) return null;
+    const secureRaw = env.SMTP_SECURE?.trim().toLowerCase();
+    const secure =
+      secureRaw === undefined || secureRaw === ""
+        ? port === 465
+        : !(secureRaw === "0" || secureRaw === "false" || secureRaw === "no");
+    return { host: smtpHost, port, secure, user, pass };
+  }
+
+  const gmailUser = env.GMAIL_USER?.trim();
+  const gmailPass = env.GMAIL_APP_PASSWORD?.trim();
+  if (gmailUser && gmailPass) {
+    return {
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      user: gmailUser,
+      pass: gmailPass,
+    };
+  }
+  return null;
+}
+
+/**
+ * Highest-precedence configured transport. Used by `/api/auth/mail-status`
+ * and `emailDeliveryConfigured`. Order: SMTP/Gmail → Resend → webhook.
+ */
+export function resolveMailProvider(
+  env: Record<string, string | undefined> = process.env,
+): MailProvider {
+  if (resolveSmtpConfig(env)) return "smtp";
+  if (env.RESEND_API_KEY?.trim()) return "resend";
+  if (env.EMAIL_WEBHOOK_URL?.trim()) return "webhook";
+  return "none";
+}
+
+/** Payload for GET /api/auth/mail-status — no secrets, no from-address. */
+export function mailStatusPayload(
+  env: Record<string, string | undefined> = process.env,
+): { emailEnabled: boolean; provider: MailProvider } {
+  const provider = resolveMailProvider(env);
+  return { emailEnabled: provider !== "none", provider };
+}
 
 /** Thin adapter for billingCompliance — same transport as sendAppEmail. */
 export async function sendEmail(msg: EmailMessage): Promise<EmailResult> {
@@ -55,28 +171,86 @@ export async function sendEmail(msg: EmailMessage): Promise<EmailResult> {
   };
 }
 
-function fromAddress(): string {
-  return process.env.EMAIL_FROM?.trim() || "Sadhana <onboarding@resend.dev>";
+/**
+ * From-address for outbound mail. Explicit `EMAIL_FROM` wins. When SMTP/Gmail
+ * is active and EMAIL_FROM is unset, default to `Sadhana <user>` — Gmail
+ * rewrites any other From to the authenticated account anyway.
+ */
+export function fromAddress(
+  env: Record<string, string | undefined> = process.env,
+): string {
+  const explicit = env.EMAIL_FROM?.trim();
+  if (explicit) return explicit;
+  const smtp = resolveSmtpConfig(env);
+  if (smtp) return `Sadhana <${smtp.user}>`;
+  return "Sadhana <onboarding@resend.dev>";
 }
 
-/** True when Resend or a webhook can actually deliver mail (not console-only). */
-export function emailDeliveryConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY?.trim() || process.env.EMAIL_WEBHOOK_URL?.trim());
+/** True when SMTP, Resend, or a webhook can actually deliver mail (not console-only). */
+export function emailDeliveryConfigured(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return resolveMailProvider(env) !== "none";
 }
 
 /**
  * Why verification mail will not reach a real inbox, or null when the config
  * can. The Resend sandbox address (`onboarding@resend.dev`) only delivers to
  * the Resend account owner — a key without `EMAIL_FROM` looks configured and
- * then fails every send.
+ * then fails every send. Skipped entirely when SMTP/Gmail is active (it takes
+ * precedence over Resend).
  */
 export function emailConfigWarning(env: Record<string, string | undefined> = process.env): string | null {
+  if (resolveSmtpConfig(env)) return null;
   if (!env.RESEND_API_KEY?.trim()) return null;
   const from = env.EMAIL_FROM?.trim() || "";
   if (!from || /onboarding@resend\.dev/i.test(from) || /@resend\.dev>?$/i.test(from)) {
-    return "[email] RESEND_API_KEY is set but EMAIL_FROM is missing or is a Resend sandbox address. Resend only delivers onboarding@resend.dev to the account owner, so verification and password-reset mail will not arrive. Set EMAIL_FROM to an address on a domain verified in Resend, and PUBLIC_APP_URL to the public origin those links should use.";
+    return "[email] RESEND_API_KEY is set but EMAIL_FROM is missing or is a Resend sandbox address. Resend only delivers onboarding@resend.dev to the account owner, so verification and password-reset mail will not arrive. Set EMAIL_FROM to an address on a domain verified in Resend, and PUBLIC_APP_URL to the public origin those links should use. Or set GMAIL_USER + GMAIL_APP_PASSWORD (or SMTP_*) to send via SMTP instead.";
   }
   return null;
+}
+
+function smtpTransporterCacheKey(cfg: SmtpConfig): string {
+  return `${cfg.host}|${cfg.port}|${cfg.secure ? 1 : 0}|${cfg.user}|${cfg.pass}`;
+}
+
+function getSmtpTransporter(cfg: SmtpConfig): Transporter {
+  const key = smtpTransporterCacheKey(cfg);
+  if (smtpTransporter && smtpTransporterKey === key) return smtpTransporter;
+  closeSmtpTransporter();
+  smtpTransporter = nodemailer.createTransport({
+    host: cfg.host,
+    port: cfg.port,
+    secure: cfg.secure,
+    auth: { user: cfg.user, pass: cfg.pass },
+    pool: true,
+    maxConnections: 2,
+    maxMessages: 100,
+    connectionTimeout: SMTP_TIMEOUT_MS,
+    greetingTimeout: SMTP_TIMEOUT_MS,
+    socketTimeout: SMTP_TIMEOUT_MS,
+  });
+  smtpTransporterKey = key;
+  return smtpTransporter;
+}
+
+async function sendViaSmtp(
+  cfg: SmtpConfig,
+  mail: { from: string; to: string; subject: string; text: string; html: string },
+): Promise<SendEmailResult> {
+  try {
+    if (smtpSendMailForTests) {
+      const info = await smtpSendMailForTests(mail);
+      return { sent: true, mode: "smtp", id: info.messageId };
+    }
+    const transporter = getSmtpTransporter(cfg);
+    const info = await transporter.sendMail(mail);
+    return { sent: true, mode: "smtp", id: info.messageId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "SMTP send failed";
+    console.error("[email] SMTP send error", message);
+    return { sent: false, mode: "smtp", error: `SMTP failed: ${message}` };
+  }
 }
 
 export function appBaseUrl(): string {
@@ -128,9 +302,25 @@ export async function sendAppEmail(input: SendEmailInput): Promise<SendEmailResu
     return { sent: false, mode: "log", error: "No recipient email" };
   }
   const html = input.html ?? input.text.replace(/\n/g, "<br/>");
+  const from = fromAddress();
+  const smtp = resolveSmtpConfig();
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const webhook = process.env.EMAIL_WEBHOOK_URL?.trim();
   let providerError: string | undefined;
+  let failedMode: EmailTransportMode | undefined;
+
+  if (smtp) {
+    const smtpResult = await sendViaSmtp(smtp, {
+      from,
+      to,
+      subject: input.subject,
+      text: input.text,
+      html,
+    });
+    if (smtpResult.sent) return smtpResult;
+    providerError = smtpResult.error ?? "SMTP failed";
+    failedMode = "smtp";
+  }
 
   if (apiKey) {
     try {
@@ -141,7 +331,7 @@ export async function sendAppEmail(input: SendEmailInput): Promise<SendEmailResu
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: fromAddress(),
+          from,
           to: [to],
           subject: input.subject,
           text: input.text,
@@ -154,10 +344,12 @@ export async function sendAppEmail(input: SendEmailInput): Promise<SendEmailResu
         return { sent: true, mode: "resend", id: data.id };
       }
       const body = await res.text().catch(() => "");
-      providerError = `Resend failed (${res.status})`;
+      providerError = providerError ?? `Resend failed (${res.status})`;
+      failedMode = failedMode ?? "resend";
       console.error(`[email] Resend failed ${res.status}: ${body.slice(0, 300)}`);
     } catch (err) {
-      providerError = "Resend request failed";
+      providerError = providerError ?? "Resend request failed";
+      failedMode = failedMode ?? "resend";
       console.error("[email] Resend request error", err);
     }
   }
@@ -169,7 +361,7 @@ export async function sendAppEmail(input: SendEmailInput): Promise<SendEmailResu
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to,
-          from: fromAddress(),
+          from,
           subject: input.subject,
           text: input.text,
           html,
@@ -180,20 +372,23 @@ export async function sendAppEmail(input: SendEmailInput): Promise<SendEmailResu
         return { sent: true, mode: "webhook", id: `webhook-${Date.now()}` };
       }
       providerError = providerError ?? `webhook failed (${res.status})`;
+      failedMode = failedMode ?? "webhook";
       console.error(`[email] webhook failed ${res.status}`);
     } catch (err) {
       providerError = providerError ?? "webhook request failed";
+      failedMode = failedMode ?? "webhook";
       console.error("[email] webhook request error", err);
     }
   }
 
   // A configured provider that failed must not look like "email is off"
-  // (mode "log"). Callers tell the practitioner the message was not sent.
-  if (apiKey || webhook) {
+  // (mode "log"). Callers tell the practitioner the message was not sent —
+  // including Resend verification email, which surfaces SMTP errors the same way.
+  if (smtp || apiKey || webhook) {
     console.error(`[email] ${input.kind} was not delivered: ${providerError ?? "unknown error"}`);
     return {
       sent: false,
-      mode: apiKey ? "resend" : "webhook",
+      mode: failedMode ?? (smtp ? "smtp" : apiKey ? "resend" : "webhook"),
       error: providerError ?? "Email was not delivered",
     };
   }
