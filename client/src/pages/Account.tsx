@@ -17,6 +17,7 @@ import {
   useClaimDevice,
   useDeleteAccount,
   useForgotPassword,
+  useResendVerification,
   useResetPassword,
   useSignIn,
   useSignOut,
@@ -138,6 +139,7 @@ export default function Account() {
   const signOut = useSignOut();
   const claimDevice = useClaimDevice();
   const forgot = useForgotPassword();
+  const resendVerification = useResendVerification();
   const reset = useResetPassword();
   const deleteAccount = useDeleteAccount();
 
@@ -223,8 +225,9 @@ export default function Account() {
         const q = new URLSearchParams({ email: result.email });
         if ("verifyToken" in result && result.verifyToken) q.set("token", result.verifyToken);
         toast({
-          title: "Check your inbox",
+          title: result.emailSent === false ? "Verification email was not sent" : "Check your inbox",
           description: result.message,
+          variant: result.emailSent === false ? "destructive" : undefined,
         });
         navigate(`/verify?${q.toString()}`);
         return;
@@ -488,16 +491,36 @@ export default function Account() {
               <div className="space-y-1 text-sm">
                 <p className="font-medium text-foreground">Verify {pendingVerifyEmail}</p>
                 <p className="text-muted-foreground">
-                  We sent a link to finish registration. Open it, or enter the code on the verify
-                  page.
+                  Open the link if it arrived, check spam, or send it again. You can also enter
+                  the code on the verify page.
                 </p>
               </div>
             </div>
-            <Button asChild className="min-h-11 cursor-pointer shrink-0">
-              <Link href={`/verify?email=${encodeURIComponent(pendingVerifyEmail)}`}>
-                Open verify page
-              </Link>
-            </Button>
+            <div className="flex flex-col gap-2 sm:shrink-0">
+              <Button
+                type="button"
+                className="min-h-11 cursor-pointer"
+                disabled={resendVerification.isPending}
+                onClick={() => {
+                  void resendVerification
+                    .mutateAsync({ email: pendingVerifyEmail })
+                    .then((result) => {
+                      toast({ title: "Verification email", description: result.message });
+                    })
+                    .catch((err) => {
+                      setError(authErrorMessage(err, "Could not resend the verification email."));
+                    });
+                }}
+                data-testid="signin-resend"
+              >
+                {resendVerification.isPending ? "Sending…" : "Resend verification email"}
+              </Button>
+              <Button asChild variant="outline" className="min-h-11 cursor-pointer">
+                <Link href={`/verify?email=${encodeURIComponent(pendingVerifyEmail)}`}>
+                  Open verify page
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}

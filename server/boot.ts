@@ -25,6 +25,7 @@ import { registerAdsTxt } from "./adsTxt";
 import { publicAppOrigin } from "./publicUrl";
 import { captureServerException, initServerSentry } from "./sentry";
 import { sendJson404 } from "./json404";
+import { emailConfigWarning } from "./email";
 import { stripeStartupErrors, stripeStartupMessage } from "./stripeConfig";
 import { createStartupTracker, type StartupTracker } from "./startup";
 
@@ -149,6 +150,8 @@ export async function bootServer(options: BootOptions = {}): Promise<BootedServe
     console.error(stripeStartupMessage(stripeErrors));
     process.exit(1);
   }
+  const mailWarning = emailConfigWarning();
+  if (mailWarning) console.warn(mailWarning);
 
   // Only builds the pool object — no connection is opened until the first query.
   const { usingMemory } = initStorage();
