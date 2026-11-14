@@ -20,6 +20,7 @@ import { requestWellnessConsent } from "@/lib/legal";
 import { useToast } from "@/hooks/use-toast";
 import { resolveIcon } from "@/lib/icons";
 import type { Profile } from "@/data/profiles";
+import type { UserProfile } from "@shared/schema";
 import { poseImageWithheld } from "@/data/poseImageAccuracy";
 import { profilePreviewSlugs } from "@/lib/profilePreview";
 import { PoseImage } from "@/components/PoseImage";
@@ -40,16 +41,19 @@ export function ProfileCard({ profile, active }: { profile: Profile; active: boo
   const audience = AUDIENCE_BADGE[profile.id];
 
   const activate = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       // Activating a profile stores wellness data — surface consent now.
       requestWellnessConsent();
-      return apiRequest("POST", "/api/profile/activate", { profileId: profile.id });
+      const res = await apiRequest("POST", "/api/profile/activate", { profileId: profile.id });
+      return (await res.json()) as UserProfile;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/profile/active"] });
+    onSuccess: (row) => {
+      // Home reads this with staleTime: Infinity. Writing the row now means
+      // Today shows the path on the next visit instead of the cached "no path".
+      queryClient.setQueryData(["/api/profile/active"], row);
       toast({
         title: `${profile.name} activated`,
-        description: "Your home dashboard is now tailored to this path.",
+        description: "Today will recommend this path.",
       });
     },
   });

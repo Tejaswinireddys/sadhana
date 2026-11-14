@@ -142,6 +142,19 @@ export function TodayPracticeCard({
           {recommendation.reason}
         </p>
 
+        {recommendation.source === "profile" && (
+          <p className="text-sm text-muted-foreground" data-testid="today-practice-path">
+            Following the path you chose.{" "}
+            <Link
+              href="/profiles"
+              className="inline-flex min-h-11 items-center font-medium text-foreground underline underline-offset-2"
+              data-testid="link-change-path"
+            >
+              Change path
+            </Link>
+          </p>
+        )}
+
         {poses.length > 0 && (
           <div
             className="flex items-center gap-2 overflow-x-auto overscroll-x-contain pb-1"

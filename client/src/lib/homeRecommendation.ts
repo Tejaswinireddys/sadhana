@@ -21,7 +21,7 @@
  */
 import { equipmentFreeSwapFor, sessionEquipment } from "@/lib/sessionEquipment";
 import { isFloorFree, swapPreservesConstraints } from "@/data/floorAccess";
-import { asanaBySlug, type Mood } from "@/data/content";
+import { asanaBySlug, breathBySlug, type Mood } from "@/data/content";
 import type { SavedQuizPlan } from "@/data/quizPlan";
 import type { Profile } from "@/data/profiles";
 import { composeTrainerSession, NEED_LABEL, TIME_OPTIONS } from "@/lib/yogaTrainer";
@@ -169,10 +169,16 @@ export function generatePractice(opts: {
 /**
  * The single practice Home leads with.
  *
- * Order of preference: finish what you started, then the program you enrolled
- * in, then the plan you built, then your profile, then a composed practice for
- * your stated focus. Each step is something the practitioner did, so each
+ * Order of preference: the program you enrolled in, then the path you chose
+ * on /profiles, then the plan you built in the finder, then a composed
+ * practice for the focus you last set. A path is an explicit later choice —
+ * it leads Today even when a finder plan is still saved. Clearing the path
+ * brings that plan back. Each step is something the practitioner did, so each
  * reason is something we can say back to them.
+ *
+ * Saved time and focus are defaults for that last step. They are not an
+ * adjustment: treating them as one kept Today on the onboarding practice
+ * after a path was chosen.
  */
 export function recommendPractice(ctx: HomeContext): PracticeRecommendation | null {
   // Someone who has told us nothing and practised nothing gets the short,
@@ -216,6 +222,33 @@ export function recommendPractice(ctx: HomeContext): PracticeRecommendation | nu
     };
   }
 
+  if (ctx.profile) {
+    const profile = ctx.profile;
+    const poses = profile.recommendedAsanas
+      .map((slug) => asanaBySlug(slug))
+      .filter((a): a is NonNullable<typeof a> => !!a)
+      .map((a) => ({ slug: a.slug, holdSeconds: a.holdSeconds }));
+    if (poses.length > 0) {
+      const breathSlug =
+        profile.recommendedBreathing.find((slug) => breathBySlug(slug)) ?? null;
+      return {
+        id: `profile:${profile.id}`,
+        source: "profile",
+        title: `${profile.name} session`,
+        reason: `Selected because you're following the ${profile.name} path.`,
+        poses,
+        meta: {
+          label: `${profile.name} session`,
+          breathSlug,
+          introPoseSlug: poses[0]?.slug ?? null,
+        },
+        requestedMinutes: null,
+        adjustable: false,
+        fit: null,
+      };
+    }
+  }
+
   if (ctx.quizPlan && ctx.quizPlan.poses.length > 0) {
     const plan = ctx.quizPlan;
     const intent = plan.intent ?? ctx.intent;
@@ -242,35 +275,24 @@ export function recommendPractice(ctx: HomeContext): PracticeRecommendation | nu
     };
   }
 
-  if (ctx.profile) {
-    const profile = ctx.profile;
-    const poses = profile.recommendedAsanas
-      .map((slug) => asanaBySlug(slug))
-      .filter((a): a is NonNullable<typeof a> => !!a)
-      .map((a) => ({ slug: a.slug, holdSeconds: a.holdSeconds }));
-    if (poses.length > 0) {
-      return {
-        id: `profile:${profile.id}`,
-        source: "profile",
-        title: `${profile.name} session`,
-        reason: `Selected because your ${profile.name} profile is the one you're following.`,
-        poses,
-        meta: { label: `${profile.name} session`, introPoseSlug: poses[0]?.slug ?? null },
-        requestedMinutes: null,
-        adjustable: false,
-        fit: null,
-      };
-    }
-  }
-
   // Nothing chosen yet. Compose something honest rather than pretending to
-  // know a focus nobody set.
-  const minutes = ctx.preferredMinutes ?? 10;
+  // know a focus nobody set. A focus they last chose (Trainer, quiz, or the
+  // card) outranks the original onboarding goal.
+  const minutes = snapToOfferedMinutes(ctx.preferredMinutes ?? 10);
   const evening = ctx.hour >= 20 || ctx.hour < 4;
+  if (ctx.preferredNeed) {
+    const label = (NEED_LABEL[ctx.preferredNeed] ?? ctx.preferredNeed).toLowerCase();
+    return generatePractice({
+      need: ctx.preferredNeed,
+      minutes,
+      experience: experienceFor(ctx),
+      reason: `Selected because your focus is ${label}.`,
+    });
+  }
   if (ctx.intent) {
     return generatePractice({
       need: INTENT_NEED[ctx.intent],
-      minutes: snapToOfferedMinutes(minutes),
+      minutes,
       experience: experienceFor(ctx),
       reason: `Selected because your focus is ${INTENT_LABEL[ctx.intent]}.`,
       title: ctx.intent === "sleep" ? "Your evening wind-down" : undefined,
@@ -278,7 +300,7 @@ export function recommendPractice(ctx: HomeContext): PracticeRecommendation | nu
   }
   return generatePractice({
     need: evening ? "sleep" : "movement",
-    minutes: snapToOfferedMinutes(minutes),
+    minutes,
     experience: experienceFor(ctx),
     reason: evening
       ? "A wind-down, because it's late and you haven't set a focus yet."
@@ -289,6 +311,7 @@ export function recommendPractice(ctx: HomeContext): PracticeRecommendation | nu
 
 /** The focus we compose for when nobody has picked one. */
 export function defaultNeedFor(ctx: HomeContext): string {
+  if (ctx.preferredNeed) return ctx.preferredNeed;
   if (ctx.intent) return INTENT_NEED[ctx.intent];
   return ctx.hour >= 20 || ctx.hour < 4 ? "sleep" : "movement";
 }

@@ -71,11 +71,17 @@ describe("Premium quiz-first UX contract", () => {
     assert.match(home, /<TodayPracticeCard/);
     assert.match(card, /data-testid="today-practice"/);
     assert.match(rec, /source: "quiz-plan"/);
-    // And it outranks the profile, so the two can never both claim the lead.
+    assert.match(rec, /source: "profile"/);
+    // A path chosen on /profiles is the later explicit choice, so it leads
+    // Today ahead of the saved finder plan. Only one of them is the lead.
     assert.ok(
-      rec.indexOf('source: "quiz-plan"') < rec.indexOf('source: "profile"'),
-      "the profile must not outrank a plan the practitioner built",
+      rec.indexOf('source: "profile"') < rec.indexOf('source: "quiz-plan"'),
+      "a chosen path must lead Today ahead of the saved finder plan",
     );
+    // Saved time/focus must not be seeded as an in-session adjustment, or
+    // the generated onboarding practice hides both the path and the plan.
+    assert.match(home, /minutes: null/);
+    assert.equal(/minutes: saved\.minutes/.test(home), false);
     // A newcomer quiz prompt only appears when there is nothing to lead with.
     assert.match(home, /!quizPlan && !profile && !programDay/);
     assert.equal(/Secondary destinations live here/.test(home), false);

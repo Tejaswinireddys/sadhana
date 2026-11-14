@@ -43,8 +43,11 @@ export default function Profiles() {
   const deactivate = useMutation({
     mutationFn: () => apiRequest("POST", "/api/profile/deactivate"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/profile/active"] });
-      toast({ title: "Profile cleared", description: "Your home dashboard is back to the default." });
+      queryClient.setQueryData(["/api/profile/active"], null);
+      toast({
+        title: "Path cleared",
+        description: "Today is no longer following that path.",
+      });
     },
   });
 
@@ -62,8 +65,9 @@ export default function Profiles() {
         </div>
         <h1 className="font-serif text-3xl font-semibold tracking-tight">Pick a path that fits your life</h1>
         <p className="max-w-2xl text-muted-foreground">
-          Choose a preset built around a goal and a realistic cadence. Activating a path tailors
-          your home dashboard and pre-builds today's session — poses and breath, ready to go.
+          Choose a preset built around a goal and a realistic cadence. The path you activate is
+          what Today recommends — its poses and breath — until you clear it. A plan from the
+          finder stays saved and comes back when you do.
         </p>
         <p className="max-w-2xl text-sm text-muted-foreground">
           Paths are optional presets saved on this device — not an account signup. New here? The
