@@ -101,7 +101,9 @@ export default function Help() {
 
                 </li>
                 <li>
-                  If you run this deployment: set <code className="text-xs">RESEND_API_KEY</code> or{" "}
+                  If you run this deployment: set <code className="text-xs">GMAIL_USER</code> +{" "}
+                  <code className="text-xs">GMAIL_APP_PASSWORD</code>,{" "}
+                  <code className="text-xs">RESEND_API_KEY</code>, or{" "}
                   <code className="text-xs">EMAIL_WEBHOOK_URL</code> and redeploy to switch on
                   ordinary email resets.
                 </li>

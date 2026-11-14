@@ -51,6 +51,7 @@ import {
   sendVerificationEmail,
   sendWelcomeEmail,
   emailDeliveryConfigured,
+  mailStatusPayload,
   type SendEmailResult,
 } from "./email";
 import { z } from "zod";
@@ -124,7 +125,7 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
 
   /** Whether this deployment can send mail (no secrets). Used to avoid promising email. */
   app.get("/api/auth/mail-status", (_req, res) => {
-    res.json({ emailEnabled: emailDeliveryConfigured() });
+    res.json(mailStatusPayload());
   });
 
   app.post("/api/auth/signup", async (req, res) => {
@@ -326,7 +327,7 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
       console.info(`[auth] password reset for user ${user.id} via ${delivery.mode}`);
     } else {
       console.error(
-        `[auth] password reset for user ${user.id} was not delivered (${delivery.mode}${delivery.error ? `: ${delivery.error}` : ""}). Set RESEND_API_KEY or EMAIL_WEBHOOK_URL, and EMAIL_FROM on a verified domain.`,
+        `[auth] password reset for user ${user.id} was not delivered (${delivery.mode}${delivery.error ? `: ${delivery.error}` : ""}). Set GMAIL_USER+GMAIL_APP_PASSWORD, SMTP_*, RESEND_API_KEY, or EMAIL_WEBHOOK_URL (and EMAIL_FROM when using Resend).`,
       );
     }
     if (process.env.NODE_ENV !== "production" || process.env.EXPOSE_RESET_TOKEN === "1") {

@@ -141,22 +141,26 @@ Regenerate pose WebP siblings with `npm run gen:pose-webp` after adding PNGs.
 Signup asks people to verify their email only when a mail transport is
 configured. Without one, signup signs them in and shows a one-time recovery
 code instead. Set these on Render (**Environment**), then redeploy. Do not
-commit the key.
+commit secrets. Precedence: **SMTP/Gmail → Resend → webhook**.
 
 | Variable | Purpose |
 | --- | --- |
-| `RESEND_API_KEY` | Resend API key. Preferred transport. |
-| `EMAIL_FROM` | From address on a **domain verified in Resend**, e.g. `Sadhana <no-reply@yourdomain.com>`. The default `onboarding@resend.dev` only delivers to the Resend account owner, so real users never get the link and login stays on "Verify your email". |
-| `EMAIL_WEBHOOK_URL` | Optional alternative to Resend: `POST {to, from, subject, text, html, kind}`. |
-| `PUBLIC_APP_URL` | Origin written into verification and reset links. |
+| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | Gmail shortcut (no custom domain). Implies `smtp.gmail.com:465` TLS. Create an [App Password](https://myaccount.google.com/apppasswords) after turning on 2-Step Verification. ~500 messages/day. |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `SMTP_USER` / `SMTP_PASS` | Generic SMTP. Port defaults to `465`; `SMTP_SECURE` defaults to true when the port is 465. |
+| `RESEND_API_KEY` | Resend API key (needs a domain verified in Resend). |
+| `EMAIL_FROM` | Optional From. With Gmail/SMTP unset, defaults to `Sadhana <GMAIL_USER>` / `Sadhana <SMTP_USER>`. With Resend alone, use an address on a **verified domain** — the default `onboarding@resend.dev` only delivers to the Resend account owner. |
+| `EMAIL_WEBHOOK_URL` | Optional alternative: `POST {to, from, subject, text, html, kind}`. |
+| `PUBLIC_APP_URL` | Origin written into verification and reset links (e.g. `https://sadhana-ou9m.onrender.com` until a custom domain exists). |
 
-Boot logs a warning when the key is set but `EMAIL_FROM` cannot deliver.
-Signup tells the person when the send failed (`emailSent: false`) instead of
-saying to check an inbox that will stay empty. Sign-in and `/verify` both have
-**Resend verification email**. Password reset uses the same transport and the
-same failure log. Details: `docs/account-recovery-config.md`. Confirm with
-`GET /api/auth/mail-status` → `{"emailEnabled": true}` and a real inbox, not
-only the flag.
+Boot logs a warning when Resend is the active transport but `EMAIL_FROM` cannot
+deliver; that warning is skipped when SMTP/Gmail is configured. Signup tells
+the person when the send failed (`emailSent: false`) instead of saying to check
+an inbox that will stay empty. Sign-in and `/verify` both have **Resend
+verification email** (works for SMTP errors too). Password reset uses the same
+transport and the same failure log. Details: `docs/account-recovery-config.md`.
+Confirm with `GET /api/auth/mail-status` →
+`{"emailEnabled": true, "provider": "smtp"}` (or `resend` / `webhook`) and a
+real inbox, not only the flag.
 
 ### Web Push reminders: VAPID keys
 
