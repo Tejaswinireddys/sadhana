@@ -31,6 +31,7 @@ import { unlockAudio } from "@/lib/audioUnlock";
 import { claimPageMedia, onPageMediaClaim } from "@/lib/pageMedia";
 import { hasAiTrainerLesson } from "@/data/aiTrainerLessons";
 import { cn } from "@/lib/utils";
+import { TeachTopicTabs } from "@/components/TeachTopicTabs";
 import type { Preferences } from "@shared/schema";
 import {
   AlertTriangle,
@@ -109,28 +110,15 @@ export function PoseTeachRail({
       className="flex flex-col rounded-2xl border border-border/70 bg-accent/20 p-2.5"
       data-testid={`pose-teach-rail-${asana.slug}`}
     >
-      <div className="flex gap-1 overflow-x-auto pb-1" role="tablist" aria-label="Teaching topics">
-        {tabs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={cn(
-              "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
-              tab === id
-                ? "bg-primary text-primary-foreground"
-                : "bg-background/70 text-muted-foreground hover:text-foreground",
-            )}
-            data-testid={`pose-teach-tab-${id}`}
-          >
-            <Icon className="h-3.5 w-3.5" aria-hidden />
-            {label}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" className="space-y-2 pt-1" data-testid={`pose-teach-panel-${tab}`}>
+      <TeachTopicTabs
+        tabs={tabs}
+        tab={tab}
+        onTab={(id) => setTab(id as TeachTab)}
+        idPrefix={`pose-teach-${asana.slug}`}
+        tabTestIdPrefix="pose-teach-tab-"
+        panelTestIdPrefix="pose-teach-panel-"
+        panelClassName="space-y-2 pt-1"
+      >
         <ul className="space-y-2">
           {lines.map((line, i) => (
             <li key={`${tab}-${i}`} className="flex gap-2 text-xs leading-snug text-foreground/90">
@@ -139,7 +127,7 @@ export function PoseTeachRail({
             </li>
           ))}
         </ul>
-      </div>
+      </TeachTopicTabs>
     </div>
   );
 }

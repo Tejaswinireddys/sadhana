@@ -772,7 +772,9 @@ export default function AsanaDetail() {
           </Button>
         </div>
       </div>
-      <div className="h-6 lg:hidden" aria-hidden />
+      {/* Clears the fixed Practice bar, which sits above the bottom nav and
+          used to cover the last row of teaching tabs so a tap never landed. */}
+      <div className="h-20 lg:hidden" aria-hidden />
     </article>
   );
 }
