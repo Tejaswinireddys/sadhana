@@ -10,7 +10,7 @@ import type { Asana } from "@/data/content";
 import { mirrorCue } from "@/lib/poseLesson";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { TeachTopicTabs } from "@/components/TeachTopicTabs";
 import {
   Lightbulb,
   Wind,
@@ -100,39 +100,28 @@ export function PoseTipsSheet({ asana, open, onOpenChange, practicePaused = fals
           </div>
         )}
 
-        <div className="flex gap-1 overflow-x-auto pb-2" role="tablist">
-          {TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              onClick={() => setTab(id)}
-              className={cn(
-                "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors",
-                tab === id
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:text-foreground",
-              )}
-              data-testid={`pose-tips-tab-${id}`}
-            >
-              <Icon className="h-3.5 w-3.5" aria-hidden />
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <ul className="mt-3 space-y-3 pb-2" data-testid={`pose-tips-panel-${tab}`}>
-          {body.map((line, i) => (
-            <li key={i} className="flex gap-2 text-sm leading-relaxed">
-              <span
-                className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
-                aria-hidden
-              />
-              {side === 2 ? mirrorCue(line) : line}
-            </li>
-          ))}
-        </ul>
+        <TeachTopicTabs
+          tabs={TABS}
+          tab={tab}
+          onTab={(id) => setTab(id as TipTab)}
+          idPrefix="pose-tips"
+          tabTestIdPrefix="pose-tips-tab-"
+          panelTestIdPrefix="pose-tips-panel-"
+          listClassName="pb-2"
+          panelClassName="mt-3"
+        >
+          <ul className="space-y-3 pb-2">
+            {body.map((line, i) => (
+              <li key={i} className="flex gap-2 text-sm leading-relaxed">
+                <span
+                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
+                  aria-hidden
+                />
+                {side === 2 ? mirrorCue(line) : line}
+              </li>
+            ))}
+          </ul>
+        </TeachTopicTabs>
       </div>
     </div>
   );
