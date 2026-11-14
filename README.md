@@ -116,11 +116,22 @@ The app is set up for one-click deploy on Render.
 
 The Blueprint in `render.yaml` requests Render **Starter** so the instance stays
 warm. Confirm that plan in the Render dashboard after deploy — a free instance
-will still sleep, and the first visit shows Render's "Application loading" screen
-for ~30–50 seconds instead of Home. **Before sharing the product publicly, the
-web service must be paid / always-on.** Attach a custom domain via `PUBLIC_APP_URL`
-(the default `*.onrender.com` URL is fine for demos only). With `PUBLIC_APP_URL`
-set, OG tags, canonical URLs, and `/robots.txt` rewrite automatically at serve time.
+sleeps after about 15 minutes without traffic, and the first visit then waits
+on Render's own "Application loading" screen for up to a minute before any
+HTML arrives. The app cannot draw a page during that wait. Once the process
+answers, the shell shows "Waking the studio" until React mounts.
+
+**Before sharing the product publicly, the web service must be paid /
+always-on.** A free instance that you must keep is less bad if something pings
+it every 10 minutes: `GET /ping` is a liveness check (200 as soon as the port
+is bound, no database), and `GET /healthz` is the readiness check Render should
+use (200 only after startup and a successful database ping; 503 while starting
+or if the database is down). A ping does not replace a paid plan: free-tier
+spin-down, the 512 MB limit, and cold starts remain.
+
+Attach a custom domain via `PUBLIC_APP_URL` (the default `*.onrender.com` URL
+is fine for demos only). With `PUBLIC_APP_URL` set, OG tags, canonical URLs,
+and `/robots.txt` rewrite automatically at serve time.
 
 For error monitoring set `SENTRY_DSN` (server) and `VITE_SENTRY_DSN` (browser).
 Regenerate pose WebP siblings with `npm run gen:pose-webp` after adding PNGs.
