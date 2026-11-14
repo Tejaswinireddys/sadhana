@@ -51,6 +51,7 @@ import {
   sendVerificationEmail,
   sendWelcomeEmail,
   emailDeliveryConfigured,
+  type SendEmailResult,
 } from "./email";
 import { z } from "zod";
 import { reportError } from "./errorReporting";
@@ -82,16 +83,22 @@ function exposeSensitiveAuthToken(): boolean {
   return process.env.NODE_ENV !== "production" || process.env.EXPOSE_VERIFY_TOKEN === "1";
 }
 
-async function issueVerification(user: User): Promise<string> {
+async function issueVerification(user: User): Promise<{ token: string; delivery: SendEmailResult }> {
   const token = newVerifyToken();
   await storage.createEmailVerificationToken(
     user.id,
     hashVerifyToken(token),
     verifyTokenExpiry(),
   );
-  await sendVerificationEmail({ to: user.email, token });
-  console.info(`[auth] email verification for user ${user.id} — open /verify`);
-  return token;
+  const delivery = await sendVerificationEmail({ to: user.email, token });
+  if (delivery.sent) {
+    console.info(`[auth] verification email for user ${user.id} via ${delivery.mode}`);
+  } else {
+    console.error(
+      `[auth] verification email for user ${user.id} was not delivered (${delivery.mode}${delivery.error ? `: ${delivery.error}` : ""})`,
+    );
+  }
+  return { token, delivery };
 }
 
 export async function registerRoutes(httpServer: Server, app: Express, options: { stripe?: AccountDeletionStripe | null } = {}): Promise<Server> {
@@ -163,18 +170,21 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
       });
     }
 
-    const verifyToken = await issueVerification(user);
+    const { token: verifyToken, delivery } = await issueVerification(user);
     // No session until the email is verified — guest practice stays on this device.
     const body: {
       needsVerification: true;
       email: string;
+      emailSent: boolean;
       message: string;
       verifyToken?: string;
     } = {
       needsVerification: true,
       email: user.email,
-      message:
-        "Account created. Check your email for a verification link — it expires in 48 hours.",
+      emailSent: delivery.sent,
+      message: delivery.sent
+        ? "Account created. Check your email for a verification link — it expires in 48 hours. Also check spam."
+        : "Account created, but the verification email could not be sent. Use Resend verification email below. If that keeps failing, set EMAIL_FROM to an address on a domain verified with your mail provider.",
     };
     if (exposeSensitiveAuthToken() || process.env.EXPOSE_RESET_TOKEN === "1") {
       body.verifyToken = verifyToken;
@@ -200,7 +210,8 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
     // key — the address is unproven, but blocking proves nothing either.
     if (!user.emailVerified && emailDeliveryConfigured()) {
       return res.status(403).json({
-        error: "Verify your email before signing in. Check your inbox or resend the link.",
+        error:
+          "Verify your email before signing in. Check your inbox and spam, or resend the verification email. If nothing arrives, the server's EMAIL_FROM must be an address on a domain verified with your mail provider.",
         needsVerification: true,
         email: user.email,
       });
@@ -255,12 +266,22 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
     }
     const generic = {
       ok: true as const,
-      message: "If that email still needs verification, we sent a new link. It expires in 48 hours.",
+      message:
+        "If that email still needs verification, we attempted to send a new link. It expires in 48 hours. Check spam, and try again if nothing arrives.",
     };
     const user = await storage.getUserByEmail(parsed.data.email);
     if (!user || user.emailVerified) return res.json(generic);
 
-    const verifyToken = await issueVerification(user);
+    const { token: verifyToken, delivery } = await issueVerification(user);
+    if (!delivery.sent) {
+      // Distinct from the generic 200, so the person waiting on the link hears
+      // that delivery failed. An unknown address still gets the generic 200.
+      return res.status(503).json({
+        ok: false,
+        error:
+          "We couldn't send the verification email. Wait a minute and try again. If it keeps failing, set EMAIL_FROM to an address on a domain verified with your mail provider.",
+      });
+    }
     if (exposeSensitiveAuthToken() || process.env.EXPOSE_RESET_TOKEN === "1") {
       return res.json({ ...generic, verifyToken });
     }
@@ -292,18 +313,22 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
     const user = await storage.getUserByEmail(parsed.data.email);
     const generic = {
       ok: true as const,
-      message:
-        "If an account exists for that email, a reset code was created. It expires in 60 minutes.",
+      message: emailDeliveryConfigured()
+        ? "If an account exists for that email, we attempted to send a reset code. It expires in 60 minutes. Check spam, and try again if nothing arrives."
+        : "If an account exists for that email, a reset code was created. It expires in 60 minutes.",
     };
     if (!user) return res.json(generic);
 
     const token = newResetToken();
     await storage.createPasswordResetToken(user.id, hashResetToken(token), resetTokenExpiry());
     const delivery = await sendPasswordResetEmail({ to: user.email, token });
-    console.info(
-      `[auth] password reset for user ${user.id} via ${delivery.mode}` +
-        (delivery.sent ? "" : " (logged; set RESEND_API_KEY or EMAIL_WEBHOOK_URL for delivery)"),
-    );
+    if (delivery.sent) {
+      console.info(`[auth] password reset for user ${user.id} via ${delivery.mode}`);
+    } else {
+      console.error(
+        `[auth] password reset for user ${user.id} was not delivered (${delivery.mode}${delivery.error ? `: ${delivery.error}` : ""}). Set RESEND_API_KEY or EMAIL_WEBHOOK_URL, and EMAIL_FROM on a verified domain.`,
+      );
+    }
     if (process.env.NODE_ENV !== "production" || process.env.EXPOSE_RESET_TOKEN === "1") {
       return res.json({ ...generic, resetToken: token });
     }

@@ -13,6 +13,7 @@ describe("registration + email verification contract", () => {
     assert.match(account, /data-testid="signup-confirm"/);
     assert.match(account, /credentialsSchema/);
     assert.match(account, /needsVerification/);
+    assert.match(account, /data-testid="signin-resend"/);
     assert.match(account, /\/verify/);
 
     const app = readFileSync(resolve("client/src/App.tsx"), "utf8");

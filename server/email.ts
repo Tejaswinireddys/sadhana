@@ -64,6 +64,21 @@ export function emailDeliveryConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY?.trim() || process.env.EMAIL_WEBHOOK_URL?.trim());
 }
 
+/**
+ * Why verification mail will not reach a real inbox, or null when the config
+ * can. The Resend sandbox address (`onboarding@resend.dev`) only delivers to
+ * the Resend account owner — a key without `EMAIL_FROM` looks configured and
+ * then fails every send.
+ */
+export function emailConfigWarning(env: Record<string, string | undefined> = process.env): string | null {
+  if (!env.RESEND_API_KEY?.trim()) return null;
+  const from = env.EMAIL_FROM?.trim() || "";
+  if (!from || /onboarding@resend\.dev/i.test(from) || /@resend\.dev>?$/i.test(from)) {
+    return "[email] RESEND_API_KEY is set but EMAIL_FROM is missing or is a Resend sandbox address. Resend only delivers onboarding@resend.dev to the account owner, so verification and password-reset mail will not arrive. Set EMAIL_FROM to an address on a domain verified in Resend, and PUBLIC_APP_URL to the public origin those links should use.";
+  }
+  return null;
+}
+
 export function appBaseUrl(): string {
   return publicAppOrigin();
 }
@@ -114,6 +129,9 @@ export async function sendAppEmail(input: SendEmailInput): Promise<SendEmailResu
   }
   const html = input.html ?? input.text.replace(/\n/g, "<br/>");
   const apiKey = process.env.RESEND_API_KEY?.trim();
+  const webhook = process.env.EMAIL_WEBHOOK_URL?.trim();
+  let providerError: string | undefined;
+
   if (apiKey) {
     try {
       const res = await fetch("https://api.resend.com/emails", {
@@ -131,19 +149,19 @@ export async function sendAppEmail(input: SendEmailInput): Promise<SendEmailResu
           tags: [{ name: "kind", value: input.kind }],
         }),
       });
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        console.error(`[email] Resend failed ${res.status}: ${body.slice(0, 300)}`);
-      } else {
+      if (res.ok) {
         const data = (await res.json().catch(() => ({}))) as { id?: string };
         return { sent: true, mode: "resend", id: data.id };
       }
+      const body = await res.text().catch(() => "");
+      providerError = `Resend failed (${res.status})`;
+      console.error(`[email] Resend failed ${res.status}: ${body.slice(0, 300)}`);
     } catch (err) {
+      providerError = "Resend request failed";
       console.error("[email] Resend request error", err);
     }
   }
 
-  const webhook = process.env.EMAIL_WEBHOOK_URL?.trim();
   if (webhook) {
     try {
       const res = await fetch(webhook, {
@@ -161,10 +179,23 @@ export async function sendAppEmail(input: SendEmailInput): Promise<SendEmailResu
       if (res.ok) {
         return { sent: true, mode: "webhook", id: `webhook-${Date.now()}` };
       }
+      providerError = providerError ?? `webhook failed (${res.status})`;
       console.error(`[email] webhook failed ${res.status}`);
     } catch (err) {
+      providerError = providerError ?? "webhook request failed";
       console.error("[email] webhook request error", err);
     }
+  }
+
+  // A configured provider that failed must not look like "email is off"
+  // (mode "log"). Callers tell the practitioner the message was not sent.
+  if (apiKey || webhook) {
+    console.error(`[email] ${input.kind} was not delivered: ${providerError ?? "unknown error"}`);
+    return {
+      sent: false,
+      mode: apiKey ? "resend" : "webhook",
+      error: providerError ?? "Email was not delivered",
+    };
   }
 
   console.info(`[email:${input.kind}] to=${to} subject=${JSON.stringify(input.subject)}\n${input.text}`);

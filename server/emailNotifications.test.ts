@@ -16,6 +16,7 @@ import {
   sendSubscriptionStartedEmail,
   sendVerificationEmail,
   sendWelcomeEmail,
+  emailConfigWarning,
   emailDeliveryConfigured,
 } from "./email";
 
@@ -109,5 +110,43 @@ describe("email notification templates", () => {
     else process.env.RESEND_API_KEY = prevResend;
     if (prevHook === undefined) delete process.env.EMAIL_WEBHOOK_URL;
     else process.env.EMAIL_WEBHOOK_URL = prevHook;
+  });
+
+  it("reports a Resend rejection instead of pretending the message was only logged", async () => {
+    const prev = process.env.RESEND_API_KEY;
+    const prevHook = process.env.EMAIL_WEBHOOK_URL;
+    process.env.RESEND_API_KEY = "re_test";
+    delete process.env.EMAIL_WEBHOOK_URL;
+    const original = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ message: "domain is not verified" }), { status: 403 })) as typeof fetch;
+    try {
+      const result = await sendVerificationEmail({ to: "a@example.com", token: "token-abcdefghijklmnop" });
+      assert.equal(result.sent, false);
+      assert.equal(result.mode, "resend");
+      assert.match(result.error ?? "", /403/);
+    } finally {
+      globalThis.fetch = original;
+      if (prev === undefined) delete process.env.RESEND_API_KEY;
+      else process.env.RESEND_API_KEY = prev;
+      if (prevHook === undefined) delete process.env.EMAIL_WEBHOOK_URL;
+      else process.env.EMAIL_WEBHOOK_URL = prevHook;
+    }
+  });
+
+  it("warns when the Resend key would only deliver to the account owner", () => {
+    assert.equal(emailConfigWarning({}), null);
+    assert.match(
+      emailConfigWarning({ RESEND_API_KEY: "re_test" }) ?? "",
+      /EMAIL_FROM/,
+    );
+    assert.match(
+      emailConfigWarning({ RESEND_API_KEY: "re_test", EMAIL_FROM: "Sadhana <onboarding@resend.dev>" }) ?? "",
+      /sandbox/,
+    );
+    assert.equal(
+      emailConfigWarning({ RESEND_API_KEY: "re_test", EMAIL_FROM: "Sadhana <no-reply@example.com>" }),
+      null,
+    );
   });
 });

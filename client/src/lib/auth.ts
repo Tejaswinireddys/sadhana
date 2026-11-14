@@ -40,7 +40,14 @@ async function resetOwnedCaches() {
 }
 
 export type SignUpResult =
-  | { needsVerification: true; email: string; message: string; verifyToken?: string }
+  | {
+      needsVerification: true;
+      email: string;
+      /** False when the server tried to send the link and the provider rejected it. */
+      emailSent?: boolean;
+      message: string;
+      verifyToken?: string;
+    }
   /**
    * A deployment with no mail transport cannot verify an inbox or send a reset
    * code, so signup signs the practitioner in and returns a recovery code

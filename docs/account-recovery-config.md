@@ -80,19 +80,26 @@ PUBLIC_APP_URL=https://your-custom-domain
 built from it, and it is also what rewrites the OG/canonical tags and
 `/robots.txt` at serve time.
 
-With Resend, the sending domain has to be verified in Resend first, or delivery
-fails silently from the app's point of view — `sendPasswordResetEmail` reports
-its transport mode to the server log (`[auth] password reset for user N via
-resend|webhook|log`), which is the fastest way to tell which path ran.
+With Resend, the sending domain has to be verified in Resend first. A key with
+no `EMAIL_FROM`, or `EMAIL_FROM` left on `onboarding@resend.dev`, only delivers
+to the Resend account owner. Boot logs `[email] RESEND_API_KEY is set but
+EMAIL_FROM is missing…` in that case. A rejected send is **not** reported as
+the console-only path: signup returns `emailSent: false` and says the message
+was not sent, resend returns HTTP 503 with the same fact, and the server log
+is `[auth] verification email for user N was not delivered (resend: …)`.
+
+`PUBLIC_APP_URL` is the origin written into those links. On Render, set it to
+the URL people actually open (a custom domain once you have one).
 
 ## Verifying it after configuring
 
-There is no way to confirm delivery from inside the app, and the app does not
-claim to. Check, in order:
+Signup reports `emailSent`. A failed provider call is an error in the log, not
+a success toast. Check, in order:
 
 1. `GET /api/auth/mail-status` returns `{"emailEnabled": true}`.
-2. `POST /api/auth/forgot-password` for a real account logs
-   `via resend` (or `via webhook`), not `via log`.
+2. Boot does not warn about `EMAIL_FROM`. A real signup or reset logs
+   `via resend` (or `via webhook`). `was not delivered` means the provider
+   rejected it.
 3. The message arrives, and the link in it opens `/verify` or the reset form on
    `PUBLIC_APP_URL`.
 4. `e2e/account-recovery.spec.ts` skips itself when email is on, because the

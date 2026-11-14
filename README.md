@@ -125,6 +125,28 @@ set, OG tags, canonical URLs, and `/robots.txt` rewrite automatically at serve t
 For error monitoring set `SENTRY_DSN` (server) and `VITE_SENTRY_DSN` (browser).
 Regenerate pose WebP siblings with `npm run gen:pose-webp` after adding PNGs.
 
+### Email verification and password reset
+
+Signup asks people to verify their email only when a mail transport is
+configured. Without one, signup signs them in and shows a one-time recovery
+code instead. Set these on Render (**Environment**), then redeploy. Do not
+commit the key.
+
+| Variable | Purpose |
+| --- | --- |
+| `RESEND_API_KEY` | Resend API key. Preferred transport. |
+| `EMAIL_FROM` | From address on a **domain verified in Resend**, e.g. `Sadhana <no-reply@yourdomain.com>`. The default `onboarding@resend.dev` only delivers to the Resend account owner, so real users never get the link and login stays on "Verify your email". |
+| `EMAIL_WEBHOOK_URL` | Optional alternative to Resend: `POST {to, from, subject, text, html, kind}`. |
+| `PUBLIC_APP_URL` | Origin written into verification and reset links. |
+
+Boot logs a warning when the key is set but `EMAIL_FROM` cannot deliver.
+Signup tells the person when the send failed (`emailSent: false`) instead of
+saying to check an inbox that will stay empty. Sign-in and `/verify` both have
+**Resend verification email**. Password reset uses the same transport and the
+same failure log. Details: `docs/account-recovery-config.md`. Confirm with
+`GET /api/auth/mail-status` → `{"emailEnabled": true}` and a real inbox, not
+only the flag.
+
 ### Web Push reminders: VAPID keys
 
 Closed-tab reminders use Web Push, which needs a VAPID key pair. A browser's
