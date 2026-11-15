@@ -7702,24 +7702,96 @@ export type BreathTechnique = {
   sanskrit?: string;
   tagline: string;
   description: string;
+  /** What to do, in order. The timer follows `phases`; these lines say how. */
+  steps: string[];
   // phase pattern, e.g. [{label:"Inhale", seconds:4}, ...]
   phases: { label: string; seconds: number }[];
   defaultRounds: number;
   alternateNostril?: boolean;
   rapid?: boolean;
+  /**
+   * "experienced" practices use forceful breathing. The page will not start
+   * them until experience is "some" or "regular".
+   */
+  level?: "any" | "experienced";
   pattern: string; // human-readable rhythm label, e.g. "4-4-4-4"
-  benefits: string[]; // exactly 3
+  benefits: string[]; // exactly 3, what you can notice — not a health claim
+  /** How to stay safe while the timer is running. */
+  safety: string;
   avoid: string; // "who should avoid"
 };
 
 export const BREATHING: BreathTechnique[] = [
   {
+    slug: "dirga",
+    name: "Dirga",
+    sanskrit: "Dīrgha (three-part breath)",
+    tagline: "One breath that fills the belly, then the ribs, then the chest.",
+    description:
+      "Dirga, also called the three-part breath, is a slow breath in three regions. It is not three separate gasps. The inhale fills from the belly upward, and the exhale empties from the chest downward. Sit or lie down. A hand on the belly makes the first part easier to feel.",
+    steps: [
+      "Sit upright or lie on your back. Rest one hand on the belly.",
+      "Inhale through the nose: let the belly rise, then the ribs widen, then the upper chest lift — one smooth breath.",
+      "Exhale through the nose: upper chest softens, ribs narrow, belly draws gently in.",
+      "Keep the breath quiet. If you get dizzy, go back to an ordinary breath.",
+    ],
+    phases: [
+      { label: "Inhale — belly", seconds: 2 },
+      { label: "Inhale — ribs", seconds: 2 },
+      { label: "Inhale — chest", seconds: 2 },
+      { label: "Exhale — chest", seconds: 2 },
+      { label: "Exhale — ribs", seconds: 2 },
+      { label: "Exhale — belly", seconds: 2 },
+    ],
+    defaultRounds: 6,
+    pattern: "2-2-2 · 2-2-2",
+    benefits: [
+      "You can feel the breath move through belly, ribs, and chest",
+      "The inhale and the exhale each last about six counts",
+      "A way to notice where your breath usually stays small",
+    ],
+    safety: "Do not force the belly out or pull it in. Stop if you feel dizzy, short of breath, or strained. Breathe through the nose the whole time.",
+    avoid: "Skip this if breathing deeply is painful, or if you are short of breath at rest. In pregnancy, keep the belly soft and the breath easy — do not strain it.",
+  },
+  {
+    slug: "sama-vritti",
+    name: "Sama Vritti",
+    sanskrit: "Samavṛtti",
+    tagline: "Inhale and exhale for the same count, with no hold.",
+    description:
+      "Sama Vritti means an even breath: the inhale and the exhale take the same time. This version has no retention. Box breathing is a different pattern — it adds a hold after the inhale and after the exhale. If four counts feels long, use a shorter count you can finish without strain.",
+    steps: [
+      "Sit comfortably and breathe through the nose.",
+      "Inhale for four counts.",
+      "Exhale for four counts, with no pause in between.",
+      "Keep the breath smooth and quiet. Shorten both sides together if you need to.",
+    ],
+    phases: [
+      { label: "Inhale", seconds: 4 },
+      { label: "Exhale", seconds: 4 },
+    ],
+    defaultRounds: 8,
+    pattern: "4-4",
+    benefits: [
+      "Inhale and exhale stay the same length",
+      "There is no breath hold to manage",
+      "A steady count you can follow while sitting",
+    ],
+    safety: "The two sides stay matched. If you gasp at the end of the exhale, both counts are too long. Stop if you feel light-headed.",
+    avoid: "Skip long counts if you are short of breath, pregnant and uncomfortable holding a rhythm, or you feel anxious when the breath is paced. An ordinary breath is always available.",
+  },
+  {
     slug: "box-breathing",
     name: "Box Breathing",
-    sanskrit: "Sama Vritti",
-    tagline: "Equal four-count breath to steady the nervous system.",
+    tagline: "A square count: inhale, hold, exhale, hold.",
     description:
-      "A balanced, square rhythm \u2014 inhale, hold, exhale, hold, each for the same count. Used widely to calm the mind and sharpen focus before a demanding task.",
+      "Box breathing is a modern four-part count. Inhale, hold, exhale, and hold again, each for the same number. It is not Sama Vritti: Sama Vritti has no holds. Use the hold controls to shorten or skip the pauses.",
+    steps: [
+      "Sit upright and breathe through the nose.",
+      "Inhale for four.",
+      "Hold with the lungs full for four, without locking the throat.",
+      "Exhale for four, then hold with the lungs empty for four.",
+    ],
     phases: [
       { label: "Inhale", seconds: 4 },
       { label: "Hold", seconds: 4 },
@@ -7729,19 +7801,109 @@ export const BREATHING: BreathTechnique[] = [
     defaultRounds: 5,
     pattern: "4-4-4-4",
     benefits: [
-      "Calms the nervous system and lowers stress",
-      "Improves focus and mental clarity",
-      "Easy to learn and practice anywhere",
+      "Four equal parts, including two pauses",
+      "A count you can see on the timer",
+      "The holds can be shortened or skipped",
     ],
-    avoid: "Generally safe for everyone. If holding the breath causes anxiety, shorten the holds or skip them.",
+    safety: "Do not grip or strain during the holds. If a hold makes you anxious or dizzy, skip the holds and breathe in and out evenly.",
+    avoid: "Skip the holds if you are pregnant, have high blood pressure, or you feel panicky when the breath pauses. Stop if you feel light-headed.",
+  },
+  {
+    slug: "nadi-shodhana",
+    name: "Nadi Shodhana",
+    sanskrit: "Nāḍī Śodhana",
+    tagline: "Alternate-nostril breath, without retention.",
+    description:
+      "Nadi Shodhana is alternate-nostril breathing. This is the beginner form: no breath holding. One round is inhale left, exhale right, inhale right, exhale left. Use the right hand if that is comfortable — thumb closes the right nostril, ring finger closes the left. The touch stays light.",
+    steps: [
+      "Sit tall. Rest the left hand on the knee.",
+      "Close the right nostril. Inhale through the left.",
+      "Close the left nostril. Exhale through the right, then inhale through the right.",
+      "Close the right nostril. Exhale through the left. That is one round.",
+    ],
+    phases: [
+      { label: "Inhale left", seconds: 4 },
+      { label: "Exhale right", seconds: 4 },
+      { label: "Inhale right", seconds: 4 },
+      { label: "Exhale left", seconds: 4 },
+    ],
+    defaultRounds: 6,
+    alternateNostril: true,
+    pattern: "left · right · right · left",
+    benefits: [
+      "You breathe through one nostril at a time",
+      "Each round visits both sides",
+      "This version does not hold the breath",
+    ],
+    safety: "Do not pinch the nose hard, and do not add holds. If either nostril is blocked, set the hand down and breathe through both. Stop if you feel dizzy.",
+    avoid: "Skip the hand position when you have a cold, a sinus infection, or a recent nose injury. Do not use this to try to clear a blocked nose.",
+  },
+  {
+    slug: "ujjayi",
+    name: "Ujjayi",
+    sanskrit: "Ujjāyī",
+    tagline: "A soft throat sound on an even inhale and exhale.",
+    description:
+      "Ujjayi is an even breath with a quiet sound at the back of the throat, a little like fogging a mirror with the mouth closed. The inhale and the exhale are the same length. The sound should be soft enough that someone next to you might not hear it.",
+    steps: [
+      "Sit or stand. Breathe through the nose.",
+      "Slightly narrow the back of the throat so the breath makes a soft, even sound.",
+      "Inhale for five and exhale for five.",
+      "If the throat feels tight or the voice feels strained, drop the sound and keep the even count.",
+    ],
+    phases: [
+      { label: "Inhale", seconds: 5 },
+      { label: "Exhale", seconds: 5 },
+    ],
+    defaultRounds: 8,
+    pattern: "5-5",
+    benefits: [
+      "A soft sound you can follow",
+      "Inhale and exhale stay the same length",
+      "A pace you can use while you move",
+    ],
+    safety: "The throat stays soft. There is no hold. If you feel strain, heat in the throat, or a scratchy voice, breathe silently.",
+    avoid: "Skip the throat sound with a sore throat, a throat infection, or if it makes you tense. The even count can continue without the sound.",
+  },
+  {
+    slug: "bhramari",
+    name: "Bhramari",
+    sanskrit: "Bhramarī",
+    tagline: "A soft humming sound on the exhale.",
+    description:
+      "Bhramari is the humming breath. Inhale quietly through the nose, then exhale with a low, steady hum, lips gently closed, jaw loose. You can feel a buzz in the face and chest. Covering the ears is optional and not required here.",
+    steps: [
+      "Sit comfortably. Inhale through the nose.",
+      "Close the lips and hum on the exhale, softly, for about eight counts.",
+      "Keep the jaw, tongue, and shoulders loose.",
+      "Return to a quiet breath if the hum feels forced or you feel pressure in the head.",
+    ],
+    phases: [
+      { label: "Inhale", seconds: 4 },
+      { label: "Exhale (hum)", seconds: 8 },
+    ],
+    defaultRounds: 6,
+    pattern: "4-8 · humming",
+    benefits: [
+      "The exhale has a sound you can feel",
+      "The hum is longer than the inhale",
+      "The volume stays soft on purpose",
+    ],
+    safety: "Hum quietly. Do not strain the voice or press the ears. Stop if you feel pressure, pain, or dizziness.",
+    avoid: "Skip this with an ear infection, a sinus infection that hurts when you hum, or a voice you have been told to rest.",
   },
   {
     slug: "four-seven-eight",
     name: "4-7-8 Breath",
-    sanskrit: "Relaxing Breath",
-    tagline: "A long exhale that invites the body toward rest.",
+    tagline: "A modern count: inhale 4, hold 7, exhale 8.",
     description:
-      "Inhale for four, hold for seven, and exhale slowly for eight. The extended exhale activates the parasympathetic system, making it a favorite for winding down before sleep.",
+      "4-7-8 is a modern breathing count, not a classical pranayama name. Inhale through the nose for four, hold for seven, and exhale for eight — traditionally taught out through the mouth, with the lips softly parted. Four rounds is the usual starting amount. The long hold is the demanding part.",
+    steps: [
+      "Sit or lie down.",
+      "Inhale through the nose for four.",
+      "Hold for seven only if that feels easy. Otherwise shorten or skip the hold.",
+      "Exhale for eight, through the mouth or the nose, whichever is quieter for you.",
+    ],
     phases: [
       { label: "Inhale", seconds: 4 },
       { label: "Hold", seconds: 7 },
@@ -7750,95 +7912,97 @@ export const BREATHING: BreathTechnique[] = [
     defaultRounds: 4,
     pattern: "4-7-8",
     benefits: [
-      "Eases the body toward sleep",
-      "Reduces anxiety and racing thoughts",
-      "Slows the heart rate",
+      "The exhale is twice the inhale",
+      "The hold is optional — the controls can shorten or skip it",
+      "Four rounds is a complete practice",
     ],
-    avoid: "Start with fewer rounds if you feel lightheaded. Those with low blood pressure should rise slowly afterward.",
+    safety: "Do not stack extra rounds to make yourself sleep. If the hold feels tight, skip it. Stop if you feel dizzy, and sit or lie still before you stand up.",
+    avoid: "Skip or shorten the hold if you are pregnant, have high blood pressure, or holding the breath makes you anxious. This is not a treatment for insomnia.",
   },
   {
-    slug: "ujjayi",
-    name: "Ujjayi",
-    sanskrit: "Victorious Breath",
-    tagline: "A soft ocean-sound breath that anchors a flow.",
+    slug: "sitali",
+    name: "Sitali",
+    sanskrit: "Śītalī",
+    tagline: "A cooling inhale through a curled tongue, or through the teeth.",
     description:
-      "A gentle constriction at the back of the throat creates a soft, audible ocean sound on an even five-count inhale and exhale. Often paired with movement to keep the mind absorbed.",
+      "Sitali is a cooling breath. Curl the tongue into a tube and inhale through the mouth, then close the mouth and exhale through the nose. If your tongue does not curl, use Sitkari instead: part the lips and inhale through the teeth, then exhale through the nose. The inhale feels cool. It does not treat overheating.",
+    steps: [
+      "Sit upright.",
+      "Curl the tongue; if you cannot, inhale gently through the teeth with the lips parted.",
+      "Inhale through the mouth for four.",
+      "Close the mouth and exhale through the nose for six.",
+    ],
     phases: [
-      { label: "Inhale", seconds: 5 },
-      { label: "Exhale", seconds: 5 },
+      { label: "Inhale (mouth)", seconds: 4 },
+      { label: "Exhale (nose)", seconds: 6 },
     ],
     defaultRounds: 8,
-    pattern: "5-5",
+    pattern: "4-6 · mouth then nose",
     benefits: [
-      "Builds focus and internal heat",
-      "Steadies and lengthens the breath",
-      "Soothes the mind during practice",
+      "The inhale comes in through the mouth and feels cool",
+      "The exhale leaves through the nose",
+      "Sitkari is the same pattern if the tongue will not curl",
     ],
-    avoid: "Ease off the throat constriction if it strains the voice. Skip if you have a throat infection.",
-  },
-  {
-    slug: "nadi-shodhana",
-    name: "Nadi Shodhana",
-    sanskrit: "Alternate Nostril",
-    tagline: "Balancing breath alternating between the nostrils.",
-    description:
-      "Breathe through one nostril at a time, switching sides each round, to balance the left and right energy channels. The visualizer indicates which nostril is active each round.",
-    phases: [
-      { label: "Inhale", seconds: 4 },
-      { label: "Hold", seconds: 4 },
-      { label: "Exhale", seconds: 4 },
-      { label: "Hold", seconds: 4 },
-    ],
-    defaultRounds: 6,
-    alternateNostril: true,
-    pattern: "4-4-4-4 \u00b7 alternating sides",
-    benefits: [
-      "Balances the left and right hemispheres",
-      "Calms the mind and reduces stress",
-      "Improves respiratory function",
-    ],
-    avoid: "Skip the nostril blocking if you have a cold or blocked sinuses; breathe evenly through both instead.",
-  },
-  {
-    slug: "bhramari",
-    name: "Bhramari",
-    sanskrit: "Humming Bee Breath",
-    tagline: "A humming exhale that quiets a busy mind.",
-    description:
-      "Inhale gently, then hum softly like a bee on a long exhale, feeling the vibration in the head and chest. The sound and vibration are deeply soothing to the nervous system.",
-    phases: [
-      { label: "Inhale", seconds: 4 },
-      { label: "Exhale (hum)", seconds: 8 },
-    ],
-    defaultRounds: 6,
-    pattern: "4-8 \u00b7 humming",
-    benefits: [
-      "Relieves stress, anger, and anxiety",
-      "Soothes the nervous system through vibration",
-      "Helps quiet mental chatter",
-    ],
-    avoid: "Avoid forcing the hum. Skip if you have an active ear infection.",
+    safety: "Keep the inhale gentle. Do not practice in very cold or polluted air. Stop if your teeth, tongue, or throat feel irritated, or if you feel light-headed.",
+    avoid: "Skip this with asthma that is irritated by cold air, sensitive teeth, or a mouth you have been told to rest. It is not a way to manage heat illness — get out of the heat and get help if you are overheated.",
   },
   {
     slug: "kapalabhati",
     name: "Kapalabhati",
-    sanskrit: "Skull-Shining Breath",
-    tagline: "Rapid, energizing breath of fire.",
+    sanskrit: "Kapālabhāti",
+    tagline: "Short, active exhales. The inhale is passive. Not a first practice.",
     description:
-      "Short, forceful exhales through the nose with passive inhales, performed in rapid bursts followed by a rest. Energizing and cleansing \u2014 practice on an empty stomach.",
+      "Kapalabhati is a cleansing breath, not a slow pranayama. You sit, and the exhale is a short pulse as the belly draws back; the inhale happens by itself when the belly releases. Practice only on an empty stomach, and only for the short bursts on the timer. This is easy to overdo.",
+    steps: [
+      "Sit tall. Rest the hands on the knees. Take a few ordinary breaths first.",
+      "Exhale sharply through the nose by drawing the belly in. Let the inhale return on its own.",
+      "Keep the shoulders and face still. Stay slower than you think you should.",
+      "When the timer says rest, stop completely and breathe normally.",
+    ],
     phases: [
       { label: "Rapid breaths", seconds: 15 },
-      { label: "Rest", seconds: 10 },
+      { label: "Rest", seconds: 15 },
     ],
-    defaultRounds: 3,
+    defaultRounds: 2,
     rapid: true,
-    pattern: "rapid pumping \u00b7 rest",
+    level: "experienced",
+    pattern: "active exhales · rest",
     benefits: [
-      "Energizes the body and mind",
-      "Strengthens the diaphragm and core",
-      "Clears and invigorates the lungs",
+      "The exhale is active and the inhale is passive",
+      "Each burst is short and followed by rest",
+      "You stop as soon as the rest phase begins",
     ],
-    avoid: "Avoid during pregnancy, with high blood pressure, heart conditions, hernia, or on a full stomach.",
+    safety: "Stop at once if you feel dizzy, tingling, pain, chest tightness, or anxiety. Do not speed up to finish the timer. Sit still through the rest. Do not practice on a full stomach.",
+    avoid: "Do not practice if you are pregnant, have high blood pressure, a heart condition, a hernia, glaucoma, epilepsy, a recent surgery, or you are menstruating and cramping. This is not a beginner breath.",
+  },
+  {
+    slug: "bhastrika",
+    name: "Bhastrika",
+    sanskrit: "Bhastrikā",
+    tagline: "Forceful inhale and exhale, like a bellows. Strong caution.",
+    description:
+      "Bhastrika is bellows breath. Both the inhale and the exhale are active and audible through the nose, unlike Kapalabhati, where only the exhale is active. It is stimulating and it is not a first breath practice. The timer uses a short burst and a longer rest. Stay well below your maximum effort.",
+    steps: [
+      "Sit tall, on an empty stomach. Take three ordinary breaths.",
+      "Inhale and exhale through the nose with equal force, about one breath a second. Keep the face relaxed.",
+      "Stop the moment you feel dizzy, tingly, or short of breath — do not wait for the timer.",
+      "Rest and breathe quietly for the whole rest phase before another burst.",
+    ],
+    phases: [
+      { label: "Rapid breaths", seconds: 10 },
+      { label: "Rest", seconds: 20 },
+    ],
+    defaultRounds: 2,
+    rapid: true,
+    level: "experienced",
+    pattern: "forceful both ways · rest",
+    benefits: [
+      "Both the inhale and the exhale are active",
+      "The burst is ten seconds, then a longer rest",
+      "It is meant to stay slower than your maximum",
+    ],
+    safety: "Stop immediately if you feel dizzy, tingling, chest pain, pounding, or anxiety. Do not practice standing. Do not combine it with breath holds. If you have never done this with a teacher, leave it for later.",
+    avoid: "Do not practice if you are pregnant, have high or low blood pressure, a heart condition, panic attacks, a hernia, epilepsy, glaucoma, a recent surgery, or you are on a full stomach. Beginners should not start here.",
   },
 ];
 
