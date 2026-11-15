@@ -12,7 +12,7 @@
  *   - API: never cached. Practice data must not be served stale.
  *   - Push: show gentle practice reminders when the tab is closed.
  */
-const VERSION = "v7";
+const VERSION = "v8";
 const SHELL_CACHE = `sadhana-shell-${VERSION}`;
 const ASSET_CACHE = `sadhana-assets-${VERSION}`;
 const OFFLINE_CACHE = "sadhana-offline-v1";
@@ -164,8 +164,24 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.startsWith("/api/")) return;
 
-  // Never cache Range or progressive media — browser needs real 206 responses.
-  if (request.headers.has("Range") || isMediaStream(url)) return;
+  // Range requests need a real 206. Full audio that was saved into the offline
+  // pack can play without a connection. Video streams stay on the network.
+  if (request.headers.has("Range")) return;
+  if (isMediaStream(url)) {
+    const audio =
+      url.pathname.startsWith("/audio/") ||
+      url.pathname.startsWith("/voice/") ||
+      /\.mp3$/i.test(url.pathname);
+    if (!audio) return;
+    event.respondWith(
+      caches.open(OFFLINE_CACHE).then(async (offline) => {
+        const hit = await offline.match(request);
+        if (hit) return hit;
+        return fetch(request);
+      }),
+    );
+    return;
+  }
 
   if (request.mode === "navigate") {
     // Path-based routing: a navigation can be any real path (`/asanas/tadasana`),

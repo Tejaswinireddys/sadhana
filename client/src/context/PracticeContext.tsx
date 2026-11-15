@@ -11,6 +11,7 @@ import {
   type PersistedPractice,
   type PersistedProgress,
 } from "@/lib/practicePersist";
+import { loadOfflinePractice } from "@/lib/offlinePack";
 import {
   adaptPoseSlugsForRestrictions,
   loadCareRegions,
@@ -147,6 +148,27 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
   const [progress, setProgress] = useState<PersistedProgress | null>(initial.progress);
   const [needsRestore, setNeedsRestore] = useState(!!initial.progress?.started);
   const [queuePending, setQueuePending] = useState(initial.queuePending);
+
+  // A practice saved for offline lives in localStorage. Use it only when this
+  // tab has no queue and the browser says it is offline, so an old snapshot
+  // does not replace today's practice on a normal visit.
+  useEffect(() => {
+    if (todays.length > 0 || queuePending) return;
+    if (typeof navigator !== "undefined" && navigator.onLine) return;
+    const snap = loadOfflinePractice();
+    if (!snap) return;
+    let live = true;
+    void loadCatalog().then(({ asanaBySlug }) => {
+      if (!live) return;
+      const next = queueFromSaved(snap, asanaBySlug);
+      if (next.todays.length === 0) return;
+      setTodays(next.todays);
+      setMetaState(next.meta);
+    });
+    return () => {
+      live = false;
+    };
+  }, [todays.length, queuePending]);
 
   // The catalog is not part of the shell. Resolve a saved queue only on a
   // route that shows it, and don't wipe sessionStorage while that is in flight.

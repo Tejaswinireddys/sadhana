@@ -3,6 +3,7 @@
  * Complements the service worker; API data is never stored here.
  */
 import { track } from "./analytics";
+import { loadPersistedPractice, type PersistedPractice } from "./practicePersist";
 
 export const OFFLINE_CACHE = "sadhana-offline-v1";
 
@@ -14,7 +15,7 @@ export type OfflineManifest = {
 
 /** Core assets useful for a short offline practice when already visited once. */
 export function defaultOfflineManifest(): OfflineManifest {
-  const base = import.meta.env.BASE_URL || "/";
+  const base = import.meta.env?.BASE_URL || "/";
   const join = (p: string) => (base.endsWith("/") ? `${base}${p.replace(/^\//, "")}` : `${base}/${p.replace(/^\//, "")}`);
   return {
     version: "1",
@@ -31,6 +32,58 @@ export function defaultOfflineManifest(): OfflineManifest {
       join("poses/adho-mukha-svanasana.webp"),
     ],
   };
+}
+
+const OFFLINE_PRACTICE_KEY = "sadhana.offline.practice";
+
+/** Illustrations and narration for a queued practice. Audio is cached only if the server returns it. */
+export function practiceOfflineUrls(slugs: readonly string[], base = "/"): string[] {
+  const join = (p: string) =>
+    base.endsWith("/") ? `${base}${p.replace(/^\//, "")}` : `${base}/${p.replace(/^\//, "")}`;
+  const urls: string[] = [];
+  for (const slug of slugs) {
+    if (!slug) continue;
+    urls.push(join(`poses/${slug}.webp`), join(`audio/pose-${slug}.mp3`));
+  }
+  return urls;
+}
+
+export function offlineManifestForSlugs(slugs: readonly string[]): OfflineManifest {
+  const shell = defaultOfflineManifest();
+  const extra = practiceOfflineUrls(slugs);
+  return {
+    ...shell,
+    urls: [...new Set([...shell.urls, ...extra])],
+  };
+}
+
+export function saveOfflinePractice(practice: PersistedPractice | null): void {
+  try {
+    if (!practice || practice.poses.length === 0) {
+      localStorage.removeItem(OFFLINE_PRACTICE_KEY);
+      return;
+    }
+    localStorage.setItem(OFFLINE_PRACTICE_KEY, JSON.stringify(practice));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function loadOfflinePractice(): PersistedPractice | null {
+  try {
+    const raw = localStorage.getItem(OFFLINE_PRACTICE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedPractice;
+    if (!parsed || !Array.isArray(parsed.poses) || parsed.poses.length === 0) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** The practice to keep when the device is offline: the open queue, or the one last saved. */
+export function practiceToSaveOffline(): PersistedPractice | null {
+  return loadPersistedPractice() ?? loadOfflinePractice();
 }
 
 export async function estimateOfflineBytes(urls: string[]): Promise<number> {

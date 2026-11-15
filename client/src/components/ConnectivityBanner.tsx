@@ -136,7 +136,7 @@ export function ConnectivityBanner() {
       <WifiOff className="h-4 w-4 shrink-0" aria-hidden />
       <span>
         {offline
-          ? "You're offline — practice will save when you're back online."
+          ? "You're offline. A practice you saved on this device can still open. It will sync when you are back."
           : "Having trouble reaching Sadhana. Checking again shortly…"}
       </span>
       {!offline && (
