@@ -2,7 +2,7 @@ import { Link, useParams, useLocation } from "wouter";
 import { WithheldPoseImage } from "@/components/WithheldPoseImage";
 import { poseImageWithheld } from "@/data/poseImageAccuracy";
 import { posesQueued } from "@/lib/plural";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,7 @@ import { DailyProgram } from "@/components/DailyProgram";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { pathwayBySlug, asanaBySlug } from "@/data/content";
-import type { PathwayWeek } from "@/data/content";
+import type { PathwayCare, PathwayWeek } from "@/data/content";
 import { usePractice } from "@/context/PracticeContext";
 import type { Enrollment, Session } from "@shared/schema";
 import { todayISO, daysSince } from "@/lib/sadhana";
@@ -32,6 +32,61 @@ import {
 } from "@/lib/pathwayTiming";
 
 const MS_PER_DAY = 86400000;
+
+function TrimesterNotes({ notes }: { notes: NonNullable<PathwayCare["trimesters"]> }) {
+  const [which, setWhich] = useState<"first" | "second" | "third" | null>(null);
+  const options = [
+    ["first", "First"],
+    ["second", "Second"],
+    ["third", "Third"],
+  ] as const;
+  return (
+    <div className="space-y-2" data-testid="pathway-trimester">
+      <p className="font-medium">Which trimester are you in?</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map(([id, label]) => (
+          <Button
+            key={id}
+            type="button"
+            size="sm"
+            variant={which === id ? "default" : "outline"}
+            className="min-h-11"
+            aria-pressed={which === id}
+            onClick={() => setWhich(id)}
+            data-testid={`trimester-${id}`}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
+      <p className="text-muted-foreground" data-testid="trimester-note">
+        {which ? notes[which] : "Choose one. The note says what to skip. It does not change the poses for you."}
+      </p>
+    </div>
+  );
+}
+
+function PathwayCareNotes({ care }: { care: PathwayCare }) {
+  return (
+    <div className="space-y-3 rounded-lg border border-border p-4 text-sm" data-testid="pathway-care">
+      <p>
+        <span className="font-medium">Who should skip this. </span>
+        <span className="text-muted-foreground">{care.avoid}</span>
+      </p>
+      <p data-testid="pathway-stop-if">
+        <span className="font-medium">Stop if. </span>
+        <span className="text-muted-foreground">{care.stopIf}</span>
+      </p>
+      {care.providerNote && (
+        <p data-testid="pathway-provider">
+          <span className="font-medium">Check with your provider. </span>
+          <span className="text-muted-foreground">{care.providerNote}</span>
+        </p>
+      )}
+      {care.trimesters && <TrimesterNotes notes={care.trimesters} />}
+    </div>
+  );
+}
 
 /** Week numbers (1-based) that have at least one logged session for this pathway. */
 function completedWeeksFromSessions(
@@ -170,6 +225,7 @@ export default function PathwayDetail() {
                 {pathway.goalDescription}
               </p>
             )}
+            {pathway.care && <PathwayCareNotes care={pathway.care} />}
             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
               <Badge variant="outline" className="gap-1">
                 <CalendarDays className="h-3 w-3" />{" "}
