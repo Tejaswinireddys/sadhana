@@ -52,7 +52,30 @@ export type EmailResult = {
   error?: string;
 };
 
-const SMTP_TIMEOUT_MS = 20_000;
+const SMTP_TIMEOUT_MS = 8_000;
+/** Whole send, including a hung SMTP socket or a Resend request that never returns. */
+const SEND_DEADLINE_MS = 8_000;
+
+/**
+ * Resolve `work`, or `fallback` if it is still pending after `ms`.
+ * Password reset waits on this. The browser gives up at 15s, so a provider
+ * that never answers must not be allowed to run that long.
+ */
+export function settleWithin<T>(ms: number, work: Promise<T>, fallback: T): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
 
 let smtpTransporter: Transporter | null = null;
 let smtpTransporterKey: string | null = null;
@@ -296,7 +319,18 @@ function wrapHtml(body: string): string {
   return `<div style="font-family:Georgia,serif;line-height:1.5;color:#1a2e28;max-width:560px">${body}<p style="color:#667;font-size:12px;margin-top:24px">Sadhana — guided yoga practice</p></div>`;
 }
 
-export async function sendAppEmail(input: SendEmailInput): Promise<SendEmailResult> {
+export function sendAppEmail(input: SendEmailInput): Promise<SendEmailResult> {
+  const provider = resolveMailProvider();
+  const mode: EmailTransportMode =
+    provider === "smtp" ? "smtp" : provider === "resend" ? "resend" : provider === "webhook" ? "webhook" : "log";
+  return settleWithin(SEND_DEADLINE_MS, deliverEmail(input), {
+    sent: false,
+    mode,
+    error: "Email send timed out",
+  });
+}
+
+async function deliverEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const to = input.to.trim().toLowerCase();
   if (!to || !to.includes("@")) {
     return { sent: false, mode: "log", error: "No recipient email" };
@@ -326,6 +360,7 @@ export async function sendAppEmail(input: SendEmailInput): Promise<SendEmailResu
     try {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
+        signal: AbortSignal.timeout(SEND_DEADLINE_MS),
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
@@ -358,6 +393,7 @@ export async function sendAppEmail(input: SendEmailInput): Promise<SendEmailResu
     try {
       const res = await fetch(webhook, {
         method: "POST",
+        signal: AbortSignal.timeout(SEND_DEADLINE_MS),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to,

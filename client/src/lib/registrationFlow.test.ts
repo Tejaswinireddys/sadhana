@@ -23,6 +23,11 @@ describe("registration + email verification contract", () => {
     const verify = readFileSync(resolve("client/src/pages/VerifyEmail.tsx"), "utf8");
     assert.match(verify, /data-testid="verify-submit"/);
     assert.match(verify, /data-testid="verify-resend"/);
+    assert.match(verify, /data-testid="verify-didnt-get-email"/);
+    assert.match(verify, /get\("sent"\) === "0"/);
+    assert.match(account, /q\.set\("sent", "0"\)/);
+    assert.equal(/set EMAIL_FROM to an address/.test(account), false);
+    assert.equal(/set EMAIL_FROM to an address/.test(verify), false);
   });
 
   it("gates login until emailVerified and issues verify tokens on signup", () => {
@@ -40,6 +45,13 @@ describe("registration + email verification contract", () => {
       /markEmailVerified\(user\.id\);\s*\n\s*const recoveryCode/.test(routes),
       false,
       "signup marked an unproven address as verified",
+    );
+    assert.match(routes, /MAIL_COULD_NOT_SEND/);
+    assert.equal(/set EMAIL_FROM to an address/.test(routes), false);
+    const forgot = routes.slice(routes.indexOf('app.post("/api/auth/forgot-password"'));
+    assert.ok(
+      forgot.indexOf("emailConfigWarning()") < forgot.indexOf("getUserByEmail"),
+      "a known-bad mail setup must answer before looking up the address",
     );
     assert.match(routes, /sendVerificationEmail/);
     assert.match(routes, /sendWelcomeEmail/);
