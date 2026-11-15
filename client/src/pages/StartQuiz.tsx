@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { usePractice } from "@/context/PracticeContext";
 import { asanaBySlug } from "@/data/content";
 import { buildQuizPlan, parseProgramRef, saveQuizPlan, type QuizAnswers } from "@/data/quizPlan";
+import { buildSessionPreflight } from "@/lib/sessionPreflight";
 import { INTENT_TO_NEED, writePracticePreferences } from "@/lib/practicePreferences";
 import { parseAttribution, attributionProps } from "../../../funnel/attribution";
 import { resolveFlowId } from "../../../funnel/flows";
@@ -129,6 +130,18 @@ export default function StartQuiz() {
   const question = QUESTIONS[index];
   const progress = ((index + (phase === "quiz" ? 1 : QUESTIONS.length)) / QUESTIONS.length) * 100;
   const plan = useMemo(() => buildQuizPlan(answers), [answers]);
+  /** Same difficulty and intensity Today and the pre-practice page derive from this queue. */
+  const planLevel = useMemo(() => {
+    const poses = plan.poses
+      .map((pose) => {
+        const asana = asanaBySlug(pose.slug);
+        return asana ? { ...asana, holdSeconds: pose.holdSeconds, sides: pose.sides } : null;
+      })
+      .filter((pose): pose is NonNullable<typeof pose> => pose != null);
+    if (!poses.length) return null;
+    const spec = buildSessionPreflight({ poses, requestedMinutes: plan.requestedMinutes });
+    return `${spec.difficulty.level} · ${spec.intensity.level}`;
+  }, [plan]);
 
   useEffect(() => {
     writeString(KEYS.welcomeSeen, "1");
@@ -398,9 +411,9 @@ export default function StartQuiz() {
               <h1 className="font-serif text-3xl font-semibold tracking-tight md:text-4xl">
                 {plan.title}
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground" data-testid="plan-level">
                 A {plan.timeLabel} practice focused on {plan.focus}
-                {plan.experience === "new" ? " — beginner-friendly shapes" : ""}.
+                {planLevel ? ` · ${planLevel}` : ""}.
               </p>
               {/*
                 Said once, before anything starts, and with a length that can

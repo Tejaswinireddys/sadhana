@@ -84,7 +84,73 @@ function hold(
   return base;
 }
 
-function templateFor(goal: string, body: string): { slugs: string[]; breathSlug?: string } {
+/**
+ * Brand-new practitioners were handed the same strength list as everyone else,
+ * including Warrior I (Intermediate) and Down Dog (an inversion). The plan
+ * copy said the shapes were beginner-friendly while Today and the pre-practice
+ * page, which label whatever is actually queued, said Intermediate · Strong.
+ * A brand-new plan stays on Beginner shapes whose effort reads as Gentle.
+ */
+/** Restorative beginners used to top up a brand-new plan after harder shapes are removed. */
+const NEWCOMER_GENTLE = [
+  "balasana",
+  "salamba-balasana",
+  "viparita-karani",
+  "supta-baddha-konasana",
+  "constructive-rest",
+  "parsva-savasana",
+  "savasana",
+] as const;
+
+/**
+ * Brand new means Beginner and Gentle on every screen that labels the queue.
+ * Drop anything harder than Beginner, and anything in a family that scores as
+ * strong (inversions, core, backbends, a second standing pose), then fill
+ * back up with restorative shapes so a longer request can still be met.
+ */
+function posesForExperience(slugs: readonly string[], experience: ExperienceLevel): string[] {
+  if (experience !== "new") return [...slugs];
+  const kept: string[] = [];
+  // One stronger shape is enough for a brand-new practice. A second standing
+  // pose or forward bend tips the derived label from Gentle to Moderate.
+  const busier = new Set(["Standing", "Forward Bends", "Hip Openers", "Inversions", "Core", "Backbends"]);
+  let busierCount = 0;
+  for (const slug of slugs) {
+    const pose = asanaBySlug(slug);
+    if (!pose || pose.difficulty !== "Beginner") continue;
+    if (busier.has(pose.category)) {
+      busierCount += 1;
+      if (busierCount > 1) continue;
+    }
+    if (!kept.includes(slug)) kept.push(slug);
+  }
+  for (const slug of NEWCOMER_GENTLE) {
+    if (kept.length >= 7) break;
+    if (!kept.includes(slug) && asanaBySlug(slug)) {
+      kept.splice(Math.max(1, kept.length - 1), 0, slug);
+    }
+  }
+  return kept.length >= 4 ? kept : [...slugs];
+}
+
+function templateFor(
+  goal: string,
+  body: string,
+  experience: ExperienceLevel,
+): { slugs: string[]; breathSlug?: string } {
+  if (experience === "new" && goal === "strength" && body !== "breath") {
+    return {
+      slugs: [
+        "tadasana",
+        "utkatasana",
+        "balasana",
+        "virasana",
+        "viparita-karani",
+        "constructive-rest",
+        "savasana",
+      ],
+    };
+  }
   if (goal === "sleep" || body === "breath") {
     return {
       slugs: [
@@ -128,15 +194,25 @@ function templateFor(goal: string, body: string): { slugs: string[]; breathSlug?
   }
   if (body === "neck") {
     return {
-      slugs: [
-        "sukhasana",
-        "garudasana",
-        "gomukhasana",
-        "balasana",
-        "matsyasana",
-        "viparita-karani",
-        "savasana",
-      ],
+      slugs:
+        experience === "new"
+          ? [
+              "sukhasana",
+              "bharadvajasana",
+              "balasana",
+              "salamba-balasana",
+              "viparita-karani",
+              "savasana",
+            ]
+          : [
+              "sukhasana",
+              "garudasana",
+              "gomukhasana",
+              "balasana",
+              "matsyasana",
+              "viparita-karani",
+              "savasana",
+            ],
     };
   }
   // calm / full default
@@ -314,7 +390,9 @@ export function buildQuizPlan(answers: QuizAnswers): BuiltQuizPlan {
   const body = answers.body || "full";
   const experience = experienceFor(answers.experience);
   const timeBudget = timeFor(answers.time);
-  const { slugs, breathSlug } = templateFor(goal, body);
+  const shaped = templateFor(goal, body, experience);
+  const slugs = posesForExperience(shaped.slugs, experience);
+  const breathSlug = shaped.breathSlug;
 
   const raw: QuizPose[] = slugs.map((slug, i) => {
     const kind =

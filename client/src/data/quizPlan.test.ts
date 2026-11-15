@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { buildQuizPlan, parseProgramRef, PROGRAM_SEEDS, QUIZ_TIME_OPTIONS } from "./quizPlan.ts";
 import { asanaBySlug } from "./content.ts";
+import { buildSessionPreflight } from "../lib/sessionPreflight.ts";
 
 describe("quizPlan", () => {
   it("builds a real pose queue with resolvable slugs", () => {
@@ -18,6 +19,28 @@ describe("quizPlan", () => {
     for (const p of plan.poses) {
       assert.ok(asanaBySlug(p.slug), `missing asana ${p.slug}`);
     }
+  });
+
+  it("a brand-new gentle-strength plan is Beginner and Gentle, not Intermediate and Strong", () => {
+    const plan = buildQuizPlan({
+      goal: "strength",
+      body: "full",
+      experience: "new",
+      time: "10",
+      habit: "unsure",
+    });
+    const poses = plan.poses.map((pose) => {
+      const asana = asanaBySlug(pose.slug);
+      if (!asana) throw new Error(pose.slug);
+      return { ...asana, holdSeconds: pose.holdSeconds, sides: pose.sides };
+    });
+    const spec = buildSessionPreflight({ poses, requestedMinutes: 10 });
+    assert.equal(spec.difficulty.level, "Beginner");
+    assert.equal(spec.intensity.level, "Gentle");
+    assert.equal(
+      poses.some((pose) => pose.difficulty !== "Beginner"),
+      false,
+    );
   });
 
   it("honors sleep and strength goals with distinct titles", () => {
