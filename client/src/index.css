@@ -754,3 +754,25 @@ html.motion-off .landing-sticky-cta {
     animation: none !important;
   }
 }
+
+/*
+ * Pose detail on a phone. The Practice bar is fixed above the bottom nav, so
+ * if the page itself scrolls, every card passes underneath it. Shrink the
+ * scrollport to stop above that bar instead.
+ */
+@media (max-width: 1023px) {
+  /* `:not(.hidden)` — once a lesson starts the bar is display:none, and
+     reserving its space then pushes the lesson controls off a short screen. */
+  [data-slot="sidebar-inset"]:has([data-testid="sticky-practice-actions"]:not(.hidden)) {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+  [data-slot="sidebar-inset"]:has([data-testid="sticky-practice-actions"]:not(.hidden)) #main-content {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    margin-bottom: calc(3.5rem + 4.75rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 1.25rem;
+  }
+}

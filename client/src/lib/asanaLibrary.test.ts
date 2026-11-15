@@ -47,6 +47,14 @@ describe("asana library filters", () => {
     // Visible family + level chips (not only behind the filter panel).
     assert.match(src, /data-testid="asana-library-quick-filters"/);
     assert.match(src, /chip-row-families/);
+    const row = readFileSync(resolve("client/src/components/ScrollRow.tsx"), "utf8");
+    assert.match(row, /fade-right/);
+    assert.match(row, /pe-10/);
+    assert.match(row, /z-10/);
+    assert.match(row, /w-16/);
+    const css = readFileSync(resolve("client/src/index.css"), "utf8");
+    assert.match(css, /sticky-practice-actions/);
+    assert.match(css, /margin-bottom: calc\(3\.5rem \+ 4\.75rem/);
     assert.match(src, /libraryFamilyChipCounts/);
     assert.match(src, /chip-level-\$\{l\.toLowerCase\(\)\}/);
     assert.match(src, /More filters/);

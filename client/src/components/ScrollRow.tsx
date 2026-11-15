@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -47,28 +48,38 @@ export function ScrollRow({
         tabIndex={0}
         data-testid={testId}
         className={cn(
-          "-mx-1 flex max-w-full gap-3 overflow-x-auto overscroll-x-contain px-1 pb-2",
+          "-mx-1 flex max-w-full gap-3 overflow-x-auto overscroll-x-contain px-1 pe-10 pb-2",
           "snap-x snap-mandatory scroll-smooth",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           "[scrollbar-width:thin]",
         )}
       >
         {children}
+        {/* Keeps the last chip from sitting flush against the clip, so the next one can peek. */}
+        <span className="w-6 shrink-0" aria-hidden />
       </div>
       <div
         aria-hidden
+        data-testid={testId ? `${testId}-fade-left` : undefined}
         className={cn(
-          "pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background to-transparent transition-opacity",
+          "pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-background to-transparent transition-opacity",
           canLeft ? "opacity-100" : "opacity-0",
         )}
       />
       <div
         aria-hidden
+        data-testid={testId ? `${testId}-fade-right` : undefined}
         className={cn(
-          "pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent transition-opacity",
+          "pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-background from-30% to-transparent transition-opacity",
           canRight ? "opacity-100" : "opacity-0",
         )}
       />
+      {canRight ? (
+        <ChevronRight
+          aria-hidden
+          className="pointer-events-none absolute right-0.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+        />
+      ) : null}
     </div>
   );
 }
