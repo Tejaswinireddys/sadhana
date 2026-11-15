@@ -245,6 +245,7 @@ const mmss = formatClock;
 function MoreWaysToPractice({ className }: { className?: string }) {
   const links: Array<{ href: string; label: string; testId: string }> = [
     { href: "/breathing", label: "Breathing", testId: "button-hub-breathing" },
+    { href: "/meditation", label: "Meditation", testId: "button-hub-meditation" },
     { href: "/kids", label: "Kids", testId: "button-hub-kids" },
     { href: "/pathways", label: "Pathways", testId: "button-hub-pathways-more" },
     { href: "/challenges", label: "Challenges", testId: "button-hub-challenges" },

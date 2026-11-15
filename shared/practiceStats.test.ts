@@ -77,6 +77,22 @@ describe("Home progress tiles vs journal fixture", () => {
     assert.notEqual(tiles.daysPracticed.value, stats.currentStreak);
   });
 
+  it("counts breath and meditation minutes inside the same total", () => {
+    const stats = computeStats(
+      [
+        { date: "2026-08-28", durationMinutes: 12, kind: "asana" },
+        { date: "2026-08-28", durationMinutes: 8, kind: "breathing" },
+        { date: "2026-08-28", durationMinutes: 15, kind: "meditation" },
+      ],
+      "2026-08-28",
+    );
+    assert.equal(stats.totalMinutes, 35);
+    assert.equal(stats.breathMinutes, 8);
+    assert.equal(stats.meditationMinutes, 15);
+    assert.equal(stats.breathingSessions, 1);
+    assert.equal(stats.meditationSessions, 1);
+  });
+
   it("refuses to build tiles that would show days practiced below longest stretch", () => {
     assert.throws(
       () =>

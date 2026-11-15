@@ -401,7 +401,7 @@ export default function Home() {
         sessionRowsList.map((row) => ({
           date: row.date,
           durationMinutes: row.durationMinutes,
-          kind: (row.kind as "asana" | "breathing" | undefined) ?? "asana",
+          kind: (row.kind as "asana" | "breathing" | "meditation" | undefined) ?? "asana",
         })),
         todayISO(),
       ),
@@ -934,6 +934,12 @@ export default function Home() {
                 </Card>
               ))}
             </div>
+            {(thisWeek.breathMinutes > 0 || thisWeek.meditationMinutes > 0) && (
+              <p className="text-sm text-muted-foreground" data-testid="week-quiet-minutes">
+                This week's {thisWeek.minutes} minutes include {thisWeek.breathMinutes} from breath and{" "}
+                {thisWeek.meditationMinutes} from meditation.
+              </p>
+            )}
             {thisWeek.sessions === 0 && (
               <p className="text-sm text-muted-foreground" data-testid="week-empty">
                 Nothing yet this week — the week started {formatDate(thisWeek.weekStart)}.
@@ -1060,6 +1066,10 @@ export default function Home() {
         </div>
         <p className="text-xs text-muted-foreground">
           Also:{" "}
+          <Link href="/meditation" className="text-primary hover:underline" data-testid="home-discover-meditation">
+            Meditation
+          </Link>{" "}
+          ·{" "}
           <Link href="/kids" className="text-primary hover:underline" data-testid="home-discover-kids">
             Kids
           </Link>{" "}
