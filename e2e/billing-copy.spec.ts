@@ -82,9 +82,11 @@ for (const state of STATES) {
       const select = page.getByTestId("plan-select-plus");
       const badge = page.getByTestId("plan-billing-badge-plus");
       if (state.name === "disabled") {
+        await expect(intro).toContainText("Plus is coming soon. Everything free stays free.");
         await expect(intro).toContainText(/unavailable/);
         await expect(badge).toHaveText("Not on sale");
-        await expect(select).toHaveText("Subscribe");
+        await expect(select).toHaveText("Coming soon");
+        await expect(select).toBeDisabled();
         await expect(status).toContainText(/unavailable/);
       } else if (state.name === "test") {
         await expect(intro).toContainText("Test checkout — no real charges.");
@@ -97,6 +99,11 @@ for (const state of STATES) {
         await expect(select).toHaveText("Subscribe");
         await expect(select).toBeEnabled();
         await expect(page.getByTestId("paywall-root")).not.toContainText(/test mode|no real charges/i);
+      }
+      if (state.name !== "disabled") {
+        await page.getByTestId("interval-year").click();
+        await expect(page.getByTestId("interval-year")).toContainText("$59.99");
+        await expect(page.getByTestId("plan-price-plus")).toContainText("$59.99/yr");
       }
     });
   });

@@ -49,17 +49,22 @@ describe("prices", () => {
 describe("billing disabled", () => {
   const copy = billingCopy("disabled");
   it("says purchasing is unavailable on every surface", () => {
-    for (const line of [copy.landingPlus, copy.plansIntro, copy.statusNote, copy.freeAccount, copy.gateNote, copy.help]) {
+    for (const line of [copy.landingPlus, copy.plansIntro, copy.freeAccount, copy.gateNote, copy.help]) {
       assert.match(line, /unavailable/i, line);
     }
+    assert.match(copy.statusNote, /Plus is coming soon/);
     assert.equal(copy.manageNote, null);
   });
   it("never invites a purchase or mentions test checkout", () => {
     const text = allText(copy);
     assert.doesNotMatch(text, /test mode|test card|test checkout|upgrade to plus/i);
   });
-  it("does not describe Plus as planned or waitlisted", () => {
-    assert.doesNotMatch(allText(copy), /planned|waitlist|coming soon/i);
+  it("says Plus is coming soon and does not offer a charge", () => {
+    assert.match(copy.plansIntro, /Plus is coming soon\. Everything free stays free\./);
+    assert.match(copy.statusNote, /Plus is coming soon\. Everything free stays free\./);
+    assert.equal(copy.subscribeLabel, "Coming soon");
+    assert.equal(copy.subscribeEnabled, false);
+    assert.doesNotMatch(allText(copy), /waitlist/i);
   });
 });
 
@@ -86,6 +91,7 @@ describe("billing enabled in live mode", () => {
   it("uses normal upgrade wording with the configured prices", () => {
     assert.equal(copy.badge, null);
     assert.equal(copy.subscribeLabel, "Subscribe");
+    assert.equal(copy.subscribeEnabled, true);
     assert.equal(copy.gateCta, "Upgrade to Plus");
     assert.match(copy.landingPlus, /\$9\.99\/month or \$59\.99\/year/);
     assert.match(copy.help, /^Yes\./);
