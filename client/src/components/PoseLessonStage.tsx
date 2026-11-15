@@ -9,7 +9,7 @@ import { PoseReferenceImage } from "./PoseReferenceImage";
  *  - Pausing does not change the image. The old stage swapped to the pose
  *    poster on pause, so pausing mid-lesson jumped to the final shape.
  *  - When there is no reviewed movement demonstration it shows this pose's own
- *    still, labelled "Static reference — movement demonstration unavailable",
+ *    still, labelled "Still image only. This is not a movement demonstration.",
  *    and pairs it with a phase-synchronized posture & modification guide without
  *    misleading camera-angle controls or "live human" badges.
  */

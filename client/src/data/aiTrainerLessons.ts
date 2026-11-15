@@ -86,3 +86,13 @@ export function aiTrainerLessonFor(slug: string): AiTrainerLesson | undefined {
 export function hasAiTrainerLesson(slug: string): boolean {
   return Boolean(AI_TRAINER_LESSONS[slug]);
 }
+
+/**
+ * What a teaching surface may show. A reviewed movement demo wins. An AI
+ * preview is pilot video and must stay labeled as such. Otherwise a still.
+ */
+export function teachingVisual(slug: string, reviewedMovement: boolean): "movement" | "ai-preview" | "still" {
+  if (reviewedMovement) return "movement";
+  if (hasAiTrainerLesson(slug)) return "ai-preview";
+  return "still";
+}
