@@ -11,6 +11,7 @@ import { Link } from "wouter";
 import { ASANAS } from "@/data/content";
 import {
   ArrowRight,
+  BookOpen,
   Compass,
   LayoutGrid,
   Moon,
@@ -41,6 +42,7 @@ const GROUPS = [
       { href: "/builder", label: "Builder", hint: "Craft your own sequence", icon: PlusCircle },
       { href: "/breathing", label: "Breathing", hint: "Guided pranayama", icon: Wind },
       { href: "/meditation", label: "Meditation", hint: "Sits and yoga nidra", icon: Moon },
+      { href: "/eight-limbs", label: "Eight limbs", hint: "One classical card a day", icon: BookOpen },
       { href: "/kids", label: "Kids", hint: "Stories and breath games", icon: Smile },
       { href: "/affirmations", label: "Affirmations", hint: "65 daily intentions", icon: Sparkles },
     ],
