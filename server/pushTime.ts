@@ -11,6 +11,12 @@ export function localHourFor(sub: TimezoneSub, now = new Date()): number {
   return shifted.getUTCHours();
 }
 
+/** Local weekday, 0 = Sunday … 6 = Saturday, in the subscriber's offset. */
+export function localWeekdayFor(sub: TimezoneSub, now = new Date()): number {
+  const shifted = new Date(now.getTime() - sub.timezoneOffsetMinutes * 60_000);
+  return shifted.getUTCDay();
+}
+
 export function localDayHourKey(sub: TimezoneSub, now = new Date()): string {
   const shifted = new Date(now.getTime() - sub.timezoneOffsetMinutes * 60_000);
   const y = shifted.getUTCFullYear();

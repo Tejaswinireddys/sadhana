@@ -46,7 +46,7 @@ import {
   writePracticePreferences,
 } from "@/lib/practicePreferences";
 import { readQuizPlan } from "@/data/quizPlan";
-import { readHabitPlan } from "@/lib/habitPlan";
+import { inAppReminder, isHabitDay, readHabitPlan, restFriendlyStreak, weeklySummary } from "@/lib/habitPlan";
 import { BODY_FILTERS, readBodyLimits, toggleBodyFilter, type BodyLimits } from "@/lib/bodyFilters";
 import type { UserProfile, Enrollment, Journal, Session, CustomFlow } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
@@ -376,6 +376,17 @@ export default function Home() {
   const todayEntry = stats?.heatmap?.find((h) => h.date === todayISO());
   const todayMinutes = todayEntry?.minutes ?? 0;
   const practicedToday = todayMinutes > 0;
+  const reminderLine = inAppReminder({
+    plan: habitPlan,
+    now: new Date(),
+    practicedToday,
+    remindersEnabled: reminderPrefs.enabled,
+  });
+  const friendlyStreak = restFriendlyStreak(
+    new Set(sessionRowsList.map((row) => row.date.slice(0, 10))),
+    habitPlan.days,
+    todayISO(),
+  );
 
   const savePrompt = savePromptDismissed
     ? "none"
@@ -853,6 +864,12 @@ export default function Home() {
         </section>
       )}
 
+      {reminderLine && (
+        <p className="rounded-2xl border border-border bg-card px-4 py-3 text-sm" data-testid="habit-reminder" role="status">
+          {reminderLine}
+        </p>
+      )}
+
       {/* ── 4. This week, compactly — no streak pressure ──────────────────────────────────────── */}
       <section className="space-y-3" aria-labelledby="progress-heading" data-testid="section-progress">
         <div className="flex items-center justify-between gap-2">
@@ -940,6 +957,15 @@ export default function Home() {
                 {thisWeek.meditationMinutes} from meditation.
               </p>
             )}
+            <p className="text-sm text-muted-foreground" data-testid="week-summary">
+              {weeklySummary({
+                days: thisWeek.daysPracticed,
+                sessions: thisWeek.sessions,
+                minutes: thisWeek.minutes,
+                restDayToday: !isHabitDay(habitPlan),
+              })}{" "}
+              Practiced days in a row, not counting planned rest days: {friendlyStreak}. A rest day does not reset it.
+            </p>
             {thisWeek.sessions === 0 && (
               <p className="text-sm text-muted-foreground" data-testid="week-empty">
                 Nothing yet this week — the week started {formatDate(thisWeek.weekStart)}.
