@@ -166,6 +166,17 @@ test.describe("Today leads with one practice", () => {
     await expect(page).toHaveURL(/\/$/);
   });
 
+  test("a body limit keeps the saved plan and drops the pose that conflicts", async ({ page }) => {
+    await seed(page, { "sadhana.quiz.plan": SAVED_PLAN });
+    await page.goto("/");
+    await page.getByTestId("button-preview-poses").click();
+    await expect(page.getByTestId("panel-preview-poses")).toContainText(/Legs Up the Wall/i);
+    await page.getByTestId("body-limit-no-inversions").check();
+    await expect(page.getByTestId("today-practice-title")).toHaveText("Your Better Sleep Ritual");
+    await expect(page.getByTestId("today-practice-reason")).toContainText(/Left out/);
+    await expect(page.getByTestId("panel-preview-poses")).not.toContainText(/Legs Up the Wall/i);
+  });
+
   test("offers exactly three alternatives, each with its own real duration", async ({ page }) => {
     await seed(page);
     await page.goto("/");

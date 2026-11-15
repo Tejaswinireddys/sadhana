@@ -27,6 +27,8 @@ import type { Profile } from "@/data/profiles";
 import { composeTrainerSession, NEED_LABEL, TIME_OPTIONS } from "@/lib/yogaTrainer";
 import type { SessionFit } from "@/lib/sessionFit";
 import type { ExperienceLevel, PracticeIntent } from "@/lib/localPrefs";
+import { poseBlockedReason, poseIsHidden, type BodyFilterId } from "@/lib/bodyFilters";
+import { countOf } from "@/lib/plural";
 
 export type RecommendedPose = {
   slug: string;
@@ -89,6 +91,10 @@ export type HomeContext = {
   hasPracticed: boolean;
   /** The short, gentle first practice for someone who has told us nothing yet. */
   warmup: { title: string; poses: RecommendedPose[] } | null;
+  /** Limits that drop poses. Empty means the queue is unchanged. */
+  bodyFilters?: readonly BodyFilterId[];
+  hiddenSlugs?: readonly string[];
+  likedSlugs?: readonly string[];
 };
 
 const INTENT_NEED: Record<PracticeIntent, string> = {
@@ -136,6 +142,9 @@ export function generatePractice(opts: {
   title?: string;
   /** An ENERGY_OPTIONS value. "Low" keeps Advanced shapes out. */
   energy?: string;
+  bodyFilters?: readonly BodyFilterId[];
+  hiddenSlugs?: readonly string[];
+  likedSlugs?: readonly string[];
 }): PracticeRecommendation {
   const session = composeTrainerSession(
     {
@@ -145,7 +154,12 @@ export function generatePractice(opts: {
       timeMinutes: opts.minutes,
       need: opts.need,
     },
-    { experience: opts.experience },
+    {
+      experience: opts.experience,
+      bodyFilters: opts.bodyFilters,
+      hiddenSlugs: opts.hiddenSlugs,
+      preferSlugs: opts.likedSlugs ? [...opts.likedSlugs] : undefined,
+    },
   );
   const label = opts.title ?? `${NEED_LABEL[opts.need] ?? "Your"} practice`;
   return {
@@ -180,7 +194,43 @@ export function generatePractice(opts: {
  * adjustment: treating them as one kept Today on the onboarding practice
  * after a path was chosen.
  */
+function limitOpts(ctx: HomeContext) {
+  return {
+    bodyFilters: ctx.bodyFilters,
+    hiddenSlugs: ctx.hiddenSlugs,
+    likedSlugs: ctx.likedSlugs,
+  };
+}
+
+/** Drop poses the practitioner has ruled out, and say so. Generated practices are filtered inside the composer so the length is refit first; this catches a saved path or plan. */
+function respectLimits(
+  rec: PracticeRecommendation | null,
+  ctx: HomeContext,
+): PracticeRecommendation | null {
+  if (!rec) return rec;
+  const filters = ctx.bodyFilters ?? [];
+  const hidden = ctx.hiddenSlugs ?? [];
+  if (filters.length === 0 && hidden.length === 0) return rec;
+  const poses = rec.poses.filter((p) => {
+    if (poseIsHidden(p.slug, hidden)) return false;
+    const asana = asanaBySlug(p.slug);
+    return !asana || !poseBlockedReason(asana, filters);
+  });
+  if (poses.length === rec.poses.length) return rec;
+  const dropped = rec.poses.length - poses.length;
+  return {
+    ...rec,
+    poses,
+    reason: `${rec.reason} Left out ${countOf(dropped, "pose")} that conflict with the limits you set.`,
+    meta: { ...rec.meta, introPoseSlug: poses[0]?.slug ?? null },
+  };
+}
+
 export function recommendPractice(ctx: HomeContext): PracticeRecommendation | null {
+  return respectLimits(recommendUnfiltered(ctx), ctx);
+}
+
+function recommendUnfiltered(ctx: HomeContext): PracticeRecommendation | null {
   // Someone who has told us nothing and practised nothing gets the short,
   // gentle first practice, not a composed "Strong / Intermediate" session
   // generated from defaults they never chose.
@@ -287,6 +337,7 @@ export function recommendPractice(ctx: HomeContext): PracticeRecommendation | nu
       minutes,
       experience: experienceFor(ctx),
       reason: `Selected because your focus is ${label}.`,
+      ...limitOpts(ctx),
     });
   }
   if (ctx.intent) {
@@ -296,6 +347,7 @@ export function recommendPractice(ctx: HomeContext): PracticeRecommendation | nu
       experience: experienceFor(ctx),
       reason: `Selected because your focus is ${INTENT_LABEL[ctx.intent]}.`,
       title: ctx.intent === "sleep" ? "Your evening wind-down" : undefined,
+      ...limitOpts(ctx),
     });
   }
   return generatePractice({
@@ -306,6 +358,7 @@ export function recommendPractice(ctx: HomeContext): PracticeRecommendation | nu
       ? "A wind-down, because it's late and you haven't set a focus yet."
       : "A balanced practice — set a focus any time and this changes with it.",
     title: evening ? "Your evening wind-down" : undefined,
+    ...limitOpts(ctx),
   });
 }
 
@@ -350,6 +403,7 @@ export function adjustedPractice(ctx: HomeContext, adjust: HomeAdjust): Practice
     energy,
     experience: ctx.experience ?? "new",
     reason: (mins) => `${adjustedReason(mins)}${energyNote}`,
+    ...limitOpts(ctx),
   });
   return rec;
 
@@ -450,6 +504,7 @@ export function alternativePractices(
       need: primaryNeed,
       minutes: shorter,
       experience,
+      ...limitOpts(ctx),
       // Only claims "the same focus" when the primary was composed for it.
       reason: (mins) =>
         primary?.id.startsWith(`generated:${primaryNeed}:`)
@@ -462,6 +517,7 @@ export function alternativePractices(
           need: gentlerNeed,
           minutes: snapToOfferedMinutes(base),
           experience,
+          ...limitOpts(ctx),
           reason: `${capitalize(needLabel(gentlerNeed))} instead of ${primaryLabel} — slower shapes and longer rests.`,
           title: "Something gentler",
         })
@@ -470,6 +526,7 @@ export function alternativePractices(
       need: contrastNeed,
       minutes: snapToOfferedMinutes(base),
       experience,
+      ...limitOpts(ctx),
       reason: `${capitalize(needLabel(contrastNeed))} instead of ${primaryLabel} — a different thing to ask of today.`,
       title: `${capitalize(needLabel(contrastNeed))} instead`,
     }),
@@ -477,6 +534,7 @@ export function alternativePractices(
       need: evening ? "sleep" : "flexibility",
       minutes: snapToOfferedMinutes(base),
       experience,
+      ...limitOpts(ctx),
       reason: evening
         ? "A wind-down to come back to tonight."
         : "Longer holds in the hips and hamstrings.",
