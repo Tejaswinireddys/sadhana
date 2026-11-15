@@ -15,6 +15,7 @@ import {
 } from "@/lib/auth";
 import { classifyVerifyError, forgetVerifyAttempt, verifyOnce, type VerifyPhase } from "@/lib/verifyEmailFlow";
 import { ArrowRight, CircleCheck, MailCheck } from "lucide-react";
+import { MAIL_COULD_NOT_SEND } from "@shared/mailCopy";
 
 function FieldError({ id, message }: { id: string; message: string | null }) {
   if (!message) return null;
@@ -41,6 +42,8 @@ export default function VerifyEmail() {
 
   const [initial] = useState(() => readQuery());
   const linkToken = initial.get("token") ?? "";
+  /** Signup sets this when the provider did not accept the message. */
+  const emailNotSent = initial.get("sent") === "0";
   const [email, setEmail] = useState(initial.get("email") ?? "");
   const [token, setToken] = useState(linkToken);
   const [phase, setPhase] = useState<VerifyPhase>(linkToken ? "verifying" : "idle");
@@ -163,11 +166,23 @@ export default function VerifyEmail() {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
           <MailCheck className="h-6 w-6" aria-hidden />
         </div>
-        <h1 className="font-serif text-3xl font-semibold tracking-tight">Verify your email</h1>
-        <p className="text-muted-foreground">
-          Open the link we sent, or paste the verification code here to finish creating your
-          account.
+        <h1 className="font-serif text-3xl font-semibold tracking-tight">
+          {emailNotSent ? "We couldn't send the email" : "Verify your email"}
+        </h1>
+        <p className="text-muted-foreground" data-testid="verify-intro">
+          {emailNotSent
+            ? `${MAIL_COULD_NOT_SEND} You can paste a code below if one arrives later.`
+            : "Open the link we sent, or paste the verification code here to finish creating your account."}
         </p>
+        <button
+          type="button"
+          className="inline-flex min-h-11 items-center justify-center font-medium text-foreground underline underline-offset-2"
+          onClick={() => void submitResend()}
+          disabled={resend.isPending}
+          data-testid="verify-didnt-get-email"
+        >
+          {resend.isPending ? "Sending…" : "Didn't get the email?"}
+        </button>
       </header>
 
       {phase === "retry" && (

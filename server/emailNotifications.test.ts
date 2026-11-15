@@ -18,6 +18,7 @@ import {
   sendWelcomeEmail,
   emailConfigWarning,
   emailDeliveryConfigured,
+  settleWithin,
   resolveSmtpConfig,
   resolveMailProvider,
   mailStatusPayload,
@@ -314,6 +315,13 @@ describe("email notification templates", () => {
     } finally {
       globalThis.fetch = original;
     }
+  });
+
+  it("stops waiting when a send never returns", async () => {
+    const started = Date.now();
+    const result = await settleWithin(40, new Promise<string>(() => undefined), "fallback");
+    assert.equal(result, "fallback");
+    assert.ok(Date.now() - started < 500);
   });
 
   it("warns when the Resend key would only deliver to the account owner", () => {

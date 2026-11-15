@@ -50,10 +50,12 @@ import {
   sendPasswordResetEmail,
   sendVerificationEmail,
   sendWelcomeEmail,
+  emailConfigWarning,
   emailDeliveryConfigured,
   mailStatusPayload,
   type SendEmailResult,
 } from "./email";
+import { MAIL_COULD_NOT_SEND } from "@shared/mailCopy";
 import { z } from "zod";
 import { reportError } from "./errorReporting";
 import { buildPoseMediaManifest, isSafeSlug } from "./poseMediaManifest";
@@ -91,6 +93,13 @@ async function issueVerification(user: User): Promise<{ token: string; delivery:
     hashVerifyToken(token),
     verifyTokenExpiry(),
   );
+  const blocked = emailConfigWarning();
+  if (blocked) {
+    console.error(
+      `[auth] verification email for user ${user.id} was not delivered (resend: ${blocked})`,
+    );
+    return { token, delivery: { sent: false, mode: "resend", error: "mail provider cannot deliver" } };
+  }
   const delivery = await sendVerificationEmail({ to: user.email, token });
   if (delivery.sent) {
     console.info(`[auth] verification email for user ${user.id} via ${delivery.mode}`);
@@ -185,7 +194,7 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
       emailSent: delivery.sent,
       message: delivery.sent
         ? "Account created. Check your email for a verification link — it expires in 48 hours. Also check spam."
-        : "Account created, but the verification email could not be sent. Use Resend verification email below. If that keeps failing, set EMAIL_FROM to an address on a domain verified with your mail provider.",
+        : `Account created. ${MAIL_COULD_NOT_SEND}`,
     };
     if (exposeSensitiveAuthToken() || process.env.EXPOSE_RESET_TOKEN === "1") {
       body.verifyToken = verifyToken;
@@ -212,7 +221,7 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
     if (!user.emailVerified && emailDeliveryConfigured()) {
       return res.status(403).json({
         error:
-          "Verify your email before signing in. Check your inbox and spam, or resend the verification email. If nothing arrives, the server's EMAIL_FROM must be an address on a domain verified with your mail provider.",
+          "Verify your email before signing in. Check your inbox and spam, or resend the verification email. If nothing arrives, please try again shortly or contact support.",
         needsVerification: true,
         email: user.email,
       });
@@ -265,6 +274,10 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid email" });
     }
+    if (emailDeliveryConfigured() && emailConfigWarning()) {
+      console.error(`[auth] resend verification not sent: ${emailConfigWarning()}`);
+      return res.status(503).json({ ok: false, error: MAIL_COULD_NOT_SEND });
+    }
     const generic = {
       ok: true as const,
       message:
@@ -279,8 +292,7 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
       // that delivery failed. An unknown address still gets the generic 200.
       return res.status(503).json({
         ok: false,
-        error:
-          "We couldn't send the verification email. Wait a minute and try again. If it keeps failing, set EMAIL_FROM to an address on a domain verified with your mail provider.",
+        error: MAIL_COULD_NOT_SEND,
       });
     }
     if (exposeSensitiveAuthToken() || process.env.EXPOSE_RESET_TOKEN === "1") {
@@ -311,11 +323,17 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid email" });
     }
+    // A from-address Resend will not deliver is known before any lookup, so
+    // the answer is the same for every email and does not wait on the network.
+    if (emailDeliveryConfigured() && emailConfigWarning()) {
+      console.error(`[auth] password reset not sent: ${emailConfigWarning()}`);
+      return res.status(503).json({ ok: false, error: MAIL_COULD_NOT_SEND });
+    }
     const user = await storage.getUserByEmail(parsed.data.email);
     const generic = {
       ok: true as const,
       message: emailDeliveryConfigured()
-        ? "If an account exists for that email, we attempted to send a reset code. It expires in 60 minutes. Check spam, and try again if nothing arrives."
+        ? "If an account exists for that email, we tried to send a reset code. It expires in 60 minutes. If nothing arrives, please try again shortly or contact support."
         : "If an account exists for that email, a reset code was created. It expires in 60 minutes.",
     };
     if (!user) return res.json(generic);

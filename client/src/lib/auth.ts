@@ -148,7 +148,8 @@ export function useClaimDevice() {
 export function useForgotPassword() {
   return useMutation({
     mutationFn: async (input: { email: string }) => {
-      const res = await apiRequest("POST", "/api/auth/forgot-password", input);
+      // Shorter than a hung SMTP greeting, longer than the server's 8s send deadline.
+      const res = await apiRequest("POST", "/api/auth/forgot-password", input, { timeoutMs: 15_000 });
       return (await res.json()) as { ok: boolean; message: string; resetToken?: string };
     },
   });

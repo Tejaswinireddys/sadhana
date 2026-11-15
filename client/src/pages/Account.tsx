@@ -223,6 +223,7 @@ export default function Account() {
           .catch(() => undefined);
         setPendingVerifyEmail(result.email);
         const q = new URLSearchParams({ email: result.email });
+        if (result.emailSent === false) q.set("sent", "0");
         if ("verifyToken" in result && result.verifyToken) q.set("token", result.verifyToken);
         toast({
           title: result.emailSent === false ? "Verification email was not sent" : "Check your inbox",
