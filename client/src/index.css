@@ -776,3 +776,29 @@ html.motion-off .landing-sticky-cta {
     padding-bottom: 1.25rem;
   }
 }
+
+/*
+ * Page fades (`animate-fade-in`) and other motion are decoration. Pose-specific
+ * rules above do not cover them. Finish the animation almost immediately so a
+ * fade that starts at opacity 0 does not stay invisible, which `animation: none`
+ * can do. The in-app Motion toggle uses the same rule as the system preference.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html *,
+  html *::before,
+  html *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html.motion-off *,
+html.motion-off *::before,
+html.motion-off *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
