@@ -10,7 +10,25 @@ const FREE_CLASS = "desk-back-relief";
 const PLUS_CLASS = "steady-strength-flow";
 const SLOT = '[data-testid^="ad-slot-"]';
 
-async function seed(page: Page) {
+/**
+ * Client BILLING_ENABLED comes from the embedded public-config. Server
+ * `billingEnabled()` also needs Stripe keys, so env BILLING_ENABLED alone is
+ * not enough in CI — rewrite the HTML config for house-ad journeys.
+ */
+async function rewritePublicBilling(page: Page, enabled: boolean) {
+  await page.route("**/*", async (route) => {
+    if (route.request().resourceType() !== "document") return route.fallback();
+    const res = await route.fetch();
+    const html = (await res.text()).replace(
+      /(<script type="application\/json" id="public-config">)([\s\S]*?)(<\/script>)/,
+      (_m, open: string, json: string, close: string) =>
+        open + JSON.stringify({ ...JSON.parse(json), billingEnabled: enabled }) + close,
+    );
+    return route.fulfill({ response: res, body: html });
+  });
+}
+
+async function seed(page: Page, opts: { billingEnabled?: boolean } = {}) {
   await page.addInitScript((version) => {
     localStorage.setItem("sadhana.legalAck", JSON.stringify({ version, acceptedAt: new Date().toISOString() }));
     localStorage.setItem("sadhana.welcome.seen", "1");
@@ -25,8 +43,9 @@ async function seed(page: Page) {
     }).observe(document, { childList: true, subtree: true });
   }, LEGAL_VERSION);
   await page.route(/^https:\/\/([a-z0-9-]+\.)*(mux\.com|litix\.io)\//, (route) => route.abort());
+  // Default on: house Plus cards need billingEnabled true in public-config.
+  await rewritePublicBilling(page, opts.billingEnabled ?? true);
 }
-
 const adsSeen = (page: Page) => page.evaluate(() => (window as unknown as { __adSeen: string[] }).__adSeen);
 
 async function asAccount(page: Page, plan: "free" | "plus", entitlement: Record<string, unknown>) {
@@ -74,16 +93,8 @@ test("the house card names no price when billing prices are unavailable", async 
 });
 
 test("house Plus upsells stay hidden when billing cannot sell", async ({ page }) => {
-  await page.route("**/*", async (route) => {
-    if (route.request().resourceType() !== "document") return route.fallback();
-    const res = await route.fetch();
-    const html = (await res.text()).replace(
-      /(<script type="application\/json" id="public-config">)([\s\S]*?)(<\/script>)/,
-      (_m, open: string, json: string, close: string) =>
-        open + JSON.stringify({ ...JSON.parse(json), billingEnabled: false }) + close,
-    );
-    return route.fulfill({ response: res, body: html });
-  });
+  // Last registered document rewrite wins (LIFO): flip billing off for this case.
+  await rewritePublicBilling(page, false);
   await page.goto("/");
   await expect(page.getByTestId("home-row-continue")).toBeVisible();
   await page.waitForTimeout(400);
