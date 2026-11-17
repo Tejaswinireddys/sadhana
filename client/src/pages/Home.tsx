@@ -47,6 +47,7 @@ import {
 } from "@/lib/practicePreferences";
 import { readQuizPlan } from "@/data/quizPlan";
 import { readHabitPlan } from "@/lib/habitPlan";
+import { BODY_FILTERS, readBodyLimits, toggleBodyFilter, type BodyLimits } from "@/lib/bodyFilters";
 import type { UserProfile, Enrollment, Journal, Session, CustomFlow } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { catalogSessionMinutes, flowPoses, pathwaySessionRangeLabel, queueCatalogPoses } from "@/lib/pathwayTiming";
@@ -260,6 +261,7 @@ export default function Home() {
     [],
   );
 
+  const [limits, setLimits] = useState<BodyLimits>(() => readBodyLimits());
   const context: HomeContext = {
     programDay,
     quizPlan,
@@ -271,6 +273,9 @@ export default function Home() {
     preferredNeed: adjust.need ?? prefs.need,
     hasPracticed,
     warmup: { title: SAMPLE_PRACTICE.title, poses: firstPracticePoses },
+    bodyFilters: limits.filters,
+    hiddenSlugs: limits.hidden,
+    likedSlugs: limits.liked,
   };
 
   const recommendation: PracticeRecommendation | null = useMemo(() => {
@@ -285,13 +290,13 @@ export default function Home() {
     return base && adjust.noProps ? withoutProps(base) : base;
     // `context` is rebuilt every render (it carries the clock), so the inputs
     // that can actually change the answer are listed instead of the object.
-  }, [bootstrapping, adjust.need, adjust.minutes, adjust.energy, adjust.noProps, programDay, quizPlan?.title, profile?.id, intent, experience, hasPracticed]);
+  }, [bootstrapping, adjust.need, adjust.minutes, adjust.energy, adjust.noProps, programDay, quizPlan?.title, profile?.id, intent, experience, hasPracticed, limits]);
 
   const alternatives = useMemo(
     () => (bootstrapping ? [] : alternativePractices(context, recommendation)),
     // Same reason as above: composing three sequences on every render would be
     // wasteful, and only these inputs change what they are.
-    [bootstrapping, recommendation?.id, adjust.minutes, adjust.need, intent],
+    [bootstrapping, recommendation?.id, adjust.minutes, adjust.need, intent, limits],
   );
 
   const shortSessions = useMemo(
@@ -528,6 +533,36 @@ export default function Home() {
             </Button>
           </div>
         )}
+
+        <fieldset
+          className="space-y-2 rounded-2xl border border-card-border bg-card px-4 py-3"
+          data-testid="body-limits"
+        >
+          <legend className="px-1 text-sm font-medium">Leave out</legend>
+          <div className="flex flex-wrap gap-2">
+            {BODY_FILTERS.map((filter) => {
+              const on = limits.filters.includes(filter.id);
+              return (
+                <label
+                  key={filter.id}
+                  className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-3 text-sm ${on ? "border-primary bg-primary/10" : "border-card-border"}`}
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={on}
+                    onChange={() => setLimits(toggleBodyFilter(filter.id))}
+                    data-testid={`body-limit-${filter.id}`}
+                  />
+                  {filter.label}
+                </label>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Limits you set for yourself. A chosen path stays; poses that conflict with it are left out. This is not medical advice.
+          </p>
+        </fieldset>
 
         {bootstrapping ? (
           <TodayPracticeCardSkeleton />

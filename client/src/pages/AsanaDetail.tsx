@@ -33,6 +33,7 @@ import { manifestAudioUrl, usePoseMedia } from "@/lib/poseMediaApi";
 import { pronunciationFor, shouldShowPronunciation } from "@/lib/sanskritPronunciation";
 import { usagesForAsana } from "@/data/asanaUsage";
 import { KEYS, defaultPoseLevel, readString } from "@/lib/localPrefs";
+import { readBodyLimits, setPosePreference } from "@/lib/bodyFilters";
 import { QUICK_SESSIONS, quickSessionMeta } from "@/data/quickSessions";
 import { catalogSessionMinutes } from "@/lib/pathwayTiming";
 import { usePractice } from "@/context/PracticeContext";
@@ -174,6 +175,13 @@ export default function AsanaDetail() {
   const [level, setLevel] = useState<Level>(() =>
     defaultPoseLevel(readString(KEYS.experienceLevel), asana?.difficulty),
   );
+  const [posePref, setPosePref] = useState<"like" | "hide" | "none">(() => {
+    if (!asana) return "none";
+    const saved = readBodyLimits();
+    if (saved.hidden.includes(asana.slug)) return "hide";
+    if (saved.liked.includes(asana.slug)) return "like";
+    return "none";
+  });
   /** True while a lesson is running, so the page can stand down competing CTAs. */
   const [training, setTraining] = useState(false);
   useDocumentTitle(asana ? `${asana.english} · Sadhana` : "Pose · Sadhana");
@@ -313,6 +321,38 @@ export default function AsanaDetail() {
           <p className="text-base italic text-muted-foreground" data-testid="text-asana-sanskrit">
             {asana.sanskrit}
           </p>
+          <div className="mt-2 flex flex-wrap gap-2" data-testid="pose-preference">
+            <Button
+              type="button"
+              variant={posePref === "like" ? "default" : "outline"}
+              size="sm"
+              className="min-h-11"
+              aria-pressed={posePref === "like"}
+              data-testid="button-like-pose"
+              onClick={() => {
+                const next = posePref === "like" ? "none" : "like";
+                setPosePreference(asana.slug, next);
+                setPosePref(next);
+              }}
+            >
+              {posePref === "like" ? "Liked" : "Like this pose"}
+            </Button>
+            <Button
+              type="button"
+              variant={posePref === "hide" ? "default" : "outline"}
+              size="sm"
+              className="min-h-11"
+              aria-pressed={posePref === "hide"}
+              data-testid="button-hide-pose"
+              onClick={() => {
+                const next = posePref === "hide" ? "none" : "hide";
+                setPosePreference(asana.slug, next);
+                setPosePref(next);
+              }}
+            >
+              {posePref === "hide" ? "Hidden from practices" : "Hide from practices"}
+            </Button>
+          </div>
           {(() => {
             if (!shouldShowPronunciation(asana.english, asana.sanskrit)) return null;
             const pron = pronunciationFor(asana.slug, asana.sanskrit);

@@ -14,6 +14,7 @@ import {
   WRIST_LOADING_WHEN_UNKNOWN,
   substituteForRegion,
 } from "@/lib/restrictionAdaptations";
+import { poseBlockedReason, poseIsHidden, type BodyFilterId } from "@/lib/bodyFilters";
 import {
   guidedSessionSeconds,
   resolveInstructionSeconds,
@@ -1213,6 +1214,9 @@ export function composeTrainerSession(
      * is true for vigorous needs and false for restful ones.
      */
     allowStanding?: boolean;
+    /** Practitioner limits. Applied with the other safety checks, then the session is refit. */
+    bodyFilters?: readonly BodyFilterId[];
+    hiddenSlugs?: readonly string[];
   },
 ): TrainerSession {
   const injured = c.body.some((b) => b.toLowerCase().includes("injured"));
@@ -1238,6 +1242,8 @@ export function composeTrainerSession(
     // a first-time practitioner an Advanced shape at a beginner's hold. The
     // shortened hold was never the safety problem; the shape was.
     if (experience === "new" && pose.difficulty === "Advanced" && !GENTLE.has(s)) return false;
+    if (poseIsHidden(s, opts?.hiddenSlugs ?? [])) return false;
+    if (poseBlockedReason(pose, opts?.bodyFilters ?? [])) return false;
     return true;
   };
 
