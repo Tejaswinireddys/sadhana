@@ -2489,6 +2489,7 @@ export default function GuidedSession() {
           )}
 
           <p
+            id="guided-caption"
             key={`${phase}-${stepIndex}-${cueIndex}`}
             className={cn(
               "min-h-[3rem] animate-fade-in px-2 text-center transition-all motion-reduce:animate-none",
@@ -2616,6 +2617,7 @@ export default function GuidedSession() {
               className="min-h-11 min-w-11"
               onClick={() => setCaptionsOn((c) => !c)}
               data-testid="button-captions-guided"
+              aria-controls="guided-caption"
               aria-label={captionsOn ? "Hide captions" : "Show captions"}
               aria-pressed={captionsOn}
               title={captionsOn ? "Hide captions" : "Show captions"}
