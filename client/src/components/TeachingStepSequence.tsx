@@ -116,7 +116,10 @@ export function TeachingStepSequence({
       data-reduce-motion={reduceMotion ? "1" : "0"}
       data-media="illustrated"
     >
-      <div className={cn("absolute inset-0", caption || frame.text ? "px-2 pb-14 pt-9" : "p-2")}>
+      {/* Pad only when a bottom caption bar is up (same as PoseHumanStage).
+          Frame cue text alone must not shrink the still — that made withheld
+          placeholders ~109px tall at 320x568 and failed the phone floor. */}
+      <div className={cn("absolute inset-0", caption ? "px-2 pb-14 pt-9" : "p-2")}>
         {poseImageWithheld(slug) ? (
           <WithheldPoseImage slug={slug} className="rounded-2xl" />
         ) : (
@@ -189,7 +192,8 @@ export function TeachingStepSequence({
 
       <span
         className="pointer-events-none absolute right-2 top-2 z-10 max-w-[55%] rounded-full bg-background/75 px-2 py-0.5 text-right text-[10px] leading-snug text-muted-foreground backdrop-blur-sm"
-        data-testid="teaching-step-note"
+        data-testid={`pose-human-note-${slug}`}
+        data-teaching-note="1"
         {...(noteTitle ? { title: noteTitle } : {})}
       >
         {note}
