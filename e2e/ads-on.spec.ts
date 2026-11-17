@@ -73,6 +73,24 @@ test("the house card names no price when billing prices are unavailable", async 
   await expect(page.getByTestId("ad-house-price")).toHaveText("Every class, no ads.");
 });
 
+test("house Plus upsells stay hidden when billing cannot sell", async ({ page }) => {
+  await page.route("**/*", async (route) => {
+    if (route.request().resourceType() !== "document") return route.fallback();
+    const res = await route.fetch();
+    const html = (await res.text()).replace(
+      /(<script type="application\/json" id="public-config">)([\s\S]*?)(<\/script>)/,
+      (_m, open: string, json: string, close: string) =>
+        open + JSON.stringify({ ...JSON.parse(json), billingEnabled: false }) + close,
+    );
+    return route.fulfill({ response: res, body: html });
+  });
+  await page.goto("/");
+  await expect(page.getByTestId("home-row-continue")).toBeVisible();
+  await page.waitForTimeout(400);
+  await expect(page.getByTestId("ad-slot-today")).toHaveCount(0);
+  await expect(page.getByTestId("ad-house")).toHaveCount(0);
+});
+
 test("the class library has one slot, after the first row of classes", async ({ page }) => {
   await page.goto("/classes");
   await expect(page.getByTestId("ad-slot-classes")).toBeVisible();

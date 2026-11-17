@@ -43,7 +43,10 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: `PORT=${ADS_PORT} ADS_ENABLED=true ADS_PROVIDER=house npm run dev`,
+      // BILLING_ENABLED so house cards (Plus upsells) can render; with billing
+      // off AdSlot hides house ads entirely (QA: no checkout pitch when Stripe
+      // cannot sell). AdSense-only slots do not need this flag.
+      command: `PORT=${ADS_PORT} ADS_ENABLED=true ADS_PROVIDER=house BILLING_ENABLED=true npm run dev`,
       url: `http://127.0.0.1:${ADS_PORT}/healthz`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
