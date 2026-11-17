@@ -48,10 +48,10 @@ export function PoseImage({
   /** `contain` (default) never clips the figure; `cover` only for decorative crops. */
   fit?: "contain" | "cover";
   /**
-   * Small list/row rendering. Loads the pre-scaled asset when one exists and
-   * skips the blur-up layer, which is pure cost at this size. Always eager:
-   * a 48px thumbnail is never worth a lazy-load round trip, and `loading="lazy"`
-   * was a major cause of thumbnails never painting at all.
+   * Small list/row rendering. Loads the pre-scaled /poses/thumbs asset when
+   * one exists (via resolvePoseImageSources) and skips the blur-up layer,
+   * which is pure cost at this size. Off-screen thumbs stay `loading="lazy"`;
+   * pass `priority` for above-fold heroes.
    */
   thumb?: boolean;
   testId?: string;
@@ -76,7 +76,9 @@ export function PoseImage({
   const thumbAvailable = resolved.usesThumb;
   const src = resolved.src;
   const webpSrc = resolved.webpSrc;
-  const eager = priority || thumb;
+  // Above-fold only (detail heroes / LCP). Grid thumbs are lazy so /asanas
+  // does not start hundreds of downloads before the first paint.
+  const eager = priority;
   // Always reserve a sized box (authored pose frame is 1:2) to keep CLS near zero.
   const aspectClass = aspect ?? "aspect-[1/2]";
   const aspectRatioCss = (() => {
@@ -170,11 +172,11 @@ export function PoseImage({
             ref={attachImg}
             src={src}
             alt={resolvedAlt}
-            width={thumb ? 96 : 600}
-            height={thumb ? 192 : 1200}
+            width={thumbAvailable ? 160 : 600}
+            height={thumbAvailable ? 160 : 1200}
             sizes={sizes}
             loading={eager ? "eager" : "lazy"}
-            decoding={eager ? "sync" : "async"}
+            decoding="async"
             {...fetchPriority(priority ? "high" : "auto")}
             onLoad={() => setLoaded(true)}
             onError={handleError}

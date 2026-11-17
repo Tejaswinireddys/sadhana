@@ -2,19 +2,20 @@
  * gen-pose-thumbs — pre-scaled row thumbnails for the pose catalog.
  *
  * Why: every list in the app (Home, Search, Trainer results, Warm-up) renders a
- * 600x1200 source into a ~64px box. That ships ~200KB per row to draw a few
+ * 600x1200 source into a ~64px box. That ships ~200KB–1MB per row to draw a few
  * thousand pixels, and a pale full-body watercolour shrunk that far is close to
  * invisible. This produces a tight crop around the figure at 2x display size.
  *
- * The app treats these as OPTIONAL and **opt-in**: `PoseImage thumb` only
- * requests /poses/thumbs/<slug>.png for slugs listed in
- * client/src/data/poseThumbsReady.generated.ts, which this script writes. You
- * can ship without running it; you just don't get the win. (Previously the app
- * requested thumbs unconditionally and ate a 404 per row.)
+ * Outputs both PNG (fallback) and WebP (preferred via <picture>) under
+ * client/public/poses/thumbs/. The app treats these as OPTIONAL and **opt-in**:
+ * `PoseImage thumb` only requests /poses/thumbs/<slug>.{webp,png} for slugs
+ * listed in client/src/data/poseThumbsReady.generated.ts, which this script
+ * writes. You can ship without running it; you just don't get the win.
  *
  * Usage:
  *   npm i -D sharp
  *   npx tsx script/gen-pose-thumbs.ts
+ *   # or: npm run gen:pose-thumbs
  */
 import { readdir, mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -27,6 +28,15 @@ const READY_FILE = path.resolve("client/src/data/poseThumbsReady.generated.ts");
 const SIZE = 160;
 /** Trim threshold — how far from the corner pixel colour still counts as background. */
 const TRIM_THRESHOLD = 12;
+
+async function needsRegen(src: string, out: string): Promise<boolean> {
+  try {
+    const [s, o] = await Promise.all([stat(src), stat(out)]);
+    return o.mtimeMs < s.mtimeMs;
+  } catch {
+    return true;
+  }
+}
 
 async function main() {
   let sharp: typeof import("sharp");
@@ -45,36 +55,50 @@ async function main() {
   let written = 0;
   let skipped = 0;
   for (const file of files) {
+    const slug = file.replace(/\.png$/, "");
     const src = path.join(SRC_DIR, file);
-    const out = path.join(OUT_DIR, file);
+    const outPng = path.join(OUT_DIR, `${slug}.png`);
+    const outWebp = path.join(OUT_DIR, `${slug}.webp`);
 
-    // Idempotent: skip when the thumb is newer than its source.
-    try {
-      const [s, o] = await Promise.all([stat(src), stat(out)]);
-      if (o.mtimeMs >= s.mtimeMs) {
-        skipped++;
-        continue;
-      }
-    } catch {
-      /* no thumb yet — generate it */
+    // Idempotent: skip when both thumbs are newer than the source.
+    const regenPng = await needsRegen(src, outPng);
+    const regenWebp = await needsRegen(src, outWebp);
+    if (!regenPng && !regenWebp) {
+      skipped++;
+      continue;
     }
 
-    await sharp(src)
+    // One decode + trim + resize, then encode both formats so PNG and WebP
+    // stay pixel-aligned (same crop). WebP is what <picture> prefers.
+    const pipeline = sharp(src)
       // Crop the empty margin so the figure fills the box instead of floating
       // in whitespace. This is what makes a 64px thumbnail readable.
       .trim({ threshold: TRIM_THRESHOLD })
-      .resize(SIZE, SIZE, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .png({ compressionLevel: 9, palette: true })
-      .toFile(out);
+      .resize(SIZE, SIZE, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } });
+
+    if (regenPng) {
+      await pipeline
+        .clone()
+        .png({ compressionLevel: 9, palette: true })
+        .toFile(outPng);
+    }
+    if (regenWebp) {
+      await pipeline
+        .clone()
+        .webp({ quality: 72, alphaQuality: 80, effort: 4 })
+        .toFile(outWebp);
+    }
     written++;
   }
 
   // The app only requests a thumb that appears in this list, so regenerating
-  // it is what actually switches the optimisation on. Without it every list
-  // render asked for a file that was never produced and took a 404.
-  const ready = (await readdir(OUT_DIR))
+  // it is what actually switches the optimisation on. Require both formats so
+  // <picture> never 404s the preferred WebP source for a "ready" slug.
+  const onDisk = new Set(await readdir(OUT_DIR));
+  const ready = [...onDisk]
     .filter((f) => f.endsWith(".png") && !f.startsWith("_"))
     .map((f) => f.replace(/\.png$/, ""))
+    .filter((slug) => onDisk.has(`${slug}.webp`))
     .sort();
   await writeFile(
     READY_FILE,

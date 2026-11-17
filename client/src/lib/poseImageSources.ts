@@ -1,7 +1,8 @@
 /**
  * Pose image URL selection — keep thumb requests honest.
- * Pre-scaled /poses/thumbs/<slug> assets are optional; only request ones the
- * generator listed in poseThumbsReady.generated.ts.
+ * Pre-scaled /poses/thumbs/<slug>.{webp,png} assets are optional; only request
+ * ones the generator listed in poseThumbsReady.generated.ts. Callers prefer
+ * webpSrc via <picture>; src is the PNG fallback.
  */
 import { POSE_THUMBS_READY_LIST } from "../data/poseThumbsReady.generated.ts";
 
