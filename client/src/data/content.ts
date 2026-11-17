@@ -6,6 +6,7 @@ import { FOCUS_ZONES, STRETCH_ZONES, DEFAULT_FOCUS_ZONE } from "./zones";
 import { bestForFor } from "./bestFor";
 import { poseImageAlt } from "./poseImageAlts";
 import { arcSlotFor, type ArcSlot } from "./arcSlots";
+import { PATHWAY_CARE } from "./pathwayCare";
 import { resolveStretchZones } from "../lib/stretchZones";
 
 export { DEFAULT_FOCUS_ZONE };
@@ -4889,6 +4890,15 @@ export type Pathway = {
   // v5.1 — which Pathways page section this belongs to. Defaults are inferred
   // from `kind` when omitted (flow → quick-flows, daily → programs).
   section?: "quick-flow" | "salutation-goddess" | "seven-day" | "program";
+  /** Who should skip it, when to stop, and — for prenatal — trimester notes. */
+  care?: PathwayCare;
+};
+
+export type PathwayCare = {
+  avoid: string;
+  stopIf: string;
+  providerNote?: string;
+  trimesters?: { first: string; second: string; third: string };
 };
 
 const RAW_PATHWAYS: (Omit<Pathway, "isPlus"> & { isPlus?: boolean })[] = [
@@ -6994,7 +7004,7 @@ const RAW_PATHWAYS: (Omit<Pathway, "isPlus"> & { isPlus?: boolean })[] = [
   {
     slug: "7-day-sleep-wind-down",
     name: "7-Day Sleep Wind-Down",
-    tagline: "A week of calming evening practices for better sleep.",
+    tagline: "A week of quiet evening practices. Not a treatment for insomnia.",
     target: "Viparita Karani",
     targetPose: "legs-up",
     targetImgSlug: "viparita-karani",
@@ -7257,7 +7267,7 @@ const RAW_PATHWAYS: (Omit<Pathway, "isPlus"> & { isPlus?: boolean })[] = [
   {
     slug: "stress-release-week",
     name: "Stress Release Week",
-    tagline: "Seven gentle sessions to downshift the nervous system.",
+    tagline: "Seven quiet sessions for stressful days. Not a treatment for anxiety.",
     target: "Balasana",
     targetPose: "child",
     targetImgSlug: "balasana",
@@ -7268,9 +7278,9 @@ const RAW_PATHWAYS: (Omit<Pathway, "isPlus"> & { isPlus?: boolean })[] = [
     sessionsPerWeek: 7,
     timePerSession: "10–15 min",
     minutesPerSession: 12,
-    goalDescription: "Lower perceived stress with breath-led, low-load practice.",
+    goalDescription: "A week of easy shapes and longer rests. It will not treat anxiety.",
     summary:
-      "Forward folds, supported inversions, and slow breathing shapes. No peak poses — just reliable calm you can finish even on hard days.",
+      "Forward folds, legs up the wall, and slow shapes. No peak poses. You can finish it on a hard day. It is a practice, not care for a condition.",
     schedule: [],
     weekPlan: [],
     dailyPlan: [
@@ -7465,7 +7475,7 @@ const RAW_PATHWAYS: (Omit<Pathway, "isPlus"> & { isPlus?: boolean })[] = [
   {
     slug: "prenatal-gentle-week",
     name: "Prenatal Gentle Week",
-    tagline: "Seven clinician-aware sessions with belly room and side-lying rest.",
+    tagline: "Seven gentle sessions with room for the belly and a side-lying rest.",
     target: "Prenatal Goddess",
     targetPose: "goddess",
     targetImgSlug: "prenatal-goddess",
@@ -7476,9 +7486,10 @@ const RAW_PATHWAYS: (Omit<Pathway, "isPlus"> & { isPlus?: boolean })[] = [
     sessionsPerWeek: 7,
     timePerSession: "15–20 min",
     minutesPerSession: 15,
-    goalDescription: "Stay mobile with reviewed prenatal shapes — medical clearance required.",
+    goalDescription:
+      "Check with your prenatal care provider before you start. This week is not prenatal care and not medical advice.",
     summary:
-      "Wide-knee and side-lying emphasis. Avoid long supine holds. Always follow your maternity care provider.",
+      "Wide-knee shapes and a side-lying rest. It avoids long holds lying flat on the back. Read the note for your trimester, and skip anything that feels like pressure.",
     schedule: [],
     weekPlan: [],
     dailyPlan: [
@@ -7544,6 +7555,86 @@ const RAW_PATHWAYS: (Omit<Pathway, "isPlus"> & { isPlus?: boolean })[] = [
       },
     ],
   },
+  {
+    slug: "gentle-back-care",
+    name: "Gentle back care",
+    tagline: "Seven easy days for a back that wants less, not more. Not a treatment for back pain.",
+    target: "Constructive Rest",
+    targetPose: "savasana",
+    targetImgSlug: "constructive-rest",
+    targetPoseSlug: "constructive-rest",
+    kind: "daily",
+    section: "seven-day",
+    weeks: 1,
+    sessionsPerWeek: 7,
+    timePerSession: "8–12 min",
+    minutesPerSession: 10,
+    goalDescription:
+      "Small ranges and a rest day. This will not fix a back injury. Stop if pain increases, and ask a clinician about pain that is new, severe, or runs down a leg.",
+    summary:
+      "Knees-bent rests, cat-cow, and a supported child's pose. No deep twists and no wheel. One day is only rest.",
+    schedule: [],
+    weekPlan: [],
+    dailyPlan: [
+      {
+        day: 1, theme: "Knees bent, nothing to prove", focus: "general", totalMinutes: 10,
+        poses: [
+          { asanaSlug: "constructive-rest", holdSeconds: 120, sides: "once", note: "feet on the floor" },
+          { asanaSlug: "apanasana", holdSeconds: 60, sides: "once", note: "small circles only if they feel easy" },
+          { asanaSlug: "savasana", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 2, theme: "A moving spine", focus: "general", totalMinutes: 10,
+        poses: [
+          { asanaSlug: "marjaryasana-bitilasana", holdSeconds: 60, sides: "once", note: "small range" },
+          { asanaSlug: "balasana", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "constructive-rest", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 3, theme: "Supported rest", focus: "general", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "salamba-balasana", holdSeconds: 90, sides: "once" },
+          { asanaSlug: "setu-bandhasana", holdSeconds: 30, sides: "once", note: "a low bridge, or skip it" },
+          { asanaSlug: "constructive-rest", holdSeconds: 150, sides: "once" },
+        ],
+      },
+      {
+        day: 4, theme: "Rest day", focus: "general", totalMinutes: 8, restDay: true,
+        poses: [
+          { asanaSlug: "constructive-rest", holdSeconds: 180, sides: "once" },
+          { asanaSlug: "parsva-savasana", holdSeconds: 120, sides: "once", note: "either side" },
+        ],
+      },
+      {
+        day: 5, theme: "Easy again", focus: "general", totalMinutes: 10,
+        poses: [
+          { asanaSlug: "marjaryasana-bitilasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "apanasana", holdSeconds: 45, sides: "once" },
+          { asanaSlug: "balasana", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 120, sides: "once" },
+        ],
+      },
+      {
+        day: 6, theme: "A short walk of the spine", focus: "general", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "marjaryasana-bitilasana", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "salamba-balasana", holdSeconds: 60, sides: "once" },
+          { asanaSlug: "setu-bandhasana", holdSeconds: 20, sides: "once", note: "skip if the back complains" },
+          { asanaSlug: "constructive-rest", holdSeconds: 150, sides: "once" },
+        ],
+      },
+      {
+        day: 7, theme: "Close lying down", focus: "sleep", totalMinutes: 12,
+        poses: [
+          { asanaSlug: "constructive-rest", holdSeconds: 120, sides: "once" },
+          { asanaSlug: "parsva-savasana", holdSeconds: 90, sides: "once" },
+          { asanaSlug: "savasana", holdSeconds: 180, sides: "once" },
+        ],
+      },
+    ],
+  },
 ];
 
 /**
@@ -7551,7 +7642,10 @@ const RAW_PATHWAYS: (Omit<Pathway, "isPlus"> & { isPlus?: boolean })[] = [
  * sessionPreparation.ts) — so every card, preview and the player count the
  * same queue. There is no separate warm-up to add on top.
  */
-export const PATHWAYS: Pathway[] = RAW_PATHWAYS.map((p) => withSessionPreparation({ ...p, isPlus: p.isPlus ?? false }, asanaBySlug));
+export const PATHWAYS: Pathway[] = RAW_PATHWAYS.map((p) => ({
+  ...withSessionPreparation({ ...p, isPlus: p.isPlus ?? false }, asanaBySlug),
+  care: PATHWAY_CARE[p.slug],
+}));
 
 /** Theme ids shown in Affirmations UI (and linked from profiles). */
 export const AFFIRMATION_THEMES = [
