@@ -27,7 +27,11 @@ test.describe("teaching step sequence for still poses", () => {
     await expect(sequence).toBeVisible({ timeout: 20000 });
     await expect(sequence).toHaveAttribute("data-step-count", /\d+/);
     await expect(page.getByTestId("teaching-step-counter")).toBeVisible();
-    await expect(page.getByTestId("teaching-step-image")).toBeVisible();
+    // Supported Child's Pose withholds its illustration; other stills show the image.
+    const figure = page.getByTestId("teaching-step-image").or(
+      page.locator('[data-testid^="pose-image-withheld-"]'),
+    );
+    await expect(figure.first()).toBeVisible();
     await expect(page.locator("[data-testid='ai-trainer-practice-video']")).toHaveCount(0);
     // Must not play a generated montage clip while teaching.
     await expect(stage.locator("video[src*='/videos/poses/']")).toHaveCount(0);
