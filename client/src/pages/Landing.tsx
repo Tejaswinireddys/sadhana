@@ -50,7 +50,7 @@ import { SAMPLE_PRACTICE } from "@/data/samplePractice";
 
 import { CONTENT_REVIEW } from "@/data/contentProvenance";
 
-import { formatDuration } from "@/lib/formatDuration";
+import { formatDuration, formatHoldLabel } from "@/lib/formatDuration";
 import { savePersistedPractice } from "@/lib/practicePersist";
 
 const ProductDemoVideo = lazy(() =>
@@ -258,7 +258,7 @@ export default function Landing() {
                     </p>
                     <div className="flex items-center justify-between pt-1 text-muted-foreground">
                       <span className="font-mono text-sm tabular-nums">
-                        Hold {formatDuration(firstPose.holdSeconds)}
+                        Then hold {formatDuration(firstPose.holdSeconds)}
                       </span>
                       <span className="flex gap-3">
                         <RotateCcw className="h-5 w-5" />
@@ -373,7 +373,7 @@ export default function Landing() {
                               </span>
                             </span>
                             <span className="shrink-0 text-xs text-muted-foreground">
-                              {formatDuration(p.holdSeconds)}
+                              {formatHoldLabel(p.holdSeconds)}
                             </span>
                           </li>
                         ))}
@@ -409,7 +409,7 @@ export default function Landing() {
                     {plan.poses.map((p, i) => (
                       <li key={`${p.slug}-${i}`}>
                         {p.english}{" "}
-                        <span className="text-muted-foreground">· {formatDuration(p.holdSeconds)}</span>
+                        <span className="text-muted-foreground">· {formatHoldLabel(p.holdSeconds)}</span>
                       </li>
                     ))}
                   </ol>

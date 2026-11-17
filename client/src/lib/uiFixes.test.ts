@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatDuration, formatHold, formatClock } from "./formatDuration";
+import { formatDuration, formatHold, formatHoldLabel, formatClock } from "./formatDuration";
 import { searchPoses } from "./poseSearch";
 import { isCorrect, makeParentGateQuestion } from "./parentGate";
 import { toggleBodyAnswer, toggleBodyPart, moodFromEnergy } from "./yogaTrainer";
@@ -16,6 +16,11 @@ describe("formatDuration — one convention everywhere", () => {
   it("qualifies bilateral holds", () => {
     assert.equal(formatHold(45, "each"), "45 sec each side");
     assert.equal(formatHold(45, "once"), "45 sec");
+  });
+
+  it("prefixes Hold so pose lists cannot look like total pose time", () => {
+    assert.equal(formatHoldLabel(20), "Hold 20 sec");
+    assert.equal(formatHoldLabel(45, "each"), "Hold 45 sec each side");
   });
 
   it("keeps clock notation for the live countdown only", () => {

@@ -60,8 +60,9 @@ function focusLabel(focus: string | undefined): string {
 }
 
 function poseLabel(p: DailyPlan["poses"][number]): string {
-  const secs = poseSides(p) === "each" ? `${p.holdSeconds}s each` : `${p.holdSeconds}s`;
-  return p.note && !/each side/i.test(p.note) ? `${secs} · ${p.note}` : secs;
+  const hold =
+    poseSides(p) === "each" ? `Hold ${p.holdSeconds}s each side` : `Hold ${p.holdSeconds}s`;
+  return p.note && !/each side/i.test(p.note) ? `${hold} · ${p.note}` : hold;
 }
 
 function PoseRow({ p }: { p: DailyPlan["poses"][number] }) {

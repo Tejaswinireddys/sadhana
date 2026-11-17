@@ -35,7 +35,9 @@ import { usagesForAsana } from "@/data/asanaUsage";
 import { KEYS, defaultPoseLevel, readString } from "@/lib/localPrefs";
 import { readBodyLimits, setPosePreference } from "@/lib/bodyFilters";
 import { QUICK_SESSIONS, quickSessionMeta } from "@/data/quickSessions";
-import { catalogSessionMinutes } from "@/lib/pathwayTiming";
+import { catalogSessionLabel, catalogSessionMinutes } from "@/lib/pathwayTiming";
+import { formatHoldLabel } from "@/lib/formatDuration";
+import { TRANSITION_SECONDS } from "@/lib/guidedDuration";
 import { usePractice } from "@/context/PracticeContext";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
@@ -221,10 +223,11 @@ export default function AsanaDetail() {
   const primaryRegion =
     asana.stretchZones.find((z) => z.primary)?.region ?? asana.stretchZones[0]?.region;
   const focus = primaryRegion ? `${primaryRegion} · ${asana.category}` : asana.category;
-  const durationLabel =
-    level === "intermediate" && !variation.steps
-      ? asana.hold
-      : `About ${variation.holdSeconds} seconds (${level})`;
+  // Hold only — never the guided wall-clock. Practice Now still runs get-ready
+  // + narration before this hold, so the fact strip must not imply "20 sec total".
+  const holdSec = variation.holdSeconds;
+  const holdLabel = formatHoldLabel(holdSec);
+  const guidedPracticeLabel = catalogSessionLabel([{ slug: asana.slug, holdSeconds: holdSec }]);
   const propList = variation.props.filter((p) => p !== "none");
 
   const addToday = () => {
@@ -236,10 +239,9 @@ export default function AsanaDetail() {
   };
 
   const practiceNow = () => {
-    const hold = asana.variations[level]?.holdSeconds ?? asana.holdSeconds;
-    loadSession([{ asana, holdSeconds: hold }], {
+    loadSession([{ asana, holdSeconds: holdSec }], {
       label: `${asana.english} · practice now`,
-      plannedMinutes: catalogSessionMinutes([{ slug: asana.slug, holdSeconds: hold }]),
+      plannedMinutes: catalogSessionMinutes([{ slug: asana.slug, holdSeconds: holdSec }]),
     });
     navigate("/guided");
   };
@@ -447,10 +449,13 @@ export default function AsanaDetail() {
             <div className="grid grid-cols-2 gap-2 border-t border-border/70 pt-2">
               <div>
                 <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  <Clock className="h-3.5 w-3.5" aria-hidden /> Duration
+                  <Clock className="h-3.5 w-3.5" aria-hidden /> Hold
                 </p>
                 <p className="mt-0.5 text-sm leading-snug" data-testid="pose-fact-duration">
-                  {durationLabel}
+                  {holdLabel}
+                  <span className="block text-xs text-muted-foreground">
+                    {guidedPracticeLabel} with guidance (+{TRANSITION_SECONDS}s get ready)
+                  </span>
                 </p>
               </div>
               <div>

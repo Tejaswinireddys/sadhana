@@ -192,6 +192,53 @@ export function holdRemainingAfterInstruction(holdSeconds: number, extension = 0
   return Math.max(1, Math.round(holdSeconds)) + extension;
 }
 
+/**
+ * The hold phase the player will run — catalog / variation `holdSeconds` only.
+ * Narration and the get-ready transition are never folded into this number.
+ */
+export function holdPhaseSeconds(holdSeconds: number): number {
+  return Math.max(0, Math.round(holdSeconds));
+}
+
+/**
+ * One pose, split into the phases GuidedSession actually runs for `mode`.
+ * Use this when a screen needs to say "hold X, plus Y of guidance" instead of
+ * printing a single number that looks like total pose time.
+ */
+export function poseTimingParts(
+  pose: GuidedTimedPose,
+  mode: InstructionMode = "guided",
+): {
+  transitionSeconds: number;
+  instructionSeconds: number;
+  holdSeconds: number;
+  /** Far-side instruction when bilateral; 0 otherwise. */
+  secondSideInstructionSeconds: number;
+  sideSwitchSeconds: number;
+  totalSeconds: number;
+} {
+  const hold = holdPhaseSeconds(pose.holdSeconds);
+  const instruction = occurrenceInstructionSeconds(pose, mode, { repeat: false, side: 1 });
+  const bilateral = pose.sides === "each";
+  const second = bilateral
+    ? occurrenceInstructionSeconds(pose, mode, { repeat: false, side: 2 })
+    : 0;
+  const switchSec = bilateral ? SIDE_SWITCH_SECONDS : 0;
+  return {
+    transitionSeconds: TRANSITION_SECONDS,
+    instructionSeconds: instruction,
+    holdSeconds: hold,
+    secondSideInstructionSeconds: second,
+    sideSwitchSeconds: switchSec,
+    totalSeconds: guidedPoseSeconds({
+      holdSeconds: hold,
+      sides: pose.sides,
+      instructionSeconds: instruction,
+      secondSideInstructionSeconds: bilateral ? second : undefined,
+    }),
+  };
+}
+
 export function instructionCountdown(opts: {
   usingMp3: boolean;
   audioCurrentTime: number;
