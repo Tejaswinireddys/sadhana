@@ -5,22 +5,17 @@
  * pilot content with an honest "AI trainer preview" label, English captions,
  * and mobile-safe progressive playback (playsInline, poster, user-started).
  *
- * v3 lessons are portrait 9:16. The player must use object-fit: contain inside
- * a 9:16 box (never cover / never a landscape 16:9 shell) so head, arms and
- * feet stay on screen. On wide viewports the frame is centered and capped at
- * ~80vh instead of stretching edge-to-edge.
+ * v3 lessons are portrait 9:16. Size height-first with object-fit: contain so
+ * the trainer fills available height without a giant empty letterbox and
+ * without cover-cropping head/feet.
  */
 import { VideoPlayer } from "@/components/VideoPlayer";
 import {
+  AI_TRAINER_PORTRAIT_SHELL,
+  AI_TRAINER_PORTRAIT_VIDEO,
   AI_TRAINER_PREVIEW_LABEL,
   type AiTrainerLesson,
 } from "@/data/aiTrainerLessons";
-
-/** Shared shell for the portrait player and its loading poster. */
-const PORTRAIT_SHELL =
-  "mx-auto w-full max-w-[min(100%,calc(80vh*9/16))]";
-const PORTRAIT_VIDEO =
-  "aspect-[9/16] max-h-[80vh] w-full rounded-xl bg-card object-contain";
 
 export function AiTrainerLesson({ lesson }: { lesson: AiTrainerLesson }) {
   const fallback = (
@@ -29,7 +24,7 @@ export function AiTrainerLesson({ lesson }: { lesson: AiTrainerLesson }) {
       alt=""
       width={lesson.width}
       height={lesson.height}
-      className={PORTRAIT_VIDEO}
+      className={AI_TRAINER_PORTRAIT_VIDEO}
       data-testid="ai-trainer-lesson-poster-fallback"
     />
   );
@@ -40,6 +35,7 @@ export function AiTrainerLesson({ lesson }: { lesson: AiTrainerLesson }) {
       data-testid="ai-trainer-lesson"
       data-slug={lesson.slug}
       data-aspect="9/16"
+      data-fit="contain-height"
       aria-label={`${lesson.english} ${AI_TRAINER_PREVIEW_LABEL}`}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -57,13 +53,13 @@ export function AiTrainerLesson({ lesson }: { lesson: AiTrainerLesson }) {
         Photorealistic AI-generated trainer — pilot content for review, not a
         filmed or instructor-approved demonstration.
       </p>
-      <div className={`flex justify-center ${PORTRAIT_SHELL}`}>
+      <div className={AI_TRAINER_PORTRAIT_SHELL}>
         <VideoPlayer
           title={`${lesson.english} · ${AI_TRAINER_PREVIEW_LABEL}`}
           videoUrl={lesson.mp4}
           poster={lesson.poster}
-          className="w-full"
-          videoClassName={PORTRAIT_VIDEO}
+          className="flex w-full justify-center"
+          videoClassName={AI_TRAINER_PORTRAIT_VIDEO}
           captions={[
             {
               src: lesson.captionsVtt,

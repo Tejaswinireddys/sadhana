@@ -19,11 +19,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
 import { PoseHumanStage } from "@/components/PoseHumanStage";
+import { TeachingStepSequence } from "@/components/TeachingStepSequence";
 import { asanaBySlug } from "@/data/content";
 import { hasRigSequence } from "@/data/poseKeyframes";
 import { humanStepSlug, poseHasShapeJourney } from "@/data/poseKeyImages";
 import { poseDemoAvailability, STATIC_REFERENCE_LABEL } from "@/data/poseDemoAvailability";
-import { aiTrainerLessonFor, teachingVisual, type AiTrainerLesson } from "@/data/aiTrainerLessons";
+import {
+  AI_TRAINER_PORTRAIT_SHELL,
+  AI_TRAINER_PRACTICE_VIDEO,
+  aiTrainerLessonFor,
+  teachingVisual,
+  type AiTrainerLesson,
+} from "@/data/aiTrainerLessons";
 import { poseImageCaveat, poseImageShortCaveat } from "@/data/poseImageAccuracy";
 import { poseMediaFor } from "@/data/poseMedia";
 import { manifestToVideoSources, usePoseMedia } from "@/lib/poseMediaApi";
@@ -211,6 +218,26 @@ export function PoseTrainerStage({
     );
   }
 
+  // Teaching without a reviewed clip or AI preview: sequence this pose's own
+  // steps/cues. Idle surfaces still use PoseHumanStage (presentation still).
+  if (isTeaching && visual === "still") {
+    return (
+      <TeachingStepSequence
+        slug={slug}
+        english={english}
+        poseKey={poseKey}
+        stepIndex={stepIndex}
+        playing={playing}
+        guideActive={guideActive}
+        caption={guideActive ? caption : null}
+        side={side}
+        variant={variant}
+        className={className}
+        data-testid={testId}
+      />
+    );
+  }
+
   return (
     <PoseHumanStage
       slug={slug}
@@ -263,8 +290,10 @@ function AiTrainerPracticeClip({
   }, [playing, lesson.slug]);
   return (
     <figure
-      className={`relative mx-auto flex h-full max-h-full w-full items-center justify-center ${className ?? ""}`}
+      className={`relative ${AI_TRAINER_PORTRAIT_SHELL} h-full max-h-full ${className ?? ""}`}
       data-testid={testId ?? "ai-trainer-practice"}
+      data-fit="contain-height"
+      data-aspect="9/16"
     >
       <video
         ref={ref}
@@ -273,7 +302,7 @@ function AiTrainerPracticeClip({
         playsInline
         crossOrigin="anonymous"
         preload="metadata"
-        className="max-h-full w-full rounded-xl object-contain"
+        className={AI_TRAINER_PRACTICE_VIDEO}
         data-testid="ai-trainer-practice-video"
       >
         <track kind="captions" src={lesson.captionsVtt} srcLang="en" label="English" default />
