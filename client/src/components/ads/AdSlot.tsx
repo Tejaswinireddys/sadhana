@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import type { AdPlacement } from "@shared/adsConfig";
 import { useAuth } from "@/lib/auth";
-import { ADS_CONFIG } from "@/lib/publicConfig";
+import { ADS_CONFIG, BILLING_ENABLED } from "@/lib/publicConfig";
 import { adEligibility, adsAllowedOnPath, type AdEligibility } from "@/lib/ads";
 import type { PlusEntitlementView } from "@/lib/plusStatus";
 import { loadAdsense, requestAdFill } from "@/lib/adsense";
@@ -24,6 +24,7 @@ export function useAdEligibility(): AdEligibility {
   });
   return adEligibility({
     ads: ADS_CONFIG,
+    billingEnabled: BILLING_ENABLED,
     user: isLoading ? undefined : user,
     entitlement: entitlement.data,
     entitlementError: entitlement.isError,
@@ -101,21 +102,27 @@ export function AdSlot({ placement, className }: { placement: AdPlacement; class
   const eligibility = useAdEligibility();
   if (eligibility !== "show" || !adsAllowedOnPath(location)) return null;
   const slotId = ADS_CONFIG.provider === "adsense" ? ADS_CONFIG.slots[placement] : undefined;
+  const canShowAdsense = Boolean(slotId && ADS_CONFIG.adsenseClientId);
+  if (!canShowAdsense && !BILLING_ENABLED) return null;
   return (
     <aside
       aria-label="Advertisement"
       className={cn("space-y-1.5", className)}
       data-testid={`ad-slot-${placement}`}
-      data-provider={slotId ? "adsense" : "house"}
+      data-provider={canShowAdsense ? "adsense" : "house"}
     >
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="rounded border border-border px-1.5 py-0.5 font-medium uppercase tracking-wide" data-testid="ad-label">Ad</span>
-        <Link href="/plus" className="inline-flex min-h-11 items-center underline-offset-2 hover:underline" data-testid="ad-remove">
-          Remove ads
-        </Link>
+        {BILLING_ENABLED ? (
+          <Link href="/plus" className="inline-flex min-h-11 items-center underline-offset-2 hover:underline" data-testid="ad-remove">
+            Remove ads
+          </Link>
+        ) : (
+          <span className="inline-flex min-h-11 items-center" aria-hidden />
+        )}
       </div>
-      {slotId && ADS_CONFIG.adsenseClientId
-        ? <AdsenseUnit clientId={ADS_CONFIG.adsenseClientId} slotId={slotId} />
+      {canShowAdsense
+        ? <AdsenseUnit clientId={ADS_CONFIG.adsenseClientId!} slotId={slotId!} />
         : <HouseAd />}
     </aside>
   );

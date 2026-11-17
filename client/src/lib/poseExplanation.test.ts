@@ -45,8 +45,16 @@ describe("AsanaDetail wires variation into PoseExplanation", () => {
     const detail = readFileSync(resolve("client/src/pages/AsanaDetail.tsx"), "utf8");
     assert.match(detail, /<PoseExplanation slug=\{asana\.slug\} level=\{level\}/);
     const expl = readFileSync(resolve("client/src/components/PoseExplanation.tsx"), "utf8");
-    assert.match(expl, /level = "intermediate"/);
+    assert.match(expl, /catalogDifficultyToLevel/);
     assert.match(expl, /buildPoseExplanation\(asana, difficulty\)/);
+  });
+
+  it("defaults buildPoseExplanation to the catalog difficulty", () => {
+    const beginner = asanaBySlug("tadasana");
+    assert.ok(beginner);
+    assert.equal(beginner.difficulty, "Beginner");
+    const content = buildPoseExplanation(beginner);
+    assert.ok(content.formCues.length > 0);
   });
 });
 

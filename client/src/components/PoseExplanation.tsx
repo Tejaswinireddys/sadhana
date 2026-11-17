@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { asanaBySlug } from "@/data/content";
+import { catalogDifficultyToLevel } from "@/lib/localPrefs";
 import { buildPoseExplanation } from "@/lib/poseExplanation";
 import { PoseLessonStage, type LessonStageMediaState } from "@/components/PoseLessonStage";
 import {
@@ -67,7 +68,7 @@ const TABS: { id: TeachTab; label: string; icon: typeof Target }[] = [
  */
 export function PoseTeachRail({
   slug,
-  level = "intermediate",
+  level,
   includeWatch = true,
 }: {
   slug: string;
@@ -76,8 +77,9 @@ export function PoseTeachRail({
 }) {
   const asana = asanaBySlug(slug);
   const [tab, setTab] = useState<TeachTab>("form");
+  const resolvedLevel = level ?? (asana ? catalogDifficultyToLevel(asana.difficulty) : "beginner");
   const difficulty =
-    level === "beginner" ? "Beginner" : level === "advanced" ? "Advanced" : "Intermediate";
+    resolvedLevel === "beginner" ? "Beginner" : resolvedLevel === "advanced" ? "Advanced" : "Intermediate";
   const expl = useMemo(
     () => (asana ? buildPoseExplanation(asana, difficulty) : null),
     [asana, difficulty],
@@ -86,7 +88,7 @@ export function PoseTeachRail({
 
   useEffect(() => {
     setTab("form");
-  }, [slug, level]);
+  }, [slug, resolvedLevel]);
 
   if (!asana || !expl) return null;
 
@@ -134,7 +136,7 @@ export function PoseTeachRail({
 
 export function PoseExplanation({
   slug,
-  level = "intermediate",
+  level,
   onTrainingChange,
   hero = false,
   showRail = true,
@@ -156,6 +158,7 @@ export function PoseExplanation({
   idleMedia?: (fallback: ReactNode) => ReactNode;
 }) {
   const asana = asanaBySlug(slug);
+  const resolvedLevel = level ?? (asana ? catalogDifficultyToLevel(asana.difficulty) : "beginner");
   const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
   const { data: poseMedia } = usePoseMedia(slug);
   const voiceEnabled = prefs ? prefs.voiceEnabled !== 0 : true;
@@ -195,10 +198,10 @@ export function PoseExplanation({
     return () => cancelAnimationFrame(frame);
   }, [keepInView]);
 
-  const lesson = useMemo(() => buildPoseLesson({ slug, level }), [slug, level]);
+  const lesson = useMemo(() => buildPoseLesson({ slug, level: resolvedLevel }), [slug, resolvedLevel]);
 
   const difficulty =
-    level === "beginner" ? "Beginner" : level === "advanced" ? "Advanced" : "Intermediate";
+    resolvedLevel === "beginner" ? "Beginner" : resolvedLevel === "advanced" ? "Advanced" : "Intermediate";
   const expl = useMemo(
     () => (asana ? buildPoseExplanation(asana, difficulty) : null),
     [asana, difficulty],
@@ -235,7 +238,7 @@ export function PoseExplanation({
     setCompleted(false);
     setTimeSec(0);
     setMediaState("idle");
-  }, [slug, level, stopMedia]);
+  }, [slug, resolvedLevel, stopMedia]);
 
   // Leaving the page must not leave audio running.
   useEffect(() => stopMedia, [stopMedia]);
@@ -415,7 +418,7 @@ export function PoseExplanation({
     <PoseLessonStage
       demo={lesson.demo}
       english={asana.english}
-      level={level}
+      level={resolvedLevel}
       playing={training && playing}
       restartToken={restartToken}
       focus={training ? current?.focus ?? null : null}
@@ -492,7 +495,7 @@ export function PoseExplanation({
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             {hero ? null : <span>{asana.sanskrit}</span>}
             <Badge variant="outline" className="capitalize" data-testid="lesson-variation">
-              {level}
+              {resolvedLevel}
             </Badge>
             <Badge variant="outline" data-testid="lesson-duration-label">
               {lesson.durationLabel}
@@ -589,7 +592,7 @@ export function PoseExplanation({
           </div>
 
           {!training && showRail ? (
-            <PoseTeachRail slug={asana.slug} level={level} />
+            <PoseTeachRail slug={asana.slug} level={resolvedLevel} />
           ) : null}
         </div>
 

@@ -181,31 +181,40 @@ export function DailyProgram({
 
           {today.restDay ? (
             <Card className="border-secondary/40 bg-secondary/10 shadow-soft" data-testid="card-rest-day">
-              <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-4">
-                  <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background">
-                    <img loading="lazy" width={600} height={1200}
-                      src={`${import.meta.env.BASE_URL}poses/balasana.webp`}
-                      alt={asanaBySlug("balasana")?.imageAlt ?? "Child's pose"}
-                      className="h-full w-full object-contain"
-                    />
-                  </span>
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-secondary">
-                      {enrollment ? `Today · Day ${currentDay} of ${totalDays}` : "Rest day"}
-                    </p>
-                    <h2 className="font-serif text-2xl">Rest day · your body is rebuilding</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">{today.theme}</p>
+              <CardContent className="space-y-5 p-6">
+                <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-4">
+                    <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-background">
+                      <img loading="lazy" width={600} height={1200}
+                        src={`${import.meta.env.BASE_URL}poses/balasana.webp`}
+                        alt={asanaBySlug("balasana")?.imageAlt ?? "Child's pose"}
+                        className="h-full w-full object-contain"
+                      />
+                    </span>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-secondary">
+                        {enrollment ? `Today · Day ${currentDay} of ${totalDays}` : "Rest day"}
+                      </p>
+                      <h2 className="font-serif text-2xl">Rest day · your body is rebuilding</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">{today.theme}</p>
+                    </div>
                   </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => startDay(today)}
+                    data-testid="button-optional-recovery"
+                  >
+                    <Moon className="mr-1.5 h-4 w-4" /> Optional recovery
+                  </Button>
                 </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => startDay(today)}
-                  data-testid="button-optional-recovery"
-                >
-                  <Moon className="mr-1.5 h-4 w-4" /> Optional 5-min recovery
-                </Button>
+                {today.poses.length > 0 ? (
+                  <div className="grid gap-2 sm:grid-cols-2" data-testid="rest-day-poses">
+                    {today.poses.map((p, i) => (
+                      <PoseRow key={`${p.asanaSlug}-${i}`} p={p} />
+                    ))}
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           ) : (

@@ -79,6 +79,7 @@ import { continueRowState } from "@/lib/homeContinue";
 import { dismissBanner, savePromptLevel, shouldShowSaveBanner } from "@/lib/savePracticePrompt";
 import { Reveal } from "@/components/motion";
 import { AdSlot } from "@/components/ads/AdSlot";
+import { EmailVerifyBanner } from "@/components/EmailVerifyBanner";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { formatTimestamp, useContinueWatching } from "@/lib/classesApi";
 import {
@@ -487,6 +488,7 @@ export default function Home() {
 
       <CancelAccessBanner />
       <HomeCancelSubscriptionCta />
+      <EmailVerifyBanner />
 
       {/* ── 1. Today's practice — the main action, first on every screen size ── */}
       <Reveal className="space-y-3" aria-labelledby="primary-practice-heading">

@@ -478,13 +478,14 @@ export default function Landing() {
             <Reveal className="mb-6 max-w-2xl space-y-2">
               <h2 className="font-serif text-3xl font-semibold tracking-tight">A screen recording</h2>
               <p className="text-muted-foreground">
-                The quiz, a guided practice and the pose library — captioned, sound off by default.
+                A walkthrough of the app shell — captioned, sound off by default. Features evolve;
+                treat on-screen labels as a tour, not a product promise.
               </p>
             </Reveal>
             <Suspense
               fallback={<div className="aspect-video animate-pulse rounded-2xl bg-muted/40" aria-hidden />}
             >
-              <ProductDemoVideo title="Screen recording of the Sadhana app" />
+              <ProductDemoVideo title="Screen recording of the Sadhana app shell" />
             </Suspense>
           </div>
         </section>
@@ -532,7 +533,7 @@ export default function Landing() {
         </section>
       </main>
 
-      <footer className="border-t border-border/50 py-10 pb-28 md:pb-12">
+      <footer className="border-t border-border/50 py-10 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pb-12">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-8">
           <p>Sadhana — a daily, dedicated practice. MIT open source.</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
@@ -558,7 +559,7 @@ export default function Landing() {
         </div>
       </footer>
 
-      <div className="landing-sticky-cta fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 p-3 backdrop-blur-md md:hidden">
+      <div className="landing-sticky-cta fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] backdrop-blur-md md:hidden">
         <Button
           size="lg"
           className="min-h-12 w-full cursor-pointer text-base font-semibold"

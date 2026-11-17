@@ -19,6 +19,7 @@ describe("Premium quiz-first UX contract", () => {
     assert.match(landing, /href="\/start"/);
     assert.match(landing, /Find my practice/);
     assert.match(landing, /data-testid="landing-cta-sticky"/);
+    assert.match(landing, /safe-area-inset-bottom/);
     assert.match(landing, /data-testid="landing-player-preview"/);
     assert.match(landing, /landing-brand-rise/);
     assert.match(landing, /landing-cta-glow/);

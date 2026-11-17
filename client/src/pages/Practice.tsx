@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AnimatedPose } from "@/components/AnimatedAsana";
@@ -14,8 +15,9 @@ import { resolvePreMood, shouldAskPreMood } from "@/lib/moods";
 import { sessionCredit, sessionHeadline } from "@/lib/sessionCredit";
 import { breathBySlug, type Mood } from "@/data/content";
 import { Link } from "wouter";
-import { Play, Pause, SkipForward, X, Check } from "lucide-react";
+import { Play, Pause, SkipForward, SkipBack, X, Check, Volume2, VolumeX } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import type { Preferences } from "@shared/schema";
 
 function playChime() {
   try {
@@ -55,12 +57,15 @@ export default function Practice() {
   } = usePractice();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { data: prefs } = useQuery<Preferences>({ queryKey: ["/api/preferences"] });
+  const voiceEnabled = prefs ? prefs.voiceEnabled !== 0 : true;
 
   const [started, setStarted] = useState(false);
   const [finished, setFinished] = useState(false);
   const [index, setIndex] = useState(0);
   const [remaining, setRemaining] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [muted, setMuted] = useState(false);
   const [elapsedTotal, setElapsedTotal] = useState(0);
   const sessionLogged = useRef(false);
   const journalEntryId = useRef<number | null>(null);
@@ -90,6 +95,11 @@ export default function Practice() {
 
   const current = todays[index];
   useWakeLock(started && !paused && !finished);
+
+  const chime = useCallback(() => {
+    if (muted || !voiceEnabled) return;
+    chime();
+  }, [muted, voiceEnabled]);
 
   // Restore mid-session progress after refresh.
   useEffect(() => {
@@ -170,11 +180,11 @@ export default function Practice() {
       if (result.milestone) {
         setConfetti(true);
         setTimeout(() => setConfetti(false), 2600);
-        playChime();
+        chime();
         toast({ title: result.milestone.title, description: result.milestone.message });
       }
     },
-    [todays, meta, preMood, toast, saving, saveProgress],
+    [todays, meta, preMood, toast, saving, saveProgress, chime],
   );
 
   const finish = useCallback((opts?: { endedEarly?: boolean }) => {
@@ -191,14 +201,14 @@ export default function Practice() {
     finishedMinutes.current = credit.minutes;
     setCredited(credit.counts);
     setEndedEarly(!!opts?.endedEarly);
-    playChime();
+    chime();
     if (credit.counts) {
       setShowPostMood(true);
     } else {
       sessionLogged.current = true;
       saveProgress(null);
     }
-  }, [elapsedTotal, todays.length, saveProgress]);
+  }, [elapsedTotal, todays.length, saveProgress, chime]);
 
   // Step 1 of begin: show the pre-mood prompt (optional) unless mood is known.
   const requestBegin = () => {
@@ -234,10 +244,21 @@ export default function Practice() {
         return i;
       }
       setRemaining(todays[i + 1].holdSeconds);
-      playChime();
+      chime();
       return i + 1;
     });
-  }, [todays]);
+  }, [todays, chime]);
+
+  const prevPose = useCallback(() => {
+    setIndex((i) => {
+      if (i <= 0) return i;
+      setRemaining(todays[i - 1].holdSeconds);
+      skippedIndices.current.delete(i - 1);
+      completedIndices.current.delete(i - 1);
+      chime();
+      return i - 1;
+    });
+  }, [todays, chime]);
 
   // Countdown tick
   useEffect(() => {
@@ -252,7 +273,7 @@ export default function Practice() {
             finish();
             return 0;
           } else {
-            playChime();
+            chime();
             setIndex((i) => i + 1);
             return todays[index + 1].holdSeconds;
           }
@@ -261,7 +282,7 @@ export default function Practice() {
       });
     }, 1000);
     return () => clearInterval(t);
-  }, [started, paused, index, todays, finish]);
+  }, [started, paused, index, todays, finish, chime]);
 
   const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -504,7 +525,17 @@ export default function Practice() {
         <span className="font-serif text-5xl tabular-nums" data-testid="text-countdown">{mmss(remaining)}</span>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={prevPose}
+          disabled={index <= 0}
+          data-testid="button-prev-pose"
+          aria-label="Previous pose"
+        >
+          <SkipBack className="mr-1.5 h-5 w-5" /> Previous
+        </Button>
         <Button variant="outline" size="lg" onClick={() => setPaused((p) => !p)} data-testid="button-pause">
           {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
           <span className="ml-1.5">{paused ? "Resume" : "Pause"}</span>
@@ -520,6 +551,18 @@ export default function Practice() {
           data-testid="button-skip"
         >
           <SkipForward className="mr-1.5 h-5 w-5" /> Skip
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="min-h-11 min-w-11"
+          onClick={() => setMuted((m) => !m)}
+          data-testid="button-mute-chime"
+          aria-pressed={muted || !voiceEnabled}
+          aria-label={muted || !voiceEnabled ? "Unmute chimes" : "Mute chimes"}
+          title={muted || !voiceEnabled ? "Unmute chimes" : "Mute chimes"}
+        >
+          {muted || !voiceEnabled ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
         </Button>
         <Button size="lg" onClick={() => finish({ endedEarly: index + 1 < todays.length })} data-testid="button-complete-session">
           <Check className="mr-1.5 h-5 w-5" /> Finish

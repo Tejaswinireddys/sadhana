@@ -1,4 +1,5 @@
 import { SupportContact } from "@/components/SupportContact";
+import { EmailVerifyBanner } from "@/components/EmailVerifyBanner";
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -330,6 +331,8 @@ export default function Account() {
           setRecoveryCopied(false);
         }}
       /> : null}
+
+        <EmailVerifyBanner />
 
         <Card data-testid="account-signed-in">
           <CardContent className="space-y-4 p-5">

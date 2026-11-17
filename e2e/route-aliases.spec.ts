@@ -61,6 +61,18 @@ test("/support opens Help, and Back does not return to the alias", async ({ page
   await expect(page).toHaveURL(/\/classes$/);
 });
 
+test("/meditate opens Meditation", async ({ page }) => {
+  await page.goto("/meditate");
+  await expect(page).toHaveURL(/\/meditation$/);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+});
+
+test("/library opens the asana library", async ({ page }) => {
+  await page.goto("/library");
+  await expect(page).toHaveURL(/\/asanas$/);
+  await expect(page.getByTestId("button-notfound-home")).toHaveCount(0);
+});
+
 test("/support/extra is not an alias: it shows the app's Not Found page", async ({ page }) => {
   await page.goto("/support/extra");
   await expect(page).toHaveURL(/\/support\/extra$/);
@@ -68,8 +80,14 @@ test("/support/extra is not an alias: it shows the app's Not Found page", async 
   await expect(page.getByRole("heading", { level: 1, name: "Help" })).toHaveCount(0);
 });
 
+test("an unknown path shows a friendly Not Found page", async ({ page }) => {
+  await page.goto("/this-route-does-not-exist");
+  await expect(page.getByRole("heading", { level: 1, name: "Page not found" })).toBeVisible();
+  await expect(page.getByTestId("button-notfound-home")).toBeVisible();
+});
+
 test("the server answers the aliases with the app shell", async ({ request }) => {
-  for (const pathname of ["/login", "/signin", "/sign-in", "/signup", "/today", "/support"]) {
+  for (const pathname of ["/login", "/signin", "/sign-in", "/signup", "/today", "/support", "/meditate", "/library"]) {
     const res = await request.get(pathname);
     expect(res.status(), pathname).toBe(200);
     expect(res.headers()["content-type"], pathname).toContain("text/html");
@@ -80,6 +98,8 @@ test("the server answers the aliases with the app shell", async ({ request }) =>
     expect(api.headers()["content-type"], pathname).toContain("application/json");
     expect(await api.json(), pathname).toEqual({ error: "Not found" });
   }
+  const unknown = await request.get("/this-route-does-not-exist");
+  expect(unknown.status()).toBe(404);
 });
 
 test("/favicon.ico is served as an icon", async ({ request }) => {
