@@ -56,16 +56,17 @@ test.describe("cancel pages while Plus is waitlist-only", () => {
     await expect(page.getByTestId("cancel-done")).toHaveCount(0);
   });
 
-  test("the legacy waitlist link opens plans that say purchasing is unavailable", async ({ page }) => {
+  test("the legacy waitlist link opens plans that say Plus is coming soon", async ({ page }) => {
     await page.goto("/cancel");
     await page.getByTestId("link-plus-waitlist").click();
     await expect(page).toHaveURL(/\/plus#waitlist$/);
-    await expect(page.getByTestId("plans-intro")).toContainText("Purchasing Sadhana Plus is unavailable");
+    await expect(page.getByTestId("plans-intro")).toContainText("Plus is coming soon. Everything free stays free.");
+    await expect(page.getByTestId("plans-intro")).toContainText(/unavailable/);
     await expect(page.getByTestId("plan-billing-badge-plus")).toHaveText("Not on sale");
-    // Still actionable for a guest: it leads to signup, not to a checkout.
-    await expect(page.getByTestId("plan-select-plus")).toHaveText("Subscribe");
-    await expect(page.getByTestId("plan-select-plus")).toBeEnabled();
-    await expect(page.getByTestId("plus-account-status")).toContainText("unavailable");
+    // Must not look chargeable while billing cannot sell.
+    await expect(page.getByTestId("plan-select-plus")).toHaveText("Coming soon");
+    await expect(page.getByTestId("plan-select-plus")).toBeDisabled();
+    await expect(page.getByTestId("plus-account-status")).toContainText(/coming soon|unavailable/i);
     await expect(page.getByTestId("plus-account-status")).not.toContainText("test mode");
     await expect(page.getByTestId("plus-waitlist")).toHaveCount(0);
   });
