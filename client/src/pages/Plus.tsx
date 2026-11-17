@@ -121,11 +121,20 @@ function LivePlus() {
   }, [qc]);
 
   useEffect(() => {
-    void fetch("/api/billing/config")
+    const ctrl = new AbortController();
+    const timeout = window.setTimeout(() => ctrl.abort(), 8_000);
+    void fetch("/api/billing/config", { signal: ctrl.signal })
       .then((r) => r.json())
       .then((c: BillingConfig) => setBilling(c))
       .catch(() => setBilling({ enabled: false, note: "Billing unavailable right now." }))
-      .finally(() => setBillingLoaded(true));
+      .finally(() => {
+        window.clearTimeout(timeout);
+        setBillingLoaded(true);
+      });
+    return () => {
+      ctrl.abort();
+      window.clearTimeout(timeout);
+    };
   }, []);
 
   // Until the server answers, the page-embedded flag decides, so a test-mode

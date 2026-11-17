@@ -40,6 +40,28 @@ describe("adEligibility", () => {
     }
   });
 
+  it("house Plus upsells stay hidden when billing cannot sell", () => {
+    assert.equal(
+      adEligibility({ ads: on, billingEnabled: false, user: null, entitlement: freeEnt, now }),
+      "hide",
+    );
+    assert.equal(
+      adEligibility({
+        ads: { enabled: true, provider: "adsense" },
+        billingEnabled: false,
+        user: null,
+        entitlement: freeEnt,
+        now,
+      }),
+      "show",
+      "third-party ads are not a Plus pitch",
+    );
+    assert.equal(
+      adEligibility({ ads: on, billingEnabled: true, user: null, entitlement: freeEnt, now }),
+      "show",
+    );
+  });
+
   it("is unknown (renders nothing) until both auth and entitlement are known, so nothing flashes", () => {
     assert.equal(adEligibility({ ads: on, user: undefined, entitlement: freeEnt, now }), "unknown");
     assert.equal(adEligibility({ ads: on, user: null, entitlement: undefined, now }), "unknown");

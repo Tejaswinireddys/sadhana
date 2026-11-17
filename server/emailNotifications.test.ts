@@ -18,6 +18,8 @@ import {
   sendWelcomeEmail,
   emailConfigWarning,
   emailDeliveryConfigured,
+  emailReallyDeliverable,
+  requireEmailVerification,
   settleWithin,
   resolveSmtpConfig,
   resolveMailProvider,
@@ -126,17 +128,20 @@ describe("SMTP / Gmail provider selection", () => {
   });
 
   it("prefers SMTP over Resend over webhook for mail-status", () => {
-    assert.deepEqual(mailStatusPayload({}), { emailEnabled: false, provider: "none" });
+    assert.deepEqual(mailStatusPayload({}), {
+      emailEnabled: false, provider: "none", deliverable: false, requireVerification: false,
+    });
     assert.deepEqual(
       mailStatusPayload({ EMAIL_WEBHOOK_URL: "https://example.com/hook" }),
-      { emailEnabled: true, provider: "webhook" },
+      { emailEnabled: true, provider: "webhook", deliverable: true, requireVerification: true },
     );
     assert.deepEqual(
       mailStatusPayload({
         RESEND_API_KEY: "re_test",
         EMAIL_WEBHOOK_URL: "https://example.com/hook",
       }),
-      { emailEnabled: true, provider: "resend" },
+      { emailEnabled: true, provider: "resend", deliverable: false, requireVerification: false },
+      "Resend without a real EMAIL_FROM is not deliverable",
     );
     assert.deepEqual(
       mailStatusPayload({
@@ -145,7 +150,7 @@ describe("SMTP / Gmail provider selection", () => {
         RESEND_API_KEY: "re_test",
         EMAIL_WEBHOOK_URL: "https://example.com/hook",
       }),
-      { emailEnabled: true, provider: "smtp" },
+      { emailEnabled: true, provider: "smtp", deliverable: true, requireVerification: true },
     );
     const status = mailStatusPayload({
       GMAIL_USER: "practice@gmail.com",
@@ -185,6 +190,15 @@ describe("SMTP / Gmail provider selection", () => {
       }),
       null,
     );
+  });
+
+  it("soft-verifies when mail cannot deliver or REQUIRE_EMAIL_VERIFICATION=false", () => {
+    assert.equal(requireEmailVerification({}), false);
+    assert.equal(emailReallyDeliverable({}), false);
+    assert.equal(requireEmailVerification({ RESEND_API_KEY: "re_test" }), false, "sandbox From is not deliverable");
+    assert.equal(requireEmailVerification({ GMAIL_USER: "practice@gmail.com", GMAIL_APP_PASSWORD: "app-pass" }), true);
+    assert.equal(requireEmailVerification({ GMAIL_USER: "practice@gmail.com", GMAIL_APP_PASSWORD: "app-pass", REQUIRE_EMAIL_VERIFICATION: "false" }), false);
+    assert.equal(mailStatusPayload({ GMAIL_USER: "practice@gmail.com", GMAIL_APP_PASSWORD: "app-pass", REQUIRE_EMAIL_VERIFICATION: "false" }).requireVerification, false);
   });
 
   it("sends via the mocked SMTP transport and reports SMTP failures", async () => {

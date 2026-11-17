@@ -15,6 +15,12 @@ describe("registration + email verification contract", () => {
     assert.match(account, /needsVerification/);
     assert.match(account, /data-testid="signin-resend"/);
     assert.match(account, /\/verify/);
+    assert.match(account, /EmailVerifyBanner/);
+    const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
+    assert.match(home, /EmailVerifyBanner/);
+    const banner = readFileSync(resolve("client/src/components/EmailVerifyBanner.tsx"), "utf8");
+    assert.match(banner, /data-testid="email-verify-banner"/);
+    assert.match(banner, /email-verify-banner-resend/);
 
     const app = readFileSync(resolve("client/src/App.tsx"), "utf8");
     assert.match(app, /path="\/verify"/);
@@ -38,7 +44,11 @@ describe("registration + email verification contract", () => {
     // Login is gated on verification — but only where a verification email
     // could actually have been sent. Demanding it on a deployment with no mail
     // transport locked every account out of a door that has no key.
-    assert.match(routes, /if\s*\(!user\.emailVerified\s*&&\s*emailDeliveryConfigured\(\)\)/);
+    assert.match(routes, /if\s*\(!user\.emailVerified\s*&&\s*requireEmailVerification\(\)\)/);
+    assert.match(routes, /requireEmailVerification/);
+    const emailMod = readFileSync(resolve("server/email.ts"), "utf8");
+    assert.match(emailMod, /REQUIRE_EMAIL_VERIFICATION/);
+    assert.match(emailMod, /export function requireEmailVerification/);
     // The flag itself must stay honest: nothing may mark an address verified
     // just because no email could be sent to it.
     assert.equal(

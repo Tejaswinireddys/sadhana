@@ -234,7 +234,8 @@ function hashSlug(slug: string): number {
  * Three alignment/sensation cues — never entry steps, stretch-zone copy, or benefits.
  * Used when variation cues are placeholders or a reshuffle of How to practice.
  */
-export function coachingCuesFor(asana: Asana, _level: Difficulty = "Intermediate"): string[] {
+export function coachingCuesFor(asana: Asana, _level?: Difficulty): string[] {
+  void _level;
   const authored = FORM_FEEL[asana.slug];
   if (authored) return authored.slice(0, 3);
 
@@ -264,16 +265,18 @@ function formCuesFromCatalog(asana: Asana, rawForm: string[], level: Difficulty)
 
 /**
  * Build elegant teaching panels from the asana model.
- * Prefers intermediate cues; falls back across difficulty levels.
+ * Defaults to the catalog difficulty — never a blanket Intermediate when the
+ * pose (or caller) already knows Beginner/Advanced.
  */
 export function buildPoseExplanation(
   asana: Asana,
-  level: Difficulty = "Intermediate",
+  level?: Difficulty,
 ): PoseExplanationContent {
+  const resolved = level ?? asana.difficulty;
   const key =
-    level === "Beginner"
+    resolved === "Beginner"
       ? "beginner"
-      : level === "Advanced"
+      : resolved === "Advanced"
         ? "advanced"
         : "intermediate";
 
@@ -285,7 +288,7 @@ export function buildPoseExplanation(
     ...(primary.cues.length ? primary.cues : intermediate.cues),
     ...(!primary.cues.length && !intermediate.cues.length ? beginner.cues : []),
   ]);
-  const formCues = formCuesFromCatalog(asana, rawForm, level);
+  const formCues = formCuesFromCatalog(asana, rawForm, resolved);
 
   // Align / teaching topics must follow the selected variation — never the
   // full/default asana.steps when a variation adapts its steps.
@@ -320,7 +323,7 @@ export function buildPoseExplanation(
     formCues:
       formCues.length > 0
         ? formCues
-        : coachingCuesFor(asana, level),
+        : coachingCuesFor(asana, resolved),
     breathCue: asana.breathing,
     alignmentTips:
       alignmentTips.length > 0

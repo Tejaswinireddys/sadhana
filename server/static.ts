@@ -102,8 +102,8 @@ const KNOWN_TOP_LEVEL_SEGMENTS = new Set([
 
 /**
  * A path the client renders as a real page: a known first segment, or an
- * exact alias (`/login`, `/signup`, `/today`) that `main.tsx` rewrites before
- * the router runs.
+ * exact alias (`/login`, `/signup`, `/today`, `/meditate`, `/library`) that
+ * `main.tsx` rewrites before the router runs.
  */
 export function isKnownAppRoute(pathname: string): boolean {
   if (aliasRouteTarget(pathname)) return true;

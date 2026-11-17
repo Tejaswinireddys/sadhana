@@ -53,6 +53,7 @@ import {
   emailConfigWarning,
   emailDeliveryConfigured,
   mailStatusPayload,
+  requireEmailVerification,
   type SendEmailResult,
 } from "./email";
 import { MAIL_COULD_NOT_SEND } from "@shared/mailCopy";
@@ -215,10 +216,10 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
     if (!user || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
       return res.status(401).json({ error: "Email or password is incorrect" });
     }
-    // Only demand verification when this deployment could actually have sent
-    // one. Otherwise the gate locks every account out of a door that has no
-    // key — the address is unproven, but blocking proves nothing either.
-    if (!user.emailVerified && emailDeliveryConfigured()) {
+    // Hard-gate only when REQUIRE_EMAIL_VERIFICATION is on and mail can
+    // actually deliver. Soft mode (mail off, sandbox From, or env=false)
+    // signs the user in and surfaces a verify banner instead.
+    if (!user.emailVerified && requireEmailVerification()) {
       return res.status(403).json({
         error:
           "Verify your email before signing in. Check your inbox and spam, or resend the verification email. If nothing arrives, please try again shortly or contact support.",

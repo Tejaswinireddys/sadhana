@@ -169,9 +169,19 @@ export function resolveMailProvider(
 /** Payload for GET /api/auth/mail-status — no secrets, no from-address. */
 export function mailStatusPayload(
   env: Record<string, string | undefined> = process.env,
-): { emailEnabled: boolean; provider: MailProvider } {
+): {
+  emailEnabled: boolean;
+  provider: MailProvider;
+  deliverable: boolean;
+  requireVerification: boolean;
+} {
   const provider = resolveMailProvider(env);
-  return { emailEnabled: provider !== "none", provider };
+  return {
+    emailEnabled: provider !== "none",
+    provider,
+    deliverable: emailReallyDeliverable(env),
+    requireVerification: requireEmailVerification(env),
+  };
 }
 
 /** Thin adapter for billingCompliance — same transport as sendAppEmail. */
@@ -214,6 +224,31 @@ export function emailDeliveryConfigured(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
   return resolveMailProvider(env) !== "none";
+}
+
+/**
+ * True when outbound mail should reach a real inbox (transport present and not
+ * a known-broken Resend sandbox From). Used by soft verification and mail-status.
+ */
+export function emailReallyDeliverable(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return emailDeliveryConfigured(env) && !emailConfigWarning(env);
+}
+
+/**
+ * Whether login must block unverified accounts.
+ *
+ * Soft by default when mail cannot deliver. When mail works, set
+ * REQUIRE_EMAIL_VERIFICATION=false to keep soft sign-in (banner + resend)
+ * instead of a hard 403. Password reset still needs a working inbox.
+ */
+export function requireEmailVerification(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  if (!emailReallyDeliverable(env)) return false;
+  if (env.REQUIRE_EMAIL_VERIFICATION?.trim() === "false") return false;
+  return true;
 }
 
 /**

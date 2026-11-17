@@ -2,7 +2,8 @@
  * Conventional URLs people type or link to that the app has under another
  * name. `/login`, `/signin`, `/sign-in` and `/signup` are the Sign in / Sign up
  * tabs of `/account`;
- * `/today` is the home page; `/support` is the Help page. Before these existed, opening one directly hit
+ * `/today` is the home page; `/support` is the Help page; `/meditate` is
+ * Meditation; `/library` is the asana library. Before these existed, opening one directly hit
  * the app's Not Found page with HTTP 404.
  *
  * `/register` was a separate local-setup wizard that read like account signup
@@ -23,6 +24,8 @@ export const ROUTE_ALIASES: Readonly<Record<string, { pathname: string; params?:
   "/register": { pathname: "/start" },
   "/today": { pathname: "/" },
   "/support": { pathname: "/help" },
+  "/meditate": { pathname: "/meditation" },
+  "/library": { pathname: "/asanas" },
 };
 
 /**

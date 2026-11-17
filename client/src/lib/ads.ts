@@ -6,6 +6,9 @@
  * member whose cancel is scheduled stays ad-free until their access date, and
  * "unknown" (auth or entitlement still loading) renders nothing, so a member
  * never sees an ad flash before their plan is known.
+ *
+ * House ads sell Sadhana Plus. When `billingEnabled` is false (checkout cannot
+ * charge), those upsells stay hidden — AdSense units may still show.
  */
 import type { AdsConfig } from "@shared/adsConfig";
 import { hasPaidPlan, type PlusEntitlementView } from "@/lib/plusStatus";
@@ -13,7 +16,9 @@ import { hasPaidPlan, type PlusEntitlementView } from "@/lib/plusStatus";
 export type AdEligibility = "show" | "hide" | "unknown";
 
 export function adEligibility(input: {
-  ads: Pick<AdsConfig, "enabled">;
+  ads: Pick<AdsConfig, "enabled"> & { provider?: AdsConfig["provider"] };
+  /** Matches publicConfig.billingEnabled — false when Stripe cannot sell. */
+  billingEnabled?: boolean;
   /** `undefined` while /api/auth/me is pending; `null` for a guest. */
   user: { plan?: string } | null | undefined;
   /** `undefined` while /api/billing/entitlement is pending. */
@@ -23,6 +28,9 @@ export function adEligibility(input: {
   now?: number;
 }): AdEligibility {
   if (!input.ads.enabled) return "hide";
+  // House cards are Plus upsells — never pitch checkout that cannot charge.
+  const provider = input.ads.provider ?? "house";
+  if (input.billingEnabled === false && provider === "house") return "hide";
   const { user, entitlement } = input;
   if (user === undefined) return "unknown";
   // users.plan is authoritative for accounts; no need to wait for billing.
