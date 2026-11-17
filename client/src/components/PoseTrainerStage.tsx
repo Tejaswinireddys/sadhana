@@ -16,13 +16,14 @@
  * maps to another catalog slug is ignored while teaching, so Warrior I's cues
  * cannot swap in Anjaneyasana's body.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PoseDemoStage } from "@/components/PoseDemoStage";
 import { PoseHumanStage } from "@/components/PoseHumanStage";
 import { asanaBySlug } from "@/data/content";
 import { hasRigSequence } from "@/data/poseKeyframes";
 import { humanStepSlug, poseHasShapeJourney } from "@/data/poseKeyImages";
 import { poseDemoAvailability, STATIC_REFERENCE_LABEL } from "@/data/poseDemoAvailability";
+import { aiTrainerLessonFor, teachingVisual, type AiTrainerLesson } from "@/data/aiTrainerLessons";
 import { poseImageCaveat, poseImageShortCaveat } from "@/data/poseImageAccuracy";
 import { poseMediaFor } from "@/data/poseMedia";
 import { manifestToVideoSources, usePoseMedia } from "@/lib/poseMediaApi";
@@ -133,6 +134,21 @@ export function PoseTrainerStage({
   const effectiveMomentum =
     !useRig && shapeJourney && guideActive && !isTeaching ? momentum ?? "" : "";
 
+  const visual = teachingVisual(slug, demoIsReviewedMovement);
+  if (isTeaching && visual === "ai-preview") {
+    const lesson = aiTrainerLessonFor(slug);
+    if (lesson) {
+      return (
+        <AiTrainerPracticeClip
+          lesson={lesson}
+          playing={playing}
+          className={className}
+          testId={testId}
+        />
+      );
+    }
+  }
+
   if ((wantSyncedHowTo || wantPresentation) && media) {
     return (
       <PoseDemoStage
@@ -220,5 +236,54 @@ export function PoseTrainerStage({
       className={className}
       data-testid={testId}
     />
+  );
+}
+
+/**
+ * Pilot clip for teaching. Labeled as AI-generated. It is not a reviewed
+ * movement demonstration and must not be treated as one.
+ */
+function AiTrainerPracticeClip({
+  lesson,
+  playing,
+  className,
+  testId,
+}: {
+  lesson: AiTrainerLesson;
+  playing: boolean;
+  className?: string;
+  testId?: string;
+}) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+    if (playing) void video.play().catch(() => undefined);
+    else video.pause();
+  }, [playing, lesson.slug]);
+  return (
+    <figure
+      className={`relative mx-auto flex h-full max-h-full w-full items-center justify-center ${className ?? ""}`}
+      data-testid={testId ?? "ai-trainer-practice"}
+    >
+      <video
+        ref={ref}
+        src={lesson.mp4}
+        poster={lesson.poster}
+        playsInline
+        crossOrigin="anonymous"
+        preload="metadata"
+        className="max-h-full w-full rounded-xl object-contain"
+        data-testid="ai-trainer-practice-video"
+      >
+        <track kind="captions" src={lesson.captionsVtt} srcLang="en" label="English" default />
+      </video>
+      <figcaption
+        className="absolute left-2 top-2 max-w-[85%] rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm"
+        data-testid="ai-trainer-practice-label"
+      >
+        {lesson.label}. Photorealistic AI-generated trainer, not a filmed demonstration.
+      </figcaption>
+    </figure>
   );
 }

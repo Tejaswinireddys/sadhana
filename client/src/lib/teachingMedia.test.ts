@@ -66,7 +66,7 @@ describe("the teaching stage enforces that", () => {
     assert.match(src, /STATIC_REFERENCE_LABEL/);
     assert.equal(
       STATIC_REFERENCE_LABEL,
-      "Static reference — movement demonstration unavailable",
+      "Still image only. This is not a movement demonstration.",
     );
   });
 });

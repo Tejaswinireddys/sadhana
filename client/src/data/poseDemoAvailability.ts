@@ -48,7 +48,8 @@ export type PoseDemoAvailability = {
 };
 
 /** The label the UI must show whenever movement media is unavailable. */
-export const STATIC_REFERENCE_LABEL = "Static reference — movement demonstration unavailable";
+export const STATIC_REFERENCE_LABEL =
+  "Still image only. This is not a movement demonstration.";
 
 /**
  * Category → entry illustration, mirroring `defaultEntrySlug` in

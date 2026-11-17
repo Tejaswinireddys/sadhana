@@ -68,7 +68,7 @@ test.describe("pose lesson — media honesty", () => {
       }
       await expect(page.getByTestId("lesson-media-disclosure")).toBeVisible();
       await expect(page.getByTestId("pose-lesson-media-label")).toContainText(
-        "Static reference — movement demonstration unavailable",
+        "Still image only. This is not a movement demonstration.",
       );
     });
   }

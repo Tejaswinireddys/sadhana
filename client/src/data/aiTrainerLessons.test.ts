@@ -9,6 +9,7 @@ import {
   AI_TRAINER_PREVIEW_LABEL,
   aiTrainerLessonFor,
   hasAiTrainerLesson,
+  teachingVisual,
 } from "./aiTrainerLessons.ts";
 import { asanaBySlug } from "./content.ts";
 import { hasMovementDemo } from "./poseDemoAvailability.ts";
@@ -55,6 +56,9 @@ describe("AI trainer lesson catalog", () => {
 
   it("exposes lookup helpers without inventing lessons", () => {
     assert.equal(hasAiTrainerLesson("tadasana"), true);
+    assert.equal(teachingVisual("tadasana", false), "ai-preview");
+    assert.equal(teachingVisual("tadasana", true), "movement");
+    assert.equal(teachingVisual("balasana", false), "still");
     assert.equal(hasAiTrainerLesson("balasana"), false);
     assert.equal(aiTrainerLessonFor("balasana"), undefined);
     assert.equal(Object.keys(AI_TRAINER_LESSONS).length, 3);
