@@ -383,7 +383,7 @@ export default function PathwayDetail() {
                             </span>
                             <p className="text-xs font-medium leading-tight">{asana?.english ?? p.asanaSlug}</p>
                             <p className="text-[11px] text-muted-foreground">
-                              {p.holdSeconds}s{poseSides(p) === "each" ? " each" : ""}
+                              Hold {p.holdSeconds}s{poseSides(p) === "each" ? " each side" : ""}
                               {p.note && !/each side/i.test(p.note) ? ` · ${p.note}` : ""}
                             </p>
                           </div>

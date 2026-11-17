@@ -454,7 +454,7 @@ export default function Asanas() {
                       )}
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>{a.category}</span>
-                        <span>{a.hold}</span>
+                        <span>Hold {a.hold}</span>
                       </div>
                     </CardContent>
                   </div>

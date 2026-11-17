@@ -28,7 +28,7 @@ import { briefModeFit, nearestOfferedMinutes } from "@/lib/sessionFit";
 import { DurationFitNotice } from "@/components/DurationFitNotice";
 import { readPracticePreferences, writePracticePreferences } from "@/lib/practicePreferences";
 import { cn } from "@/lib/utils";
-import { formatHold } from "@/lib/formatDuration";
+import { formatHoldLabel } from "@/lib/formatDuration";
 import { ChevronRight, Play, RefreshCw, ShieldAlert, Sparkles, UserRound } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import type { UserProfile } from "@shared/schema";
@@ -430,7 +430,7 @@ export default function Trainer() {
                         <p className="mt-0.5 text-sm text-muted-foreground">{p.why}</p>
                       </div>
                       <span className="hidden shrink-0 text-right text-xs font-medium tabular-nums text-muted-foreground sm:block">
-                        {formatHold(p.holdSeconds, p.sides)}
+                        {formatHoldLabel(p.holdSeconds, p.sides)}
                       </span>
                       <ChevronRight
                         className="h-5 w-5 shrink-0 text-muted-foreground"

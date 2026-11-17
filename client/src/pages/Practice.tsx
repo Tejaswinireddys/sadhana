@@ -439,7 +439,7 @@ export default function Practice() {
                     </span>
                     {i + 1}. {a.english}
                   </span>
-                  <span className="text-xs text-muted-foreground">{a.holdSeconds}s</span>
+                  <span className="text-xs text-muted-foreground">Hold {a.holdSeconds}s</span>
                 </div>
               ))}
               {suggestedBreath && (

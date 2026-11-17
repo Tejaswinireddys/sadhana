@@ -260,7 +260,7 @@ export default function AdaptivePlan() {
                   <div>
                     <p className="font-medium">{asana?.english ?? p.slug}</p>
                     <p className="text-sm text-muted-foreground">
-                      {p.holdSeconds}s · {p.sides} · {p.why}
+                      Hold {p.holdSeconds}s · {p.sides} · {p.why}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">

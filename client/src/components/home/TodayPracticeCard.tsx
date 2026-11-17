@@ -17,7 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PoseImage } from "@/components/PoseImage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { asanaBySlug } from "@/data/content";
-import { formatDuration } from "@/lib/formatDuration";
+import { formatHoldLabel } from "@/lib/formatDuration";
 import type { PracticeRecommendation } from "@/lib/homeRecommendation";
 import { buildSessionPreflight, durationPhrase, toTimedPoses } from "@/lib/sessionPreflight";
 import { countOf } from "@/lib/plural";
@@ -344,8 +344,7 @@ export function TodayPracticeCard({
                   {p.english}
                 </Link>
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatDuration(p.holdSeconds)}
-                  {p.sides === "each" ? " each side" : ""}
+                  {formatHoldLabel(p.holdSeconds, p.sides)}
                 </span>
               </li>
             ))}

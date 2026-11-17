@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PoseImage } from "@/components/PoseImage";
 import { STATIC_REFERENCE_LABEL } from "@/data/poseDemoAvailability";
-import { formatDuration } from "@/lib/formatDuration";
+import { formatHoldLabel } from "@/lib/formatDuration";
 import type { SessionPreflight } from "@/lib/sessionPreflight";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Info, Package, ShieldCheck } from "lucide-react";
@@ -150,8 +150,7 @@ export function SessionPreflightCard({
               />
               <span className="min-w-0 flex-1 truncate text-sm">{p.english}</span>
               <span className="shrink-0 text-xs text-muted-foreground">
-                {formatDuration(p.holdSeconds)}
-                {p.sides === "each" ? " each side" : ""}
+                {formatHoldLabel(p.holdSeconds, p.sides)}
               </span>
             </li>
           ))}

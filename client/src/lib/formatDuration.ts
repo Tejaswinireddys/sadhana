@@ -25,6 +25,19 @@ export function formatHold(seconds: number, sides?: "once" | "each"): string {
   return sides === "each" ? `${base} each side` : base;
 }
 
+/**
+ * Pose-list copy for the hold phase only.
+ *
+ * Preflight and cards used to print a bare "30 sec" next to a pose name. That
+ * number is the hold the player will run — not get-ready, not narration — so
+ * the word "Hold" has to stay in the string. Without it, Mountain Pose looked
+ * like a 20–30 second pose while the guided player counted ~58s of instruction
+ * before the hold even began.
+ */
+export function formatHoldLabel(seconds: number, sides?: "once" | "each"): string {
+  return `Hold ${formatHold(seconds, sides)}`;
+}
+
 /** Live countdown only. */
 export function formatClock(totalSeconds: number): string {
   const v = Math.max(0, Math.round(totalSeconds));
