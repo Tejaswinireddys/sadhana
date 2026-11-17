@@ -146,6 +146,21 @@ export function levelLabel(level: ClassLevel): string {
   return level.charAt(0).toUpperCase() + level.slice(1);
 }
 
+/**
+ * Seed / custom posters that are catalog pose illustrations (`/poses/…`).
+ * Those are 1:2 portraits with cream negative space — `object-cover` on a
+ * 16:9 class tile crops to empty wash and looks like a blank grey box.
+ */
+export function isPoseCatalogPoster(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const path = url.startsWith("http") ? new URL(url).pathname : url;
+    return /\/poses\/(?:thumbs\/)?[^/]+\.(?:png|webp|jpe?g)$/i.test(path);
+  } catch {
+    return /\/poses\//i.test(url);
+  }
+}
+
 /** "2:05" / "1:02:05" for resume labels. */
 export function formatTimestamp(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds));
