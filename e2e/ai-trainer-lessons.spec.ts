@@ -33,10 +33,20 @@ test.describe("AI trainer pose lessons", () => {
       await expect(video).toHaveAttribute("controls", "");
       await expect(video).toHaveAttribute("playsinline", "");
       await expect(video).toHaveAttribute("poster", lesson.poster);
+      await expect(section).toHaveAttribute("data-fit", "contain-height");
       await expect(video).toHaveClass(/aspect-\[9\/16\]/);
       await expect(video).toHaveClass(/object-contain/);
+      await expect(video).toHaveClass(/w-auto/);
       await expect(video).not.toHaveClass(/object-cover/);
       await expect(video).not.toHaveClass(/aspect-video/);
+      // Height-first: rendered box should be portrait (taller than wide), not a
+      // wide letterbox with a tiny subject.
+      const box = await video.evaluate((node: HTMLVideoElement) => {
+        const r = node.getBoundingClientRect();
+        return { w: r.width, h: r.height };
+      });
+      expect(box.h).toBeGreaterThan(box.w);
+      expect(box.h).toBeGreaterThan(200);
       expect(await video.evaluate((node: HTMLVideoElement) => node.autoplay)).toBe(false);
 
       // Progressive same-origin lesson file (Mux not required for this pilot).

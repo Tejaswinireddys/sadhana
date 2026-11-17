@@ -96,3 +96,21 @@ export function teachingVisual(slug: string, reviewedMovement: boolean): "moveme
   if (hasAiTrainerLesson(slug)) return "ai-preview";
   return "still";
 }
+
+/**
+ * Portrait player layout — height-first so a 9:16 clip fills available height
+ * instead of sitting tiny inside a wide letterbox. `object-contain` only; never
+ * `object-cover` (that crops head/feet). Callers pass these onto the <video>
+ * (and VideoPlayer's `videoClassName`).
+ */
+export const AI_TRAINER_PORTRAIT_SHELL =
+  "mx-auto flex w-full max-w-full items-center justify-center";
+
+/** Detail / VideoPlayer: explicit viewport height, width follows 9:16. */
+export const AI_TRAINER_PORTRAIT_VIDEO =
+  "aspect-[9/16] h-[min(80vh,72dvh)] w-auto max-w-full rounded-xl bg-card object-contain";
+
+/** Guided practice stage: fill the stage height, width follows 9:16. */
+export const AI_TRAINER_PRACTICE_VIDEO =
+  "aspect-[9/16] h-full max-h-full w-auto max-w-full rounded-xl object-contain";
+
