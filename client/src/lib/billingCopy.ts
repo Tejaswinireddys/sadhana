@@ -56,10 +56,12 @@ export type BillingCopy = {
   /** /plus fallback status line when the server sent no note. */
   statusNote: string;
   /**
-   * /plus Subscribe button. Still "Subscribe" while billing is off: signed-out
-   * and unverified practitioners can use it to reach signup / verification.
+   * /plus Subscribe button. Disabled while billing is off — it must not look
+   * like a charge. "Coming soon" is the label in that state.
    */
   subscribeLabel: string;
+  /** False when the Subscribe control must not start checkout or signup. */
+  subscribeEnabled: boolean;
   /** /plus line under the subscription actions. */
   manageNote: string | null;
   /** Account-status line for a free or signed-out practitioner. */
@@ -80,9 +82,10 @@ export function billingCopy(state: BillingState, prices: PlusPrices = CATALOG_PL
         badge: "Not on sale",
         landingPlus: `Sadhana Plus (${price}) adds the Plus video classes, but purchasing is unavailable right now, so nothing can be charged.`,
         landingPlusLink: "About Sadhana Plus",
-        plansIntro: "Purchasing Sadhana Plus is unavailable right now, so nothing can be charged. Free practice and the safety library stay available.",
-        statusNote: "Purchasing is unavailable right now.",
-        subscribeLabel: "Subscribe",
+        plansIntro: "Plus is coming soon. Everything free stays free. Purchasing is unavailable right now, so nothing can be charged.",
+        statusNote: "Plus is coming soon. Everything free stays free.",
+        subscribeLabel: "Coming soon",
+        subscribeEnabled: false,
         manageNote: null,
         freeAccount: "You're on the free plan. Purchasing Plus is unavailable right now.",
         gateNote: "This practice is for Plus members. Purchasing Plus is unavailable right now.",
@@ -98,6 +101,7 @@ export function billingCopy(state: BillingState, prices: PlusPrices = CATALOG_PL
         plansIntro: `Test checkout — no real charges. Plus checkout runs in Stripe test mode and only accepts Stripe test cards. Cancel in two taps from Home. The safety library stays free.`,
         statusNote: "Stripe test mode — use test cards only. No real charges.",
         subscribeLabel: "Subscribe (test checkout)",
+        subscribeEnabled: true,
         manageNote: "Cancel is two taps from Home. You can also manage or cancel in Stripe's test-mode portal — no real charges are made.",
         freeAccount: "You're on the free plan. Checkout is in Stripe test mode — no real charges.",
         gateNote: "This practice is for Plus members. Checkout is in Stripe test mode — no real charges.",
@@ -113,6 +117,7 @@ export function billingCopy(state: BillingState, prices: PlusPrices = CATALOG_PL
         plansIntro: "Cancel in two taps from Home. Renewal reminder 3 days before every charge. First-charge refund within 14 days, auto-approved. The safety library stays free.",
         statusNote: "Manage or cancel anytime.",
         subscribeLabel: "Subscribe",
+        subscribeEnabled: true,
         manageNote: "Cancel is two taps from Home. You can also manage or cancel your subscription in the Stripe billing portal.",
         freeAccount: "You're on the free plan.",
         gateNote: "This practice is for Plus members.",

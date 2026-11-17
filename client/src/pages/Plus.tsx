@@ -289,16 +289,20 @@ function LivePlus() {
             className="min-h-11"
             variant={interval === "month" ? "default" : "outline"}
             onClick={() => setInterval("month")}
+            aria-pressed={interval === "month"}
+            data-testid="interval-month"
           >
-            Monthly
+            Monthly · {usd(plusPrices(billing).month)}
           </Button>
           <Button
             size="sm"
             className="min-h-11"
             variant={interval === "year" ? "default" : "outline"}
             onClick={() => setInterval("year")}
+            aria-pressed={interval === "year"}
+            data-testid="interval-year"
           >
-            Yearly
+            Yearly · {usd(plusPrices(billing).year)}
           </Button>
         </div>
 
@@ -321,12 +325,12 @@ function LivePlus() {
                     </span>
                   )}
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground" data-testid={`plan-price-${p.id}`}>
                   {p.monthlyUsd === 0
                     ? "Free"
                     : interval === "year"
-                      ? `${usd(billing.prices?.year.amount ?? p.yearlyUsd)}/yr`
-                      : `${usd(billing.prices?.month.amount ?? p.monthlyUsd)}/mo`}
+                      ? `${usd(plusPrices(billing).year)}/yr`
+                      : `${usd(plusPrices(billing).month)}/mo`}
                 </p>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -341,8 +345,15 @@ function LivePlus() {
                 <Button
                   className="min-h-11 w-full"
                   variant={plan === p.id ? "default" : "outline"}
-                  disabled={busy || authLoading || (p.id !== "free" && (hasPaidPlan || (!!auth?.user?.emailVerified && !billing.enabled)))}
-                  onClick={() => void selectPlan(p.id)}
+                  disabled={
+                    busy ||
+                    authLoading ||
+                    (p.id !== "free" && (!copy.subscribeEnabled || hasPaidPlan || (!!auth?.user?.emailVerified && !billing.enabled)))
+                  }
+                  onClick={() => {
+                    if (p.id !== "free" && !copy.subscribeEnabled) return;
+                    void selectPlan(p.id);
+                  }}
                   data-testid={`plan-select-${p.id}`}
                 >
                   {p.id === "free"
