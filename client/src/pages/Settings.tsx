@@ -36,6 +36,9 @@ import {
   downloadOfflinePack,
   clearOfflinePack,
   offlinePackStatus,
+  offlineManifestForSlugs,
+  practiceToSaveOffline,
+  saveOfflinePractice,
 } from "@/lib/offlinePack";
 import { habitDayLabel, readHabitPlan, writeHabitPlan, type HabitPlan } from "@/lib/habitPlan";
 import { readAnalyticsPrefs, writeAnalyticsPrefs } from "@/lib/analytics";
@@ -597,13 +600,14 @@ export default function Settings() {
 
       <Card className="shadow-soft">
         <CardHeader>
-          <CardTitle className="font-serif text-xl">Offline image cache</CardTitle>
+          <CardTitle className="font-serif text-xl">Offline practice</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Saves the app shell and five pose illustrations so pages load on a weak connection.
-            It does not make practice work offline — sessions, narration and your journal still
-            need a connection.
+            Saves the app shell, the illustrations for the practice queued on this device, and any
+            narration files the server actually returns. That practice can open while you are
+            offline. The journal still syncs when you are back. Nothing here is generated to fill a
+            missing recording.
           </p>
           <p className="text-xs text-muted-foreground" data-testid="offline-status">
             {offlineStatus.present
@@ -616,12 +620,17 @@ export default function Settings() {
               disabled={busy}
               onClick={() => {
                 setBusy(true);
-                void downloadOfflinePack()
+                const practice = practiceToSaveOffline();
+                saveOfflinePractice(practice);
+                const slugs = practice?.poses.map((pose) => pose.slug) ?? [];
+                void downloadOfflinePack(offlineManifestForSlugs(slugs))
                   .then(async (r) => {
                     setOfflineStatus(await offlinePackStatus());
                     toast({
-                      title: "Images cached",
-                      description: `Cached ${r.cached} assets${r.failed ? ` (${r.failed} failed)` : ""}.`,
+                      title: practice ? "Practice saved on this device" : "App shell saved",
+                      description: practice
+                        ? `Cached ${r.cached} files for ${practice.poses.length} poses${r.failed ? ` (${r.failed} missing)` : ""}.`
+                        : `Cached ${r.cached} files. Queue a practice first if you want its poses saved too.`,
                     });
                   })
                   .catch((e) =>
@@ -635,13 +644,14 @@ export default function Settings() {
               }}
               data-testid="settings-offline-download"
             >
-              Cache these images
+              Save for offline
             </Button>
             <Button
               variant="outline"
               className="min-h-11"
               onClick={() => {
                 void clearOfflinePack().then(async () => {
+                  saveOfflinePractice(null);
                   setOfflineStatus(await offlinePackStatus());
                   toast({ title: "Offline pack cleared" });
                 });
