@@ -9,6 +9,7 @@ const PAGES: Record<string, { title: string; description: string }> = {
   "/classes": { title: "Yoga classes · Sadhana", description: "Follow-along yoga video classes by level, length and focus, with progress you can resume." },
   "/breathing": { title: "Breathing practices · Sadhana", description: "Explore guided breathing practices at your own pace." },
   "/meditation": { title: "Meditation and yoga nidra · Sadhana", description: "Timer-based sits and yoga nidra with captions. Scripts are AI-written, not teacher recordings." },
+  "/eight-limbs": { title: "Eight limbs · Sadhana", description: "One card a day from the eight-limb list in Patañjali's Yoga Sūtra, with IAST, Devanagari, and a computer-voice guide." },
   "/privacy": { title: "Privacy · Sadhana", description: "How Sadhana stores practice data and how to export or delete it." },
   "/terms": { title: "Terms · Sadhana", description: "Terms for using Sadhana." },
   "/health-disclaimer": { title: "Health disclaimer · Sadhana", description: "Understand the limits of educational yoga guidance before practising." },
