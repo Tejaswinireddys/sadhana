@@ -100,7 +100,7 @@ export function teachingVisual(slug: string, reviewedMovement: boolean): "moveme
 /**
  * Portrait player layout — height-first so a 9:16 clip fills available height
  * instead of sitting tiny inside a wide letterbox. `object-contain` only; never
- * `object-cover` (that crops head/feet). Callers pass these onto the <video>
+ * cover crop (that crops head/feet). Callers pass these onto the <video>
  * (and VideoPlayer's `videoClassName`).
  */
 export const AI_TRAINER_PORTRAIT_SHELL =

@@ -7,7 +7,7 @@
  *
  * v3 lessons are portrait 9:16. Size height-first with object-fit: contain so
  * the trainer fills available height without a giant empty letterbox and
- * without object-cover cropping head/feet.
+ * without cover-cropping head/feet.
  */
 import { VideoPlayer } from "@/components/VideoPlayer";
 import {
