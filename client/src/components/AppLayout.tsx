@@ -67,6 +67,7 @@ const PRIMARY_NAV: NavItem[] = [
       "/adaptive",
       "/pathways",
       "/breathing",
+      "/meditation",
       "/kids",
       "/builder",
       "/pose-coach",

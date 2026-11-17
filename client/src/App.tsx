@@ -53,6 +53,7 @@ const PathwayDetail = lazyPage(() => import("@/pages/PathwayDetail"));
 const Practice = lazyPage(() => import("@/pages/Practice"));
 const GuidedSession = lazyPage(() => import("@/pages/GuidedSession"));
 const Breathing = lazyPage(() => import("@/pages/Breathing"));
+const Meditation = lazyPage(() => import("@/pages/Meditation"));
 const Affirmations = lazyPage(() => import("@/pages/Affirmations"));
 const Journal = lazyPage(() => import("@/pages/Journal"));
 const Profiles = lazyPage(() => import("@/pages/Profiles"));
@@ -163,6 +164,7 @@ function AppRouter() {
           <Route path="/guided" component={GuidedSession} />
           <Route path="/trainer" component={Trainer} />
           <Route path="/breathing" component={Breathing} />
+          <Route path="/meditation" component={Meditation} />
           <Route path="/affirmations" component={Affirmations} />
           <Route path="/journal" component={Journal} />
           <Route path="/profiles" component={Profiles} />

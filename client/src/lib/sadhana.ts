@@ -5,6 +5,9 @@ export type Stats = {
   totalMinutes: number;
   asanaSessions: number;
   breathingSessions: number;
+  meditationSessions: number;
+  breathMinutes: number;
+  meditationMinutes: number;
   daysPracticed: number;
   heatmap: { date: string; minutes: number }[];
 };

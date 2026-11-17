@@ -19,6 +19,9 @@ export type PracticeStats = {
   totalMinutes: number;
   asanaSessions: number;
   breathingSessions: number;
+  meditationSessions: number;
+  breathMinutes: number;
+  meditationMinutes: number;
   daysPracticed: number;
   heatmap: { date: string; minutes: number }[];
 };
@@ -46,6 +49,10 @@ export type WeeklyProgress = {
   /** Sessions finished within the week. */
   sessions: number;
   minutes: number;
+  /** Minutes from sessions whose kind is breathing. Already included in `minutes`. */
+  breathMinutes: number;
+  /** Minutes from sessions whose kind is meditation. Already included in `minutes`. */
+  meditationMinutes: number;
 };
 
 export type HomeProgressTiles = {
@@ -105,8 +112,12 @@ export function weeklyProgress(
   });
   const days = new Set<string>();
   let minutes = 0;
+  let breathMinutes = 0;
+  let meditationMinutes = 0;
   for (const s of inWeek) {
     minutes += s.durationMinutes;
+    if (s.kind === "breathing") breathMinutes += s.durationMinutes;
+    if (s.kind === "meditation") meditationMinutes += s.durationMinutes;
     if (s.durationMinutes > 0) days.add(dayKey(s.date));
   }
   return {
@@ -115,6 +126,8 @@ export function weeklyProgress(
     daysPracticed: days.size,
     sessions: inWeek.length,
     minutes,
+    breathMinutes,
+    meditationMinutes,
   };
 }
 
@@ -137,6 +150,13 @@ export function computeStats(
   const totalMinutes = sessions.reduce((a, s) => a + s.durationMinutes, 0);
   const asanaSessions = sessions.filter((s) => (s.kind ?? "asana") === "asana").length;
   const breathingSessions = sessions.filter((s) => s.kind === "breathing").length;
+  const meditationSessions = sessions.filter((s) => s.kind === "meditation").length;
+  const breathMinutes = sessions
+    .filter((s) => s.kind === "breathing")
+    .reduce((sum, s) => sum + s.durationMinutes, 0);
+  const meditationMinutes = sessions
+    .filter((s) => s.kind === "meditation")
+    .reduce((sum, s) => sum + s.durationMinutes, 0);
 
   const todayKey =
     todayOverride && /^\d{4}-\d{2}-\d{2}$/.test(todayOverride)
@@ -192,6 +212,9 @@ export function computeStats(
     totalMinutes,
     asanaSessions,
     breathingSessions,
+    meditationSessions,
+    breathMinutes,
+    meditationMinutes,
     daysPracticed,
     heatmap,
   };

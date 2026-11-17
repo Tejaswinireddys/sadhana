@@ -101,4 +101,18 @@ describe("weekly practice", () => {
     assert.equal(week.daysPracticed, 7);
     assert.equal(week.sessions, 7);
   });
+
+  it("includes breath and meditation minutes in the week, and names them", () => {
+    const week = weeklyProgress(
+      [
+        s("2026-09-22", 10),
+        { date: "2026-09-22", durationMinutes: 6, kind: "breathing" },
+        { date: "2026-09-23", durationMinutes: 20, kind: "meditation" },
+      ],
+      "2026-09-23",
+    );
+    assert.equal(week.minutes, 36);
+    assert.equal(week.breathMinutes, 6);
+    assert.equal(week.meditationMinutes, 20);
+  });
 });

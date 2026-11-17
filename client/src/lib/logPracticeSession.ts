@@ -27,7 +27,7 @@ export type LogSessionInput = {
   postMood: Mood | null;
   /** Rate of perceived exertion 1–10 */
   rpe?: number | null;
-  kind?: "asana" | "breathing";
+  kind?: "asana" | "breathing" | "meditation";
   /** Estimated breaths from hold time (guided sessions). */
   breathCount?: number | null;
   journalTags?: string[];

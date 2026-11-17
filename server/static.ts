@@ -66,6 +66,7 @@ const KNOWN_TOP_LEVEL_SEGMENTS = new Set([
   "guided",
   "trainer",
   "breathing",
+  "meditation",
   "affirmations",
   "journal",
   "profiles",
