@@ -65,6 +65,36 @@ export function downloadBlob(filename: string, contents: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
+export type SessionExportRow = {
+  date: string;
+  minutes: number;
+  kind?: string;
+  label?: string;
+};
+
+/** Every saved session, as a spreadsheet. Not an Apple Health or Health Connect sync. */
+export function buildSessionsCsv(rows: readonly SessionExportRow[]): string {
+  const lines = ["date,minutes,kind,label"];
+  for (const row of rows) {
+    const label = (row.label ?? "").replace(/"/g, '""');
+    lines.push(`${row.date},${row.minutes},${row.kind ?? ""},"${label}"`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+export function buildSessionsJson(rows: readonly SessionExportRow[]): string {
+  return JSON.stringify(
+    rows.map((row) => ({
+      date: row.date,
+      minutes: row.minutes,
+      kind: row.kind ?? "asana",
+      label: row.label ?? "",
+    })),
+    null,
+    2,
+  );
+}
+
 export function downloadHealthWorkout(workout: HealthWorkout, format: "tcx" | "csv" = "tcx") {
   if (format === "csv") {
     downloadBlob(`sadhana-${workout.date}.csv`, buildWorkoutCsv(workout), "text/csv");

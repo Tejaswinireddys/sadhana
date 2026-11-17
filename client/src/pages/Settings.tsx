@@ -49,7 +49,7 @@ import {
   syncPushReminderHour,
   readPushPrefs,
 } from "@/lib/webPush";
-import { downloadHealthWorkout } from "@/lib/healthExport";
+import { buildSessionsCsv, buildSessionsJson, downloadBlob, downloadHealthWorkout } from "@/lib/healthExport";
 import { todayISO } from "@/lib/sadhana";
 import type { Session } from "@shared/schema";
 import { Moon, Sun, Laptop, Download, Upload, Trash2, Bell, CalendarPlus, Info, UserRound, Users } from "lucide-react";
@@ -94,7 +94,7 @@ export default function Settings() {
     setReminder(next);
     writeJson(KEYS.reminder, next);
     if (pushOn && next.hour !== reminder.hour) {
-      void syncPushReminderHour(next.hour);
+      void syncPushReminderHour(next.hour, habit.days);
     }
   };
 
@@ -107,7 +107,7 @@ export default function Settings() {
     const enabled = perm === "granted";
     saveReminder({ ...reminder, notifications: enabled });
     if (enabled) {
-      const push = await subscribeWebPush({ reminderHour: reminder.hour });
+      const push = await subscribeWebPush({ reminderHour: reminder.hour, days: habit.days });
       setPushOn(push.ok);
       toast({
         title: push.ok ? "Push reminders enabled" : "Browser alerts enabled",
@@ -453,8 +453,9 @@ export default function Settings() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Export a workout file you can import into Apple Health, Google Fit, or Strava. Sadhana
-            does not keep a standing cloud connection to wearables — you stay in control.
+            Download your sessions as CSV or JSON. Apple Health and Health Connect need a native
+            app, which this site is not — the file is yours to keep or import by hand. A single
+            session can also be saved as TCX.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -491,7 +492,51 @@ export default function Settings() {
                 toast({ title: "CSV downloaded" });
               }}
             >
-              Export CSV
+              Export last session (CSV)
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-11"
+              data-testid="settings-export-sessions-csv"
+              onClick={() => {
+                downloadBlob(
+                  "sadhana-sessions.csv",
+                  buildSessionsCsv(
+                    sessions.map((s) => ({
+                      date: s.date.slice(0, 10),
+                      minutes: s.durationMinutes,
+                      kind: s.kind,
+                      label: s.asanas ?? "",
+                    })),
+                  ),
+                  "text/csv",
+                );
+                toast({ title: "Sessions CSV downloaded" });
+              }}
+            >
+              Export all sessions (CSV)
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-11"
+              data-testid="settings-export-sessions-json"
+              onClick={() => {
+                downloadBlob(
+                  "sadhana-sessions.json",
+                  buildSessionsJson(
+                    sessions.map((s) => ({
+                      date: s.date.slice(0, 10),
+                      minutes: s.durationMinutes,
+                      kind: s.kind,
+                      label: s.asanas ?? "",
+                    })),
+                  ),
+                  "application/json",
+                );
+                toast({ title: "Sessions JSON downloaded" });
+              }}
+            >
+              Export all sessions (JSON)
             </Button>
           </div>
         </CardContent>
@@ -574,6 +619,7 @@ export default function Settings() {
                     const next = { ...habit, days };
                     setHabit(next);
                     writeHabitPlan(next);
+                    void syncPushReminderHour(reminder.hour, days);
                   }}
                   data-testid={`habit-day-${d}`}
                 >

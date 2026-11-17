@@ -39,6 +39,8 @@ export async function fetchVapidPublicKey(): Promise<string | null> {
 
 export type SubscribeOpts = {
   reminderHour?: number;
+  /** Planned practice weekdays. Rest days are not reminded. */
+  days?: number[];
 };
 
 /** Subscribe for Web Push. Returns false if unsupported or user denied. */
@@ -88,6 +90,7 @@ export async function subscribeWebPush(
     body: JSON.stringify({
       ...sub.toJSON(),
       reminderHour,
+      days: opts.days,
       timezoneOffsetMinutes: new Date().getTimezoneOffset(),
     }),
   });
@@ -99,7 +102,7 @@ export async function subscribeWebPush(
 }
 
 /** Re-POST hour/timezone without re-requesting permission. */
-export async function syncPushReminderHour(reminderHour: number): Promise<void> {
+export async function syncPushReminderHour(reminderHour: number, days?: number[]): Promise<void> {
   const prefs = readPushPrefs();
   if (!prefs.enabled || !prefs.endpoint) return;
   const reg = await navigator.serviceWorker.getRegistration();
@@ -111,6 +114,7 @@ export async function syncPushReminderHour(reminderHour: number): Promise<void> 
     body: JSON.stringify({
       ...sub.toJSON(),
       reminderHour: Math.min(23, Math.max(0, reminderHour)),
+      days,
       timezoneOffsetMinutes: new Date().getTimezoneOffset(),
     }),
   }).catch(() => undefined);

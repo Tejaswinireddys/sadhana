@@ -6,7 +6,7 @@ import type { Express, Request, Response } from "express";
 import webpush from "web-push";
 import { createRateLimiter } from "./security";
 import { loadMap, saveMap } from "./jsonStore";
-import { localDayHourKey, localHourFor } from "./pushTime";
+import { localDayHourKey, localHourFor, localWeekdayFor } from "./pushTime";
 import { resolveVapidConfig, vapidStartupMessage, type VapidConfig } from "./vapidConfig";
 
 export { localDayHourKey, localHourFor } from "./pushTime";
@@ -16,6 +16,8 @@ type PushSub = {
   keys: { p256dh: string; auth: string };
   ownerId: string;
   reminderHour: number;
+  /** Planned practice weekdays, 0 = Sunday. Empty means every day. */
+  days?: number[];
   /** Minutes to add to local time to get UTC (Date#getTimezoneOffset). */
   timezoneOffsetMinutes: number;
   createdAt: string;
@@ -68,12 +70,13 @@ async function sendTo(sub: PushSub, payload: string): Promise<boolean> {
 export async function dispatchDueReminders(now = new Date()): Promise<number> {
   const payload = JSON.stringify({
     title: "Gentle practice reminder",
-    body: "Missed yesterday? Start with one easy pose — your chain is not broken.",
+    body: "It's a practice day on your plan. A short one counts. A rest day is not a miss.",
     url: "/#/",
   });
   let sent = 0;
   for (const s of subs.values()) {
     if (localHourFor(s, now) !== s.reminderHour) continue;
+    if (s.days && s.days.length > 0 && !s.days.includes(localWeekdayFor(s, now))) continue;
     const key = localDayHourKey(s, now);
     if (s.lastSentKey === key) continue;
     if (await sendTo(s, payload)) {
@@ -142,11 +145,15 @@ export function registerPushRoutes(app: Express, config: VapidConfig = vapid) {
       ? Number(req.body.timezoneOffsetMinutes)
       : new Date().getTimezoneOffset();
     const prev = subs.get(endpoint);
+    const days = Array.isArray(req.body?.days)
+      ? [...new Set((req.body.days as unknown[]).map((d) => Number(d)).filter((d) => d >= 0 && d <= 6))]
+      : prev?.days;
     subs.set(endpoint, {
       endpoint,
       keys: { p256dh, auth },
       ownerId: req.ownerId || prev?.ownerId || "",
       reminderHour,
+      days,
       timezoneOffsetMinutes,
       createdAt: prev?.createdAt || new Date().toISOString(),
       lastSentKey: prev?.lastSentKey,

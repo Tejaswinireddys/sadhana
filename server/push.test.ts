@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { localDayHourKey, localHourFor } from "./pushTime";
+import { localDayHourKey, localHourFor, localWeekdayFor } from "./pushTime";
 
 describe("pushTime", () => {
   it("converts UTC to subscriber-local hour via timezoneOffsetMinutes", () => {
@@ -14,5 +14,11 @@ describe("pushTime", () => {
     const sub = { timezoneOffsetMinutes: -120 }; // UTC+2
     const noonUtc = new Date("2026-07-31T12:00:00.000Z");
     assert.equal(localHourFor(sub, noonUtc), 14);
+  });
+
+  it("knows the subscriber's local weekday so rest days can stay quiet", () => {
+    const sub = { timezoneOffsetMinutes: 300 };
+    const noonUtc = new Date("2026-07-31T12:00:00.000Z");
+    assert.equal(localWeekdayFor(sub, noonUtc), 5);
   });
 });
