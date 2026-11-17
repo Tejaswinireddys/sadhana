@@ -108,9 +108,9 @@ export function PoseCardVideo({
         fit="cover"
         shadow={false}
         breath={false}
-        // Eager: lazy + content-visibility on the library card left many
-        // thumbnails never decoding (blank cream boxes). thumb also prefers
-        // pre-scaled assets when they exist; otherwise it still loads full-size.
+        // thumb → resolvePoseImageSources prefers /poses/thumbs/<slug>.webp
+        // when the generator listed the slug; otherwise full-size WebP/PNG.
+        // Off-screen cards stay loading="lazy" (PoseImage default).
         thumb
         className={cn("h-full w-full", POSE_CARD_FRAME_CLASS)}
       />

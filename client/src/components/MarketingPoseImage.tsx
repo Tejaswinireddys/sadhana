@@ -8,10 +8,13 @@ export function MarketingPoseImage({ slug, alt, className, priority, thumb, aspe
   const mismatch = poseImageMismatch(slug);
   if (mismatch) return <div className={className} role="img" aria-label={mismatch.instructed}>{mismatch.instructed}</div>;
   const sources = resolvePoseImageSources(slug, { thumb });
+  const w = sources.usesThumb ? 160 : 600;
+  const h = sources.usesThumb ? 160 : 1200;
   return <picture className={`block ${aspect ?? "aspect-[1/2]"} ${className ?? ""}`}>
     <source srcSet={sources.webpSrc} type="image/webp" />
     <img src={sources.src} alt={accurateImageAlt(slug, alt || "Pose illustration")}
-      width={600} height={1200} loading={priority ? "eager" : "lazy"} {...fetchPriority(priority ? "high" : "auto")}
+      width={w} height={h} loading={priority ? "eager" : "lazy"} decoding="async"
+      {...fetchPriority(priority ? "high" : "auto")}
       sizes={sizes} className="h-full w-full object-contain" />
   </picture>;
 }

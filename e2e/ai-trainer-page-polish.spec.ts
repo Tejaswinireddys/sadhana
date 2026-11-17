@@ -65,6 +65,18 @@ test("asanas grid cards show illustrations, not blank placeholders", async ({ pa
     await expect
       .poll(async () => img.evaluate((el: HTMLImageElement) => el.naturalWidth > 0))
       .toBe(true);
+    // Prefer pre-scaled thumbs (WebP via <picture>, PNG fallback) — never the
+    // ~750KB full master on the library grid.
+    const urls = await card.evaluate((el) => {
+      const picture = el.querySelector("picture");
+      const source = picture?.querySelector('source[type="image/webp"]') as HTMLSourceElement | null;
+      const image = picture?.querySelector("img") as HTMLImageElement | null;
+      return {
+        webp: source?.srcset ?? "",
+        src: image?.currentSrc || image?.src || "",
+      };
+    });
+    expect(urls.webp.includes("/poses/thumbs/") || urls.src.includes("/poses/thumbs/")).toBe(true);
   }
   await expect(page.locator('[data-testid^="pose-card-placeholder-"]')).toHaveCount(0);
 });

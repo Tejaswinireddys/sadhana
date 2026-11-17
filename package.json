@@ -13,6 +13,7 @@
     "gen:pose-videos": "tsx script/gen-pose-videos.ts",
     "gen:pose-captions": "tsx script/gen-pose-captions.ts",
     "gen:pose-webp": "tsx script/gen-pose-webp.ts",
+    "gen:pose-thumbs": "tsx script/gen-pose-thumbs.ts",
     "gen:kids-pose-videos": "tsx script/gen-kids-pose-videos.ts",
     "demo:record": "node script/record-product-demo.mjs",
     "demo:encode": "node script/encode-product-demo.mjs --in /tmp/demo",

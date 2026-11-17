@@ -14,6 +14,8 @@ import { storage } from "./storage";
 
 const ONE_YEAR_SECONDS = 31_536_000;
 const ONE_DAY_SECONDS = 86_400;
+/** Pose catalog illustrations (full + thumbs) change rarely; 7d cuts repeat /asanas weight. */
+const POSE_IMAGE_SECONDS = 604_800;
 const FONT_EXT = /\.(woff2?|ttf|otf|eot)$/i;
 const IMAGE_EXT = /\.(webp|png|jpe?g|svg)$/i;
 
@@ -26,8 +28,9 @@ const IMAGE_EXT = /\.(webp|png|jpe?g|svg)$/i;
  * hash in the name, so a changed file is a new URL and the old one can be
  * cached forever. Self-hosted fonts get the same year-long lifetime but not
  * `immutable` unless hashed — a font in public/ keeps its name when replaced.
- * Unhashed public images (poses, kids, posters) keep their names when an
- * illustration is corrected, so they get a day rather than a year. The
+ * Pose catalog images under `poses/` get a week (they are content-hashed by
+ * path only when the file is replaced, and /asanas re-requests dozens of
+ * them). Other unhashed public images (kids, posters) keep a day. The
  * service worker must always be fresh or a broken one can pin a release.
  */
 export function staticCacheControl(relativePath: string): string | undefined {
@@ -35,6 +38,9 @@ export function staticCacheControl(relativePath: string): string | undefined {
   if (normalized === "robots.txt" || normalized === "sw.js") return "no-store";
   if (normalized.startsWith("assets/")) return `public, max-age=${ONE_YEAR_SECONDS}, immutable`;
   if (FONT_EXT.test(normalized)) return `public, max-age=${ONE_YEAR_SECONDS}`;
+  if (normalized.startsWith("poses/") && IMAGE_EXT.test(normalized)) {
+    return `public, max-age=${POSE_IMAGE_SECONDS}`;
+  }
   if (IMAGE_EXT.test(normalized)) return `public, max-age=${ONE_DAY_SECONDS}`;
   return undefined;
 }

@@ -15,12 +15,23 @@ describe("staticCacheControl", () => {
   });
 
   it("matches assets/ relative to the build root, not anywhere in the path", () => {
-    assert.equal(staticCacheControl("poses/assets-like/tadasana.webp"), "public, max-age=86400");
+    assert.equal(staticCacheControl("poses/assets-like/tadasana.webp"), "public, max-age=604800");
     assert.equal(staticCacheControl("images/assets.png"), "public, max-age=86400");
   });
 
-  it("caches unhashed public images for a day, not a year", () => {
-    for (const file of ["poses/tadasana.webp", "kids/_hero.webp", "og-image.png", "favicon.svg"]) {
+  it("caches pose catalog images for a week (full + thumbs)", () => {
+    for (const file of [
+      "poses/tadasana.webp",
+      "poses/tadasana.png",
+      "poses/thumbs/tadasana.webp",
+      "poses/thumbs/tadasana.png",
+    ]) {
+      assert.equal(staticCacheControl(file), "public, max-age=604800", file);
+    }
+  });
+
+  it("caches other unhashed public images for a day, not a year", () => {
+    for (const file of ["kids/_hero.webp", "og-image.png", "favicon.svg"]) {
       assert.equal(staticCacheControl(file), "public, max-age=86400", file);
     }
   });
