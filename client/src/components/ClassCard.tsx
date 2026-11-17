@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Clock, Lock, PlayCircle } from "lucide-react";
 import type { ClassSummary } from "@shared/classLibrary";
 import { cn } from "@/lib/utils";
-import { formatClassMinutes, levelLabel } from "@/lib/classesApi";
+import { formatClassMinutes, isPoseCatalogPoster, levelLabel } from "@/lib/classesApi";
 
 /**
  * One class in the library. A locked Plus class links to /plus instead of the
@@ -15,6 +15,7 @@ export function ClassCard({ item, testIdPrefix = "class-card" }: { item: ClassSu
   const href = item.locked ? "/plus" : `/classes/${item.slug}`;
   // A relayed Plus poster can still fail upstream; fall back to the placeholder.
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
+  const posePoster = isPoseCatalogPoster(item.thumbnailUrl);
   const progress = item.progress && !item.progress.completed && item.durationMinutes > 0
     ? Math.min(100, Math.round((item.progress.secondsWatched / (item.durationMinutes * 60)) * 100))
     : null;
@@ -31,6 +32,8 @@ export function ClassCard({ item, testIdPrefix = "class-card" }: { item: ClassSu
     !item.progress?.completed && progress !== null ? `${progress}% watched` : null,
   ].filter(Boolean).join(". ");
 
+  const showImage = Boolean(item.thumbnailUrl) && !thumbnailFailed;
+
   return (
     <Link
       href={href}
@@ -44,28 +47,47 @@ export function ClassCard({ item, testIdPrefix = "class-card" }: { item: ClassSu
     >
       {/* overflow-hidden: a flex child with aspect-ratio otherwise grows to its
           content, and the portrait pose illustrations stretched cards to 3:4. */}
-      <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-muted">
-        {item.thumbnailUrl && !thumbnailFailed ? (
+      <div
+        className={cn(
+          "relative aspect-video w-full shrink-0 overflow-hidden",
+          // Catalog pose art is mostly cream negative space; a muted tile behind
+          // object-cover cropped to that wash read as a blank grey box.
+          posePoster ? "bg-background" : "bg-muted",
+        )}
+      >
+        {showImage ? (
           <img
-            src={item.thumbnailUrl}
+            src={item.thumbnailUrl!}
             onError={() => setThumbnailFailed(true)}
+            onLoad={(e) => {
+              // A 0×0 decode still fires load in some browsers; treat it as missing.
+              if (e.currentTarget.naturalWidth === 0) setThumbnailFailed(true);
+            }}
             alt=""
             width={640}
             height={360}
             loading="lazy"
             decoding="async"
-            // Cover fills the 16:9 tile. Contain left portrait pose posters and
-            // some Mux frames letterboxed as large gray bars that looked empty.
-            className="absolute inset-0 h-full w-full object-cover object-center"
+            // Portrait /poses posters: contain on cream so the figure stays
+            // visible. Mux / custom landscape frames: cover the 16:9 tile.
+            className={cn(
+              "absolute inset-0 h-full w-full object-center",
+              posePoster ? "object-contain" : "object-cover",
+            )}
           />
         ) : (
           <div
-            className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/15 via-muted to-secondary/20 px-4 text-center text-muted-foreground"
+            className="flex h-full w-full flex-col items-center justify-center gap-1.5 overflow-hidden bg-gradient-to-br from-primary/20 via-secondary/25 to-accent/30 px-3 py-2 text-center text-muted-foreground"
             data-testid={`${testIdPrefix}-poster-fallback-${item.slug}`}
             aria-hidden
           >
-            <PlayCircle className="h-10 w-10" />
-            <span className="line-clamp-2 text-xs font-medium text-foreground/80">{item.title}</span>
+            <PlayCircle className="h-8 w-8 shrink-0 opacity-90" />
+            <span className="line-clamp-2 max-w-full text-xs font-medium leading-snug text-foreground/85">
+              {item.title}
+            </span>
+            <span className="line-clamp-1 max-w-full text-[0.7rem] text-muted-foreground">
+              {formatClassMinutes(item.durationMinutes)} · {levelLabel(item.level)}
+            </span>
           </div>
         )}
         {item.locked && (

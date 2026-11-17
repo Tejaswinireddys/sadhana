@@ -70,6 +70,42 @@ test.describe("the landing page says what this is", () => {
     }
   });
 
+  test("session preview thumbs load or stay contained; withheld poses do not spill text", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/welcome");
+
+    // Hero preview for the sample practice (Mountain Pose) must paint a real still.
+    const hero = page.getByTestId("marketing-pose-tadasana");
+    await expect(hero).toBeVisible();
+    const heroImg = hero.locator("img");
+    await expect(heroImg).toHaveAttribute("src", /\/poses\/(?:thumbs\/)?tadasana\.(png|webp)/);
+    await expect.poll(async () => heroImg.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+
+    const previewBtn = page.getByTestId("landing-session-preview-tired");
+    await previewBtn.click();
+    const list = page.getByTestId("landing-session-poses-tired");
+    await expect(list).toBeVisible();
+
+    const withheld = list.getByTestId("marketing-pose-withheld-salamba-balasana");
+    await expect(withheld).toBeVisible();
+    const box = await withheld.boundingBox();
+    expect(box?.width ?? 999).toBeLessThanOrEqual(48);
+    expect(box?.height ?? 999).toBeLessThanOrEqual(48);
+    // Compact withheld thumbs keep the long shape description in aria-label only.
+    await expect(withheld.getByTestId("pose-image-withheld-salamba-balasana")).toHaveAttribute(
+      "aria-label",
+      /bolster or stack of pillows/i,
+    );
+    await expect(withheld).not.toContainText(/bolster or stack of pillows/i);
+
+    await expect(list.getByTestId("marketing-pose-withheld-chair-viparita-karani")).toBeVisible();
+
+    // A non-withheld preview row still loads catalog art.
+    const openPose = list.getByTestId("marketing-pose-salamba-bhujangasana");
+    await expect(openPose.locator("img")).toHaveAttribute("src", /\/poses\/(?:thumbs\/)?salamba-bhujangasana\./);
+    await expect.poll(async () => openPose.locator("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+  });
+
   test("each featured Start opens that session, not a generic one", async ({ page }) => {
     const expected: Record<string, RegExp> = {
       tired: /I'm tired/,

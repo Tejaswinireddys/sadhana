@@ -4,9 +4,11 @@ Generated from `client/src/data/poseImageAccuracy.ts`. Reviewed 2026-09-23.
 
 These are **not** missing assets. Each pose ships an illustration; each of these
 illustrations shows a different shape from the one the pose's own `steps`
-describe. Until they are replaced, the product shows the existing art with the
-difference stated — on the preparation screen, on the demonstration itself, and
-in the alt text — rather than presenting it as an accurate depiction.
+describe. Until they are replaced, the product **withholds** the current art
+everywhere (`WithheldPoseImage`) and shows a contained written description of
+the shape as instructed — never a fabricated photo. Owner action needed: draw
+replacements that match the briefs below (same 600×1200 catalog style), then
+drop the mismatch entries.
 
 ## Why this is separate from `pose-demo-production.md`
 

@@ -56,6 +56,27 @@ test("Classes is in the main nav and the library shows free and Plus rows", asyn
   await expect(page.getByTestId("class-library-continue")).toHaveCount(0);
 });
 
+test("class cards show a real pose poster or a titled fallback, never a blank grey tile", async ({ page }) => {
+  await page.goto("/classes");
+  for (const slug of [...FREE, ...PLUS]) {
+    const card = page.getByTestId(`class-card-${slug}`);
+    await expect(card).toBeVisible();
+    const img = card.locator("img").first();
+    const fallback = page.getByTestId(`class-card-poster-fallback-${slug}`);
+    if (await img.count()) {
+      await expect.poll(async () => img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
+      await expect(img).toHaveAttribute("src", /\/poses\//);
+      // object-contain keeps the 1:2 figure inside the 16:9 tile (not cover-cropped cream).
+      await expect(img).toHaveCSS("object-fit", "contain");
+    } else {
+      await expect(fallback).toBeVisible();
+      await expect(fallback).toContainText(/min/i);
+      const box = await fallback.boundingBox();
+      expect(box?.height ?? 0).toBeGreaterThan(40);
+    }
+  }
+});
+
 test("filter chips narrow the library and are keyboard operable", async ({ page }) => {
   await page.goto("/classes");
   const count = page.getByTestId("class-library-count");

@@ -30,8 +30,9 @@ describe("pose library card thumbnails", () => {
     assert.match(poseImage, /decoding="async"/);
     assert.match(poseImage, /const eager = priority;/);
     assert.doesNotMatch(poseImage, /const eager = priority \|\| thumb/);
-    assert.match(marketing, /decoding="async"/);
-    assert.match(marketing, /loading=\{priority \? "eager" : "lazy"\}/);
+    // Marketing thumbs are above-the-fold on /welcome; non-priority stills stay lazy+async.
+    assert.match(marketing, /decoding=\{priority \|\| thumb \? "sync" : "async"\}/);
+    assert.match(marketing, /loading=\{priority \|\| thumb \? "eager" : "lazy"\}/);
   });
 
   it("ships a PNG and WebP for every catalog pose so cards never 404", () => {

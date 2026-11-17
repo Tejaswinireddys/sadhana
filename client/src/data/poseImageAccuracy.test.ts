@@ -91,6 +91,11 @@ describe("illustrations that disagree with their instructions", () => {
         assert.ok(gates >= imgs, `${f}: every pose <img> is gated`);
       }
     }
+    // Marketing pages go through poseImageMismatch → WithheldPoseImage, not
+    // poseImageWithheld(), so pin that path separately.
+    const marketing = readFileSync(resolve("client/src/components/MarketingPoseImage.tsx"), "utf8");
+    assert.match(marketing, /poseImageMismatch\(/);
+    assert.match(marketing, /WithheldPoseImage/);
   });
 
   it("treats every other pose as reviewed and accurate", () => {
