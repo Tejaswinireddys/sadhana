@@ -191,7 +191,8 @@ export function BreathingVisualizer({ config, onComplete, accent = "text-primary
 
   const ph = phases[phaseIdx];
   const phaseRemaining = ph ? Math.max(0, Math.ceil(ph.seconds - phaseElapsed)) : 0;
-  const activeSide = config.alternateNostril ? (round % 2 === 0 ? "left" : "right") : null;
+  const labeledSide = ph?.label && /\bleft\b/i.test(ph.label) ? "left" : ph?.label && /\bright\b/i.test(ph.label) ? "right" : null;
+  const activeSide = labeledSide ?? (config.alternateNostril ? (round % 2 === 0 ? "left" : "right") : null);
   const inProgress = started && !done;
   const displayRound = breathDisplayRound({
     started,
@@ -225,7 +226,7 @@ export function BreathingVisualizer({ config, onComplete, accent = "text-primary
         />
         {/* phase text overlay */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          {config.alternateNostril && inProgress && (
+          {activeSide && inProgress && (
             <div className="mb-2 flex items-center gap-2" data-testid="text-nostril-side">
               <span
                 className={`inline-block h-3 w-3 rounded-full ${

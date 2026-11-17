@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
@@ -7,6 +8,8 @@ import { BreathingVisualizer, type BreathConfig } from "@/components/BreathingVi
 import { VoicePlayer } from "@/components/VoicePlayer";
 import { BREATHING, breathOfTheDay, type BreathTechnique } from "@/data/content";
 import { logPracticeSession } from "@/lib/logPracticeSession";
+import { breathHasAlignedRecording, breathIsLocked } from "@/lib/breathLibrary";
+import { readPracticePreferences } from "@/lib/practicePreferences";
 import { readUrlParam } from "@/lib/hashQuery";
 import { Sparkles, ShieldAlert, Wind } from "lucide-react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -68,6 +71,8 @@ export default function Breathing() {
   };
 
   const hasHoldPhases = active.phases.some((p) => isHoldPhase(p.label));
+  const locked = breathIsLocked(active, readPracticePreferences().experience);
+  const hasRecording = breathHasAlignedRecording(active.slug);
 
   const phases = useMemo(() => {
     return active.phases
@@ -163,6 +168,9 @@ export default function Breathing() {
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">{t.tagline}</p>
+                  {t.level === "experienced" && (
+                    <p className="text-xs text-muted-foreground">Not a first practice</p>
+                  )}
                 </CardContent>
               </Card>
             </button>
@@ -183,6 +191,17 @@ export default function Breathing() {
             </div>
             <p className="text-sm text-muted-foreground">{active.description}</p>
           </div>
+
+          <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground" data-testid="breath-steps">
+            {active.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+
+          <p className="text-sm" data-testid={`safety-${active.slug}`}>
+            <span className="font-medium">Safety. </span>
+            <span className="text-muted-foreground">{active.safety}</span>
+          </p>
 
           <div className="max-w-sm space-y-4">
             <div className="space-y-2">
@@ -247,17 +266,36 @@ export default function Breathing() {
             </p>
           </div>
 
-          <VoicePlayer
-            src={`${import.meta.env.BASE_URL}audio/breath-${active.slug}.mp3`}
-            slug={active.slug}
-            label={`Guided audio — ${active.name}`}
-          />
+          {hasRecording ? (
+            <VoicePlayer
+              src={`${import.meta.env.BASE_URL}audio/breath-${active.slug}.mp3`}
+              slug={active.slug}
+              label={`Guided audio — ${active.name}`}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground" data-testid="breath-no-recording">
+              No recorded voice for this pattern yet. Follow the timer and the phase name.
+            </p>
+          )}
 
-          <BreathingVisualizer
-            key={`${active.slug}-${rounds}-${skipHolds}-${holdScale}`}
-            config={config}
-            onComplete={onComplete}
-          />
+          {locked ? (
+            <div className="rounded-lg border border-border p-4 text-sm" data-testid="breath-locked">
+              <p className="font-medium">This stays off until you have some practice already.</p>
+              <p className="mt-1 text-muted-foreground">
+                Kapalabhati and Bhastrika use forceful breathing. They stay closed when your experience is new or not set. You can change that in{" "}
+                <Link href="/settings" className="underline">
+                  Settings
+                </Link>
+                . Reading the notes above is fine. Starting the timer is not, until then.
+              </p>
+            </div>
+          ) : (
+            <BreathingVisualizer
+              key={`${active.slug}-${rounds}-${skipHolds}-${holdScale}`}
+              config={config}
+              onComplete={onComplete}
+            />
+          )}
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 rounded-lg bg-accent/40 p-4">
