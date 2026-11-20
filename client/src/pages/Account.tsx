@@ -943,7 +943,7 @@ export default function Account() {
         <CardContent className="flex items-start gap-3 p-5">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
           <div className="space-y-1 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">Practising as a guest is still fine</p>
+            <p className="font-medium text-foreground">Practicing as a guest is still fine</p>
             <p>
               Without an account your practice stays on this device. Creating one moves that history
               across automatically — nothing is lost.

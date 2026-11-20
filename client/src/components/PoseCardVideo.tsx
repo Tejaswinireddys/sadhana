@@ -105,7 +105,7 @@ export function PoseCardVideo({
         alt={resolvedAlt}
         rounded="rounded-none"
         aspect={POSE_CARD_ASPECT}
-        fit="cover"
+        fit="contain"
         shadow={false}
         breath={false}
         // thumb → resolvePoseImageSources prefers /poses/thumbs/<slug>.webp
@@ -117,7 +117,7 @@ export function PoseCardVideo({
       {showVideo && (
         <video
           ref={videoRef}
-          className="absolute inset-0 z-[1] h-full w-full object-cover object-center"
+          className="absolute inset-0 z-[1] h-full w-full object-contain object-center"
           poster={media?.poster}
           playsInline
           muted

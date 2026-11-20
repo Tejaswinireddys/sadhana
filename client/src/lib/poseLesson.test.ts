@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildPoseLesson,
   durationLabelFor,
+  exactExitCueFor,
   mirrorCue,
   namedSideIn,
   nextStepStart,
@@ -23,7 +24,7 @@ import {
   posesWithMisleadingGeneratedClips,
   STATIC_REFERENCE_LABEL,
 } from "@/data/poseDemoAvailability";
-import { asanaBySlug } from "@/data/content";
+import { ASANAS, asanaBySlug } from "@/data/content";
 
 const LEVELS = ["beginner", "intermediate", "advanced"] as const;
 const AUDITED = ["marjaryasana-bitilasana", "virabhadrasana-ii", "vrksasana"] as const;
@@ -432,5 +433,24 @@ describe("duration consistency", () => {
       durationLabelFor({ dynamic: false, rounds: null, totalSec: 90, holdSec: 40, sides: "each" }),
       "Hold about 40s each side",
     );
+  });
+});
+
+describe("exit cues match the pose", () => {
+  it("does not tell Mountain Pose to soften a working knee", () => {
+    const mountain = asanaBySlug("tadasana")!;
+    const cue = exactExitCueFor(mountain);
+    assert.doesNotMatch(cue, /working knee/i);
+    assert.match(cue, /both feet|your knees/i);
+  });
+
+  it("reserves working-knee language for asymmetrical stands", () => {
+    const mismatches = ASANAS.filter((asana) => {
+      const cue = exactExitCueFor(asana);
+      if (!/working knee/i.test(cue)) return false;
+      const text = `${asana.english} ${asana.steps.map((step) => step.text).join(" ")}`;
+      return !/\b(front|back) (knee|foot|leg)\b|\blunge\b|\bwarrior\b|\bone leg\b/i.test(text);
+    }).map((asana) => asana.slug);
+    assert.deepEqual(mismatches, []);
   });
 });

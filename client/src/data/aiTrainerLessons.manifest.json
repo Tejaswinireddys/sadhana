@@ -1,0 +1,29 @@
+{
+  "assetVersion": "v3",
+  "frame": {
+    "width": 720,
+    "height": 1280,
+    "contentAspect": "16/9",
+    "note": "Each file is a 720×1280 slide. The trainer sits in a centered 16:9 band; the player crops the beige bars with object-cover."
+  },
+  "lessons": [
+    {
+      "slug": "tadasana",
+      "english": "Mountain Pose",
+      "sanskrit": "Tadasana",
+      "durationHint": "About 2½ minutes"
+    },
+    {
+      "slug": "adho-mukha-svanasana",
+      "english": "Downward-Facing Dog",
+      "sanskrit": "Adho Mukha Svanasana",
+      "durationHint": "About 2½ minutes"
+    },
+    {
+      "slug": "virabhadrasana-ii",
+      "english": "Warrior II",
+      "sanskrit": "Virabhadrasana II",
+      "durationHint": "About 2½ minutes"
+    }
+  ]
+}

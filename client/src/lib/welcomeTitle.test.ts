@@ -4,7 +4,7 @@ import { welcomeHeaderSubtitle, welcomeHeaderTitle, isDisplayableName } from "./
 
 describe("welcomeHeaderTitle", () => {
   it("invites a first-ever visitor to start (no completed sessions)", () => {
-    // No "welcome back" for someone who has never practised — even if a name
+    // No "welcome back" for someone who has never practiced — even if a name
     // happens to already be stored.
     assert.equal(
       welcomeHeaderTitle({ hasCompletedSessions: false, displayName: "Maya" }),
@@ -73,10 +73,10 @@ describe("welcomeHeaderSubtitle", () => {
     assert.match(line, /saved to your account/);
   });
 
-  it("keeps the loading, practised-today and returning lines for both", () => {
+  it("keeps the loading, practiced-today and returning lines for both", () => {
     for (const signedIn of [true, false]) {
       assert.equal(welcomeHeaderSubtitle({ ...first, signedIn, loading: true }), "Reading your saved practice…");
-      assert.match(welcomeHeaderSubtitle({ ...first, signedIn, practicedToday: true }), /already practised today/);
+      assert.match(welcomeHeaderSubtitle({ ...first, signedIn, practicedToday: true }), /already practiced today/);
       assert.match(welcomeHeaderSubtitle({ ...first, signedIn, hasCompletedSessions: true }), /three other options/);
       assert.match(welcomeHeaderSubtitle({ ...first, signedIn, hasCompletedSessions: true, hour: 19 }), /Evening/);
     }

@@ -44,7 +44,7 @@ export type WeeklyProgress = {
   weekStart: string;
   /** Inclusive local date of the last day. */
   weekEnd: string;
-  /** Distinct local dates with at least one minute practised. */
+  /** Distinct local dates with at least one minute practiced. */
   daysPracticed: number;
   /** Sessions finished within the week. */
   sessions: number;

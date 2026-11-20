@@ -37,9 +37,9 @@ describe("legal footer links", () => {
 
   it("chrome footer never leaves a blank Cancel slot when billing is off", () => {
     const off = chromeLegalFooterLinks(false).map((l) => l.label);
-    assert.deepEqual(off, ["Privacy", "Terms", "Health", "Help"]);
+    assert.deepEqual(off, ["Privacy", "Terms", "Plans", "Health", "Help"]);
     const on = chromeLegalFooterLinks(true).map((l) => l.label);
-    assert.deepEqual(on, ["Privacy", "Terms", "Cancel", "Health", "Help"]);
+    assert.deepEqual(on, ["Privacy", "Terms", "Plans", "Cancel", "Health", "Help"]);
   });
 
   it("Plus and AppLayout render from the labelled-link helpers (no empty Cancel slot)", () => {

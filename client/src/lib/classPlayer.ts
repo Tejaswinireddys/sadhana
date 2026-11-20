@@ -1,6 +1,6 @@
 /**
  * Class player rules, kept pure so they are unit-tested: playback speed,
- * time actually practised, what a finished class logs to Progress, and the
+ * time actually practiced, what a finished class logs to Progress, and the
  * page-level keyboard shortcuts.
  */
 import type { ClassChapter } from "@shared/classLibrary";
@@ -35,7 +35,7 @@ export const CLASS_MIN_COUNTED_SECONDS = 60;
 /**
  * The Progress/streak entry for a finished class — the same session + journal
  * write a guided practice makes (`logPracticeSession`) — or null when too
- * little was watched to count. Minutes are time practised, not class length.
+ * little was watched to count. Minutes are time practiced, not class length.
  */
 export function classCompletionLog(input: {
   title: string;
@@ -58,7 +58,7 @@ export function classCompletionLog(input: {
     postMood: null,
     kind: "asana",
     journalTags: [input.title, "class"],
-    journalBody: `${input.title} — video class with ${input.instructorName}. ${minutes} min practised${
+    journalBody: `${input.title} — video class with ${input.instructorName}. ${minutes} min practiced${
       poses.length ? `: ${poses.join(", ")}` : ""}.`,
   };
 }

@@ -31,7 +31,7 @@ describe("classCompletionLog", () => {
     poseName: (slug: string) => (slug === "tadasana" ? "Mountain Pose" : undefined),
   };
 
-  it("logs time practised (not class length) into the same session + journal write as guided practice", () => {
+  it("logs time practiced (not class length) into the same session + journal write as guided practice", () => {
     const log = classCompletionLog({ ...base, watchedSeconds: 1130 });
     assert.ok(log);
     assert.equal(log.minutes, 19);
@@ -40,7 +40,7 @@ describe("classCompletionLog", () => {
     assert.equal(log.kind, "asana", "counts toward the same stats and streak");
     assert.deepEqual(log.poseNames, ["Mountain Pose"]);
     assert.deepEqual(log.journalTags, ["Slow flow", "class"]);
-    assert.equal(log.journalBody, "Slow flow — video class with Asha. 19 min practised: Mountain Pose.");
+    assert.equal(log.journalBody, "Slow flow — video class with Asha. 19 min practiced: Mountain Pose.");
   });
 
   it("does not count skipping through", () => {

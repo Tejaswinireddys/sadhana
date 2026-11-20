@@ -48,12 +48,8 @@ export function ClassCard({ item, testIdPrefix = "class-card" }: { item: ClassSu
       {/* overflow-hidden: a flex child with aspect-ratio otherwise grows to its
           content, and the portrait pose illustrations stretched cards to 3:4. */}
       <div
-        className={cn(
-          "relative aspect-video w-full shrink-0 overflow-hidden",
-          // Catalog pose art is mostly cream negative space; a muted tile behind
-          // object-cover cropped to that wash read as a blank grey box.
-          posePoster ? "bg-background" : "bg-muted",
-        )}
+        className="relative aspect-video w-full shrink-0 overflow-hidden bg-background"
+        data-poster={posePoster ? "catalog" : "frame"}
       >
         {showImage ? (
           <img
@@ -72,7 +68,7 @@ export function ClassCard({ item, testIdPrefix = "class-card" }: { item: ClassSu
             // visible. Mux / custom landscape frames: cover the 16:9 tile.
             className={cn(
               "absolute inset-0 h-full w-full object-center",
-              posePoster ? "object-contain" : "object-cover",
+              "object-contain",
             )}
           />
         ) : (

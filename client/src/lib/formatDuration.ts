@@ -19,7 +19,7 @@ export function formatDuration(totalSeconds: number): string {
   return `${m} min ${s} sec`;
 }
 
-/** A hold, with the "each side" qualifier when a pose is practised bilaterally. */
+/** A hold, with the "each side" qualifier when a pose is practiced bilaterally. */
 export function formatHold(seconds: number, sides?: "once" | "each"): string {
   const base = formatDuration(seconds);
   return sides === "each" ? `${base} each side` : base;

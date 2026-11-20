@@ -443,6 +443,17 @@ export function exactExitCueFor(
 
   const startPos = startingPositionFor(asana);
   if (asana.category === "Standing") {
+    const steps = asana.steps.map((step) => step.text).join(" ");
+    // A generic "working knee" line is a lunge cue. Mountain Pose and other
+    // symmetrical stands were reading it on the way out.
+    const asymmetric = /\b(front|back) (knee|foot|leg)\b|\blunge\b|\bwarrior\b|\bone leg\b/i.test(
+      `${asana.english} ${steps}`,
+    );
+    if (!asymmetric) {
+      return say(
+        `Soften your knees and bring your hands to your hips first, press through both feet, and come up to stand in neutral ${startPos}${sideSuffix(side)}.`,
+      );
+    }
     return say(
       `Soften the working knee and bring your hands to your hips first, press through your feet to lift the torso upright, and step back into neutral ${startPos}${sideSuffix(side)}.`,
     );

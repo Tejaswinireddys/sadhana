@@ -91,7 +91,7 @@ export function SessionPreflightCard({
                   onClick={() => onSwapEquipment(alt.slug, alt.swapToSlug)}
                   data-testid={`preflight-swap-${alt.slug}`}
                 >
-                  Practise without it
+                  Practice without it
                 </Button>
               </li>
             ))}
@@ -107,7 +107,7 @@ export function SessionPreflightCard({
             {preflight.modeLabel}
           </Badge>
           {preflight.modeDescription}
-          {preflight.usesStaticReference && ` ${STATIC_REFERENCE_LABEL}.`}
+          {preflight.usesStaticReference && ` ${STATIC_REFERENCE_LABEL}`}
         </span>
       </p>
 

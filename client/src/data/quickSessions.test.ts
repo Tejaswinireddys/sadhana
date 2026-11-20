@@ -26,7 +26,7 @@ describe("mood-session duration on the confirm screen", () => {
         poseCount: tired.poses.length,
         timeLabel: label,
       }),
-      `I'm tired · 4 poses · ${label} · Learn — voice guidance with captions.`,
+      `I'm tired · 4 poses · ${label} · Learn — voice, captions, and AI trainer video when this pose has one.`,
     );
   });
 

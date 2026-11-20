@@ -101,7 +101,7 @@ export default function Search() {
             onKeyDown={(e) => {
               if (e.key === "Enter") commitSearch(draft);
             }}
-            placeholder="Search poses, breathing, pathways, kids…"
+            placeholder="Search poses, breath, kids"
             className="min-h-11 pl-9"
             aria-label="Search Sadhana"
             data-testid="input-search-page"

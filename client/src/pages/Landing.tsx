@@ -2,6 +2,7 @@ import { SupportContact } from "@/components/SupportContact";
 import { BILLING_ENABLED, STRIPE_MODE } from "@/lib/publicConfig";
 import { billingCopy, billingState } from "@/lib/billingCopy";
 import { CLASS_FORMAT_DISCLOSURE, CLASS_FORMAT_SHORT } from "@/data/classFormat";
+import { aiTrainerCoverageLine } from "@/data/aiTrainerLessons";
 /**
  * Public homepage (/welcome).
  *
@@ -65,8 +66,8 @@ export const ISSUE_TRACKER_URL = "https://github.com/Tejaswinireddys/sadhana/iss
 const FORMAT = [
   {
     icon: ImageIcon,
-    title: "Illustrated poses",
-    body: `All ${landing.poseCount} poses are drawn, with the body shape described in text for screen readers. In guided practice each pose shows a labelled still.`,
+    title: "AI trainer video",
+    body: `${aiTrainerCoverageLine()} All ${landing.poseCount} poses also have an illustration, with the body shape described in text for screen readers.`,
   },
   {
     icon: Volume2,
@@ -88,7 +89,7 @@ const FORMAT = [
 const FAQ = [
   {
     q: "What will I see and hear during a practice?",
-    a: "In a guided practice: an illustration of the pose, a recorded voice talking you into it, the same words as captions, and a countdown for the hold. The video classes are different — see the next question.",
+    a: `In a guided practice: ${aiTrainerCoverageLine()} A recorded voice talks you into the pose, the same words are captions, and a countdown runs the hold. The video classes are different — see the next question.`,
   },
   {
     q: "Are the video classes taught by a real instructor?",
@@ -99,8 +100,8 @@ const FAQ = [
     a: "Most sessions need nothing. Some restful ones ask for a chair, a bolster or pillows — every session lists its props before you start, and offers a prop-free swap where one keeps the same level.",
   },
   {
-    q: "Can I practise offline?",
-    a: "No. Narration and pose media load from the internet, so practise with a connection. Your history on this device is kept either way.",
+    q: "Can I practice offline?",
+    a: "No. Narration and pose media load from the internet, so practice with a connection. Your history on this device is kept either way.",
   },
   {
     q: "Where is my progress stored?",
@@ -209,9 +210,9 @@ export default function Landing() {
                 A daily yoga practice that fits your day.
               </h1>
               <p className="max-w-lg text-base leading-relaxed text-foreground/80 md:text-lg">
-                Illustrated poses, a calm voice that talks you into each one, captions for every
-                word, and modifications shown before you start. A few minutes or half an hour — no
-                account needed.
+                {aiTrainerCoverageLine()} A calm voice talks you into each pose, captions follow
+                every word, and modifications are shown before you start. A few minutes or half an
+                hour — no account needed.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Button
@@ -284,8 +285,7 @@ export default function Landing() {
             <Reveal className="mb-6 max-w-2xl space-y-2">
               <h2 className="font-serif text-3xl font-semibold tracking-tight">How it teaches</h2>
               <p className="text-muted-foreground" data-testid="landing-no-filmed-instruction">
-                Guided practice uses illustrations and voice — each pose shows a labelled still.{" "}
-                {CLASS_FORMAT_SHORT} No human instructor filmed or reviewed them.
+                {aiTrainerCoverageLine()} {CLASS_FORMAT_SHORT} No human instructor filmed or reviewed them.
               </p>
             </Reveal>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -367,7 +367,7 @@ export default function Landing() {
                               sizes="40px"
                             />
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate">{p.english}</span>
+                              <span className="block line-clamp-2 leading-snug">{p.english}</span>
                               <span className="block truncate text-xs text-muted-foreground">
                                 {p.modifications}
                               </span>

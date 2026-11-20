@@ -25,6 +25,7 @@ export function chromeLegalFooterLinks(billingEnabled: boolean): LegalFooterLink
   return withLabeledLinks([
     { href: "/privacy", label: "Privacy" },
     { href: "/terms", label: "Terms" },
+    { href: "/plus", label: "Plans", testId: "footer-plans" },
     ...(billingEnabled
       ? [{ href: "/cancel", label: "Cancel", testId: "footer-cancel" } satisfies LegalFooterLink]
       : []),

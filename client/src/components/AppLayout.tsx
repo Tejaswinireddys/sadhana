@@ -171,7 +171,7 @@ function SidebarSearch() {
               close();
             }
           }}
-          placeholder="Search poses, breathing, kids…"
+          placeholder="Search"
           className="pl-9"
           aria-label="Search Sadhana"
           aria-expanded={open}
@@ -302,7 +302,7 @@ function SidebarSearch() {
                         alt={s.pose.imageAlt}
                         width={96}
                         height={192}
-                        className="h-full w-full scale-[1.35] object-contain"
+                        className="h-full w-full object-contain"
                         loading="lazy"
                         decoding="async"
                       />

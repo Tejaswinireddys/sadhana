@@ -51,7 +51,7 @@ export function ScrollRow({
           "-mx-1 flex max-w-full gap-3 overflow-x-auto overscroll-x-contain px-1 pe-10 pb-2",
           "snap-x snap-mandatory scroll-smooth",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          "[scrollbar-width:thin]",
+          "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         )}
       >
         {children}

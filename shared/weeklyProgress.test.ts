@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { startOfWeek, weeklyProgress } from "./practiceStats.ts";
 
 /**
- * Home showed 8 days practised and 17 sessions under a heading reading "This
+ * Home showed 8 days practiced and 17 sessions under a heading reading "This
  * week". Both numbers were lifetime totals; a week has seven days.
  */
 const s = (date: string, durationMinutes = 10) => ({
@@ -49,7 +49,7 @@ describe("weekly practice", () => {
     assert.equal(week.daysPracticed, 2);
   });
 
-  it("counts a day once however many times you practised on it", () => {
+  it("counts a day once however many times you practiced on it", () => {
     const week = weeklyProgress(
       [s("2026-09-22", 10), s("2026-09-22", 5), s("2026-09-22", 12)],
       "2026-09-23",
@@ -86,7 +86,7 @@ describe("weekly practice", () => {
     assert.equal(week.weekStart, "2026-09-21");
   });
 
-  it("does not count a zero-minute row as a day practised", () => {
+  it("does not count a zero-minute row as a day practiced", () => {
     const week = weeklyProgress([s("2026-09-22", 0)], "2026-09-23");
     assert.equal(week.daysPracticed, 0);
     assert.equal(week.sessions, 1);

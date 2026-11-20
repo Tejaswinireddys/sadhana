@@ -280,14 +280,18 @@ function LivePlus() {
             {billing.note || copy.statusNote}
           </p>
           <p className="text-sm">
-            {BILLING_ENABLED && (<Link
-              href="/cancel"
-              className="font-medium underline underline-offset-2"
-              data-testid="paywall-cancel-link"
-            >
-              How to cancel
-            </Link>)}
-            {" · "}
+            {BILLING_ENABLED ? (
+              <>
+                <Link
+                  href="/cancel"
+                  className="font-medium underline underline-offset-2"
+                  data-testid="paywall-cancel-link"
+                >
+                  How to cancel
+                </Link>
+                {" · "}
+              </>
+            ) : null}
             no chat, no phone, no retention screens.
           </p>
         </header>

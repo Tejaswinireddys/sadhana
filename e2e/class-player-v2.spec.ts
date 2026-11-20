@@ -119,7 +119,7 @@ test("the end screen logs the class to Progress, takes an effort rating, and its
 
   const end = page.getByTestId("class-end");
   await expect(end.getByRole("heading", { name: "Class complete" })).toBeFocused();
-  await expect(page.getByTestId("class-end-time")).toHaveText("2 min practised · added to Progress.");
+  await expect(page.getByTestId("class-end-time")).toHaveText("2 min practiced · added to Progress.");
   expect(posts).toEqual(expect.arrayContaining(["POST /api/sessions", "POST /api/journal"]));
 
   await expect(page.getByTestId("class-end-countdown")).toContainText(/Next class starts in \d+s/);

@@ -290,29 +290,41 @@ function AiTrainerPracticeClip({
   }, [playing, lesson.slug]);
   return (
     <figure
-      className={`relative ${AI_TRAINER_PORTRAIT_SHELL} h-full max-h-full ${className ?? ""}`}
+      className={`flex h-full max-h-full w-full min-w-0 flex-col items-center justify-center overflow-hidden ${className ?? ""}`}
       data-testid={testId ?? "ai-trainer-practice"}
-      data-fit="contain-height"
-      data-aspect="9/16"
+      data-fit="cover-center"
+      data-aspect="16/9"
     >
-      <video
-        ref={ref}
-        src={lesson.mp4}
-        poster={lesson.poster}
-        playsInline
-        crossOrigin="anonymous"
-        preload="metadata"
-        className={AI_TRAINER_PRACTICE_VIDEO}
-        data-testid="ai-trainer-practice-video"
-      >
-        <track kind="captions" src={lesson.captionsVtt} srcLang="en" label="English" default />
-      </video>
       <figcaption
-        className="absolute left-2 top-2 max-w-[85%] rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm"
+        className="mb-1 max-w-full truncate px-2 text-center text-[11px] font-medium text-foreground"
         data-testid="ai-trainer-practice-label"
+        title="Photorealistic AI-generated trainer, not a filmed demonstration."
       >
-        {lesson.label}. Photorealistic AI-generated trainer, not a filmed demonstration.
+        {lesson.label}
       </figcaption>
+      <div className={`${AI_TRAINER_PORTRAIT_SHELL} relative min-h-0 flex-1`}>
+        <img
+          src={lesson.poster}
+          alt=""
+          width={lesson.width}
+          height={lesson.height}
+          className={`${AI_TRAINER_PRACTICE_VIDEO} ${playing ? "invisible absolute" : ""}`}
+          data-testid="ai-trainer-practice-poster"
+        />
+        <video
+          ref={ref}
+          src={lesson.mp4}
+          poster={lesson.poster}
+          playsInline
+          muted
+          crossOrigin="anonymous"
+          preload="metadata"
+          className={`${AI_TRAINER_PRACTICE_VIDEO} ${playing ? "" : "invisible absolute"}`}
+          data-testid="ai-trainer-practice-video"
+        >
+          <track kind="captions" src={lesson.captionsVtt} srcLang="en" label="English" default />
+        </video>
+      </div>
     </figure>
   );
 }

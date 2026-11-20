@@ -9,6 +9,8 @@ import { ClassCard } from "@/components/ClassCard";
 import { AdSlot } from "@/components/ads/AdSlot";
 import { ClassEndScreen } from "@/components/ClassEndScreen";
 import { asanaBySlug } from "@/data/content";
+import { aiTrainerLessonFor } from "@/data/aiTrainerLessons";
+import { poseSlugAt } from "@/lib/classPoseCues";
 import {
   CLASS_SEEK_SECONDS,
   CLASS_SPEEDS,
@@ -120,6 +122,7 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
   // `?? []`: a response from a server older than chapters (mid-deploy) has none.
   const chapters = item.chapters ?? [];
   const [chapterIndex, setChapterIndex] = useState(-1);
+  const [cueSlug, setCueSlug] = useState<string | null>(null);
   const [speed, setSpeed] = useState<ClassSpeed>(readClassSpeed);
   const [playing, setPlaying] = useState(false);
   const [ended, setEnded] = useState(false);
@@ -181,6 +184,7 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
     if (!el) return;
     el.currentTime = Math.max(0, seconds);
     setChapterIndex(currentChapterIndex(chapters, seconds));
+    setCueSlug(poseSlugAt(item.slug, chapters, seconds));
   };
 
   const toggleFullscreen = () => {
@@ -262,8 +266,8 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
     return () => { clearTimeout(timer); stage?.removeEventListener("pointermove", wake); stage?.removeEventListener("touchstart", wake); };
   }, [fullscreen, playing]);
 
-  const chapter = chapterIndex >= 0 ? chapters[chapterIndex] : undefined;
-  const cuePose = chapter?.poseSlug ? asanaBySlug(chapter.poseSlug) : undefined;
+  const cuePose = cueSlug ? asanaBySlug(cueSlug) : undefined;
+  const aiLesson = cuePose ? aiTrainerLessonFor(cuePose.slug) : undefined;
   const showCue = playing && !!cuePose && !(fullscreen && idle);
 
   // Exit: route change (unmount), tab hidden, or page unload.
@@ -299,17 +303,19 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
   return (
     <div className="space-y-3">
       <div ref={stageRef} id={stageId} className="relative overflow-hidden rounded-xl bg-black" data-testid="class-player">
-        {showCue && cuePose && (
-          <a
-            href={`/asanas/${cuePose.slug}`}
-            target="_blank"
-            rel="noopener"
-            className="absolute left-3 top-3 z-10 max-w-[70%] truncate rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            aria-label={`Current pose: ${cuePose.english} (opens the pose page in a new tab)`}
-            data-testid="class-pose-cue"
-          >
-            {cuePose.english}
-          </a>
+        {showCue && aiLesson && (
+          <video
+            key={`${aiLesson.slug}-${cueSlug}`}
+            src={aiLesson.mp4}
+            poster={aiLesson.poster}
+            className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-[calc(100%-3.25rem)] w-full bg-card object-cover object-center"
+            muted
+            playsInline
+            autoPlay
+            loop
+            data-testid="class-ai-trainer"
+            aria-label={`${aiLesson.english} AI trainer preview`}
+          />
         )}
         {/* Same 16:9 box as the player, so nothing shifts when it arrives. */}
         <Suspense fallback={<div className="aspect-video w-full" aria-busy="true" data-testid="class-player-loading" />}>
@@ -360,6 +366,8 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
             watched.current = watchedAfter(watched.current, p.current);
             const index = currentChapterIndex(chapters, p.current);
             if (index !== chapterIndex) setChapterIndex(index);
+            const slug = poseSlugAt(item.slug, chapters, p.current);
+            if (slug !== cueSlug) setCueSlug(slug);
             saver.tick(p.current, p.duration);
             afterSave();
           }}
@@ -377,6 +385,18 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
         </Suspense>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+        {showCue && cuePose && (
+          <a
+            href={`/asanas/${cuePose.slug}`}
+            target="_blank"
+            rel="noopener"
+            className="inline-flex max-w-full items-center truncate rounded-full bg-foreground/90 px-3 py-1.5 text-xs font-medium text-background underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`Current pose: ${cuePose.english} (opens the pose page in a new tab)`}
+            data-testid="class-pose-cue"
+          >
+            {cuePose.english}
+          </a>
+        )}
         <p data-testid="class-player-resume" data-start={initialStart} data-policy={playback.policy}>
           {initialStart > 0 ? `Resuming from ${formatTimestamp(initialStart)}.` : "Starting from the beginning."}
           {initialStart > 0 && (

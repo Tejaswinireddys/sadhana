@@ -434,7 +434,7 @@ export default function StartQuiz() {
                   {plan.offerMinutes != null && (
                     <>
                       {" "}
-                      Choose {plan.offerMinutes} minutes to practise this sequence in full, or go
+                      Choose {plan.offerMinutes} minutes to practice this sequence in full, or go
                       back and pick a shorter session.
                     </>
                   )}

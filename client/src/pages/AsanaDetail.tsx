@@ -771,7 +771,7 @@ export default function AsanaDetail() {
                   breath={false}
                   shadow={false}
                   rounded="rounded-xl"
-                  fit="cover"
+                  fit="contain"
                   aspect="aspect-[4/3]"
                   sizes="64px"
                 />

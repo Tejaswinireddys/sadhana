@@ -20,7 +20,7 @@ export default function HealthDisclaimer() {
       <section className="space-y-3 text-sm leading-relaxed">
         <h2 className="font-serif text-xl">General</h2>
         <p className="text-muted-foreground">
-          Sadhana offers illustrated poses, voice guidance, and rule-based session suggestions. It
+          Sadhana offers AI trainer video on featured poses, illustrations for the rest, voice guidance, and rule-based session suggestions. It
           does not diagnose, treat, or prevent disease. Consult a qualified clinician before starting
           a new exercise program, especially if you have injuries, chronic conditions, or recent
           surgery.

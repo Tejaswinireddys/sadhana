@@ -60,7 +60,7 @@ export function DurationFitNotice({
               onClick={onUseBriefMode}
               data-testid={`button-${testIdPrefix}-captions`}
             >
-              Practise in {briefOffer.minutes} min with captions, no voice
+              Practice in {briefOffer.minutes} min with captions, no voice
             </Button>
           )}
         </div>

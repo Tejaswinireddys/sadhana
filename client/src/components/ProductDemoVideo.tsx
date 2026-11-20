@@ -50,6 +50,7 @@ export function ProductDemoVideo({
   const captions = captionsSrc ?? `${base}captions/${name}.vtt`;
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const loadedOnce = useRef(false);
   const [inView, setInView] = useState(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -84,10 +85,12 @@ export function ProductDemoVideo({
   }, [inView]);
 
   // After React attaches <source> children, browsers require an explicit load().
+  // Load once: calling load() again after play() wipes the current frame and
+  // leaves a dark box with the Pause control still showing.
   useEffect(() => {
     const el = videoRef.current;
-    if (!el || !showSources || failed) return;
-    setReady(false);
+    if (!el || !showSources || failed || loadedOnce.current) return;
+    loadedOnce.current = true;
     el.load();
   }, [showSources, failed, mp4, webm]);
 
@@ -135,43 +138,58 @@ export function ProductDemoVideo({
       className={cn("surface relative overflow-hidden", className)}
       data-testid="product-demo-video"
     >
-      <div className="relative aspect-video bg-muted/40">
+      <div className="relative aspect-video bg-card">
+        <img
+          src={poster}
+          alt=""
+          width={1280}
+          height={720}
+          className={cn(
+            "absolute inset-0 h-full w-full object-contain",
+            ready && playing && !failed ? "opacity-0" : "opacity-100",
+          )}
+          data-testid="product-demo-poster"
+        />
         {!ready && !failed && showSources && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/50">
+          <div className="absolute inset-0 z-10 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
             <span className="sr-only">Loading video</span>
           </div>
         )}
         {failed && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-card/90 p-6 text-center">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-card/80 p-6 text-center">
             <AlertCircle className="h-8 w-8 text-muted-foreground" aria-hidden />
             <p className="max-w-sm text-sm text-muted-foreground">
               Demo video couldn’t load. Check your connection, then try Play again.
             </p>
-            <img loading="lazy" width={1280} height={720}
-              src={poster}
-              alt=""
-              className="mt-2 max-h-40 rounded-xl object-cover opacity-80"
-            />
           </div>
         )}
         <video
           ref={videoRef}
-          className={cn("h-full w-full object-cover", failed && "invisible")}
+          className={cn(
+            "relative z-[1] h-full w-full object-contain",
+            (failed || !ready) && "opacity-0",
+          )}
           poster={poster}
           playsInline
           muted
           loop
-          preload={saveData || !inView ? "none" : "metadata"}
+          autoPlay={canAutoplay}
+          preload={saveData || !inView ? "none" : "auto"}
           aria-label={title}
           onLoadedData={() => {
             setReady(true);
             setFailed(false);
           }}
+          onPlaying={() => {
+            setReady(true);
+            setPlaying(true);
+          }}
           onError={() => {
             // Ignore transient errors before sources are attached.
             if (!showSources) return;
             setFailed(true);
+            setPlaying(false);
           }}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}

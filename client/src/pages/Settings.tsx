@@ -220,7 +220,7 @@ export default function Settings() {
           <p className="text-sm text-muted-foreground" data-testid="settings-account-status">
             {isSignedIn
               ? `Signed in as ${user?.displayName || user?.email}. Your practice syncs to this account.`
-              : "Practising as a guest — this device holds your history. An account keeps it when you switch browsers."}
+              : "Practicing as a guest — this device holds your history. An account keeps it when you switch browsers."}
           </p>
           <Button variant="outline" className="min-h-11 w-full cursor-pointer justify-start gap-2" asChild>
             <Link href="/account" data-testid="settings-account">

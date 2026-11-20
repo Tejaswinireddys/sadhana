@@ -170,7 +170,7 @@ export function TodayPracticeCard({
                 shadow={false}
                 rounded="rounded-lg"
                 aspect="aspect-square"
-                fit="cover"
+                fit="contain"
                 className="h-12 w-12 shrink-0 bg-background"
                 sizes="48px"
                 testId={`today-practice-thumb-${p.slug}`}

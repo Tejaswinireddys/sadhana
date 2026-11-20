@@ -65,7 +65,7 @@ export function welcomeHeaderSubtitle({
   signedIn: boolean;
 }): string {
   if (loading) return "Reading your saved practice…";
-  if (practicedToday) return "You've already practised today. What follows is optional.";
+  if (practicedToday) return "You've already practiced today. What follows is optional.";
   if (hasCompletedSessions) {
     return hour >= reminderHour
       ? "Evening — a shorter, quieter practice is below."

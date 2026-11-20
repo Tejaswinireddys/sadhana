@@ -39,7 +39,11 @@ export function SessionSpec({
           {showFormat && (
             <>
               <span> · </span>
-              <span data-spec="format">{preflight.modeLabel}, with captions</span>
+              <span data-spec="format">
+                {preflight.mode === "guided"
+                  ? "Learn — voice, captions, AI video on featured poses"
+                  : `${preflight.modeLabel}, with captions`}
+              </span>
             </>
           )}
         </span>
