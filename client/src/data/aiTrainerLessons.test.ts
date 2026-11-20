@@ -71,24 +71,22 @@ describe("AI trainer portrait player layout", () => {
   const lessons = readFileSync(resolve("client/src/data/aiTrainerLessons.ts"), "utf8");
   const videoPlayer = readFileSync(resolve("client/src/components/VideoPlayer.tsx"), "utf8");
 
-  it("sizes portrait lessons height-first with object-contain, never cover", () => {
+  it("crops the empty beige band with a 16:9 cover frame", () => {
     assert.match(lessons, /AI_TRAINER_PORTRAIT_VIDEO =/);
-    assert.match(lessons, /aspect-\[9\/16\].*object-contain/);
-    assert.match(lessons, /h-\[min\(80vh,72dvh\)\]/);
-    assert.match(lessons, /w-auto max-w-full/);
+    assert.match(lessons, /aspect-video w-full max-h-\[min\(80vh,72dvh\)\].*object-cover object-center/);
     assert.match(player, /AI_TRAINER_PORTRAIT_VIDEO/);
     assert.match(player, /videoClassName=\{AI_TRAINER_PORTRAIT_VIDEO\}/);
-    assert.match(player, /data-fit="contain-height"/);
-    assert.doesNotMatch(player, /className=\{[^}]*object-cover/);
-    assert.doesNotMatch(player, /"[^"]*object-cover[^"]*"/);
-    assert.doesNotMatch(player, /aspect-video/);
+    assert.match(player, /data-fit="cover-band"/);
+    assert.match(player, /data-aspect="16\/9"/);
+    assert.doesNotMatch(player, /aspect-\[9\/16\]/);
     assert.match(stage, /AI_TRAINER_PRACTICE_VIDEO/);
     assert.match(lessons, /AI_TRAINER_PRACTICE_VIDEO =/);
-    assert.match(lessons, /h-full max-h-full w-auto max-w-full/);
-    assert.doesNotMatch(stage, /className="max-h-full w-full rounded-xl object-contain"/);
+    assert.match(lessons, /aspect-video h-auto max-h-full w-full/);
+    assert.match(lessons, /object-cover object-center/);
+    assert.match(stage, /data-fit="cover-band"/);
+    assert.match(stage, /ai-trainer-practice-poster/);
     assert.match(videoPlayer, /videoClassName\?:/);
     assert.match(videoPlayer, /DEFAULT_VIDEO_CLASS = "aspect-video/);
-    assert.doesNotMatch(lessons, /object-cover/);
   });
 });
 

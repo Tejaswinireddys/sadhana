@@ -2088,22 +2088,22 @@ export default function GuidedSession() {
   const progress = todays.length > 0 ? (index / todays.length) * 100 : 0;
   const isHold = phase === "hold";
   const exitCopy = sessionExitCopy(creditNow());
+  const instructionLeft = instructionCountdown({
+    usingMp3:
+      voiceEnabled &&
+      instructionModeRef.current === "mp3" &&
+      !audioBrokenRef.current,
+    audioCurrentTime: audioRef.current?.currentTime ?? 0,
+    audioDuration: voiceDuration || (audioRef.current?.duration ?? 0),
+    phaseRemaining,
+  });
+  // During How to the big number is the narration clock, which ignores a
+  // banked +30. Add it here so the countdown the practitioner is watching
+  // jumps immediately; enterHold moves that same bank onto the hold and clears it.
   const bottomCountdown =
-    phase === "transitionIn"
+    phase === "transitionIn" || phase === "sideSwitch" || isHold
       ? phaseRemaining
-      : phase === "sideSwitch"
-        ? phaseRemaining
-        : isHold
-          ? phaseRemaining
-          : instructionCountdown({
-              usingMp3:
-                voiceEnabled &&
-                instructionModeRef.current === "mp3" &&
-                !audioBrokenRef.current,
-              audioCurrentTime: audioRef.current?.currentTime ?? 0,
-              audioDuration: voiceDuration || (audioRef.current?.duration ?? 0),
-              phaseRemaining,
-            });
+      : instructionLeft + pendingExtensionSec;
 
   // This render is below the setup/completion returns: do not add hooks here.
   const firstNamedSide = current ? namedSideIn(current.steps) : "right";
@@ -2276,19 +2276,25 @@ export default function GuidedSession() {
             {poseImageWithheld(prev.slug) ? (
               <WithheldPoseImage slug={prev.slug} compact />
             ) : (
-              <img width={80} height={160}
+              <img
+              key={prev.slug}
+              width={80}
+              height={160}
               src={`${import.meta.env.BASE_URL}poses/${prev.slug}.webp`}
               alt={accurateImageAlt(prev.slug, prev.imageAlt)}
-              className="h-20 w-20 rounded-xl object-contain"
+              className="h-20 w-20 rounded-xl object-contain object-center"
               loading="lazy"
               decoding="async"
+              onLoad={(e) => {
+                e.currentTarget.style.visibility = "visible";
+              }}
               onError={(e) => {
                 e.currentTarget.style.visibility = "hidden";
               }}
               data-testid="thumb-prev"
             />
             )}
-            <span className="max-w-[6rem] truncate text-center text-xs text-muted-foreground">
+            <span className="line-clamp-3 max-w-[7.5rem] text-balance text-center text-[11px] leading-tight text-muted-foreground">
               {prev.english}
             </span>
           </div>
@@ -2304,19 +2310,25 @@ export default function GuidedSession() {
             {poseImageWithheld(next.slug) ? (
               <WithheldPoseImage slug={next.slug} compact />
             ) : (
-              <img width={80} height={160}
+              <img
+              key={next.slug}
+              width={80}
+              height={160}
               src={`${import.meta.env.BASE_URL}poses/${next.slug}.webp`}
               alt={accurateImageAlt(next.slug, next.imageAlt)}
-              className="h-20 w-20 rounded-xl object-contain"
+              className="h-20 w-20 rounded-xl object-contain object-center"
               loading="lazy"
               decoding="async"
+              onLoad={(e) => {
+                e.currentTarget.style.visibility = "visible";
+              }}
               onError={(e) => {
                 e.currentTarget.style.visibility = "hidden";
               }}
               data-testid="thumb-next"
             />
             )}
-            <span className="max-w-[6rem] truncate text-center text-xs text-muted-foreground">
+            <span className="line-clamp-3 max-w-[7.5rem] text-balance text-center text-[11px] leading-tight text-muted-foreground">
               {next.english}
             </span>
           </div>
@@ -2344,10 +2356,13 @@ export default function GuidedSession() {
                   className={cn(
                     "inset-0 flex items-center justify-center",
                     layersForStage.length > 1 ? "absolute" : "relative h-full w-full",
-                    smoothCrossfade
+                    smoothCrossfade && isTop
                       ? "transition-opacity duration-700 ease-out motion-reduce:transition-none"
                       : "",
-                    isTop ? "z-10 opacity-100" : "z-0 opacity-0",
+                    // Hide the outgoing layer outright. Opacity alone does not
+                    // hide a paused <video> — skipping while paused left the
+                    // previous trainer painted underneath the next pose.
+                    isTop ? "z-10 opacity-100" : "z-0 hidden",
                   )}
                 >
                   <PoseTrainerStage
@@ -2524,7 +2539,11 @@ export default function GuidedSession() {
           */}
           <div
             className={cn(
-              "sticky bottom-0 z-10 flex flex-wrap items-center justify-center gap-2 bg-background/95 py-1 backdrop-blur-sm transition-opacity duration-500 motion-reduce:transition-none",
+              // One row. "Resume" is wider than "Pause"; wrapping used to drop
+              // Captions and the lightbulb onto a second line. A fixed-width
+              // pause control keeps the row stable, and a narrow phone scrolls
+              // sideways instead of stacking.
+              "sticky bottom-0 z-10 flex flex-nowrap items-center justify-start gap-1.5 overflow-x-auto bg-background/95 py-1 backdrop-blur-sm transition-opacity duration-500 motion-reduce:transition-none sm:justify-center",
               chromeVisible ? "opacity-100" : "pointer-events-none opacity-0",
             )}
             data-testid="guided-transport"
@@ -2557,7 +2576,7 @@ export default function GuidedSession() {
               size="lg"
               onClick={() => setPaused((p) => !p)}
               data-testid="button-pause-guided"
-              className="min-h-11 min-w-[7rem]"
+              className="min-h-11 w-[8.25rem] shrink-0"
               aria-pressed={paused}
               aria-label={paused ? "Resume session" : "Pause session"}
             >

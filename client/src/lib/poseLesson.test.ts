@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildPoseLesson,
   durationLabelFor,
+  exactExitCueFor,
   mirrorCue,
   namedSideIn,
   nextStepStart,
@@ -27,6 +28,16 @@ import { asanaBySlug } from "@/data/content";
 
 const LEVELS = ["beginner", "intermediate", "advanced"] as const;
 const AUDITED = ["marjaryasana-bitilasana", "virabhadrasana-ii", "vrksasana"] as const;
+
+describe("exit cues match the pose", () => {
+  it("does not give Mountain Pose a lunge exit", () => {
+    const mountain = asanaBySlug("tadasana");
+    assert.ok(mountain);
+    const cue = exactExitCueFor(mountain);
+    assert.match(cue, /Mountain Pose/);
+    assert.doesNotMatch(cue, /working knee/i);
+  });
+});
 
 describe("generated clips are not movement demonstrations", () => {
   it("knows Warrior II's clip opens on a standing figure", () => {

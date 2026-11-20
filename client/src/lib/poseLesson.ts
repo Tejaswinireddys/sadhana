@@ -435,6 +435,10 @@ export function exactExitCueFor(
       "Bend both knees first and slide your feet down the wall toward your pelvis, roll gently onto one side for a breath, and press up with your hands to a neutral seat.",
     savasana:
       "Wiggle your fingers and toes first, bend your knees one at a time to plant your feet on the mat, roll gently onto your side, and press up into a comfortable neutral seat.",
+    // Mountain is already the neutral stand. The category fallback talks about
+    // a working knee, which is a lunge cue and does not belong here.
+    tadasana:
+      "Soften your knees slightly, let your arms rest by your sides, and step into the next shape from neutral Mountain Pose.",
   };
 
   if (authoredExits[slug]) {

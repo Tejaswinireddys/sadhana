@@ -191,10 +191,10 @@ export function TeachingStepSequence({
       </span>
 
       <span
-        className="pointer-events-none absolute right-2 top-2 z-10 max-w-[55%] rounded-full bg-background/75 px-2 py-0.5 text-right text-[10px] leading-snug text-muted-foreground backdrop-blur-sm"
+        className="pointer-events-none absolute inset-x-2 top-9 z-10 line-clamp-2 rounded-full bg-background/75 px-2 py-0.5 text-center text-[10px] leading-snug text-muted-foreground backdrop-blur-sm"
         data-testid={`pose-human-note-${slug}`}
         data-teaching-note="1"
-        {...(noteTitle ? { title: noteTitle } : {})}
+        title={noteTitle ?? note}
       >
         {note}
       </span>

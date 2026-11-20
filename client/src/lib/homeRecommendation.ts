@@ -490,8 +490,13 @@ export function alternativePractices(
    * The focus actually on offer, including one chosen from "Change focus".
    * Reading only `intent` is why "Wake up instead — rather than settling"
    * appeared beside a "Just move" practice, which settles nothing.
+   *
+   * The clock is not a choice. `defaultNeedFor` returns sleep late at night,
+   * which made a fresh guest's "A shorter version" say "better sleep" before
+   * anyone had picked a focus.
    */
-  const primaryNeed = ctx.preferredNeed ?? defaultNeedFor(ctx);
+  const explicitNeed = ctx.preferredNeed ?? (ctx.intent ? INTENT_NEED[ctx.intent] : null);
+  const primaryNeed = explicitNeed ?? "movement";
   const primaryLabel = needLabel(primaryNeed);
 
   /** A focus that genuinely asks less of the body than `primaryNeed`. */

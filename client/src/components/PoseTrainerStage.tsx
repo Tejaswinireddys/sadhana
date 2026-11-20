@@ -25,7 +25,6 @@ import { hasRigSequence } from "@/data/poseKeyframes";
 import { humanStepSlug, poseHasShapeJourney } from "@/data/poseKeyImages";
 import { poseDemoAvailability, STATIC_REFERENCE_LABEL } from "@/data/poseDemoAvailability";
 import {
-  AI_TRAINER_PORTRAIT_SHELL,
   AI_TRAINER_PRACTICE_VIDEO,
   aiTrainerLessonFor,
   teachingVisual,
@@ -282,6 +281,16 @@ function AiTrainerPracticeClip({
   testId?: string;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
+  const [painted, setPainted] = useState(false);
+  // A new pose must not keep the previous frame. Changing `src` while paused
+  // often does not repaint until play(), which is why skipping while paused
+  // left the last trainer on screen.
+  useEffect(() => {
+    setPainted(false);
+    const video = ref.current;
+    if (!video) return;
+    video.load();
+  }, [lesson.slug]);
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
@@ -290,29 +299,54 @@ function AiTrainerPracticeClip({
   }, [playing, lesson.slug]);
   return (
     <figure
-      className={`relative ${AI_TRAINER_PORTRAIT_SHELL} h-full max-h-full ${className ?? ""}`}
+      className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-card [container-type:size] ${className ?? ""}`}
       data-testid={testId ?? "ai-trainer-practice"}
-      data-fit="contain-height"
-      data-aspect="9/16"
+      data-fit="cover-band"
+      data-aspect="16/9"
     >
-      <video
-        ref={ref}
-        src={lesson.mp4}
-        poster={lesson.poster}
-        playsInline
-        crossOrigin="anonymous"
-        preload="metadata"
-        className={AI_TRAINER_PRACTICE_VIDEO}
-        data-testid="ai-trainer-practice-video"
+      {/*
+        The file is 9:16 with the trainer in the middle band. A 16:9 box that
+        fits the stage, with object-cover, drops the empty beige. The video
+        must fill that box — absolute inset-0 on the tall stage painted the
+        whole slide again, letterbox and all.
+      */}
+      <div
+        className="relative aspect-video max-h-full max-w-full"
+        style={{ width: "min(100cqw, calc(100cqh * 16 / 9))" }}
       >
-        <track kind="captions" src={lesson.captionsVtt} srcLang="en" label="English" default />
-      </video>
-      <figcaption
-        className="absolute left-2 top-2 max-w-[85%] rounded-full bg-background/90 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm"
-        data-testid="ai-trainer-practice-label"
-      >
-        {lesson.label}. Photorealistic AI-generated trainer, not a filmed demonstration.
-      </figcaption>
+        <img
+          src={lesson.poster}
+          alt=""
+          width={lesson.width}
+          height={lesson.height}
+          className={`${AI_TRAINER_PRACTICE_VIDEO} h-full`}
+          data-testid="ai-trainer-practice-poster"
+        />
+        <video
+          key={lesson.slug}
+          ref={ref}
+          src={lesson.mp4}
+          poster={lesson.poster}
+          playsInline
+          crossOrigin="anonymous"
+          preload="auto"
+          className={`${AI_TRAINER_PRACTICE_VIDEO} absolute inset-0 h-full ${painted ? "" : "opacity-0"}`}
+          data-testid="ai-trainer-practice-video"
+          onLoadedData={() => setPainted(true)}
+        >
+          <track kind="captions" src={lesson.captionsVtt} srcLang="en" label="English" default />
+        </video>
+        <figcaption
+          className="absolute inset-x-2 top-2 z-10 truncate rounded-full bg-background/90 px-2.5 py-1 text-center text-[11px] font-medium text-foreground shadow-sm"
+          title="Photorealistic AI-generated trainer, not a filmed demonstration."
+          data-testid="ai-trainer-practice-label"
+        >
+          {lesson.label}
+          <span className="sr-only">
+            . Photorealistic AI-generated trainer, not a filmed demonstration.
+          </span>
+        </figcaption>
+      </div>
     </figure>
   );
 }

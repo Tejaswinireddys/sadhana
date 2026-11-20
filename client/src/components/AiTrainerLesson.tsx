@@ -5,9 +5,9 @@
  * pilot content with an honest "AI trainer preview" label, English captions,
  * and mobile-safe progressive playback (playsInline, poster, user-started).
  *
- * v3 lessons are portrait 9:16. Size height-first with object-fit: contain so
- * the trainer fills available height without a giant empty letterbox and
- * without cover-cropping head/feet.
+ * v3 lessons are 9:16 canvases with the trainer in the middle 16:9 band.
+ * The player is that band: object-cover, centered, so the empty beige is
+ * cropped and the person fills the frame.
  */
 import { VideoPlayer } from "@/components/VideoPlayer";
 import {
@@ -34,8 +34,8 @@ export function AiTrainerLesson({ lesson }: { lesson: AiTrainerLesson }) {
       className="space-y-2"
       data-testid="ai-trainer-lesson"
       data-slug={lesson.slug}
-      data-aspect="9/16"
-      data-fit="contain-height"
+      data-aspect="16/9"
+      data-fit="cover-band"
       aria-label={`${lesson.english} ${AI_TRAINER_PREVIEW_LABEL}`}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">

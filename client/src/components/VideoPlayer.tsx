@@ -13,9 +13,9 @@ export type VideoPlayerProps = VideoSourceInput & {
   /** Wrapper around the video (and loading fallback). */
   className?: string;
   /**
-   * Classes on the <video> element. Defaults to landscape 16:9. Callers that
-   * ship portrait lessons pass a 9:16 box with object-contain — never cover —
-   * so the body is not cropped on phones.
+   * Classes on the <video> element. Defaults to landscape 16:9 contain.
+   * AI trainer lessons pass a 16:9 cover frame so the empty band of a 9:16
+   * slide is cropped and the trainer fills the box.
    */
   videoClassName?: string;
 };

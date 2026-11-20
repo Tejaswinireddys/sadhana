@@ -232,6 +232,28 @@ describe("alternatives are about the focus on screen", () => {
     }
   });
 
+  it("does not call a late-night guest practice better sleep", () => {
+    const guest = ctx({
+      hour: 22,
+      hasPracticed: false,
+      preferredNeed: null,
+      preferredMinutes: null,
+      intent: null,
+      warmup: {
+        title: "A first practice",
+        poses: [
+          { slug: "tadasana", holdSeconds: 30 },
+          { slug: "uttanasana", holdSeconds: 40 },
+          { slug: "savasana", holdSeconds: 90 },
+        ],
+      },
+    });
+    const primary = recommendPractice(guest);
+    assert.equal(primary?.id, "first-practice");
+    const blob = alternativePractices(guest, primary).map((a) => `${a.title} ${a.reason}`).join(" | ");
+    assert.doesNotMatch(blob, /better sleep/i);
+  });
+
   it("never offers the practice already on screen as an alternative", () => {
     for (const need of ["movement", "calm", "strength", "sleep", "energy"]) {
       const c = ctx({ preferredNeed: need });

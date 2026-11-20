@@ -43,7 +43,8 @@ export function ProductDemoVideo({
   captionsSrc,
 }: ProductDemoVideoProps) {
   const base = import.meta.env.BASE_URL;
-  // PNG is the shipped poster (WebP optional). Prefer real PNG over a missing .webp.
+  // WebP poster stays visible until a real frame is painted. Hiding it as
+  // soon as play() resolves left a dark, empty box with only Pause on top.
   const poster = posterSrc ?? `${base}images/${name}-poster.webp`;
   const webm = webmSrc ?? `${base}videos/${name}.webm`;
   const mp4 = mp4Src ?? `${base}videos/${name}.mp4`;
@@ -54,6 +55,7 @@ export function ProductDemoVideo({
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [frameReady, setFrameReady] = useState(false);
   const [showSources, setShowSources] = useState(false);
 
   const reduceMotion = useMemo(() => prefersReducedMotion(), []);
@@ -88,6 +90,7 @@ export function ProductDemoVideo({
     const el = videoRef.current;
     if (!el || !showSources || failed) return;
     setReady(false);
+    setFrameReady(false);
     el.load();
   }, [showSources, failed, mp4, webm]);
 
@@ -155,9 +158,20 @@ export function ProductDemoVideo({
             />
           </div>
         )}
+        <img
+          src={poster}
+          alt=""
+          width={1280}
+          height={720}
+          className={cn(
+            "absolute inset-0 h-full w-full object-cover",
+            frameReady && "invisible",
+          )}
+          data-testid="product-demo-poster"
+        />
         <video
           ref={videoRef}
-          className={cn("h-full w-full object-cover", failed && "invisible")}
+          className={cn("h-full w-full object-cover", (failed || !frameReady) && "opacity-0")}
           poster={poster}
           playsInline
           muted
@@ -167,6 +181,15 @@ export function ProductDemoVideo({
           onLoadedData={() => {
             setReady(true);
             setFailed(false);
+            const el = videoRef.current;
+            if (!el) return;
+            // Wait for a decoded frame. loadeddata alone still leaves a dark
+            // element covering the poster on some browsers.
+            if (typeof el.requestVideoFrameCallback === "function") {
+              el.requestVideoFrameCallback(() => setFrameReady(true));
+            } else if (el.readyState >= 2 && el.videoWidth > 0) {
+              setFrameReady(true);
+            }
           }}
           onError={() => {
             // Ignore transient errors before sources are attached.

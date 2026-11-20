@@ -17,7 +17,7 @@ const LESSONS = Object.values(AI_TRAINER_LESSONS);
 
 test.describe("AI trainer pose lessons", () => {
   for (const lesson of LESSONS) {
-    test(`${lesson.english} deep link renders portrait video + English captions`, async ({
+    test(`${lesson.english} deep link renders the trainer band + English captions`, async ({
       page,
     }) => {
       await page.goto(`/asanas/${lesson.slug}`);
@@ -25,7 +25,7 @@ test.describe("AI trainer pose lessons", () => {
       await expect(page.getByTestId("text-asana-english")).toContainText(lesson.english);
       const section = page.getByTestId("ai-trainer-lesson");
       await expect(section).toBeVisible();
-      await expect(section).toHaveAttribute("data-aspect", "9/16");
+      await expect(section).toHaveAttribute("data-aspect", "16/9");
       await expect(page.getByTestId("ai-trainer-lesson-label")).toHaveText("AI trainer preview");
 
       const video = section.getByTestId("video-player-element");
@@ -33,20 +33,19 @@ test.describe("AI trainer pose lessons", () => {
       await expect(video).toHaveAttribute("controls", "");
       await expect(video).toHaveAttribute("playsinline", "");
       await expect(video).toHaveAttribute("poster", lesson.poster);
-      await expect(section).toHaveAttribute("data-fit", "contain-height");
-      await expect(video).toHaveClass(/aspect-\[9\/16\]/);
-      await expect(video).toHaveClass(/object-contain/);
-      await expect(video).toHaveClass(/w-auto/);
-      await expect(video).not.toHaveClass(/object-cover/);
-      await expect(video).not.toHaveClass(/aspect-video/);
-      // Height-first: rendered box should be portrait (taller than wide), not a
-      // wide letterbox with a tiny subject.
+      await expect(section).toHaveAttribute("data-fit", "cover-band");
+      await expect(video).toHaveClass(/aspect-video/);
+      await expect(video).toHaveClass(/object-cover/);
+      await expect(video).toHaveClass(/object-center/);
+      await expect(video).not.toHaveClass(/aspect-\[9\/16\]/);
+      // 16:9 frame: wider than tall, large enough that the trainer is not a
+      // postage stamp inside a tall beige slide.
       const box = await video.evaluate((node: HTMLVideoElement) => {
         const r = node.getBoundingClientRect();
         return { w: r.width, h: r.height };
       });
-      expect(box.h).toBeGreaterThan(box.w);
-      expect(box.h).toBeGreaterThan(200);
+      expect(box.w).toBeGreaterThan(box.h);
+      expect(box.w).toBeGreaterThan(240);
       expect(await video.evaluate((node: HTMLVideoElement) => node.autoplay)).toBe(false);
 
       // Progressive same-origin lesson file (Mux not required for this pilot).

@@ -6,8 +6,10 @@
  * `published`. The UI labels them "AI trainer preview" so testers know they
  * are pilot content.
  *
- * v3 clips are portrait 9:16 (720×1280), letterboxed so the trainer stays
- * full-body. Filenames include `-v3` so browsers and any stale SW asset cache
+ * v3 files are 720×1280 canvases. The trainer sits in a 16:9 band across the
+ * middle; the rest of the frame is empty beige. Players crop to that band
+ * (`object-cover` + `object-center` in a 16:9 box) so the person fills the
+ * stage. Filenames include `-v3` so browsers and any stale SW asset cache
  * cannot keep serving the landscape v2 files.
  */
 export type AiTrainerLesson = {
@@ -98,19 +100,19 @@ export function teachingVisual(slug: string, reviewedMovement: boolean): "moveme
 }
 
 /**
- * Portrait player layout — height-first so a 9:16 clip fills available height
- * instead of sitting tiny inside a wide letterbox. `object-contain` only; never
- * cover crop (that crops head/feet). Callers pass these onto the <video>
- * (and VideoPlayer's `videoClassName`).
+ * The file is 9:16, but the trainer occupies the middle 16:9 band. A 16:9 box
+ * with `object-cover` / `object-center` drops the empty beige above and below
+ * and keeps the person full-body inside that band. Do not use a tall 9:16
+ * contain box — that is what left the trainer postage-stamp sized.
  */
 export const AI_TRAINER_PORTRAIT_SHELL =
-  "mx-auto flex w-full max-w-full items-center justify-center";
+  "mx-auto flex w-full max-w-full items-center justify-center overflow-hidden";
 
-/** Detail / VideoPlayer: explicit viewport height, width follows 9:16. */
+/** Detail / VideoPlayer: 16:9 frame, cover-cropped to the trainer band. */
 export const AI_TRAINER_PORTRAIT_VIDEO =
-  "aspect-[9/16] h-[min(80vh,72dvh)] w-auto max-w-full rounded-xl bg-card object-contain";
+  "aspect-video w-full max-h-[min(80vh,72dvh)] rounded-xl bg-card object-cover object-center";
 
-/** Guided practice stage: fill the stage height, width follows 9:16. */
+/** Guided practice stage: same band, sized to the stage width. */
 export const AI_TRAINER_PRACTICE_VIDEO =
-  "aspect-[9/16] h-full max-h-full w-auto max-w-full rounded-xl object-contain";
+  "aspect-video h-auto max-h-full w-full rounded-xl object-cover object-center";
 
