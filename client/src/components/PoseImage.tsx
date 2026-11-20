@@ -183,13 +183,12 @@ export function PoseImage({
             className={cn(
               "relative z-[1] block select-none transition-opacity duration-300",
               fit === "cover" ? "object-cover" : "object-contain",
-              // A full-body figure shrunk to a row thumbnail is a few faint
-              // pixels. Scaling up inside the clip keeps it legible.
-              thumb ? "scale-[1.35]" : "",
             rounded,
             "h-full w-full",
             shadow ? "shadow-soft-lg" : "",
-            loaded ? "opacity-100" : "opacity-0",
+            // Stay visible if `load` never fires (content-visibility, a cached
+            // picture source). Hiding until that event painted blank grey cards.
+            "opacity-100",
             loaded && breath ? "photo-breath" : "",
           )}
             draggable={false}

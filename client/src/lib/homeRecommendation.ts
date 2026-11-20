@@ -1,5 +1,5 @@
 /**
- * What should I practise today?
+ * What should I practice today?
  *
  * Home used to answer that with a directory: mood sessions, curated flows, the
  * Trainer, the Adaptive Plan and a shortcut grid, all weighted the same, all
@@ -231,7 +231,7 @@ export function recommendPractice(ctx: HomeContext): PracticeRecommendation | nu
 }
 
 function recommendUnfiltered(ctx: HomeContext): PracticeRecommendation | null {
-  // Someone who has told us nothing and practised nothing gets the short,
+  // Someone who has told us nothing and practiced nothing gets the short,
   // gentle first practice, not a composed "Strong / Intermediate" session
   // generated from defaults they never chose.
   const knowsNothing =
@@ -350,6 +350,16 @@ function recommendUnfiltered(ctx: HomeContext): PracticeRecommendation | null {
       ...limitOpts(ctx),
     });
   }
+  const unset = !ctx.programDay && !ctx.quizPlan && !ctx.profile && !ctx.intent && !ctx.preferredNeed && !ctx.hasPracticed;
+  if (unset) {
+    return generatePractice({
+      need: "movement",
+      minutes,
+      experience: experienceFor(ctx),
+      reason: "A balanced practice — take the quiz any time for a plan of your own.",
+      ...limitOpts(ctx),
+    });
+  }
   return generatePractice({
     need: evening ? "sleep" : "movement",
     minutes,
@@ -381,7 +391,7 @@ export type HomeAdjust = {
   need: string | null;
   /** "Low" | "Balanced" | "Energized", or null when not chosen. */
   energy?: string | null;
-  /** Practise with no props — swap or drop anything that needs one. */
+  /** Practice with no props — swap or drop anything that needs one. */
   noProps?: boolean;
 };
 
@@ -485,13 +495,18 @@ export function alternativePractices(
   const experience = experienceFor(ctx);
   const base = ctx.preferredMinutes ?? primary?.requestedMinutes ?? 10;
   const shorter = snapToOfferedMinutes(Math.max(5, Math.round(base / 2)));
-  const evening = ctx.hour >= 20 || ctx.hour < 4;
   /**
    * The focus actually on offer, including one chosen from "Change focus".
    * Reading only `intent` is why "Wake up instead — rather than settling"
    * appeared beside a "Just move" practice, which settles nothing.
    */
-  const primaryNeed = ctx.preferredNeed ?? defaultNeedFor(ctx);
+  // A guest who has not taken the quiz and has not practiced gets a neutral
+  // "just move" alternative, including in the evening. Sleep was showing up
+  // as "better sleep" before anyone had said that was their focus.
+  const guestUnset =
+    !ctx.programDay && !ctx.quizPlan && !ctx.profile && !ctx.intent && !ctx.preferredNeed && !ctx.hasPracticed;
+  const evening = !guestUnset && (ctx.hour >= 20 || ctx.hour < 4);
+  const primaryNeed = guestUnset ? "movement" : (ctx.preferredNeed ?? defaultNeedFor(ctx));
   const primaryLabel = needLabel(primaryNeed);
 
   /** A focus that genuinely asks less of the body than `primaryNeed`. */

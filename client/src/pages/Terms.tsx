@@ -73,7 +73,7 @@ export default function Terms() {
       <section className="space-y-3 text-sm leading-relaxed">
         <h2 className="font-serif text-xl">Subscriptions &amp; fair billing</h2>
         <p className="text-muted-foreground">
-          Core guest practice, the pose safety library, captions, and basic modifications stay free.
+          Core guest practice, the pose safety library, captions, and basic modifications stay free.{" "}
           {BILLING_ENABLED ? "Paid plans are managed through checkout and your subscription settings. Review the terms shown at checkout before subscribing." : "Paid subscriptions are not available on this deployment. You will not be charged."}
         </p>
       </section>

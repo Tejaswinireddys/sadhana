@@ -53,7 +53,7 @@ export type SessionMeta = {
    * A teaching mode chosen for THIS practice, overriding the voice preference.
    *
    * Set only when the practitioner explicitly picked it — for example, taking
-   * a "practise this in 5 minutes with captions instead of voice" offer when
+   * a "practice this in 5 minutes with captions instead of voice" offer when
    * narration is what pushed the session over the length they asked for.
    */
   instructionMode?: InstructionMode | null;

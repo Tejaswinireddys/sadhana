@@ -4,6 +4,7 @@ import { asanaBySlug } from "../data/content.ts";
 import { narrationSecondsFor } from "../data/narrationDurations.ts";
 import { sessionSeconds, sessionTimeLabel, TRANSITION_SECONDS } from "../data/quickSessions.ts";
 import {
+  applyThirtySeconds,
   estimateInstructionSeconds,
   guidedPhaseLabel,
   guidedPoseSeconds,
@@ -11,9 +12,11 @@ import {
   guidedTimeLabel,
   holdRemainingAfterInstruction,
   instructionCountdown,
+  nextStageLayers,
   remainingFooterLabel,
   remainingFromPhases,
   resolveInstructionSeconds,
+  visibleGuidedCountdown,
 } from "./guidedDuration.ts";
 
 describe("guided duration", () => {
@@ -120,5 +123,61 @@ describe("guided duration", () => {
       instructionSeconds: 20,
     });
     assert.ok(each > once * 1.5);
+  });
+});
+
+describe("plus 30 seconds and skip while paused", () => {
+  it("adds 30s to the how-to countdown when the timer owns that phase", () => {
+    const next = applyThirtySeconds({
+      phase: "instruction",
+      phaseRemaining: 12,
+      pendingExtension: 0,
+      instructionIsAudioDriven: false,
+    });
+    assert.equal(next.phaseRemaining, 42);
+    assert.equal(next.pendingExtension, 0);
+    assert.equal(
+      visibleGuidedCountdown({
+        phase: "instruction",
+        phaseRemaining: next.phaseRemaining,
+        instructionLeft: next.phaseRemaining,
+        pendingExtension: next.pendingExtension,
+      }),
+      42,
+    );
+  });
+
+  it("banks 30s during narrated how-to and shows it on the countdown", () => {
+    const next = applyThirtySeconds({
+      phase: "instruction",
+      phaseRemaining: 12,
+      pendingExtension: 0,
+      instructionIsAudioDriven: true,
+    });
+    assert.equal(next.phaseRemaining, 12);
+    assert.equal(next.pendingExtension, 30);
+    assert.equal(holdRemainingAfterInstruction(40, next.pendingExtension), 70);
+    assert.equal(
+      visibleGuidedCountdown({
+        phase: "instruction",
+        phaseRemaining: 12,
+        instructionLeft: 18,
+        pendingExtension: 30,
+      }),
+      48,
+    );
+  });
+
+  it("drops the previous pose layer when the cross-fade is off (paused skip)", () => {
+    const prev = [{ slug: "tadasana" }, { slug: "uttanasana" }];
+    assert.deepEqual(nextStageLayers(prev, { slug: "savasana" }, { crossfade: false }), [
+      { slug: "savasana" },
+    ]);
+    assert.deepEqual(
+      nextStageLayers([{ slug: "tadasana" }], { slug: "uttanasana" }, { crossfade: true }).map(
+        (layer) => layer.slug,
+      ),
+      ["tadasana", "uttanasana"],
+    );
   });
 });

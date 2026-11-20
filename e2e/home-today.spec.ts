@@ -4,7 +4,7 @@ import { LEGAL_VERSION } from "../client/src/lib/legal";
 /**
  * Today is one decision, not a directory. These cover the states it has to
  * handle deliberately: loading, a new guest, a returning guest with a saved
- * plan, and a day that has already been practised.
+ * plan, and a day that has already been practiced.
  */
 async function seed(page: Page, extra: Record<string, string> = {}) {
   await page.addInitScript(
@@ -229,14 +229,14 @@ test.describe("Today handles its states deliberately", () => {
     });
     await page.goto("/");
     const done = page.getByTestId("banner-practiced-today");
-    await expect(done).toContainText(/You practised today/);
+    await expect(done).toContainText(/You practiced today/);
     await expect(done).toContainText(/12 minutes/);
     await expect(page.getByTestId("button-practiced-reflect")).toBeVisible();
     // Compact: one line, so the next practice stays above the fold on a phone.
     const box = await done.boundingBox();
     expect(box?.height ?? 999).toBeLessThan(120);
-    // And practising again is offered as a choice, not as if nothing happened.
-    await expect(page.getByRole("heading", { name: /Practise again/i })).toBeVisible();
+    // And practicing again is offered as a choice, not as if nothing happened.
+    await expect(page.getByRole("heading", { name: /Practice again/i })).toBeVisible();
   });
 
   test("the storage card talks about storage, not safety", async ({ page }) => {

@@ -495,7 +495,7 @@ export default function Home() {
         <div className="flex items-center gap-2">
           <Play className="h-5 w-5 text-primary" aria-hidden />
           <h2 id="primary-practice-heading" className="font-serif text-xl">
-            {practicedToday ? "Practise again" : "Today's practice"}
+            {practicedToday ? "Practice again" : "Today's practice"}
           </h2>
         </div>
 
@@ -509,7 +509,7 @@ export default function Home() {
             data-testid="banner-practiced-today"
           >
             <span>
-              <span className="font-medium">You practised today</span>
+              <span className="font-medium">You practiced today</span>
               <span className="text-muted-foreground">
                 {` · ${todayMinutes} ${todayMinutes === 1 ? "minute" : "minutes"}. Rest counts too.`}
               </span>
@@ -923,7 +923,7 @@ export default function Home() {
             {/*
               Three numbers about THIS week, from sessions dated inside it.
               These tiles used to show lifetime totals under this heading: 8
-              days practised and 17 sessions, in a week that has seven days.
+              days practiced and 17 sessions, in a week that has seven days.
             */}
             <div className="grid grid-cols-3 gap-3" data-testid="week-tiles">
               {[
@@ -1221,7 +1221,7 @@ function AlternativeCard({
                 shadow={false}
                 rounded="rounded-md"
                 aspect="aspect-square"
-                fit="cover"
+                fit="contain"
                 className="h-10 w-10 shrink-0 bg-background"
                 sizes="40px"
               />

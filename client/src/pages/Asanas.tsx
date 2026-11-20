@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PoseCardVideo } from "@/components/PoseCardVideo";
 import { EmptyState } from "@/components/EmptyState";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { applyFavoriteToggle } from "@/lib/favoriteToggle";
 import { ASANAS, CATEGORIES, type Category, type Asana } from "@/data/content";
 import { matchesCategoryFilter } from "@/data/poseTaxonomy";
 import { audienceChipFromProfileId, type AudienceChip } from "@/data/profiles";
@@ -106,7 +107,25 @@ export default function Asanas() {
       isFav
         ? apiRequest("DELETE", `/api/favorites/asanas/${slug}`)
         : apiRequest("POST", "/api/favorites/asanas", { slug }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/favorites/asanas"] }),
+    onMutate: async ({ slug, isFav }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/favorites/asanas"] });
+      const prev = queryClient.getQueryData<FavoriteAsana[]>(["/api/favorites/asanas"]);
+      const nextSlugs = applyFavoriteToggle((prev ?? []).map((row) => row.slug), slug, isFav);
+      queryClient.setQueryData<FavoriteAsana[]>(
+        ["/api/favorites/asanas"],
+        nextSlugs.map((item) => prev?.find((row) => row.slug === item) ?? {
+          id: -1,
+          ownerId: "",
+          slug: item,
+          createdAt: new Date().toISOString(),
+        }),
+      );
+      return { prev };
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.prev) queryClient.setQueryData(["/api/favorites/asanas"], context.prev);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/favorites/asanas"] }),
   });
 
   const list = useMemo(() => {

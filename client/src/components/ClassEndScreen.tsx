@@ -16,7 +16,7 @@ type LogState =
   | { kind: "failed" };
 
 /**
- * "Class complete": time practised, an effort rating, and the next class with
+ * "Class complete": time practiced, an effort rating, and the next class with
  * a cancellable 10s countdown.
  *
  * The finished class is logged once, as it ends, through `logPracticeSession`
@@ -81,8 +81,8 @@ export function ClassEndScreen({ item, next, watchedSeconds, onWatchAgain }: {
       <h2 ref={heading} tabIndex={-1} className="font-serif text-2xl font-semibold outline-none">Class complete</h2>
       <p className="text-muted-foreground" data-testid="class-end-time" role="status">
         {log.kind === "not-counted"
-          ? `Less than ${CLASS_MIN_COUNTED_SECONDS / 60} minute practised, so this one isn't added to Progress.`
-          : `${formatClassMinutes(entry?.minutes ?? 0)} practised${
+          ? `Less than ${CLASS_MIN_COUNTED_SECONDS / 60} minute practiced, so this one isn't added to Progress.`
+          : `${formatClassMinutes(entry?.minutes ?? 0)} practiced${
             log.kind === "saved" ? " · added to Progress" : log.kind === "failed" ? " · couldn't save to Progress" : ""}.`}
       </p>
 

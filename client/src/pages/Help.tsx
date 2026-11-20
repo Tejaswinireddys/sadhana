@@ -152,12 +152,12 @@ export default function Help() {
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p>
-            A session counts when you actually practise it. Leaving early, or skipping through the
+            A session counts when you actually practice it. Leaving early, or skipping through the
             poses, does not earn credit — the player tells you before you exit.
           </p>
           <p>
             Missing a day does not delete anything. There is no penalty and no streak shaming; the
-            number simply reflects the days you practised.
+            number simply reflects the days you practiced.
           </p>
         </CardContent>
       </Card>

@@ -92,4 +92,4 @@ export function poseHasUnreviewedClaims(asana: Asana): boolean {
 
 /** The caveat shown next to an unreviewed Benefits list. */
 export const BENEFIT_REVIEW_NOTE =
-  "These describe what the pose is traditionally practised for. They have not been reviewed against clinical evidence and are not medical advice.";
+  "These describe what the pose is traditionally practiced for. They have not been reviewed against clinical evidence and are not medical advice.";

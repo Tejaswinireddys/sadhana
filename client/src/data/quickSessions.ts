@@ -4,6 +4,7 @@ import { asanaBySlug, type Mood } from "@/data/content";
 import {
   guidedSessionSeconds,
   guidedTimeLabel,
+  instructionModeShort,
   SIDE_SWITCH_SECONDS,
   TRANSITION_SECONDS,
   type InstructionMode,
@@ -86,9 +87,7 @@ export function preSessionSummary(opts: {
   const how =
     opts.mode === "timer"
       ? "timer only"
-      : opts.mode === "brief"
-        ? "Flow — short on-screen cues"
-        : "Learn — voice guidance with captions";
+      : instructionModeShort(opts.mode ?? "guided");
   const core = `${opts.poseCount} ${poseWord} · ${time} · ${how}.`;
   const label = opts.label?.trim();
   return label ? `${label} · ${core}` : core;

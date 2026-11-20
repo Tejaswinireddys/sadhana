@@ -60,7 +60,7 @@ test.describe("the landing page says what this is", () => {
         /\d+ min, including guidance · (Beginner|Intermediate|Advanced) · (Gentle|Moderate|Strong) · \d+ poses/,
       );
       await expect(card).toContainText(/Needs |No props/);
-      await expect(card).toContainText(/Learn, with captions/);
+      await expect(card).toContainText(/Learn — voice, captions, AI video on featured poses/);
 
       const previewBtn = page.getByTestId(`landing-session-preview-${id}`);
       await expect(previewBtn).toHaveAttribute("aria-expanded", "false");

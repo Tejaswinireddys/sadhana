@@ -7,7 +7,7 @@
  * before handing over an email. So the policy is drawn along a different line.
  *
  *   FREE            — how a pose is *identified*: name, Sanskrit, category,
- *                     difficulty, summary, illustration, why you'd practise it.
+ *                     difficulty, summary, illustration, why you'd practice it.
  *                     Enough to be findable, linkable, and credible.
  *
  *   ACCOUNT         — how a pose is *taught*: the step-by-step instructions,

@@ -7,7 +7,7 @@
  * until you know *how it will be taught*. The player speaks 55–70s of recorded
  * narration per pose when voice is on, reads the steps in a 12s silent window
  * when voice is off, and speaks nothing at all in the timer-only mode on
- * /practice. Advertising the narrated number to someone practising in silence
+ * /practice. Advertising the narrated number to someone practicing in silence
  * overstates a four-pose wind-down by three and a half minutes. Every duration
  * here therefore takes an `InstructionMode`, and every screen passes the mode
  * the practitioner will actually get.
@@ -61,7 +61,7 @@ export function instructionModeDescription(mode: InstructionMode): string {
 export function instructionModeShort(mode: InstructionMode): string {
   switch (mode) {
     case "guided":
-      return "Learn — voice guidance with captions";
+      return "Learn — voice, captions, and AI trainer video when this pose has one";
     case "brief":
       return "Flow — short on-screen cues";
     case "timer":
@@ -249,6 +249,64 @@ export function instructionCountdown(opts: {
     return Math.max(0, Math.round(opts.audioDuration - opts.audioCurrentTime));
   }
   return Math.max(0, Math.round(opts.phaseRemaining));
+}
+
+/**
+ * +30s. During a live countdown (hold, get-ready, side switch, silent how-to)
+ * the number on screen grows immediately. While narration audio owns the
+ * how-to clock, the extra seconds are banked for the hold — the visible
+ * countdown adds that bank on top of the audio time (`visibleGuidedCountdown`).
+ */
+export function applyThirtySeconds(opts: {
+  phase: string;
+  phaseRemaining: number;
+  pendingExtension: number;
+  /** True when how-to time is the narration file, not `phaseRemaining`. */
+  instructionIsAudioDriven: boolean;
+}): { phaseRemaining: number; pendingExtension: number; extendHoldBudget: boolean } {
+  if (opts.phase === "instruction" && opts.instructionIsAudioDriven) {
+    return {
+      phaseRemaining: opts.phaseRemaining,
+      pendingExtension: opts.pendingExtension + 30,
+      extendHoldBudget: false,
+    };
+  }
+  return {
+    phaseRemaining: opts.phaseRemaining + 30,
+    pendingExtension: opts.pendingExtension,
+    extendHoldBudget: opts.phase === "hold",
+  };
+}
+
+/** The big countdown. Audio-driven how-to still shows time banked for the hold. */
+export function visibleGuidedCountdown(opts: {
+  phase: string;
+  phaseRemaining: number;
+  instructionLeft: number;
+  pendingExtension: number;
+}): number {
+  if (opts.phase === "instruction") {
+    return Math.max(0, Math.round(opts.instructionLeft)) + Math.max(0, opts.pendingExtension);
+  }
+  return Math.max(0, Math.round(opts.phaseRemaining));
+}
+
+export type StageLayerRef = { slug: string };
+
+/**
+ * Pose cross-fade. While the clock is paused, keep only the incoming pose —
+ * a paused <video> ignores its parent's opacity, so the previous trainer
+ * stayed on screen until Resume.
+ */
+export function nextStageLayers<T extends StageLayerRef>(
+  prev: readonly T[],
+  next: T,
+  opts: { crossfade: boolean },
+): T[] {
+  if (!opts.crossfade || prev.length === 0) return [next];
+  const top = prev[prev.length - 1];
+  if (top?.slug === next.slug) return [...prev];
+  return [...prev, next].slice(-2);
 }
 
 export function guidedPhaseLabel(phase: GuidedPhase | string): string {

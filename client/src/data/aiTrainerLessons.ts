@@ -1,15 +1,23 @@
 /**
- * AI trainer lesson previews — pilot MP4 + English captions for a few poses.
+ * AI trainer lesson previews — pilot MP4 + English captions.
  *
  * These are not reviewed movement demonstrations. They must not be entered in
  * REVIEWED_MOVEMENT_DEMOS or promoted through instructorMediaManifest to
- * `published`. The UI labels them "AI trainer preview" so testers know they
- * are pilot content.
+ * `published`. The UI labels them "AI trainer preview".
  *
- * v3 clips are portrait 9:16 (720×1280), letterboxed so the trainer stays
- * full-body. Filenames include `-v3` so browsers and any stale SW asset cache
- * cannot keep serving the landscape v2 files.
+ * Adding a pose is data: one row in `aiTrainerLessons.manifest.json` plus
+ * `client/public/videos/ai-trainer/{slug}-{version}.mp4`, a matching `.vtt`
+ * under `client/public/captions/ai-trainer/`, and a `-poster.jpg`. See
+ * `docs/ai-trainer-lessons.md`. Do not invent the media files.
+ *
+ * v3 files are 720×1280 slides. The trainer is a 16:9 picture in the middle;
+ * the rest is beige. The player is 16:9 with object-cover so those bars are
+ * cropped and the trainer fills the frame.
  */
+// `with { type: "json" }` is required by Node's ESM loader (Playwright). Vite
+// accepts the same attribute, so the client bundle still inlines the file.
+import manifest from "./aiTrainerLessons.manifest.json" with { type: "json" };
+
 export type AiTrainerLesson = {
   slug: string;
   english: string;
@@ -21,7 +29,7 @@ export type AiTrainerLesson = {
   /** Honest consumer-facing label — never "reviewed" or "instructor-approved". */
   label: string;
   durationHint: string;
-  /** Native frame size — always portrait for v3. */
+  /** Native file size. The player crops to the centered 16:9 trainer band. */
   width: number;
   height: number;
 };
@@ -29,55 +37,41 @@ export type AiTrainerLesson = {
 export const AI_TRAINER_PREVIEW_LABEL = "AI trainer preview";
 
 /** Asset revision baked into paths so deploy + hard-refresh pick up new media. */
-export const AI_TRAINER_ASSET_VERSION = "v3";
+export const AI_TRAINER_ASSET_VERSION = manifest.assetVersion;
+
+type ManifestLesson = {
+  slug: string;
+  english: string;
+  sanskrit: string;
+  durationHint: string;
+};
+
+function lessonFrom(row: ManifestLesson): AiTrainerLesson {
+  const version = AI_TRAINER_ASSET_VERSION;
+  return {
+    slug: row.slug,
+    english: row.english,
+    sanskrit: row.sanskrit,
+    mp4: `/videos/ai-trainer/${row.slug}-${version}.mp4`,
+    captionsVtt: `/captions/ai-trainer/${row.slug}-${version}.vtt`,
+    poster: `/videos/ai-trainer/${row.slug}-${version}-poster.jpg`,
+    label: AI_TRAINER_PREVIEW_LABEL,
+    durationHint: row.durationHint,
+    width: manifest.frame.width,
+    height: manifest.frame.height,
+  };
+}
 
 /**
  * Pilot lessons shipped for trainer testing. Keys are catalog asana slugs.
  * Paths are absolute from the site root so SPA deep links and static serving
  * both resolve them.
  */
-export const AI_TRAINER_LESSONS: Record<string, AiTrainerLesson> = {
-  tadasana: {
-    slug: "tadasana",
-    english: "Mountain Pose",
-    sanskrit: "Tadasana",
-    mp4: `/videos/ai-trainer/tadasana-${AI_TRAINER_ASSET_VERSION}.mp4`,
-    captionsVtt: `/captions/ai-trainer/tadasana-${AI_TRAINER_ASSET_VERSION}.vtt`,
-    poster: `/videos/ai-trainer/tadasana-${AI_TRAINER_ASSET_VERSION}-poster.jpg`,
-    label: AI_TRAINER_PREVIEW_LABEL,
-    durationHint: "About 2½ minutes",
-    width: 720,
-    height: 1280,
-  },
-  "adho-mukha-svanasana": {
-    slug: "adho-mukha-svanasana",
-    english: "Downward-Facing Dog",
-    sanskrit: "Adho Mukha Svanasana",
-    mp4: `/videos/ai-trainer/adho-mukha-svanasana-${AI_TRAINER_ASSET_VERSION}.mp4`,
-    captionsVtt: `/captions/ai-trainer/adho-mukha-svanasana-${AI_TRAINER_ASSET_VERSION}.vtt`,
-    poster: `/videos/ai-trainer/adho-mukha-svanasana-${AI_TRAINER_ASSET_VERSION}-poster.jpg`,
-    label: AI_TRAINER_PREVIEW_LABEL,
-    durationHint: "About 2½ minutes",
-    width: 720,
-    height: 1280,
-  },
-  "virabhadrasana-ii": {
-    slug: "virabhadrasana-ii",
-    english: "Warrior II",
-    sanskrit: "Virabhadrasana II",
-    mp4: `/videos/ai-trainer/virabhadrasana-ii-${AI_TRAINER_ASSET_VERSION}.mp4`,
-    captionsVtt: `/captions/ai-trainer/virabhadrasana-ii-${AI_TRAINER_ASSET_VERSION}.vtt`,
-    poster: `/videos/ai-trainer/virabhadrasana-ii-${AI_TRAINER_ASSET_VERSION}-poster.jpg`,
-    label: AI_TRAINER_PREVIEW_LABEL,
-    durationHint: "About 2½ minutes",
-    width: 720,
-    height: 1280,
-  },
-};
+export const AI_TRAINER_LESSONS: Record<string, AiTrainerLesson> = Object.fromEntries(
+  (manifest.lessons as ManifestLesson[]).map((row) => [row.slug, lessonFrom(row)]),
+);
 
-export const AI_TRAINER_LESSON_SLUGS = Object.keys(AI_TRAINER_LESSONS) as Array<
-  keyof typeof AI_TRAINER_LESSONS
->;
+export const AI_TRAINER_LESSON_SLUGS = Object.keys(AI_TRAINER_LESSONS);
 
 export function aiTrainerLessonFor(slug: string): AiTrainerLesson | undefined {
   return AI_TRAINER_LESSONS[slug];
@@ -85,6 +79,17 @@ export function aiTrainerLessonFor(slug: string): AiTrainerLesson | undefined {
 
 export function hasAiTrainerLesson(slug: string): boolean {
   return Boolean(AI_TRAINER_LESSONS[slug]);
+}
+
+/** One honest sentence for marketing. Names real coverage; does not invent the rest. */
+export function aiTrainerCoverageLine(): string {
+  const lessons = AI_TRAINER_LESSON_SLUGS.map((slug) => AI_TRAINER_LESSONS[slug]!).filter(Boolean);
+  if (lessons.length === 0) {
+    return "Illustrated poses with a calm voice. AI trainer video is not in the library yet.";
+  }
+  const names = lessons.map((lesson) => lesson.english);
+  const list = names.length <= 4 ? names.join(", ") : `${names.length} poses`;
+  return `AI trainer video on ${list}. Every other pose stays a labelled still until its video is ready.`;
 }
 
 /**
@@ -98,19 +103,17 @@ export function teachingVisual(slug: string, reviewedMovement: boolean): "moveme
 }
 
 /**
- * Portrait player layout — height-first so a 9:16 clip fills available height
- * instead of sitting tiny inside a wide letterbox. `object-contain` only; never
- * cover crop (that crops head/feet). Callers pass these onto the <video>
- * (and VideoPlayer's `videoClassName`).
+ * 16:9 frame. The file is a tall slide; object-cover at object-center crops
+ * the beige bars and keeps the trainer. Never object-contain on these files —
+ * that is what left the trainer postage-stamp sized inside the beige.
  */
 export const AI_TRAINER_PORTRAIT_SHELL =
-  "mx-auto flex w-full max-w-full items-center justify-center";
+  "mx-auto flex w-full max-w-3xl items-center justify-center";
 
-/** Detail / VideoPlayer: explicit viewport height, width follows 9:16. */
+/** Detail / VideoPlayer. */
 export const AI_TRAINER_PORTRAIT_VIDEO =
-  "aspect-[9/16] h-[min(80vh,72dvh)] w-auto max-w-full rounded-xl bg-card object-contain";
+  "aspect-video h-auto w-full max-w-full rounded-xl bg-card object-cover object-center";
 
-/** Guided practice stage: fill the stage height, width follows 9:16. */
+/** Guided practice stage: fit the stage without a portrait letterbox. */
 export const AI_TRAINER_PRACTICE_VIDEO =
-  "aspect-[9/16] h-full max-h-full w-auto max-w-full rounded-xl object-contain";
-
+  "aspect-video h-auto max-h-full w-full max-w-full rounded-xl object-cover object-center";

@@ -231,7 +231,7 @@ export type SessionEquipment = {
   /** Every distinct thing to fetch, in vocabulary order. */
   required: EquipmentChoice[];
   optional: EquipmentItem[];
-  /** Poses that cannot be practised as written without a prop. */
+  /** Poses that cannot be practiced as written without a prop. */
   requiredBy: Array<{ slug: string; english: string; choices: EquipmentChoice[] }>;
 };
 

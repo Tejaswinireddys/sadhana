@@ -23,8 +23,6 @@
 // resume / complete. The on-screen caption is visual only (it includes a
 // breath label that ticks every second).
 import { SessionSpec } from "@/components/SessionSpec";
-import { WithheldPoseImage } from "@/components/WithheldPoseImage";
-import { poseImageWithheld } from "@/data/poseImageAccuracy";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
@@ -129,9 +127,12 @@ import {
   estimateInstructionSeconds,
   guidedPhaseLabel,
   holdRemainingAfterInstruction,
+  applyThirtySeconds,
   instructionCountdown,
+  nextStageLayers,
   remainingFooterLabel,
   remainingFromPhases,
+  visibleGuidedCountdown,
   teachesFully,
   instructionModeDescription,
   BRIEF_INSTRUCTION_SECONDS,
@@ -402,6 +403,8 @@ export default function GuidedSession() {
   const [stepProgress, setStepProgress] = useState(1);
   const [narrationTime, setNarrationTime] = useState(0);
   const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
+  pausedRef.current = paused;
   // Session-local narration mute — independent of the saved `voiceEnabled`
   // preference, so silencing the voice for one practice (e.g. to use your own
   // music) doesn't rewrite the user's global setting.
@@ -782,12 +785,13 @@ export default function GuidedSession() {
         sanskrit: pose.sanskrit,
         poseKey: pose.pose,
       };
-      setStageLayers((prev) => {
-        if (!smoothCrossfade || prev.length === 0) return [nextLayer];
-        const top = prev[prev.length - 1];
-        if (top?.slug === nextLayer.slug) return prev;
-        return [...prev, nextLayer].slice(-2);
-      });
+      setStageLayers((prev) =>
+        nextStageLayers(prev, nextLayer, {
+          // A paused video ignores parent opacity, so a cross-fade while paused
+          // left the previous trainer painted under the next pose until Resume.
+          crossfade: smoothCrossfade && !pausedRef.current,
+        }),
+      );
       setChromeVisible(true);
       setPhase("transitionIn");
       setSide(1);
@@ -1489,14 +1493,24 @@ export default function GuidedSession() {
     setPace((p) => (p === 0.75 ? 1 : 0.75));
   };
   const handleAdd30 = () => {
-    if (phase === "hold" || phase === "transitionIn" || phase === "sideSwitch") {
-      setPhaseRemaining((r) => r + 30);
-      if (phase === "hold") setHoldBudget((b) => b + 30);
-    } else {
-      // During narration the countdown is audio-driven; bank the extension so
-      // the upcoming hold actually gets the extra time.
-      bankExtension(30);
+    const audioDriven =
+      phase === "instruction" &&
+      voiceEnabled &&
+      instructionModeRef.current === "mp3" &&
+      !audioBrokenRef.current;
+    const next = applyThirtySeconds({
+      phase,
+      phaseRemaining,
+      pendingExtension: pendingExtension.current,
+      instructionIsAudioDriven: audioDriven,
+    });
+    if (next.pendingExtension !== pendingExtension.current) {
+      bankExtension(next.pendingExtension - pendingExtension.current);
     }
+    if (next.phaseRemaining !== phaseRemaining) {
+      setPhaseRemaining(next.phaseRemaining);
+    }
+    if (next.extendHoldBudget) setHoldBudget((b) => b + 30);
     toast({ title: "+30 seconds", description: "Extended this hold." });
   };
 
@@ -2088,22 +2102,21 @@ export default function GuidedSession() {
   const progress = todays.length > 0 ? (index / todays.length) * 100 : 0;
   const isHold = phase === "hold";
   const exitCopy = sessionExitCopy(creditNow());
-  const bottomCountdown =
-    phase === "transitionIn"
-      ? phaseRemaining
-      : phase === "sideSwitch"
-        ? phaseRemaining
-        : isHold
-          ? phaseRemaining
-          : instructionCountdown({
-              usingMp3:
-                voiceEnabled &&
-                instructionModeRef.current === "mp3" &&
-                !audioBrokenRef.current,
-              audioCurrentTime: audioRef.current?.currentTime ?? 0,
-              audioDuration: voiceDuration || (audioRef.current?.duration ?? 0),
-              phaseRemaining,
-            });
+  const instructionLeft = instructionCountdown({
+    usingMp3:
+      voiceEnabled &&
+      instructionModeRef.current === "mp3" &&
+      !audioBrokenRef.current,
+    audioCurrentTime: audioRef.current?.currentTime ?? 0,
+    audioDuration: voiceDuration || (audioRef.current?.duration ?? 0),
+    phaseRemaining,
+  });
+  const bottomCountdown = visibleGuidedCountdown({
+    phase,
+    phaseRemaining,
+    instructionLeft,
+    pendingExtension: pendingExtensionSec,
+  });
 
   // This render is below the setup/completion returns: do not add hooks here.
   const firstNamedSide = current ? namedSideIn(current.steps) : "right";
@@ -2273,22 +2286,21 @@ export default function GuidedSession() {
               chromeVisible ? "opacity-40" : "pointer-events-none opacity-0",
             )}
           >
-            {poseImageWithheld(prev.slug) ? (
-              <WithheldPoseImage slug={prev.slug} compact />
-            ) : (
-              <img width={80} height={160}
-              src={`${import.meta.env.BASE_URL}poses/${prev.slug}.webp`}
+            <PoseImage
+              key={prev.slug}
+              slug={prev.slug}
               alt={accurateImageAlt(prev.slug, prev.imageAlt)}
-              className="h-20 w-20 rounded-xl object-contain"
-              loading="lazy"
-              decoding="async"
-              onError={(e) => {
-                e.currentTarget.style.visibility = "hidden";
-              }}
-              data-testid="thumb-prev"
+              thumb
+              breath={false}
+              shadow={false}
+              rounded="rounded-xl"
+              aspect="aspect-square"
+              fit="contain"
+              className="h-20 w-20 bg-background"
+              sizes="80px"
+              testId="thumb-prev"
             />
-            )}
-            <span className="max-w-[6rem] truncate text-center text-xs text-muted-foreground">
+            <span className="line-clamp-2 max-w-[6.5rem] text-center text-xs leading-tight text-muted-foreground">
               {prev.english}
             </span>
           </div>
@@ -2301,22 +2313,21 @@ export default function GuidedSession() {
               chromeVisible ? "opacity-40" : "pointer-events-none opacity-0",
             )}
           >
-            {poseImageWithheld(next.slug) ? (
-              <WithheldPoseImage slug={next.slug} compact />
-            ) : (
-              <img width={80} height={160}
-              src={`${import.meta.env.BASE_URL}poses/${next.slug}.webp`}
+            <PoseImage
+              key={next.slug}
+              slug={next.slug}
               alt={accurateImageAlt(next.slug, next.imageAlt)}
-              className="h-20 w-20 rounded-xl object-contain"
-              loading="lazy"
-              decoding="async"
-              onError={(e) => {
-                e.currentTarget.style.visibility = "hidden";
-              }}
-              data-testid="thumb-next"
+              thumb
+              breath={false}
+              shadow={false}
+              rounded="rounded-xl"
+              aspect="aspect-square"
+              fit="contain"
+              className="h-20 w-20 bg-background"
+              sizes="80px"
+              testId="thumb-next"
             />
-            )}
-            <span className="max-w-[6rem] truncate text-center text-xs text-muted-foreground">
+            <span className="line-clamp-2 max-w-[6.5rem] text-center text-xs leading-tight text-muted-foreground">
               {next.english}
             </span>
           </div>
@@ -2347,7 +2358,7 @@ export default function GuidedSession() {
                     smoothCrossfade
                       ? "transition-opacity duration-700 ease-out motion-reduce:transition-none"
                       : "",
-                    isTop ? "z-10 opacity-100" : "z-0 opacity-0",
+                    isTop ? "z-10 opacity-100" : "z-0 opacity-0 [&_video]:invisible",
                   )}
                 >
                   <PoseTrainerStage
@@ -2524,7 +2535,7 @@ export default function GuidedSession() {
           */}
           <div
             className={cn(
-              "sticky bottom-0 z-10 flex flex-wrap items-center justify-center gap-2 bg-background/95 py-1 backdrop-blur-sm transition-opacity duration-500 motion-reduce:transition-none",
+              "sticky bottom-0 z-10 flex flex-nowrap items-center justify-center gap-2 overflow-x-auto bg-background/95 py-1 backdrop-blur-sm transition-opacity duration-500 motion-reduce:transition-none",
               chromeVisible ? "opacity-100" : "pointer-events-none opacity-0",
             )}
             data-testid="guided-transport"
@@ -2557,7 +2568,7 @@ export default function GuidedSession() {
               size="lg"
               onClick={() => setPaused((p) => !p)}
               data-testid="button-pause-guided"
-              className="min-h-11 min-w-[7rem]"
+              className="min-h-11 w-[7.25rem] shrink-0"
               aria-pressed={paused}
               aria-label={paused ? "Resume session" : "Pause session"}
             >

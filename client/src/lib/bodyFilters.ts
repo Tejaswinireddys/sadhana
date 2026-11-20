@@ -76,7 +76,7 @@ function cautionText(asana: Asana): string {
   return [...asana.contraindications, ...asana.avoidIf.map((row) => row.condition)].join(" ").toLowerCase();
 }
 
-/** Why this pose is out, or null if it may be practised under these limits. */
+/** Why this pose is out, or null if it may be practiced under these limits. */
 export function poseBlockedReason(asana: Asana, filters: readonly BodyFilterId[]): string | null {
   if (filters.length === 0) return null;
   const caution = cautionText(asana);

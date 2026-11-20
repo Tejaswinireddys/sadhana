@@ -183,7 +183,7 @@ export function PoseHumanStage({
 
       {focusZone?.label && (
         <span
-          className="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-full bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary shadow-soft backdrop-blur-sm"
+          className="absolute left-1/2 top-2 z-20 -translate-x-1/2 rounded-full bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary shadow-soft backdrop-blur-sm"
           data-testid={`pose-human-focus-label-${slug}`}
         >
           {focusZone.label}
@@ -203,9 +203,10 @@ export function PoseHumanStage({
 
       <span
         className={cn(
-          "pointer-events-none absolute right-2 top-2 z-10 max-w-[75%] rounded-full bg-background/75 px-2 py-0.5 text-right text-[10px] text-muted-foreground backdrop-blur-sm",
+          "pointer-events-none absolute inset-x-2 z-10 line-clamp-2 rounded-md bg-background/85 px-2 py-1 text-center text-[10px] leading-snug text-muted-foreground backdrop-blur-sm",
+          caption ? "bottom-16" : "bottom-2",
           referenceNote
-            ? "font-normal normal-case leading-snug"
+            ? "font-normal normal-case"
             : "font-medium uppercase tracking-wide",
         )}
         data-testid={`pose-human-note-${slug}`}

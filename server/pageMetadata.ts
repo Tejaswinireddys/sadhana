@@ -1,6 +1,6 @@
 import { ASANAS } from "../client/src/data/content";
 const PAGES: Record<string, { title: string; description: string }> = {
-  "/": { title: "Sadhana — Guided yoga practice", description: "Build a daily yoga practice with illustrated poses, voice guidance and captions." },
+  "/": { title: "Sadhana — Guided yoga practice", description: "Build a daily yoga practice with AI trainer video on featured poses, illustrations for the rest, voice guidance and captions." },
   "/welcome": { title: "Sadhana — A daily yoga practice that fits your day", description: "Try a guided practice without an account, or find a session for your experience and available time." },
   "/help": { title: "Help · Sadhana", description: "Help with yoga practice, accounts, recovery codes, accessibility and your data." },
   "/kids": { title: "Kids yoga · Sadhana", description: "Playful yoga poses and breathing activities for children with grown-up supervision." },
@@ -12,7 +12,7 @@ const PAGES: Record<string, { title: string; description: string }> = {
   "/eight-limbs": { title: "Eight limbs · Sadhana", description: "One card a day from the eight-limb list in Patañjali's Yoga Sūtra, with IAST, Devanagari, and a computer-voice guide." },
   "/privacy": { title: "Privacy · Sadhana", description: "How Sadhana stores practice data and how to export or delete it." },
   "/terms": { title: "Terms · Sadhana", description: "Terms for using Sadhana." },
-  "/health-disclaimer": { title: "Health disclaimer · Sadhana", description: "Understand the limits of educational yoga guidance before practising." },
+  "/health-disclaimer": { title: "Health disclaimer · Sadhana", description: "Understand the limits of educational yoga guidance before practicing." },
 };
 export function pageMetadata(pathname: string) {
   if (PAGES[pathname]) return PAGES[pathname];

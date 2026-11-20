@@ -117,7 +117,7 @@ export async function registerRoutes(httpServer: Server, app: Express, options: 
   registerContentAccess(app);
   registerMuxPlaybackRoutes(app);
 
-  // ---- Accounts (optional — guests keep practising on the device owner) ----
+  // ---- Accounts (optional — guests keep practicing on the device owner) ----
   const isSecure = (req: { protocol: string; get(name: string): string | undefined }) =>
     req.protocol === "https" || req.get("x-forwarded-proto") === "https";
 

@@ -1,5 +1,5 @@
 /**
- * Which poses can be practised without getting down to the floor.
+ * Which poses can be practiced without getting down to the floor.
  *
  * "Chair & Limited Mobility" promised "no floor required" while Day 1 ended
  * with Legs on a Chair — which starts "sit beside a chair, then lie back" —

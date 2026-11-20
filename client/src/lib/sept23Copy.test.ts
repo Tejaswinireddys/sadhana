@@ -209,6 +209,33 @@ describe("Today's adjustment copy", () => {
   });
 });
 
+describe("a fresh guest is not handed a sleep practice", () => {
+  it("stays on a neutral movement practice before the quiz, even late at night", () => {
+    const guest: HomeContext = {
+      programDay: null,
+      quizPlan: null,
+      profile: null,
+      intent: null,
+      experience: null,
+      hour: 22,
+      preferredMinutes: null,
+      preferredNeed: null,
+      hasPracticed: false,
+      warmup: {
+        title: "A first practice",
+        poses: [{ slug: "tadasana", holdSeconds: 30 }],
+      },
+    };
+    const primary = recommendPractice(guest);
+    assert.equal(primary?.title, "A first practice");
+    assert.doesNotMatch(primary?.reason ?? "", /sleep/i);
+    const alts = alternativePractices(guest, primary);
+    const blob = alts.map((alt) => `${alt.title} ${alt.reason}`).join(" | ");
+    assert.doesNotMatch(blob, /sleep/i);
+    assert.doesNotMatch(blob, /before bed/i);
+  });
+});
+
 describe("alternatives are about the focus on screen", () => {
   it("compares against the selected focus, not an assumed one", () => {
     const withMovement = ctx({ preferredNeed: "movement" });

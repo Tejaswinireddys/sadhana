@@ -14,7 +14,7 @@ import {
 const guest = { isSignedIn: false, now: {} };
 
 describe("savePromptLevel", () => {
-  it("never interrupts someone who hasn't practised yet", () => {
+  it("never interrupts someone who hasn't practiced yet", () => {
     // A wall in front of the first session is how a wellness app dies.
     assert.equal(savePromptLevel({ ...guest, totalSessions: 0, atCompletion: true }), "none");
   });
