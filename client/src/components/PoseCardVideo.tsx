@@ -6,9 +6,9 @@
  * the pose illustration via PoseImage (never a blank cream box while a poster
  * decodes), and only swap to video on hover.
  *
- * Card frame: fixed 3:4 aspect + object-cover + cream wash so tall 1:2
- * illustrations fill the card without grey side bands. Teaching surfaces keep
- * object-contain via PoseImage's default.
+ * Card frame: fixed 3:4 aspect + object-contain so a tall standing figure
+ * keeps its head and feet. Cover-cropping that 1:2 art clipped Mountain,
+ * Tree, and Warrior II. Teaching surfaces use the same contain fit.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PoseImage } from "@/components/PoseImage";
@@ -105,7 +105,7 @@ export function PoseCardVideo({
         alt={resolvedAlt}
         rounded="rounded-none"
         aspect={POSE_CARD_ASPECT}
-        fit="cover"
+        fit="contain"
         shadow={false}
         breath={false}
         // thumb → resolvePoseImageSources prefers /poses/thumbs/<slug>.webp
@@ -117,7 +117,7 @@ export function PoseCardVideo({
       {showVideo && (
         <video
           ref={videoRef}
-          className="absolute inset-0 z-[1] h-full w-full object-cover object-center"
+          className="absolute inset-0 z-[1] h-full w-full object-contain object-center"
           poster={media?.poster}
           playsInline
           muted

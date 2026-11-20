@@ -771,8 +771,8 @@ export default function AsanaDetail() {
                   breath={false}
                   shadow={false}
                   rounded="rounded-xl"
-                  fit="cover"
-                  aspect="aspect-[4/3]"
+                  fit="contain"
+                  aspect="aspect-[3/4]"
                   sizes="64px"
                 />
                 <span className="mt-1 line-clamp-2 text-xs leading-snug">{rel.english}</span>

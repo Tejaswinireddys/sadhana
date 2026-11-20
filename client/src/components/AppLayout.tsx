@@ -171,7 +171,7 @@ function SidebarSearch() {
               close();
             }
           }}
-          placeholder="Search poses, breathing, kids…"
+          placeholder="Search poses…"
           className="pl-9"
           aria-label="Search Sadhana"
           aria-expanded={open}
@@ -302,14 +302,14 @@ function SidebarSearch() {
                         alt={s.pose.imageAlt}
                         width={96}
                         height={192}
-                        className="h-full w-full scale-[1.35] object-contain"
+                        className="h-full w-full object-contain object-center"
                         loading="lazy"
                         decoding="async"
                       />
                       )}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate">{s.pose.english}</span>
+                      <span className="block leading-snug">{s.pose.english}</span>
                       <span className="block truncate text-xs italic text-muted-foreground">
                         {s.pose.sanskrit}
                       </span>

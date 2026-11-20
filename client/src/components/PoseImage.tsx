@@ -4,10 +4,9 @@
  * Serves WebP via `<picture>` when generated (`npm run gen:pose-webp`), PNG fallback.
  *
  * Fit: every pose source is authored at 600x1200 (1:2, full standing figure).
- * `object-cover` in a wide/short container clips head and feet — bad while
- * teaching. Default to `contain` so the figure is never cut. Library cards
- * intentionally pass `fit="cover"` with a fixed 3:4 frame and a cream
- * (`bg-background`) wash so thumbnails fill without grey side bands.
+ * `object-cover` in a wide/short container clips head and feet. Default to
+ * `contain`, including library cards, so Mountain, Tree, and Warrior II keep
+ * their head and feet.
  */
 import { useCallback, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -183,9 +182,7 @@ export function PoseImage({
             className={cn(
               "relative z-[1] block select-none transition-opacity duration-300",
               fit === "cover" ? "object-cover" : "object-contain",
-              // A full-body figure shrunk to a row thumbnail is a few faint
-              // pixels. Scaling up inside the clip keeps it legible.
-              thumb ? "scale-[1.35]" : "",
+              fit === "contain" ? "object-center" : "",
             rounded,
             "h-full w-full",
             shadow ? "shadow-soft-lg" : "",

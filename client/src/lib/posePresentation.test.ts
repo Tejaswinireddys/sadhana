@@ -50,12 +50,13 @@ describe("pose presentation videos", () => {
 });
 
 describe("pose library card visual polish", () => {
-  it("fills cards with a fixed 3:4 cover crop and cream frame", () => {
+  it("keeps the full figure inside a fixed 3:4 frame", () => {
     const card = readFileSync(resolve("client/src/components/PoseCardVideo.tsx"), "utf8");
     assert.match(card, /aspect-\[3\/4\]/);
-    assert.match(card, /object-cover/);
+    assert.match(card, /object-contain/);
+    assert.doesNotMatch(card, /object-cover/);
     assert.match(card, /bg-background/);
-    assert.match(card, /fit="cover"/);
+    assert.match(card, /fit="contain"/);
     // Always-visible PoseImage base — never an opacity-0 poster waiting onLoad.
     assert.match(card, /<PoseImage/);
     assert.doesNotMatch(card, /pose-card-placeholder/);
@@ -72,7 +73,7 @@ describe("Today pose thumbnails", () => {
   it("shows pose thumbs on the plan card and Or something else alternatives", () => {
     const today = readFileSync(resolve("client/src/components/home/TodayPracticeCard.tsx"), "utf8");
     assert.match(today, /data-testid="today-practice-pose-thumbs"/);
-    assert.match(today, /fit="cover"/);
+    assert.match(today, /fit="contain"/);
     const home = readFileSync(resolve("client/src/pages/Home.tsx"), "utf8");
     assert.match(home, /home-alt-thumbs-/);
     assert.match(home, /PoseImage/);

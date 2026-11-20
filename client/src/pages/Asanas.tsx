@@ -106,7 +106,21 @@ export default function Asanas() {
       isFav
         ? apiRequest("DELETE", `/api/favorites/asanas/${slug}`)
         : apiRequest("POST", "/api/favorites/asanas", { slug }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/favorites/asanas"] }),
+    onMutate: async ({ slug, isFav }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/favorites/asanas"] });
+      const previous = queryClient.getQueryData<FavoriteAsana[]>(["/api/favorites/asanas"]);
+      queryClient.setQueryData<FavoriteAsana[]>(["/api/favorites/asanas"], (current) => {
+        const list = current ?? [];
+        if (isFav) return list.filter((row) => row.slug !== slug);
+        if (list.some((row) => row.slug === slug)) return list;
+        return [...list, { id: -1, ownerId: "", slug, createdAt: new Date().toISOString() }];
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(["/api/favorites/asanas"], context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/favorites/asanas"] }),
   });
 
   const list = useMemo(() => {
@@ -400,7 +414,7 @@ export default function Asanas() {
             return (
               <Card
                 key={a.slug}
-                className="group relative h-full overflow-hidden shadow-soft transition-shadow [content-visibility:auto] [contain-intrinsic-size:auto_340px] hover:shadow-soft-lg hover-elevate"
+                className="group relative h-full overflow-hidden shadow-soft transition-shadow hover:shadow-soft-lg hover-elevate"
                 data-testid={`card-asana-${a.slug}`}
               >
                 {/* Favorite toggle */}

@@ -1221,7 +1221,7 @@ function AlternativeCard({
                 shadow={false}
                 rounded="rounded-md"
                 aspect="aspect-square"
-                fit="cover"
+                fit="contain"
                 className="h-10 w-10 shrink-0 bg-background"
                 sizes="40px"
               />

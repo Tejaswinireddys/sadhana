@@ -304,7 +304,7 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
             href={`/asanas/${cuePose.slug}`}
             target="_blank"
             rel="noopener"
-            className="absolute left-3 top-3 z-10 max-w-[70%] truncate rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            className="absolute bottom-14 left-3 z-10 max-w-[55%] truncate rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             aria-label={`Current pose: ${cuePose.english} (opens the pose page in a new tab)`}
             data-testid="class-pose-cue"
           >
