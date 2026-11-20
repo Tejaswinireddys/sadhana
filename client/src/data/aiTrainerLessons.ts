@@ -14,7 +14,9 @@
  * the rest is beige. The player is 16:9 with object-cover so those bars are
  * cropped and the trainer fills the frame.
  */
-import manifest from "./aiTrainerLessons.manifest.json";
+// `with { type: "json" }` is required by Node's ESM loader (Playwright). Vite
+// accepts the same attribute, so the client bundle still inlines the file.
+import manifest from "./aiTrainerLessons.manifest.json" with { type: "json" };
 
 export type AiTrainerLesson = {
   slug: string;
