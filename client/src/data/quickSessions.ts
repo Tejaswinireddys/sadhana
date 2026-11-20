@@ -88,7 +88,7 @@ export function preSessionSummary(opts: {
       ? "timer only"
       : opts.mode === "brief"
         ? "Flow — short on-screen cues"
-        : "Learn — voice guidance with captions";
+        : "Learn — voice, captions, and an AI trainer video when the pose has one";
   const core = `${opts.poseCount} ${poseWord} · ${time} · ${how}.`;
   const label = opts.label?.trim();
   return label ? `${label} · ${core}` : core;

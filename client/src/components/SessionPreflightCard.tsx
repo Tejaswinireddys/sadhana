@@ -107,7 +107,7 @@ export function SessionPreflightCard({
             {preflight.modeLabel}
           </Badge>
           {preflight.modeDescription}
-          {preflight.usesStaticReference && ` ${STATIC_REFERENCE_LABEL}.`}
+          {preflight.usesStaticReference && ` ${STATIC_REFERENCE_LABEL}`}
         </span>
       </p>
 

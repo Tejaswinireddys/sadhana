@@ -61,7 +61,7 @@ export function instructionModeDescription(mode: InstructionMode): string {
 export function instructionModeShort(mode: InstructionMode): string {
   switch (mode) {
     case "guided":
-      return "Learn — voice guidance with captions";
+      return "Learn — voice, captions, and an AI trainer video when the pose has one";
     case "brief":
       return "Flow — short on-screen cues";
     case "timer":
