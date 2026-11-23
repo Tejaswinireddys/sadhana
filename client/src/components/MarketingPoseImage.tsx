@@ -40,7 +40,7 @@ export function MarketingPoseImage({
   const aspectClass = aspect ?? "aspect-[1/2]";
   const radius = rounded ?? (thumb ? "rounded-lg" : "rounded-2xl");
   const shell = cn(
-    "relative block w-full overflow-hidden bg-accent/30",
+    "relative block w-full overflow-hidden bg-background",
     aspectClass,
     radius,
     className,
@@ -73,7 +73,7 @@ export function MarketingPoseImage({
         decoding={priority || thumb ? "sync" : "async"}
         {...fetchPriority(priority ? "high" : "auto")}
         sizes={sizes}
-        className="h-full w-full object-contain"
+        className="photo-fade-in h-full w-full object-contain motion-reduce:animate-none"
         draggable={false}
       />
     </picture>

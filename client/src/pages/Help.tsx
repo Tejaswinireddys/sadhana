@@ -169,7 +169,7 @@ export default function Help() {
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p>{CLASS_FORMAT_DISCLOSURE}</p>
           <p>
-            Guided practice is separate: each pose shows a labelled illustration with a recorded
+            Guided practice is separate: each pose shows a labeled illustration with a recorded
             voice and captions.
           </p>
         </CardContent>

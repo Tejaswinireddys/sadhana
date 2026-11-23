@@ -89,7 +89,7 @@ export function aiTrainerCoverageLine(): string {
   }
   const names = lessons.map((lesson) => lesson.english);
   const list = names.length <= 4 ? names.join(", ") : `${names.length} poses`;
-  return `AI trainer video on ${list}. Every other pose stays a labelled still until its video is ready.`;
+  return `AI trainer video on ${list}. Every other pose stays a labeled still until its video is ready.`;
 }
 
 /**

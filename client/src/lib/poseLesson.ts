@@ -435,6 +435,10 @@ export function exactExitCueFor(
       "Bend both knees first and slide your feet down the wall toward your pelvis, roll gently onto one side for a breath, and press up with your hands to a neutral seat.",
     savasana:
       "Wiggle your fingers and toes first, bend your knees one at a time to plant your feet on the mat, roll gently onto your side, and press up into a comfortable neutral seat.",
+    // Already the standing base. The generic standing exit told people to
+    // "come up to stand in neutral Mountain Pose" while they were leaving it.
+    tadasana:
+      "Soften your knees, roll your shoulders down your back, and keep your weight even through both feet as you move out of Mountain Pose.",
   };
 
   if (authoredExits[slug]) {
