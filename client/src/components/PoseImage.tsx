@@ -10,7 +10,6 @@
  * (`bg-background`) wash so thumbnails fill without grey side bands.
  */
 import { useCallback, useState } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { PoseSvg } from "@/components/PoseSvg";
 import { asanaBySlug } from "@/data/content";
 import { resolvePoseImageSources } from "@/lib/poseImageSources";
@@ -127,7 +126,9 @@ export function PoseImage({
     <div
       className={cn(
         "relative w-full overflow-hidden",
-        fit === "cover" ? "bg-background" : "bg-accent/30",
+        // Cream, not the gray accent wash. That wash was the placeholder flash
+        // on /welcome and Home while a lazy bitmap was still decoding.
+        "bg-background",
         rounded,
         aspectClass,
         className,
@@ -135,35 +136,24 @@ export function PoseImage({
       style={{ aspectRatio: aspectRatioCss }}
       data-testid={testId ?? `pose-image-${slug}`}
     >
-      {!loaded && !errored && (
-        <>
-          <Skeleton
-            className={cn(
-              "absolute inset-0 h-full w-full",
-              fit === "cover" ? "bg-background" : "",
-              rounded,
-            )}
-          />
-          {/* LQIP-style blur layer from the same asset at tiny intrinsic size.
-              Skipped for thumbs — a blur pass costs more than it buys at 64px.
-              WebP, not the PNG fallback: a plain <img> here downloaded the
-              full ~750KB master next to the ~20KB WebP the <picture> picked. */}
-          {!thumb && (
-            <img
-              src={webpSrc}
-              alt=""
-              aria-hidden
-              width={600}
-              height={1200}
-              className={cn(
-                "pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl",
-                rounded,
-              )}
-              loading={priority ? "eager" : "lazy"}
-              decoding="async"
-            />
+      {!loaded && !errored && !thumb && (
+        // LQIP blur from the same asset. Skipped for thumbs — a blur pass
+        // costs more than it buys at 64px, and a gray skeleton there read as
+        // a broken card. WebP, not the PNG fallback: a plain <img> here
+        // downloaded the full master next to the WebP the <picture> picked.
+        <img
+          src={webpSrc}
+          alt=""
+          aria-hidden
+          width={600}
+          height={1200}
+          className={cn(
+            "pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl",
+            rounded,
           )}
-        </>
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+        />
       )}
       {!errored && (
         <picture key={src}>
@@ -181,14 +171,16 @@ export function PoseImage({
             onLoad={() => setLoaded(true)}
             onError={handleError}
             className={cn(
-              "relative z-[1] block select-none transition-opacity duration-300",
+              "relative z-[1] block select-none",
               fit === "cover" ? "object-cover" : "object-contain",
             rounded,
             "h-full w-full",
             shadow ? "shadow-soft-lg" : "",
-            // Stay visible if `load` never fires (content-visibility, a cached
-            // picture source). Hiding until that event painted blank grey cards.
-            "opacity-100",
+            // Thumbs fade in on the cream wash. `both` ends at opacity 1, so a
+            // missed `load` event cannot leave the card blank the way a
+            // state-gated opacity-0 did. Breath is a different animation, so
+            // it takes over only after the bitmap has loaded.
+            thumb && !(loaded && breath) ? "photo-fade-in motion-reduce:animate-none" : "opacity-100",
             loaded && breath ? "photo-breath" : "",
           )}
             draggable={false}

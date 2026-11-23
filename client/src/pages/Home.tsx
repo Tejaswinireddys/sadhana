@@ -757,10 +757,11 @@ export default function Home() {
           </Link>
         </div>
         <ScrollRow label="Short sessions" testId="home-short-scroll">
-          {shortSessions.map(({ p, minutes }) => (
+          {shortSessions.map(({ p, minutes }, i) => (
             <Card key={p.slug} className="flex w-56 shrink-0 snap-start flex-col overflow-hidden" data-testid={`home-short-${p.slug}`}>
               <PoseImage
                 slug={p.targetImgSlug}
+                priority={i === 0}
                 rounded="rounded-none"
                 aspect="aspect-[4/3]"
                 shadow={false}
@@ -794,7 +795,7 @@ export default function Home() {
           </Link>
         </div>
         <ScrollRow label="Programs" testId="home-programs-scroll">
-          {programShelf.map((p) => (
+          {programShelf.map((p, i) => (
             <Link
               key={p.slug}
               href={`/pathways/${p.slug}`}
@@ -804,6 +805,7 @@ export default function Home() {
               <Card className="flex h-full flex-col overflow-hidden">
                 <PoseImage
                   slug={p.targetImgSlug}
+                  priority={i === 0}
                   rounded="rounded-none"
                   aspect="aspect-[4/3]"
                   shadow={false}
@@ -1217,6 +1219,7 @@ function AlternativeCard({
                 key={`${p.slug}-${i}`}
                 slug={p.slug}
                 thumb
+                priority={i < 2}
                 breath={false}
                 shadow={false}
                 rounded="rounded-md"

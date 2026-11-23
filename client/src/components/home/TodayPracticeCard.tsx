@@ -166,6 +166,7 @@ export function TodayPracticeCard({
                 key={`${p.slug}-${i}`}
                 slug={p.slug}
                 thumb
+                priority
                 breath={false}
                 shadow={false}
                 rounded="rounded-lg"

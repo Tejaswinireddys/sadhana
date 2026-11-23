@@ -15,7 +15,11 @@ describe("pose library card thumbnails", () => {
     assert.match(card, /data-media=\{showVideo \? "video" : "illustration"\}/);
     assert.doesNotMatch(card, /posterReady/);
     assert.doesNotMatch(card, /pose-card-placeholder/);
-    assert.doesNotMatch(card, /opacity-0/);
+    // The still stays painted. Only the hover video is hidden until a frame
+    // exists — an empty poster used to cover Downward-Facing Dog in gray.
+    assert.doesNotMatch(card, /poster=\{/);
+    assert.match(card, /onLoadedData=\{\(\) => setVideoReady\(true\)\}/);
+    assert.match(card, /videoReady \? "opacity-100" : "opacity-0"/);
   });
 
   it("passes thumb so cards resolve via resolvePoseImageSources", () => {
@@ -54,6 +58,54 @@ describe("pose library card thumbnails", () => {
     }
     assert.deepEqual(missing, [], `missing pose thumbs: ${missing.join(", ")}`);
     assert.ok(POSE_THUMBS_READY_LIST.length >= ASANAS.length);
+  });
+
+  it("insets figures and lays Corpse Pose down in the square thumb", async () => {
+    const sharp = (await import("sharp")).default;
+    async function box(slug: string) {
+      const { data, info } = await sharp(resolve(`client/public/poses/thumbs/${slug}.webp`))
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      const { width, height, channels } = info;
+      let minx = width;
+      let miny = height;
+      let maxx = -1;
+      let maxy = -1;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * channels;
+          if (data[i + 3] < 32) continue;
+          const r = data[i] ?? 0;
+          const g = data[i + 1] ?? 0;
+          const b = data[i + 2] ?? 0;
+          const mx = Math.max(r, g, b);
+          const mn = Math.min(r, g, b);
+          if (mx > 215 && mx - mn < 28) continue;
+          if (x < minx) minx = x;
+          if (y < miny) miny = y;
+          if (x > maxx) maxx = x;
+          if (y > maxy) maxy = y;
+        }
+      }
+      return { minx, miny, maxx, maxy, width, height };
+    }
+    const mountain = await box("tadasana");
+    const lion = await box("simhasana");
+    const warrior = await box("virabhadrasana-ii");
+    const corpse = await box("savasana");
+    for (const [name, frame] of [
+      ["Mountain", mountain],
+      ["Lion", lion],
+    ] as const) {
+      assert.ok(frame.miny >= 12, `${name} head is cropped (top ${frame.miny})`);
+      assert.ok(frame.height - 1 - frame.maxy >= 12, `${name} feet are cropped`);
+    }
+    assert.ok(warrior.minx >= 12, `Warrior II left arm is clipped (${warrior.minx})`);
+    assert.ok(warrior.width - 1 - warrior.maxx >= 12, "Warrior II right arm is clipped");
+    const lying = corpse.maxx - corpse.minx;
+    const standing = corpse.maxy - corpse.miny;
+    assert.ok(lying > standing, `Corpse Pose thumb still reads as standing (${lying}x${standing})`);
   });
 
   it("lists how many poses the library shows (for the QA report)", () => {

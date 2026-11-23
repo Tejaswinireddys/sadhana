@@ -444,6 +444,19 @@ describe("exit cues match the pose", () => {
     assert.match(cue, /both feet|your knees/i);
   });
 
+  it("leaves Mountain Pose instead of telling you to come up into it", () => {
+    const cue = exactExitCueFor(asanaBySlug("tadasana")!);
+    assert.match(cue, /move out of Mountain Pose/);
+    assert.doesNotMatch(cue, /come up to stand/i);
+    assert.doesNotMatch(cue, /neutral Mountain Pose/i);
+    // The transition caption appends the next pose. The exit itself must
+    // still make sense in front of "Next: Standing Forward Fold."
+    assert.equal(
+      `${cue} Next: Standing Forward Fold.`.includes("come up to stand in neutral Mountain Pose"),
+      false,
+    );
+  });
+
   it("reserves working-knee language for asymmetrical stands", () => {
     const mismatches = ASANAS.filter((asana) => {
       const cue = exactExitCueFor(asana);

@@ -414,12 +414,18 @@ export default function Asanas() {
       ) : (
         <>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((a) => {
+          {visible.map((a, cardIndex) => {
             const isFav = favSet.has(a.slug);
+            // content-visibility:auto skipped painting the last in-view card
+            // (Downward-Facing Dog on the AI grid) and left its gray skeleton.
+            const aboveFold = aiVideoOnly || cardIndex < 6;
             return (
               <Card
                 key={a.slug}
-                className="group relative h-full overflow-hidden shadow-soft transition-shadow [content-visibility:auto] [contain-intrinsic-size:auto_340px] hover:shadow-soft-lg hover-elevate"
+                className={cn(
+                  "group relative h-full overflow-hidden shadow-soft transition-shadow hover:shadow-soft-lg hover-elevate",
+                  !aboveFold && "[content-visibility:auto] [contain-intrinsic-size:auto_340px]",
+                )}
                 data-testid={`card-asana-${a.slug}`}
               >
                 {/* Favorite toggle */}
@@ -444,6 +450,7 @@ export default function Asanas() {
                       <PoseCardVideo
                         slug={a.slug}
                         alt={a.imageAlt}
+                        priority={aboveFold}
                         testId={`asana-thumb-${a.slug}`}
                       />
                       {hasAiTrainerLesson(a.slug) && (

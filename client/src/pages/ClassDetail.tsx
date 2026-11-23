@@ -10,7 +10,7 @@ import { AdSlot } from "@/components/ads/AdSlot";
 import { ClassEndScreen } from "@/components/ClassEndScreen";
 import { asanaBySlug } from "@/data/content";
 import { aiTrainerLessonFor } from "@/data/aiTrainerLessons";
-import { poseSlugAt } from "@/lib/classPoseCues";
+import { chapterSeekSeconds, poseSlugAt, seekUpdate } from "@/lib/classPoseCues";
 import {
   CLASS_SEEK_SECONDS,
   CLASS_SPEEDS,
@@ -133,6 +133,12 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
   const [initialStart] = useState(() => resumeFrom(item.progress));
   const [startTime, setStartTime] = useState(initialStart);
   const restoring = useRef<{ at: number; play: boolean } | null>(null);
+  /**
+   * Chapter clicks used to set the pose chip from the marker, then a timeupdate
+   * from the old playhead put it back — Easy Seat flashing over a Cow frame
+   * that had not moved. Hold the requested time until the playhead arrives.
+   */
+  const pendingSeek = useRef<{ at: number; from: number; tries: number } | null>(null);
   const playback = useSignedPlayback(item.slug, item.playback!, () => {
     const point = restorePoint(playerRef.current);
     restoring.current = point;
@@ -179,12 +185,27 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
     if (playerRef.current) playerRef.current.playbackRate = value;
   };
 
+  const applySeek = (el: MuxPlayerRefAttributes, seconds: number) => {
+    const target = Math.max(0, seconds);
+    el.currentTime = target;
+    // Mux Player's currentTime setter no-ops when `.media` is missing, and
+    // the underlying element is what hls.js actually seeks.
+    const media = (el as unknown as { media?: { currentTime?: number } }).media;
+    if (media && typeof media.currentTime === "number") media.currentTime = target;
+  };
+
   const seekTo = (seconds: number) => {
     const el = playerRef.current;
     if (!el) return;
-    el.currentTime = Math.max(0, seconds);
-    setChapterIndex(currentChapterIndex(chapters, seconds));
-    setCueSlug(poseSlugAt(item.slug, chapters, seconds));
+    const target = Math.max(0, seconds);
+    const from = Number.isFinite(el.currentTime) ? el.currentTime : 0;
+    pendingSeek.current = { at: target, from, tries: 0 };
+    applySeek(el, target);
+    setChapterIndex(currentChapterIndex(chapters, target));
+    // One frame later, in case the first assignment landed before media existed.
+    requestAnimationFrame(() => {
+      if (pendingSeek.current?.at === target && playerRef.current) applySeek(playerRef.current, target);
+    });
   };
 
   const toggleFullscreen = () => {
@@ -360,9 +381,26 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
             const parsed = parseClassSpeed(String(rate));
             if (rate === parsed && parsed !== speed) { setSpeed(parsed); writeClassSpeed(parsed); }
           }}
+          onSeeked={() => {
+            const pending = pendingSeek.current;
+            const p = position();
+            if (!pending || seekUpdate(pending, p.current) !== "landed") return;
+            pendingSeek.current = null;
+            setChapterIndex(currentChapterIndex(chapters, p.current));
+            setCueSlug(poseSlugAt(item.slug, chapters, p.current));
+          }}
           onTimeUpdate={() => {
             if (restoring.current) return;
             const p = position();
+            const pending = pendingSeek.current;
+            const update = seekUpdate(pending, p.current);
+            if (update === "hold" && pending && pending.tries < 8) {
+              pending.tries += 1;
+              const el = playerRef.current;
+              if (el) applySeek(el, pending.at);
+              return;
+            }
+            if (pending) pendingSeek.current = null;
             watched.current = watchedAfter(watched.current, p.current);
             const index = currentChapterIndex(chapters, p.current);
             if (index !== chapterIndex) setChapterIndex(index);
@@ -469,7 +507,7 @@ function ClassVideo({ item, next, onCompleted, onPlayingChange }: {
                     aria-current={current ? "true" : undefined}
                     aria-label={`${c.title}, at ${formatTimestamp(c.startSec)}${pose ? `, ${pose.english}` : ""}${current ? " (playing now)" : ""}`}
                     onClick={() => {
-                      seekTo(c.startSec);
+                      seekTo(chapterSeekSeconds(item.slug, chapters, i));
                       if (playerRef.current?.paused) void playerRef.current.play()?.catch(() => undefined);
                     }}
                     data-testid={`class-chapter-${i}`}

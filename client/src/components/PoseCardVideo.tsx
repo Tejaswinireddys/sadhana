@@ -15,6 +15,7 @@ import { PoseImage } from "@/components/PoseImage";
 import { attachHls, type HlsAttachHandle } from "@/lib/hlsAttach";
 import { manifestToVideoSources, usePoseMedia } from "@/lib/poseMediaApi";
 import { asanaBySlug } from "@/data/content";
+import { hasAiTrainerLesson } from "@/data/aiTrainerLessons";
 import { cn } from "@/lib/utils";
 
 function prefersReducedMotion(): boolean {
@@ -31,16 +32,20 @@ export function PoseCardVideo({
   alt,
   className,
   testId,
+  priority = false,
 }: {
   slug: string;
   alt: string;
   className?: string;
   testId?: string;
+  /** Eager-load the still. The first row of /asanas is on screen immediately. */
+  priority?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<HlsAttachHandle | null>(null);
   const [hover, setHover] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
   const reduceMotion = useMemo(() => prefersReducedMotion(), []);
   const { data: manifest } = usePoseMedia(slug);
   const media = useMemo(() => manifestToVideoSources(slug, manifest), [slug, manifest]);
@@ -49,7 +54,8 @@ export function PoseCardVideo({
 
   useEffect(() => {
     setFailed(false);
-  }, [slug]);
+    setVideoReady(false);
+  }, [slug, hover]);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -112,18 +118,28 @@ export function PoseCardVideo({
         // when the generator listed the slug; otherwise full-size WebP/PNG.
         // Off-screen cards stay loading="lazy" (PoseImage default).
         thumb
+        priority={priority}
         className={cn("h-full w-full", POSE_CARD_FRAME_CLASS)}
       />
       {showVideo && (
         <video
           ref={videoRef}
-          className="absolute inset-0 z-[1] h-full w-full object-contain object-center"
-          poster={media?.poster}
+          // Stay invisible until a frame has decoded. The AI-trainer poster is
+          // a tall beige slide; painting it (or an empty video box) over the
+          // illustration turned Downward-Facing Dog into a blank gray card.
+          // object-cover keeps that 16:9 trainer band filling the card.
+          // Generated clips stay object-contain so heads and hands are not cropped.
+          className={cn(
+            "absolute inset-0 z-[1] h-full w-full object-center transition-opacity duration-300 motion-reduce:transition-none",
+            hasAiTrainerLesson(slug) ? "object-cover" : "object-contain",
+            videoReady ? "opacity-100" : "opacity-0",
+          )}
           playsInline
           muted
           loop
-          preload="none"
+          preload="auto"
           aria-hidden
+          onLoadedData={() => setVideoReady(true)}
           onError={() => setFailed(true)}
           data-testid={`pose-card-video-el-${slug}`}
         >

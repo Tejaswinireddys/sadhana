@@ -7,6 +7,7 @@ import {
   AI_TRAINER_LESSONS,
   AI_TRAINER_LESSON_SLUGS,
   AI_TRAINER_PREVIEW_LABEL,
+  aiTrainerCoverageLine,
   aiTrainerLessonFor,
   hasAiTrainerLesson,
   teachingVisual,
@@ -52,6 +53,18 @@ describe("AI trainer lesson catalog", () => {
       // Pilot lessons must not silently become "reviewed movement demos".
       assert.equal(hasMovementDemo(slug), false);
     }
+  });
+
+  it("uses US spelling in the welcome coverage line", () => {
+    const line = aiTrainerCoverageLine();
+    assert.match(line, /labeled still/);
+    assert.doesNotMatch(line, /labelled/);
+    const help = readFileSync(resolve("client/src/pages/Help.tsx"), "utf8");
+    const privacy = readFileSync(resolve("client/src/pages/Privacy.tsx"), "utf8");
+    assert.match(help, /labeled illustration/);
+    assert.match(privacy, /labeled ad/);
+    assert.doesNotMatch(help, /labelled illustration/);
+    assert.doesNotMatch(privacy, /labelled ad/);
   });
 
   it("exposes lookup helpers without inventing lessons", () => {

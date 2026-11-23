@@ -59,7 +59,7 @@ export default function Privacy() {
       <section className="space-y-3 text-sm leading-relaxed" data-testid="privacy-ads">
         <h2 className="font-serif text-xl">Ads and cookies on the free tier</h2>
         <p className="text-muted-foreground">
-          Guests and free accounts may see a small, labelled ad on Today, the class library and free
+          Guests and free accounts may see a small, labeled ad on Today, the class library and free
           class pages. Ads never appear during a class or guided practice, in the Kids area, or on
           sign-in, account, billing or Plus pages. Sadhana Plus members see no ads.
         </p>

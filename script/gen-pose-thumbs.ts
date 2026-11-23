@@ -19,6 +19,7 @@
  */
 import { readdir, mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { supineThumb, THUMB_INSET_PX } from "../client/src/lib/poseThumbFrame.ts";
 
 const SRC_DIR = path.resolve("client/public/poses");
 const OUT_DIR = path.join(SRC_DIR, "thumbs");
@@ -28,6 +29,7 @@ const READY_FILE = path.resolve("client/src/data/poseThumbsReady.generated.ts");
 const SIZE = 160;
 /** Trim threshold — how far from the corner pixel colour still counts as background. */
 const TRIM_THRESHOLD = 12;
+const INSET = THUMB_INSET_PX;
 
 async function needsRegen(src: string, out: string): Promise<boolean> {
   try {
@@ -70,11 +72,26 @@ async function main() {
 
     // One decode + trim + resize, then encode both formats so PNG and WebP
     // stay pixel-aligned (same crop). WebP is what <picture> prefers.
-    const pipeline = sharp(src)
+    //
+    // Inset after the trim: a figure that touches the square gets its crown,
+    // feet, or fingertips clipped by the card's rounded overflow. Savasana is
+    // drawn head-up, which at this size is indistinguishable from standing,
+    // so that one is turned to lie across the frame first.
+    const inner = SIZE - INSET * 2;
+    let pipeline = sharp(src);
+    if (supineThumb(slug)) pipeline = pipeline.rotate(-90);
+    pipeline = pipeline
       // Crop the empty margin so the figure fills the box instead of floating
       // in whitespace. This is what makes a 64px thumbnail readable.
       .trim({ threshold: TRIM_THRESHOLD })
-      .resize(SIZE, SIZE, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } });
+      .resize(inner, inner, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .extend({
+        top: INSET,
+        bottom: INSET,
+        left: INSET,
+        right: INSET,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      });
 
     if (regenPng) {
       await pipeline
